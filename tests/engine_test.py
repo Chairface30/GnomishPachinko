@@ -897,6 +897,30 @@ check("the slow-mo cue plays once a shot; a restart in the same shot is marked a
 check("Fever runs at full speed and the leftover balls start firing within a second",
       not slowed_in_fever and first_shot is not None and first_shot <= 1.0, f"slowed {slowed_in_fever} first shot {first_shot}")
 
+# a near miss is not a close call: a ball falling past the last peg never slows
+lua(r"""
+function near_miss_probe()
+  local spec = L:Build(1)
+  spec.pegs = { { shape = "peg", x = 300, y = 350, kind = "orange", goal = true } }
+  spec.goal = 1
+  local st = E:NewLevel(spec)
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = 300 + 40, y = 200, vx = 0, vy = 150, slow = 0 }
+  local events = {}
+  local slowed = 0
+  for _ = 1, 150 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "last_peg" then slowed = slowed + 1 end end
+    if st.lastSlow then slowed = slowed + 1 end
+    wipe(events)
+    if st.phase ~= E.PHASE.FLIGHT then break end
+  end
+  return slowed, st.pegs[1].lit
+end
+""")
+slowed, lit = ev("near_miss_probe")()
+check("a ball passing 40 px beside the last peg never triggers the slow-mo", slowed == 0 and not lit, f"slowed {slowed} lit {lit}")
+
 # two goal hits in one swoop: the slow-mo starts before the first of them
 lua(r"""
 function close_call_probe()

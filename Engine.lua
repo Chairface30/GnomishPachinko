@@ -65,7 +65,6 @@ E.LAST_SLOWMO     = 0.22
 E.LAST_LOOKAHEAD  = 0.35     -- seconds of flight predicted; a path that finishes the goal starts it
 E.LAST_LOOKAHEAD2 = 0.6      -- when two goal hits remain (a close call: both in one swoop)
 E.LAST_MAX_HITS   = 2        -- the slow-mo is on the table once this few goal hits remain
-E.LAST_NEAR       = 110      -- fallback: a ball this close to the one piece left and heading in starts it too
 E.LAST_LEAVE      = 170      -- it ends when no ball is within this
 E.LAST_MAX_SECS   = 2.0      -- of slowed time, then it waits for the ball to leave and return
 E.LAST_ZOOM       = 1.8
@@ -921,31 +920,37 @@ local function updateLastPeg(state, dt, events)
     -- look-ahead saw struck
     local target = (need == 1 and #goals == 1) and goals[1] or state.lastPeg
     if target and (target.lit or target.gone) then target = nil end
-    local nearest, approaching = math.huge, false
+    local nearest, towards = math.huge, false
     if target then
         for _, ball in ipairs(state.balls) do
             local dx, dy = target.x - ball.x, target.y - ball.y
             local d = sqrt(dx * dx + dy * dy)
             if d < nearest then nearest = d end
-            if need == 1 and d < E.LAST_NEAR and (ball.vx * dx + ball.vy * dy) > 0 then approaching = true end
+            if (ball.vx * dx + ball.vy * dy) > 0 then towards = true end
         end
     end
-    -- the look-ahead, a few times a second rather than every substep: the
-    -- slow-mo starts when a ball's path finishes the goal within it, two
-    -- strikes in one swoop included, so there is time before the first
-    if not state.lastSlow and not approaching and state.lastSpent < E.LAST_MAX_SECS then
-        state.lastLook = (state.lastLook or 0) + 1
-        if state.lastLook % 6 == 0 then
-            local horizon = (need >= 2) and E.LAST_LOOKAHEAD2 or E.LAST_LOOKAHEAD
-            for _, ball in ipairs(state.balls) do
-                local hits, lastPiece = predictGoalHits(state, ball, goals, horizon)
-                if hits >= need and lastPiece then
-                    approaching = true
-                    target = lastPiece
-                    nearest = 0
-                    break
-                end
-            end
+    -- The look-ahead, a few times a second rather than every substep. Only
+    -- a ball whose path really strikes the piece counts as a close call:
+    -- the slow-mo starts when a ball's path finishes the goal within the
+    -- horizon (two strikes in one swoop included, so there is time before
+    -- the first), and while it runs it ends as soon as the ball is off
+    -- track and moving away.
+    local approaching = false
+    state.lastLook = (state.lastLook or 0) + 1
+    if state.lastLook % 6 == 0 and state.lastSpent < E.LAST_MAX_SECS then
+        local horizon = (need >= 2) and E.LAST_LOOKAHEAD2 or E.LAST_LOOKAHEAD
+        local onTrack, trackPiece = false, nil
+        for _, ball in ipairs(state.balls) do
+            local hits, lastPiece = predictGoalHits(state, ball, goals, horizon)
+            if hits >= need and lastPiece then onTrack, trackPiece = true, lastPiece break end
+        end
+        if onTrack then
+            approaching = true
+            target = trackPiece
+            nearest = 0
+        elseif state.lastSlow and not towards then
+            state.lastSlow = false
+            return
         end
     end
     if not target then
