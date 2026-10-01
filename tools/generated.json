@@ -194,6 +194,11 @@
     "prompt": "A short cheerful arcade level-start jingle, two bright rising notes.",
     "secs": 1.0
   },
+  "unlock": {
+    "at": "2026-10-01 19:32",
+    "prompt": "A padlock clicking open and a small cage of metal bars falling apart with a jingle, short.",
+    "secs": 0.9
+  },
   "zap": {
     "at": "2026-10-01 17:39",
     "prompt": "A short crackling electric arc jumping between metal pins, zappy and bright.",

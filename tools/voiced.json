@@ -54,6 +54,11 @@
     "text": "[pleased] Gem!",
     "voice": "wo6udizrrtpIxWGp2qJk"
   },
+  "gnome_bonus": {
+    "at": "2026-10-01 19:32",
+    "text": "[ecstatic, shouting] GNOME BONUS!",
+    "voice": "Northern Terry"
+  },
   "hatched": {
     "at": "2026-10-01 17:38",
     "text": "[delighted] It hatched!",
@@ -119,9 +124,19 @@
     "text": "[spooky, playful] Spooky Ball!",
     "voice": "wo6udizrrtpIxWGp2qJk"
   },
+  "style": {
+    "at": "2026-10-01 19:32",
+    "text": "[impressed] Now that's style!",
+    "voice": "Northern Terry"
+  },
   "three_stars": {
     "at": "2026-10-01 17:38",
     "text": "[ecstatic] Three stars! Magnificent!",
     "voice": "wo6udizrrtpIxWGp2qJk"
+  },
+  "total_miss": {
+    "at": "2026-10-01 19:32",
+    "text": "[deflated] Total miss.",
+    "voice": "Northern Terry"
   }
 }
