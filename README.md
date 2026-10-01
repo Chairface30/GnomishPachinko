@@ -14,7 +14,9 @@ Point the launcher with the mouse and click the field to shoot. You have ten bal
 - **Green** pegs fire the chapter's power.
 - **Steel-rimmed** pieces are tough: they crack on the first hit and light on the second. **Gold-rimmed** ones take three. They start in chapter 4, and from chapter 7 orange pegs can be tough too.
 - The **bucket** sliding along the bottom gives a ball back. So do 25,000, 75,000 and 125,000 points.
-- Finish the goal and **Fever** begins: time slows and the ball drops into one of five bins worth 10,000 to 100,000 points, then every ball you had left is fired at the bins too.
+- Finish the goal and **Fever** begins: the ball drops into one of the five G-N-O-M-E buckets (1,000 / 10,000 / 25,000 / 10,000 / 1,000), then every ball you had left is fired at them too. Light all five and the GNOME bonus pays 100,000 and every bucket is worth 25,000.
+- **Style points**: a Long Shot (two goal pieces far apart in one shot) or a Super Slide (riding along six bricks) pays 5,000. A shot that touches nothing is a Total Miss.
+- **Keys**: a gold cage of bars round some orange pegs falls away when you light its loose key.
 
 ### Objectives
 

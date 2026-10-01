@@ -220,6 +220,7 @@ STANDINS = {
     "bucket.ogg": kaching,
     "rim.ogg": lambda: tone_seq((1900, 1400), each=0.03, decay=28),
     "boss_turn.ogg": lambda: tone_seq((110, 110, 110, 90), each=0.09, decay=16, level_=0.6),
+    "unlock.ogg": lambda: tone_seq((1400, 1100, 1800, 2200, 2600), each=0.06, decay=12),
     "combo.ogg": lambda: tone_seq((523, 659, 784, 1047, 1319), each=0.07),
     "bin.ogg": lambda: tone_seq((880,), decay=6),
     "lost.ogg": lambda: sweep(300, 90, 0.5, 5),

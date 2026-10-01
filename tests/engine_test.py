@@ -137,7 +137,7 @@ ev, lua = rt.eval, rt.execute
 lua(r"""
 function level_report(n)
   local spec = L:Build(n)
-  local counts = { orange = 0, green = 0, blue = 0, purple = 0, egg = 0, gem = 0, boss = 0, brick = 0, total = #spec.pegs,
+  local counts = { orange = 0, green = 0, blue = 0, purple = 0, egg = 0, gem = 0, boss = 0, key = 0, brick = 0, total = #spec.pegs,
                    block = 0, bumper = 0, moving = 0, tough = 0, heavy = 0, toughOrange = 0, goal = 0 }
   local bad = 0
   for i, p in ipairs(spec.pegs) do
@@ -189,7 +189,7 @@ for n in range(1, 1001):
     if spec.objective != expected_kind and not (expected_kind in ("eggs", "gems") and spec.objective == "classic"):
         problems.append((n, "objective", spec.objective, expected_kind))
     if spec.objective == "classic":
-        coloured = counts["total"] - counts["block"] - counts["bumper"]
+        coloured = counts["total"] - counts["block"] - counts["bumper"] - counts["key"]
         orange_expected = min(ev(f"L:Counts({n})"), coloured - max(2, coloured // 4))
         if counts["orange"] != orange_expected or spec.goal != orange_expected:
             problems.append((n, "oranges", counts["orange"], orange_expected))
@@ -428,12 +428,13 @@ function egg_probe()
     if hitsToHatch == 0 then hitsToHatch = hits end
   end
   local fever = count(events, "fever")
-  return n, #eggs, hitsToHatch, fever, st.phase, st.goalLeft
+  return n, #eggs, hitsToHatch, fever, st.phase, st.goalLeft, eggs[1].maxhp
 end
 """)
-n, eggs, hits, fever, phase, left = ev("egg_probe")()
-check(f"eggs take three hits each and hatching them all starts Fever (level {n})", eggs >= 3 and hits == 3 and fever == 1 and phase == "FEVER" and left == 0,
+n, eggs, hits, fever, phase, left, egghp = ev("egg_probe")()
+check(f"eggs take {egghp} hits each and hatching them all starts Fever (level {n})", eggs >= 3 and hits == egghp and egghp == 2 and fever == 1 and phase == "FEVER" and left == 0,
       f"eggs {eggs} hits {hits} fever {fever} {phase} {left}")
+check("eggs take three hits from level 300", ev("(function() for _, p in ipairs(L:Build(305).pegs) do if p.kind == 'egg' then return p.maxhp end end end)()") == 3)
 
 # gems: a hit knocks the gem loose, the bucket catches it, a miss puts it back
 lua(r"""
@@ -461,28 +462,27 @@ function gem_probe()
     wipe(events)
   end
   local r1 = { freed = freed, falling = falling, caught = caught, phase = st.phase, lit = gem.lit, goalHit = st.goalHit }
-  -- again with the bucket out of the way: the gem drains and comes home
+  r1.score = st.score
+  -- again with the bucket out of the way: the gem drops off the bottom and still counts
   st = E:NewLevel(spec)
   st.bucket.x = (gem.x < 300) and (E.FIELD_W - 60) or 60
   st.bucket.dir = 0
   wipe(events)
   touch(st, gem, events)
-  local lost = 0
+  local dropped = 0
   for _ = 1, 240 do
     E:Step(st, 1 / 60, events)
-    lost = lost + count(events, "gem_lost")
-    home = home + count(events, "gem_home")
+    dropped = dropped + count(events, "gem_dropped")
     wipe(events)
   end
-  return n, r1, lost, home, gem.gone, gem.freed, st.phase
+  return n, r1, dropped, st.goalHit, st.phase, st.score
 end
 """)
-n, r1, lost, home, gone, freed, phase = ev("gem_probe")()
-check(f"a gem knocked into the bucket counts and clears (level {n})",
-      r1["freed"] == 1 and r1["falling"] == 1 and r1["caught"] == 1 and r1["phase"] == "FEVER" and r1["lit"] and r1["goalHit"] == 1,
+n, r1, dropped, goal_hit, phase, score2 = ev("gem_probe")()
+check(f"a gem knocked into the bucket counts, clears and pays the Bucket Drop bonus (level {n})",
+      r1["freed"] == 1 and r1["falling"] == 1 and r1["caught"] == 1 and r1["phase"] == "FEVER" and r1["lit"] and r1["goalHit"] == 1 and r1["score"] > score2,
       str(dict(r1)))
-check("a gem that misses the bucket goes back to its nest for the next shot", lost == 1 and home == 1 and not gone and not freed and phase == "AIM",
-      f"lost {lost} home {home} gone {gone} freed {freed} {phase}")
+check("a gem that drops off the bottom still counts", dropped == 1 and goal_hit == 1 and phase == "FEVER", f"dropped {dropped} goal {goal_hit} {phase}")
 
 # boss: hits take health, the bar reaches zero, Fever starts; each ability reacts
 lua(r"""
@@ -712,11 +712,11 @@ for n in list(range(1, 61)) + list(range(480, 500)) + list(range(981, 1001)):
             problems.append((n, "fever timing", info.fever))
         if r.ballsLeft != 0 or info.bins < 1:
             problems.append((n, "leftover balls not fired", r.ballsLeft, info.bins))
-        if r.feverTotal < 10000 * info.bins:
+        if r.feverTotal < 1000 * info.bins:
             problems.append((n, "bins not scored", r.feverTotal, info.bins))
         if r.score > max_cleared_score:
             max_cleared_score = r.score
-        if r.binScore not in (10000, 50000, 100000):
+        if r.binScore not in (1000, 10000, 25000):
             problems.append((n, "bin", r.binScore))
     elif info.fever is not None:
         problems.append((n, "fever without clear"))
@@ -991,6 +991,157 @@ end
 slowed, lit = ev("near_miss_probe")()
 check("a ball passing 40 px beside the last peg never triggers the slow-mo", slowed == 0 and not lit, f"slowed {slowed} lit {lit}")
 
+# the shot's end: a summary when it hit something, a Total Miss when it did not
+lua(r"""
+function shot_end_probe()
+  local spec = L:Build(1)
+  spec.pegs = { { shape = "peg", x = 300, y = 300, kind = "blue" }, { shape = "peg", x = 100, y = 450, kind = "orange", goal = true } }
+  spec.goal = 1
+  local st = E:NewLevel(spec)
+  local events = {}
+  st.aim = 0
+  E:Launch(st, events)
+  local summary, miss
+  for _ = 1, 400 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "shot_summary" then summary = e elseif e.type == "total_miss" then miss = true end end
+    wipe(events)
+    if st.phase == E.PHASE.AIM then break end
+  end
+  local r1 = { summary = summary and summary.pegs, miss = miss }
+  -- a shot straight out at the wall
+  st.aim = 1.4
+  E:Launch(st, events)
+  st.balls[1].x, st.balls[1].y, st.balls[1].vx = 20, 560, 0
+  summary, miss = nil, nil
+  for _ = 1, 200 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "shot_summary" then summary = e elseif e.type == "total_miss" then miss = true end end
+    wipe(events)
+    if st.phase == E.PHASE.AIM then break end
+  end
+  return r1.summary, r1.miss, summary, miss
+end
+""")
+sum1, miss1, sum2, miss2 = ev("shot_end_probe")()
+check("a shot that hits a peg ends with a summary, one that hits nothing is a Total Miss", sum1 == 1 and not miss1 and sum2 is None and miss2, f"{sum1} {miss1} {sum2} {miss2}")
+
+# a Long Shot: two goal pieces far apart lit in one shot
+lua(r"""
+function long_shot_probe()
+  local spec = L:Build(1)
+  spec.pegs = { { shape = "peg", x = 100, y = 300, kind = "orange", goal = true }, { shape = "peg", x = 500, y = 300, kind = "orange", goal = true }, { shape = "peg", x = 300, y = 450, kind = "orange", goal = true } }
+  spec.goal = 3
+  local st = E:NewLevel(spec)
+  local events = {}
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = 100, y = 300 - 16, vx = 0, vy = 0, slow = 0 }
+  E:Step(st, 1 / 60, events)
+  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = 500, 300 - 16, 0, 0
+  E:Step(st, 1 / 60, events)
+  local styles = {}
+  for _, e in ipairs(events) do if e.type == "style" then styles[#styles + 1] = e.name end end
+  return table.concat(styles, ","), st.score
+end
+""")
+styles, score = ev("long_shot_probe")()
+check("two far-apart goal pieces in one shot pay Long Shot style points", styles == "LONG SHOT" and score >= 5000, f"{styles} {score}")
+
+# a grazing ball rides a brick (Super Slide) instead of bouncing off it
+lua(r"""
+function slide_probe()
+  local spec = L:Build(1)
+  spec.pegs = { { shape = "brick", x = 300, y = 400, angle = 0, w = 240, h = 11, kind = "blue" } }
+  spec.goal = 0
+  local st = E:NewLevel(spec)
+  st.phase = E.PHASE.FLIGHT
+  -- skimming along the top of the brick, fast sideways and barely falling
+  st.balls[1] = { x = 200, y = 400 - 5.5 - E.BALL_R - 1, vx = 400, vy = 30, slow = 0 }
+  local events = {}
+  local maxUp = 0
+  for _ = 1, 12 do
+    E:Step(st, 1 / 120, events)
+    local b = st.balls[1]
+    if b and -b.vy > maxUp then maxUp = -b.vy end
+    wipe(events)
+  end
+  return maxUp, spec.pegs[1].lit
+end
+""")
+max_up, lit = ev("slide_probe")()
+check("a grazing touch on a brick slides along it (no bounce up) and lights it", max_up < 15 and lit, f"up {max_up:.1f} lit {lit}")
+
+# the key cage: lighting the key dissolves the gold bars
+lua(r"""
+function cage_probe()
+  local n
+  for k = 81, 400 do if L:Build(k).gimmick == "Key Cage" then n = k break end end
+  if not n then return nil end
+  local st = E:NewLevel(L:Build(n))
+  local key, bars = nil, 0
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "key" then key = p end
+    if p.lock then bars = bars + 1 end
+  end
+  local events = {}
+  touch(st, key, events)
+  local unlocked = count(events, "unlock")
+  local left = 0
+  for _, p in ipairs(st.pegs) do if p.lock and not p.gone then left = left + 1 end end
+  return n, bars, unlocked, left, key.lit
+end
+""")
+cage = ev("cage_probe")()
+check("the Key Cage gimmick appears from chapter 9 and its key dissolves the bars",
+      cage is not None and cage[1] == 4 and cage[2] == 1 and cage[3] == 0 and cage[4], str(cage))
+
+# the GNOME bonus: all five buckets lit pays 100,000 and the buckets become 25,000
+lua(r"""
+function gnome_probe()
+  local spec = L:Build(1)
+  spec.pegs = {}
+  spec.goal = 0
+  local st = E:NewLevel(spec)
+  st.phase = E.PHASE.FEVER
+  st.feverTotal = 0
+  st.ballsLeft = 0
+  local events = {}
+  local bonus, last = 0, 0
+  local binW = E.FIELD_W / #E.FEVER_BINS
+  for i = 1, 6 do
+    local idx = ((i - 1) % 5) + 1
+    st.phase = E.PHASE.FEVER     -- with no balls left the level would end after each landing
+    st.balls[1] = { x = (idx - 0.5) * binW, y = E.FIELD_H - 20, vx = 0, vy = 300, slow = 0 }
+    for _ = 1, 10 do E:Step(st, 1 / 60, events) if not st.balls[1] then break end end
+    for _, e in ipairs(events) do
+      if e.type == "gnome_bonus" then bonus = bonus + 1 end
+      if e.type == "bin" then last = e.points end
+    end
+    wipe(events)
+  end
+  return bonus, last, st.feverTotal
+end
+""")
+bonus, last, total = ev("gnome_probe")()
+check("lighting all five G-N-O-M-E buckets pays the bonus once and the next bucket is worth 25,000", bonus == 1 and last == 25000 and total == 47000 + 100000 + 25000, f"bonus {bonus} last {last} total {total}")
+
+# a retry deals the oranges onto other pegs; the picture is the same
+lua(r"""
+function retry_probe()
+  local a, b = L:Build(11, 0), L:Build(11, 1)
+  local same, diffOrange = #a.pegs == #b.pegs, false
+  for i, p in ipairs(a.pegs) do
+    local q = b.pegs[i]
+    if not q or math.abs(p.x - q.x) > 0.01 or math.abs(p.y - q.y) > 0.01 then same = false end
+    if q and (p.kind == "orange") ~= (q.kind == "orange") then diffOrange = true end
+  end
+  return same, diffOrange, a.goal == b.goal, a.title
+end
+""")
+same, diff_orange, same_goal, title = ev("retry_probe")()
+check("a retry keeps the picture and the goal count but moves the oranges", same and diff_orange and same_goal, f"{same} {diff_orange} {same_goal}")
+check("levels have names", isinstance(title, str) and len(title) > 3 and ev("L:Build(1).title") == "Howdy, Gnome!", str(title))
+
 # two goal hits in one swoop: the slow-mo starts before the first of them
 lua(r"""
 function close_call_probe()
@@ -1141,9 +1292,14 @@ function ui_play(maxSecs)
   return st.phase == E.PHASE.OVER, st.result
 end
 """)
-check("the window opens on level 1", ev("UI.frame:IsShown() and UI.state.level == 1"))
+check("the window opens on level 1 with its start card", ev("UI.frame:IsShown() and UI.state.level == 1 and UI.card:IsShown()"))
+lua("UI.card.main:Click()")
+check("Play on the card hides it", ev("not UI.card:IsShown()"))
 ok, result = ev("ui_play")(900)
 check("a level plays to its end through the window", ok)
+lua("__advance(2.5)")
+check("the result card shows after the level with Retry and Map", ev("UI.card:IsShown() and UI.card.right:IsShown()"))
+lua("UI:HideCard()")
 check("the result is recorded in the saved progress", ev("GnomishPachinkoDB.best[1] ~= nil"))
 check("a loss through the window spends a play", ev("P:Remaining()") == (5 if result.cleared else 4), str(ev("P:Remaining()")))
 lua("UI:StartLevel(1); __before = GnomishPachinkoDB.unlocked")

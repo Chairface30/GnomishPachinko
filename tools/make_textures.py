@@ -304,6 +304,20 @@ def blast(size):
     return img.resize((size, size), Image.LANCZOS)
 
 
+def key_tex(size):
+    big = size * SS
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = big / 2
+    # bow (ring) at the top, shaft down, two teeth
+    r = big * 0.22
+    d.ellipse([c - r, big * 0.1, c + r, big * 0.1 + 2 * r], outline=(255, 255, 255, 255), width=int(big * 0.08))
+    d.rectangle([c - big * 0.05, big * 0.1 + 2 * r - SS, c + big * 0.05, big * 0.92], fill=(255, 255, 255, 255))
+    d.rectangle([c, big * 0.72, c + big * 0.18, big * 0.78], fill=(255, 255, 255, 255))
+    d.rectangle([c, big * 0.84, c + big * 0.14, big * 0.90], fill=(255, 255, 255, 255))
+    return img.resize((size, size), Image.LANCZOS)
+
+
 def save(img, name):
     path = os.path.join(OUT, name)
     img.save(path, format="TGA")
@@ -327,3 +341,4 @@ if __name__ == "__main__":
     save(star(32), "star.tga")
     save(pyramid(256, 32), "pyramid.tga")
     save(blast(128), "blast.tga")
+    save(key_tex(64), "key.tga")

@@ -68,7 +68,18 @@ E.LAST_MAX_HITS   = 2        -- the slow-mo is on the table once this few goal h
 E.LAST_LEAVE      = 170      -- it ends when no ball is within this
 E.LAST_MAX_SECS   = 2.0      -- of slowed time, then it waits for the ball to leave and return
 E.LAST_ZOOM       = 1.8
-E.FEVER_BINS   = { 10000, 50000, 100000, 50000, 10000 }
+-- Fever: the five G-N-O-M-E buckets; light all five and the GNOME bonus
+-- pays out and every bucket is worth GNOME_BUCKET from then on.
+E.FEVER_BINS    = { 1000, 10000, 25000, 10000, 1000 }
+E.FEVER_LETTERS = { "G", "N", "O", "M", "E" }
+E.GNOME_BONUS   = 100000
+E.GNOME_BUCKET  = 25000
+E.BUCKET_DROP   = 10000     -- a gem that lands in the bucket, on top of counting
+E.STYLE_POINTS  = 5000      -- a trick shot: a Long Shot, a Super Slide
+E.LONG_SHOT     = 300       -- two goal pieces at least this far apart in one shot
+E.SLIDE_RATIO   = 0.42      -- a brick contact this grazing slides instead of bouncing
+E.SLIDE_RUN     = 6         -- bricks lit in one slide for the Super Slide award
+E.SLIDE_GAP     = 0.3       -- seconds between two slid bricks that still count as one slide
 E.FEVER_SHOT_GAP = 0.3     -- seconds between the leftover balls fired at the clear
 E.FREE_BALL_SCORES = { 25000, 75000, 125000 }
 
@@ -267,6 +278,13 @@ function E:NewLevel(spec)
         goalLeft = spec.goal or spec.orange or 0,
         goalHit = 0,
         goalHitThisShot = 0,
+        shotHits = 0,
+        shotPegs = 0,
+        shotPoints = 0,
+        shotGoals = {},
+        shotStyles = {},
+        binsLit = {},
+        gnomeBonus = false,
         noBucket = spec.noBucket or false,
         duel = spec.duel and { id = spec.duel.id, name = spec.duel.name, blurb = spec.duel.blurb,
             turns = spec.duel.turns, turnsTotal = spec.duel.turns } or nil,
@@ -460,6 +478,11 @@ function E:Launch(state, events)
     state.shots = state.shots + 1
     state.combo = 0
     state.goalHitThisShot = 0
+    state.shotHits = 0
+    state.shotPegs = 0
+    state.shotPoints = 0
+    state.shotGoals = {}
+    state.shotStyles = {}
     state.bossHitThisShot = false
     if state.superGuide > 0 then state.superGuide = state.superGuide - 1 end
     if state.pyramidShots > 0 then
@@ -506,7 +529,7 @@ applyPower = function(state, p, ball, events)
             fire = ball.fire, spooky = ball.spooky,
         }
     elseif power == "guide" then
-        state.superGuide = E.GUIDE_SHOTS
+        state.superGuide = state.superGuide + E.GUIDE_SHOTS      -- stacks
     elseif power == "blast" then
         local r2 = E.BLAST_RADIUS * E.BLAST_RADIUS
         for _, q in ipairs(state.pegs) do
@@ -573,12 +596,35 @@ bossReact = function(state, p, events)
     end
 end
 
+-- A trick shot pays style points, once per kind per shot.
+local function style(state, name, events, x, y)
+    if state.shotStyles[name] then return end
+    state.shotStyles[name] = true
+    addScore(state, E.STYLE_POINTS, events)
+    push(events, { type = "style", name = name, points = E.STYLE_POINTS, x = x, y = y })
+end
+
+-- A key lit: every piece locked to it dissolves.
+local function unlock(state, key, events)
+    local n = 0
+    for _, q in ipairs(state.pegs) do
+        if q.lock and q.lock == key.unlocks and not q.gone then
+            q.gone = true
+            q.goneAt = state.time
+            q.lit = true
+            n = n + 1
+        end
+    end
+    push(events, { type = "unlock", lock = key.unlocks, count = n, x = key.x, y = key.y })
+end
+
 -- One hit on a piece: a shield soaks it, a tough piece cracks, the last
 -- point of hp lights it. Returns true when the hit counted.
 hitPeg = function(state, p, ball, events, quiet)
     if p.lit or p.gone or isSolid(p) then return false end
     if p.cooldown and state.time < p.cooldown then return false end
     p.cooldown = state.time + E.HIT_COOLDOWN
+    state.shotHits = state.shotHits + 1
     if p.kind == "gem" then
         freeGem(state, p, ball, events)
         return true
@@ -614,10 +660,26 @@ lightPeg = function(state, p, ball, events, quiet, at)
         state.goalHit = state.goalHit + 1
         state.goalLeft = state.goalLeft - 1
         state.goalHitThisShot = state.goalHitThisShot + 1
+        -- a Long Shot: this goal piece and an earlier one of the shot, far apart
+        for _, g in ipairs(state.shotGoals) do
+            local dx, dy = g.x - p.x, g.y - p.y
+            if dx * dx + dy * dy >= E.LONG_SHOT * E.LONG_SHOT then style(state, "LONG SHOT", events, p.x, p.y) break end
+        end
+        state.shotGoals[#state.shotGoals + 1] = { x = p.x, y = p.y }
     end
     local pts = (E.PEG_POINTS[p.kind] or 10) * E:ScoreMultiplier(E:Progress(state))
     pts = pts + E.COMBO_STEP * (state.combo - 1)
     addScore(state, pts, events)
+    state.shotPegs = state.shotPegs + 1
+    state.shotPoints = state.shotPoints + pts
+    if p.kind == "key" and p.unlocks then unlock(state, p, events) end
+    -- a Super Slide: bricks lit one after another along a ride
+    if p.shape == "brick" and ball then
+        if ball.slideAt and state.time - ball.slideAt <= E.SLIDE_GAP then ball.slideRun = (ball.slideRun or 0) + 1
+        else ball.slideRun = 1 end
+        ball.slideAt = state.time
+        if ball.slideRun >= E.SLIDE_RUN then style(state, "SUPER SLIDE", events, p.x, p.y) end
+    end
     push(events, { type = "peg", peg = p, points = pts, x = at and at.x or p.x, y = at and at.y or p.y,
         quiet = quiet, combo = state.combo })
     local bonus = E.COMBO_BONUS[state.combo]
@@ -692,6 +754,12 @@ collideBall = function(state, ball, events, light)
                     local vn = ball.vx * nx + ball.vy * ny
                     if vn < 0 then
                         local e = p.bounce or E.RESTITUTION
+                        if p.shape == "brick" and not isSolid(p) and light then
+                            -- a grazing touch on a brick rides along it (Super Slide)
+                            local tx, ty = -ny, nx
+                            local vt = ball.vx * tx + ball.vy * ty
+                            if -vn < E.SLIDE_RATIO * abs(vt) then e = 0 end
+                        end
                         local k = (1 + e) * vn
                         ball.vx = ball.vx - k * nx
                         ball.vy = ball.vy - k * ny
@@ -794,11 +862,22 @@ local function integrateBall(state, ball, dt, events)
         if ball.y + R >= H - 2 then
             local idx = floor(ball.x / (W / #E.FEVER_BINS)) + 1
             if idx < 1 then idx = 1 elseif idx > #E.FEVER_BINS then idx = #E.FEVER_BINS end
-            local pts = E.FEVER_BINS[idx]
+            local pts = state.gnomeBonus and E.GNOME_BUCKET or E.FEVER_BINS[idx]
             if not state.feverBin then state.feverBin = pts end
             state.feverTotal = (state.feverTotal or 0) + pts
             addScore(state, pts, events)
+            state.binsLit[idx] = true
             push(events, { type = "bin", index = idx, points = pts, x = ball.x })
+            if not state.gnomeBonus then
+                local all = true
+                for i = 1, #E.FEVER_BINS do if not state.binsLit[i] then all = false end end
+                if all then
+                    state.gnomeBonus = true
+                    state.feverTotal = state.feverTotal + E.GNOME_BONUS
+                    addScore(state, E.GNOME_BONUS, events)
+                    push(events, { type = "gnome_bonus", points = E.GNOME_BONUS })
+                end
+            end
             return false
         end
     else
@@ -906,14 +985,20 @@ local function integrateGem(state, g, dt, events)
     if g.x > W - R then g.x = W - R; if g.vx > 0 then g.vx = -g.vx * E.RESTITUTION end end
     collideBall(state, g, nil, false)
     if bucketCheck(state, g, events) == 1 then
+        -- a Bucket Drop: counts, and pays a bonus on top
         local p = g.home
         p.collected = true
         lightPeg(state, p, nil, events, true, { x = g.x, y = bucketTop() - 10 })
-        push(events, { type = "gem_caught", x = g.x, y = bucketTop() - 10 })
+        addScore(state, E.BUCKET_DROP, events)
+        push(events, { type = "gem_caught", x = g.x, y = bucketTop() - 10, bonus = E.BUCKET_DROP })
         return false
     end
     if g.y - R > H then
-        push(events, { type = "gem_lost", x = g.x })
+        -- off the bottom: that is the goal
+        local p = g.home
+        p.collected = true
+        lightPeg(state, p, nil, events, true, { x = g.x, y = H - 24 })
+        push(events, { type = "gem_dropped", x = g.x, y = H - 24 })
         return false
     end
     local speed = sqrt(g.vx * g.vx + g.vy * g.vy)
@@ -1106,6 +1191,12 @@ local function substep(state, dt, events)
         if b and not b.lit and b.ability == "yeti" and not state.bossHitThisShot and b.hp < b.maxhp then
             b.hp = b.hp + 1
             push(events, { type = "boss_heal", x = b.x, y = b.y, hp = b.hp })
+        end
+        if state.shotHits > 0 or state.shotPegs > 0 then
+            local n = math.max(1, state.shotPegs)
+            push(events, { type = "shot_summary", pegs = state.shotPegs, points = state.shotPoints, avg = floor(state.shotPoints / n) })
+        elseif state.shots > 0 then
+            push(events, { type = "total_miss" })
         end
         duelTurn(state, events)
         if state.ballsLeft > 0 then

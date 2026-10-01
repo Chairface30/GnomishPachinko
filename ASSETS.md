@@ -21,6 +21,7 @@ Everything below ships today as a generated placeholder (textures from `tools/ma
 | `rim.tga` | 64x64 | yes (steel or gold) | A thin ring hugging the edge of the square (the outer 20 % of the radius). Drawn around tough pegs and the minimap button. Shade it like a metal band: light at the top, dark at the bottom. |
 | `star.tga` | 32x32 | yes (gold or gray) | A five-point star with a lighter inner facet. Drawn at 9 px (level select), 12 px (side panel) and 28 px (result banner). |
 | `pyramid.tga` | 256x32 | no, full colour | A wide, low, golden trapezoid ramp with brick seams: the Pyramid power. Drawn 530x40 across the bottom of the field, so a horizontal design that tiles its detail works best. |
+| `key.tga` | 64x64 | yes (gold) | A loose key, drawn 22 px: light it and its gold cage dissolves. |
 | `blast.tga` | 128x128 | yes (orange) | A soft radial burst with ragged spikes, white in the middle fading to transparent at the edge. It scales from 40 px to about 300 px over half a second. |
 
 ### Optional extras (the code would need small changes, ask when ready)
@@ -60,6 +61,7 @@ Everything below ships today as a generated placeholder (textures from `tools/ma
 | `free_ball.ogg`, `combo.ogg`, `bin.ogg` | under 1 s | the other rewards |
 | `power_multiball/guide/fireball/spooky/pyramid/lightning.ogg` | about 1 s | one activation sound per power (`blast.ogg` is Space Blast's) |
 | `pyramid.ogg`, `lost.ogg`, `spooky.ogg`, `gem_free.ogg` | short | ramp bounce, a lost ball, the spooky re-entry, a gem knocked loose |
+| `unlock.ogg` | 0.9 s | a padlock clicking open and a cage of bars falling apart |
 | `boss_turn.ogg` | 0.8 s | a ratchet and clank: a duel boss takes its turn |
 | `shield.ogg`, `heal.ogg`, `hop.ogg` | short | the Bolt Golem's block, the Cog Yeti's heal, the Gyro Spider's jump |
 | `start.ogg`, `fail.ogg` | about 1 s | level start, out of balls |
@@ -87,6 +89,9 @@ The announcer. The hooks are already in the game and play `Sounds/Voice/<name>.o
 | `three_stars.ogg` | "Three stars! Magnificent!" | A clear with three stars |
 | `out_of_balls.ogg` | "Awww... out of balls." | A loss with plays left |
 | `out_of_plays.ogg` | "That's all your plays for today, friend." | A loss that used the last play |
+| `total_miss.ogg` | "Total miss." | A shot that touched nothing |
+| `style.ogg` | "Now that's style!" | Style points (Long Shot, Super Slide) |
+| `gnome_bonus.ogg` | "GNOME BONUS!" | All five Fever buckets lit |
 | `last_one.ogg` | "Last one!" | A ball closes in on the last goal piece (time slows, the view zooms in) |
 | `combo.ogg` | "Combo!" | A 10 or 15 chain |
 | `combo_huge.ogg` | "Unbelievable combo!" | A 20, 25 or 30 chain |

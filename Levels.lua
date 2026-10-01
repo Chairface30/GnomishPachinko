@@ -91,6 +91,17 @@ end
 local function bumper(x, y)
     return { shape = "peg", x = x, y = y, r = E.BUMPER_R, kind = "bumper", bounce = E.BUMPER_BOUNCE }
 end
+-- a loose key: light it and every piece locked to it dissolves
+local function key(x, y, id)
+    return { shape = "peg", x = x, y = y, r = 10, kind = "key", unlocks = id, special = true }
+end
+-- one bar of a cage: solid, gold, dissolves with its key
+local function cageBar(x, y, angle, w, id)
+    local p = brick(x, y, angle, w, 12)
+    p.kind = "block"
+    p.lock = id
+    return p
+end
 local function barrier(x, y, angle, w)
     local p = brick(x, y, angle, w or 64, 14)
     p.kind = "block"
@@ -663,6 +674,29 @@ GIMMICKS[#GIMMICKS + 1] = { name = "Bumper Gate", build = function(rng, add, mov
     add(bumper(W - 70, y + 150))
 end }
 
+GIMMICKS[#GIMMICKS + 1] = { name = "Key Cage", build = function(rng, add, mover, exclude, d)
+    -- a gold cage of solid bars round three pegs that will be orange, and
+    -- the loose key that opens it somewhere up the field
+    local cx, cy = W / 2 + (rng() - 0.5) * 200, 330 + rng() * 90
+    local hw, hh = 62, 30
+    exclude({ x0 = cx - hw - 24, x1 = cx + hw + 24, y0 = cy - hh - 24, y1 = cy + hh + 24 }, "cage")
+    local id = "cage" .. floor(cx)
+    local bars = {
+        cageBar(cx, cy - hh, 0, hw * 2 + 12, id), cageBar(cx, cy + hh, 0, hw * 2 + 12, id),
+        cageBar(cx - hw, cy, pi / 2, hh * 2 + 12, id), cageBar(cx + hw, cy, pi / 2, hh * 2 + 12, id),
+    }
+    for _, b in ipairs(bars) do add(b, "cage") end
+    for k = -1, 1 do
+        local p = peg(cx + k * 38, cy)
+        p.forceOrange = true
+        add(p, "cage")
+    end
+    local kx = cx < W / 2 and (W - 110) or 110
+    local ky = 170 + rng() * 60
+    exclude({ x0 = kx - 30, x1 = kx + 30, y0 = ky - 30, y1 = ky + 30 }, "key")
+    add(key(kx, ky, id), "key")
+end }
+
 GIMMICKS[#GIMMICKS + 1] = { name = "Sliding Block", build = function(rng, add, mover, exclude, d)
     local y = 200 + rng() * 200
     local cx = W / 2
@@ -679,7 +713,7 @@ L.GIMMICKS = GIMMICKS
 
 -- The order the gimmicks arrive in: one new one per chapter from chapter
 -- 3, each making its debut on the first level of its chapter.
-L.GIMMICK_ORDER = { "Slider", "Lifts", "Blocks", "Wheel", "Bumpers", "Pendulum", "Twin Wheels", "Bumper Gate", "Sliding Block" }
+L.GIMMICK_ORDER = { "Slider", "Lifts", "Blocks", "Wheel", "Bumpers", "Pendulum", "Key Cage", "Twin Wheels", "Bumper Gate", "Sliding Block" }
 local function gimmickByName(name)
     for _, g in ipairs(GIMMICKS) do if g.name == name then return g end end
 end
@@ -788,6 +822,19 @@ end
 
 function L:ToughOrangesFrom() return 61 end
 
+-- Every level has a name for its card.
+local STARTER_NAMES = { "Howdy, Gnome!", "Two by Two", "A Little Sparkle", "Shelf Life", "The Big V", "Ring Around",
+    "Brick by Brick", "Zig and Zag", "Standing Tall", "Clockwork Trouble" }
+function L:Title(n, objective, family, bossName, duelName)
+    if n <= 10 then return STARTER_NAMES[n] or ("Level " .. n) end
+    local place = self:ChapterName(floor((n - 1) / self.PER_CHAPTER) + 1)
+    if objective == "boss" then return (bossName or "The Boss") .. " of " .. place end
+    if objective == "duel" then return (duelName or "The Duel") .. "'s Game" end
+    if objective == "eggs" then return "Nests of " .. place end
+    if objective == "gems" then return "Gems of " .. place end
+    return (family or "Pegs") .. " of " .. place
+end
+
 -- Levels without the bucket: from chapter 5, levels ending 4 and 9 (never
 -- a gem level, the bucket is its goal).
 function L:NoBucket(n)
@@ -820,8 +867,8 @@ end
 -- middling multiplier, one Fever bin, and the bins of the balls a good
 -- player has to spare. Harder levels (more goal pieces, tough pieces,
 -- eggs, gems, a boss) ask for fewer spare balls.
-L.STAR_BIN      = 45000      -- the first Fever bin, on average
-L.STAR_BALL     = 38000      -- what a spare ball fired at the bins is worth, on average
+L.STAR_BIN      = 9400       -- the first Fever bucket, on average
+L.STAR_BALL     = 9000       -- what a spare ball fired at the buckets is worth, on average
 L.STAR_SPARE    = { 3, 6 }   -- spare balls for two and three stars on the easiest level
 
 function L:ParFor(spec)
@@ -909,8 +956,11 @@ local function surfaceDist(p, q)
 end
 L.SurfaceDist = surfaceDist
 
-function L:Build(n)
+-- attempt (0, 1, 2...) reshuffles which pieces are orange, egg or gem on a
+-- retry; the picture itself never changes.
+function L:Build(n, attempt)
     n = math.max(1, math.min(self.COUNT, floor(n)))
+    attempt = attempt or 0
     local seed = self:Seed(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local d = self:Difficulty(n)
@@ -986,6 +1036,8 @@ function L:Build(n)
     local static = 0
     for _, p in ipairs(pegs) do if not p.moving and not E.IsSolid(p) then static = static + 1 end end
     if static < self:MinPieces(n) and #gimmickNames > 0 then pegs, movers, gimmickNames, rng = assemble(false) end
+    -- from here the colours: their own stream, so a retry deals them again
+    rng = E.NewRng(seed * 31 + attempt * 101 + 7)
 
     -- Eggs and gems take the place of pattern pegs: round, still, well
     -- apart from each other, and (gems) high enough to fall through
@@ -1031,7 +1083,7 @@ function L:Build(n)
             p.goal = true
             p.r = r
             p.special = true
-            if kind == "egg" then p.hp = 3 end
+            if kind == "egg" then p.hp = (n >= 300) and 3 or 2 end
         end
         if #chosen > 0 then
             for i = #pegs, 1, -1 do
@@ -1071,12 +1123,25 @@ function L:Build(n)
         local j = rng(1, i)
         order[i], order[j] = order[j], order[i]
     end
+    -- the pegs inside a key cage are orange first, the rest of the oranges
+    -- fall where the shuffle put them
     local greens = 2
-    for k, idx in ipairs(order) do
+    local forced = 0
+    for _, idx in ipairs(order) do if pegs[idx].forceOrange then forced = forced + 1 end end
+    if forced > orange then forced = orange end
+    local given, coloured = 0, 0
+    for _, idx in ipairs(order) do
         local p = pegs[idx]
-        if k <= orange then p.kind = "orange"; p.goal = true
-        elseif k <= orange + greens then p.kind = "green"
-        else p.kind = "blue" end
+        if p.forceOrange and given < forced then p.kind = "orange"; p.goal = true; given = given + 1 end
+    end
+    for _, idx in ipairs(order) do
+        local p = pegs[idx]
+        if not (p.forceOrange and p.kind == "orange") then
+            coloured = coloured + 1
+            if coloured <= orange - given then p.kind = "orange"; p.goal = true
+            elseif coloured <= orange - given + greens then p.kind = "green"
+            else p.kind = "blue" end
+        end
     end
 
     -- tough pieces: a steel rim and two (or three) hits to light
@@ -1104,6 +1169,8 @@ function L:Build(n)
         level = n,
         chapter = chapter,
         name = self:ChapterName(chapter),
+        title = self:Title(n, objective, family.name, bossDef and bossDef.name, duelDef and duelDef.name),
+        attempt = attempt,
         seed = seed,
         layout = family.name,
         objective = objective,

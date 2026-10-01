@@ -26,6 +26,8 @@ local COLORS = {
     egg    = { base = { 0.98, 0.93, 0.80 }, lit = { 1.00, 1.00, 0.90 }, glow = { 1.00, 0.95, 0.60 } },
     gem    = { base = { 0.35, 0.95, 1.00 }, lit = { 0.85, 1.00, 1.00 }, glow = { 0.60, 1.00, 1.00 } },
     boss   = { base = { 1.00, 1.00, 1.00 }, lit = { 1.00, 1.00, 1.00 }, glow = { 1.00, 0.60, 0.60 } },
+    key    = { base = { 1.00, 0.85, 0.30 }, lit = { 1.00, 1.00, 0.80 }, glow = { 1.00, 0.95, 0.60 } },
+    cage   = { base = { 0.85, 0.68, 0.25 }, lit = { 0.85, 0.68, 0.25 }, glow = { 1.00, 0.90, 0.50 } },
     block  = { base = { 0.42, 0.42, 0.48 }, lit = { 0.42, 0.42, 0.48 }, glow = { 0.42, 0.42, 0.48 } },
     bumper = { base = { 1.00, 0.35, 0.60 }, lit = { 1.00, 0.35, 0.60 }, glow = { 1.00, 0.70, 0.85 } },
 }
@@ -35,7 +37,7 @@ local BOSS_TINT = {
 }
 local RIM = { 0.78, 0.80, 0.86 }
 local RIM_HEAVY = { 1.00, 0.84, 0.35 }
-local BIN_COLORS = { [10000] = { 0.25, 0.45, 0.85 }, [50000] = { 0.95, 0.55, 0.15 }, [100000] = { 1.00, 0.85, 0.20 } }
+local BIN_COLORS = { [1000] = { 0.25, 0.45, 0.85 }, [10000] = { 0.95, 0.55, 0.15 }, [25000] = { 1.00, 0.85, 0.20 } }
 
 local function fmtBig(n)
     if BreakUpLargeNumbers then return BreakUpLargeNumbers(n) end
@@ -284,7 +286,7 @@ function UI:CreateFrame()
         bin:SetBackdropBorderColor(c[1], c[2], c[3], 0.9)
         bin.label = bin:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         bin.label:SetPoint("CENTER")
-        bin.label:SetText(fmtBig(pts))
+        bin.label:SetText(("|cffffd700%s|r  %s"):format(E.FEVER_LETTERS[i] or "", fmtBig(pts)))
         bin:Hide()
         self.bins[i] = bin
     end
@@ -297,6 +299,11 @@ function UI:CreateFrame()
     sub:SetPoint("TOP", banner, "BOTTOM", 0, -6)
     sub:SetWidth(FW - 60)
     self.bannerSub = sub
+    local shot = field:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    shot:SetPoint("BOTTOM", field, "BOTTOM", 0, 40)
+    shot:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+    shot:SetTextColor(1, 0.95, 0.7)
+    self.shotText = shot
     self.bannerStars = makeStars(field, 28, 4)
     for i, s in ipairs(self.bannerStars) do
         s:SetPoint("TOP", sub, "BOTTOM", (i - 2) * 34, -8)
@@ -394,7 +401,7 @@ function UI:CreateFrame()
     self.nextBtn:SetScript("OnClick", function() UI:NextLevel() end)
     self.retryBtn = makeButton(side, SIDE_W, 26, "Restart level")
     self.retryBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -384)
-    self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current) end)
+    self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current, true) end)
     self.levelsBtn = makeButton(side, SIDE_W, 26, "Level select")
     self.levelsBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -414)
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
@@ -431,7 +438,126 @@ function UI:CreateFrame()
 
     self:CreateLevelSelect()
     self:CreatePlaysPanel()
+    self:CreateCard()
     self.events = {}
+end
+
+-- ---------------------------------------------------------------------
+-- The card over the field: before a level (number, name, objective, star
+-- marks, Play) and after it (stars earned, score, Retry / Next / Map).
+
+function UI:CreateCard()
+    local FW, FH = E.FIELD_W, E.FIELD_H
+    local card = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
+    card:SetSize(360, 300)
+    card:SetPoint("CENTER", self.view, "CENTER", 0, 10)
+    card:SetFrameLevel(self.field:GetFrameLevel() + 6)
+    card:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
+    card:SetBackdropColor(0.08, 0.05, 0.16, 0.97)
+    card:SetBackdropBorderColor(1, 0.85, 0.3, 1)
+    card:EnableMouse(true)
+    card:Hide()
+    self.card = card
+    -- a see-through sheet behind it eats clicks on the field
+    local sheet = CreateFrame("Frame", nil, self.frame)
+    sheet:SetSize(FW, FH)
+    sheet:SetPoint("TOPLEFT", self.view, "TOPLEFT", 0, 0)
+    sheet:SetFrameLevel(self.field:GetFrameLevel() + 5)
+    sheet:EnableMouse(true)
+    sheet:Hide()
+    self.cardSheet = sheet
+
+    card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    card.title:SetPoint("TOP", 0, -16)
+    card.title:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    card.title:SetWidth(330)
+    card.stars = makeStars(card, 30, 4)
+    for i, s in ipairs(card.stars) do s:SetPoint("TOP", card, "TOP", (i - 2) * 36, -50) end
+    card.line1 = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    card.line1:SetPoint("TOP", 0, -92)
+    card.line1:SetWidth(320)
+    card.line2 = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    card.line2:SetPoint("TOP", card.line1, "BOTTOM", 0, -8)
+    card.line2:SetWidth(320)
+    card.line3 = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    card.line3:SetPoint("TOP", card.line2, "BOTTOM", 0, -8)
+    card.line3:SetWidth(320)
+    card.line3:SetTextColor(0.75, 0.75, 0.85)
+    card.main = makeButton(card, 150, 32, "PLAY")
+    card.main:SetPoint("BOTTOM", 0, 48)
+    card.left = makeButton(card, 110, 26, "Map")
+    card.left:SetPoint("BOTTOMLEFT", 16, 14)
+    card.right = makeButton(card, 110, 26, "Retry")
+    card.right:SetPoint("BOTTOMRIGHT", -16, 14)
+end
+
+function UI:HideCard()
+    self.card:Hide()
+    self.cardSheet:Hide()
+    self.cardAt = nil
+end
+
+-- Before the level: the player presses Play.
+function UI:ShowStartCard()
+    local st = self.state
+    local card = self.card
+    card.title:SetText(("|cffffd700%d. %s|r"):format(st.level, st.title or ""))
+    setStars(card.stars, GP:GetDB().stars[st.level] or 0)
+    card.line1:SetText(self:ObjectiveText(st))
+    local s2, s3 = L:StarScores(st.level)
+    card.line2:SetText(("|cffffd7002 stars|r at %s   |cffffd7003 stars|r at %s"):format(fmtBig(s2), fmtBig(s3)))
+    local extra = {}
+    if st.gimmick then extra[#extra + 1] = st.gimmick end
+    if st.duel then extra[#extra + 1] = st.duel.blurb end
+    local best = GP:GetDB().best[st.level]
+    if best then extra[#extra + 1] = "Best " .. fmtBig(best) end
+    card.line3:SetText(table.concat(extra, "  -  "))
+    card.main.text:SetText("PLAY")
+    card.main:SetScript("OnClick", function() UI:HideCard(); GP:PlaySfx("start.ogg") end)
+    styleButton(card.main, true, 0.2, 0.55, 0.25)
+    card.left.text:SetText("Map")
+    card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect() end)
+    styleButton(card.left, true, 0.35, 0.3, 0.45)
+    card.right:Hide()
+    self.cardSheet:Show()
+    card:Show()
+end
+
+-- After the level: stars, score, what happened, and where to go next.
+function UI:ShowResultCard(result, stars)
+    local st = self.state
+    local card = self.card
+    local cleared = result.cleared
+    card.title:SetText(cleared and "|cffffd700LEVEL CLEARED!|r" or "|cffff6060OUT OF BALLS|r")
+    setStars(card.stars, cleared and stars or 0)
+    local def = E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic
+    local goalLine
+    if result.objective == "boss" then goalLine = cleared and "Boss beaten" or "The boss survived"
+    else goalLine = ("%d of %d %s"):format(result.goals, result.goalTotal, def.goalWord) end
+    card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(result.score)))
+    card.line2:SetText((cleared and "|cff66ff66done|r  " or "|cffff6060missed|r  ") .. goalLine)
+    local s2, s3 = L:StarScores(st.level)
+    local third = ("Fever %s  -  best combo %d  -  2 stars at %s, 3 at %s"):format(
+        fmtBig(result.feverTotal or 0), result.bestCombo or 0, fmtBig(s2), fmtBig(s3))
+    if not cleared then third = third .. ("  -  plays left today: %d"):format(GP.Plays:Remaining()) end
+    card.line3:SetText(third)
+    if cleared and st.level < L.COUNT and GP:IsUnlocked(st.level + 1) then
+        card.main.text:SetText("NEXT LEVEL")
+        card.main:SetScript("OnClick", function() UI:HideCard(); UI:NextLevel() end)
+        styleButton(card.main, true, 0.2, 0.55, 0.25)
+        card.main:Show()
+    else
+        card.main:Hide()
+    end
+    card.left.text:SetText("Map")
+    card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect() end)
+    styleButton(card.left, true, 0.35, 0.3, 0.45)
+    card.right.text:SetText("Retry")
+    card.right:SetScript("OnClick", function() UI:HideCard(); UI:StartLevel(st.level, true) end)
+    styleButton(card.right, GP.Plays:CanPlay(), 0.45, 0.3, 0.2)
+    card.right:Show()
+    self.cardSheet:Show()
+    card:Show()
 end
 
 -- ---------------------------------------------------------------------
@@ -763,7 +889,8 @@ end
 -- ---------------------------------------------------------------------
 -- Level flow
 
-function UI:StartLevel(n)
+-- retry=true deals the colours again (oranges land on other pegs).
+function UI:StartLevel(n, retry)
     self:Initialize()
     if not GP:IsUnlocked(n) then n = GP:GetDB().unlocked or 1 end
     if not GP.Plays:CanPlay() then
@@ -771,12 +898,19 @@ function UI:StartLevel(n)
         self:UpdateDisplay()
         return false
     end
-    local spec = L:Build(n)
+    self.attempts = self.attempts or {}
+    if retry then self.attempts[n] = (self.attempts[n] or 0) + 1 else self.attempts[n] = 0 end
+    local spec = L:Build(n, self.attempts[n])
     self.state = E:NewLevel(spec)
+    if self.card then self:HideCard() end
+    if self.shotText then self.shotText:SetText("") end
     GP:GetDB().current = n
     self.guideAim = nil
     self:LayoutPegs()
-    for _, bin in ipairs(self.bins) do bin:Hide() end
+    for i, bin in ipairs(self.bins) do
+        bin:Hide()
+        bin.label:SetText(("|cffffd700%s|r  %s"):format(E.FEVER_LETTERS[i] or "", fmtBig(E.FEVER_BINS[i])))
+    end
     for _, s in ipairs(self.bannerStars) do s:Hide() end
     self.bucket:Show()
     self.pyramidTex:Hide()
@@ -787,9 +921,9 @@ function UI:StartLevel(n)
     if self.state.noBucket then self.bucket:Hide() end
     self:StopFanfare()
     self:HideGuide()
-    self:ShowBanner(("|cffffd700Level %d|r"):format(n), self:ObjectiveText(self.state), 3)
-    GP:PlaySfx("start.ogg")
+    self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
     GP:PlayVoice(spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start"))
+    self:ShowStartCard()
     self:UpdateDisplay()
     return true
 end
@@ -854,7 +988,8 @@ function UI:LayoutPegs()
         else
             local r = p.r or E.PEG_R
             local tex = "peg"
-            if p.kind == "egg" then tex = "egg" elseif p.kind == "gem" then tex = "gem" elseif p.kind == "boss" then tex = "boss" end
+            if p.kind == "egg" then tex = "egg" elseif p.kind == "gem" then tex = "gem" elseif p.kind == "boss" then tex = "boss"
+            elseif p.kind == "key" then tex = "key" end
             t.disc:SetTexture(TEX .. tex)
             t.disc:SetSize(r * 2 + 2, r * 2 + 2)
             t.ring:SetTexture(TEX .. "ring")
@@ -1104,9 +1239,37 @@ function UI:HandleEvents(now)
         elseif t == "gem_free" then
             GP:PlaySfx("gem_free.ogg")
         elseif t == "gem_caught" then
+            self:ShowBanner("|cff88ffffBUCKET DROP!|r", "+" .. fmtBig(ev.bonus or 0), 1.6)
             self:Popup(ev.x, ev.y - 10, "GEM!", 0.6, 1, 1)
             GP:PlaySfx("gem.ogg")
+            GP:PlaySfx("bucket.ogg")
             GP:PlayVoice("gem")
+        elseif t == "gem_dropped" then
+            self:Popup(ev.x, ev.y, "GEM!", 0.6, 1, 1)
+            GP:PlaySfx("gem.ogg")
+            GP:PlayVoice("gem")
+        elseif t == "unlock" then
+            self:ShowBanner("|cffffd700UNLOCKED!|r", "The cage falls away", 1.5)
+            self:Popup(ev.x, ev.y - 16, "KEY!", 1, 0.9, 0.4)
+            GP:PlaySfx("unlock.ogg")
+        elseif t == "style" then
+            self:ShowBanner(("|cff88ff88+%s STYLE POINTS|r"):format(fmtBig(ev.points)), ev.name, 1.8)
+            GP:PlaySfx("combo.ogg")
+            GP:PlayVoice("style")
+        elseif t == "shot_summary" then
+            if ev.pegs > 0 then
+                self.shotText:SetText(("%s x %d PEG%s = %s"):format(fmtBig(ev.avg), ev.pegs, ev.pegs == 1 and "" or "S", fmtBig(ev.points)))
+                self.shotTextUntil = now + 2.2
+            end
+        elseif t == "total_miss" then
+            self:ShowBanner("|cffff8080TOTAL MISS!|r", "", 1.6)
+            GP:PlaySfx("lost.ogg")
+            GP:PlayVoice("total_miss")
+        elseif t == "gnome_bonus" then
+            self:ShowBanner("|cffffd700G-N-O-M-E BONUS!|r", "+" .. fmtBig(ev.points) .. "  -  every bucket is worth " .. fmtBig(E.GNOME_BUCKET) .. " now", 3)
+            GP:PlaySfx("combo.ogg")
+            GP:PlayVoice("gnome_bonus")
+            for _, bin in ipairs(self.bins) do bin.label:SetText("|cffffd700" .. fmtBig(E.GNOME_BUCKET) .. "|r") end
         elseif t == "gem_lost" then
             self:Popup(ev.x, E.FIELD_H - 30, "missed", 0.7, 0.7, 0.8)
         elseif t == "last_peg" then
@@ -1189,7 +1352,9 @@ function UI:HandleEvents(now)
             GP:PlaySfx("bin.ogg")
             self:Popup(ev.x, E.FIELD_H - 44, "+" .. fmtBig(ev.points), 1, 0.9, 0.4)
         elseif t == "ready" then
-            if st.ballsLeft > 0 then self:ShowBanner("", "", 0) end
+            if st.ballsLeft == 2 then self:ShowBanner("|cffff9060 2 BALLS LEFT|r", "", 1.5)
+            elseif st.ballsLeft == 1 then self:ShowBanner("|cffff6060LAST BALL|r", "", 1.5)
+            elseif st.ballsLeft > 0 and not self.bannerUntil then self:ShowBanner("", "", 0) end
         elseif t == "level_over" then
             self:StopFanfare()
             self:OnLevelOver(ev.result)
@@ -1202,6 +1367,8 @@ function UI:OnLevelOver(result)
     local db = GP:GetDB()
     local prevBest = db.best[result.level] or 0
     local stars, playsLeft = GP:RecordResult(result)
+    self.cardAt = GetTime() + 1.8
+    self.cardResult, self.cardStars = result, stars
     if result.cleared then
         local extra = result.score > prevBest and prevBest > 0 and "  |cff88ff88New best!|r" or ""
         self:ShowBanner("|cffffd700LEVEL CLEARED!|r",
@@ -1244,6 +1411,17 @@ function UI:OnUpdate(dt)
             self.playsTick = now
             self:UpdatePlaysPanel()
         end
+    end
+    if self.shotTextUntil and now >= self.shotTextUntil then
+        self.shotTextUntil = nil
+        self.shotText:SetText("")
+    end
+    if self.cardAt and now >= self.cardAt then
+        self.cardAt = nil
+        if self.cardResult and not (self.playsPanel and self.playsPanel:IsShown()) then
+            self:ShowResultCard(self.cardResult, self.cardStars)
+        end
+        self.cardResult = nil
     end
     if not st then return end
     if self.levelPanel and self.levelPanel:IsShown() then return end
@@ -1399,6 +1577,7 @@ function UI:Render(now)
                     -- unlit: the purple peg hops around, so re-tint when the kind changes
                     if t.kind ~= p.kind or t.shown ~= "base" then
                         local c = COLORS[p.kind] or COLORS.blue
+                        if p.lock then c = COLORS.cage end
                         t.disc:SetVertexColor(c.base[1], c.base[2], c.base[3], 1)
                         t.kind = p.kind
                         t.shown = "base"
@@ -1568,6 +1747,7 @@ function UI:UpdateDisplay()
         end
         self.objectiveText:SetText(objective)
         self.goalLabel:SetText(GOAL_LABEL[st.objective] or GOAL_LABEL.classic)
+    self.chapterText:SetText("|cffaaddff" .. (st.title or st.name or "") .. "|r")
         local name, blurb = powerName(st.power)
         self.powerText:SetText("|cff88ff88" .. name .. "|r")
         self.powerBlurb:SetText(blurb)
