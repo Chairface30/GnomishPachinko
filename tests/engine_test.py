@@ -403,6 +403,25 @@ __p2 = purple_count(__st)
 """)
 check("exactly one purple peg at a time", ev("__p1") == 1 and ev("__p2") == 1)
 
+# a touched piece vanishes two seconds after the touch, even mid-flight
+lua(r"""
+function lit_expires()
+  local st = E:NewLevel(L:Build(1))
+  local p
+  for _, q in ipairs(st.pegs) do if q.kind == "blue" and q.shape == "peg" then p = q break end end
+  p.lit = true; p.hitAt = st.time
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = 270, y = 20, vx = 0, vy = 0, slow = 0 }
+  local function hold() st.balls[1].y = 20; st.balls[1].vy = 0 end  -- keep the ball parked
+  for _ = 1, 60 do E:Step(st, 1 / 60); hold() end
+  local goneAt1 = p.gone
+  for _ = 1, 70 do E:Step(st, 1 / 60); hold() end
+  return goneAt1, p.gone
+end
+""")
+early, late = ev("lit_expires")()
+check("a touched piece is still there after one second and gone after two", (not early) and late)
+
 # ------------------------------------------------------------------ window
 lua(r"""
 GP:GetDB()

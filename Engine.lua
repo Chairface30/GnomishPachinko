@@ -39,6 +39,7 @@ E.STEP         = 1 / 120
 E.MAX_AIM_DEG  = 82
 E.STUCK_SPEED  = 35
 E.STUCK_SECS   = 1.5
+E.LIT_SECS     = 2.0        -- a touched piece vanishes this long after the touch
 
 E.BUCKET_W     = 84
 E.BUCKET_H     = 16
@@ -386,6 +387,19 @@ lightPeg = function(state, p, ball, events, quiet)
     end
 end
 
+-- Touched pieces leave on their own after LIT_SECS, ball or no ball.
+local function expireLitPegs(state, events)
+    local n = 0
+    for _, p in ipairs(state.pegs) do
+        if p.lit and not p.gone and state.time - (p.hitAt or state.time) >= E.LIT_SECS then
+            p.gone = true
+            p.goneAt = state.time
+            n = n + 1
+        end
+    end
+    if n > 0 then push(events, { type = "clear", count = n }) end
+end
+
 local function clearLitPegs(state, events)
     local n = 0
     for _, p in ipairs(state.pegs) do
@@ -523,6 +537,7 @@ end
 local function substep(state, dt, events)
     state.time = state.time + dt
     if #state.movers > 0 then E:UpdateMovers(state) end
+    expireLitPegs(state, events)
     if state.phase ~= E.PHASE.FEVER then moveBucket(state, dt) end
     if state.phase == E.PHASE.AIM or state.phase == E.PHASE.OVER then return end
 
