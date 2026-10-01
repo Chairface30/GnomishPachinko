@@ -948,9 +948,16 @@ local function updateLastPeg(state, dt, events)
             approaching = true
             target = trackPiece
             nearest = 0
+            state.lastOffTrack = 0
         elseif state.lastSlow and not towards then
-            state.lastSlow = false
-            return
+            -- off track and moving away: let go only once that has held
+            -- for a few checks, so a bounce that flickers the prediction
+            -- does not flap the slow-mo on and off
+            state.lastOffTrack = (state.lastOffTrack or 0) + 1
+            if state.lastOffTrack >= 3 then
+                state.lastSlow = false
+                return
+            end
         end
     end
     if not target then
@@ -967,6 +974,7 @@ local function updateLastPeg(state, dt, events)
         if approaching and state.lastSpent < E.LAST_MAX_SECS then
             state.lastSlow = true
             state.lastPeg = target
+            state.lastOffTrack = 0
             -- the cue (whoosh, voice) once a shot; a restart in the same
             -- shot zooms again but stays quiet
             local again = state.lastCueShot == state.shots

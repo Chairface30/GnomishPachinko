@@ -1252,7 +1252,13 @@ end
 -- anchor offset keeps that point where it was on screen.
 function UI:UpdateZoom(dt)
     local st = self.state
-    local target = (st and st.lastSlow and st.lastPeg) and E.LAST_ZOOM or 1
+    local now = GetTime()
+    local slow = st and st.lastSlow and st.lastPeg
+    if slow then self.slowSeenAt = now end
+    -- a short hold after the slow-mo lets go, so a brief gap between two
+    -- stretches of it never reverses the zoom mid-way
+    local hold = self.slowSeenAt and (now - self.slowSeenAt) < 0.25 and st and st.phase == E.PHASE.FLIGHT
+    local target = (slow or hold) and E.LAST_ZOOM or 1
     local cur = self.zoomScale or 1
     if math.abs(target - cur) < 0.002 then
         if cur == 1 and self.zoomApplied == 1 then return end
@@ -1272,7 +1278,14 @@ function UI:UpdateZoom(dt)
             local d = dx * dx + dy * dy
             if d < bd then best, bd = b, d end
         end
-        self.zoomX, self.zoomY = best.x, best.y
+        if self.zoomX then
+            -- glide after the ball rather than snapping to it
+            local k = math.min(1, dt * 14)
+            self.zoomX = self.zoomX + (best.x - self.zoomX) * k
+            self.zoomY = self.zoomY + (best.y - self.zoomY) * k
+        else
+            self.zoomX, self.zoomY = best.x, best.y
+        end
     elseif not self.zoomX then
         self.zoomX, self.zoomY = FW / 2, FH / 2
     end
