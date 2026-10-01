@@ -504,7 +504,7 @@ function L:GimmicksFor(n, rng)
     local list = {}
     if n < 21 then return list end
     if rng() < 0.25 then return list end
-    local first = ((n * 7 + floor(n / 10)) % #GIMMICKS) + 1
+    local first = ((n * 5 + floor(n / 10) * 3) % #GIMMICKS) + 1
     list[1] = GIMMICKS[first]
     if n >= 300 and rng() < 0.45 then
         local second = ((first + 2 + rng(0, 2)) % #GIMMICKS) + 1
