@@ -280,6 +280,127 @@ end }
 L.FAMILIES = FAMILIES
 
 -- ---------------------------------------------------------------------
+-- Gimmicks: the moving and solid pieces of later chapters. Each builder
+-- gets (rng, add, mover, exclude, d). Moving pieces keep base positions
+-- (bx, by, bangle) that Engine:UpdateMovers drives; exclude(rect, group)
+-- keeps other pieces out of the travel area.
+
+local GIMMICKS = {}
+
+local function moving(p)
+    p.bx, p.by, p.bangle = p.x, p.y, p.angle
+    p.moving = true
+    return p
+end
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Slider", build = function(rng, add, mover, exclude, d)
+    local y = 190 + rng() * 220
+    local cx = W / 2 + (rng() - 0.5) * 120
+    local n, amp = 5, 60 + d * 30
+    local pegs = {}
+    exclude({ x0 = cx - n * 16 - amp - 24, x1 = cx + n * 16 + amp + 24, y0 = y - 26, y1 = y + 26 }, "slider")
+    for k = 0, n - 1 do
+        local p = moving(brick(cx + (k - (n - 1) / 2) * 31, y, 0))
+        if add(p, "slider") then pegs[#pegs + 1] = p end
+    end
+    mover({ kind = "slide", pegs = pegs, amp = amp, speed = 0.9 + d * 0.8, phase = 0 })
+end }
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Lifts", build = function(rng, add, mover, exclude, d)
+    for i, x in ipairs({ W * 0.28, W * 0.72 }) do
+        local y0 = 200 + rng() * 60
+        local pegs = {}
+        exclude({ x0 = x - 30, x1 = x + 30, y0 = y0 - 70, y1 = y0 + 3 * 44 + 70 }, "lift" .. i)
+        for k = 0, 3 do
+            local p = moving(peg(x, y0 + k * 44))
+            if add(p, "lift" .. i) then pegs[#pegs + 1] = p end
+        end
+        mover({ kind = "lift", pegs = pegs, amp = 45 + d * 20, speed = 1.1 + d * 0.6, phase = (i - 1) * pi })
+    end
+end }
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Wheel", build = function(rng, add, mover, exclude, d)
+    local cx, cy, r = W / 2, 270 + rng() * 60, 62
+    local pegs = {}
+    exclude({ x0 = cx - r - 34, x1 = cx + r + 34, y0 = cy - r - 34, y1 = cy + r + 34 }, "wheel")
+    for k = 0, 7 do
+        local a = 2 * pi * k / 8
+        local p = moving(peg(cx + r * cos(a), cy + r * sin(a)))
+        if add(p, "wheel") then pegs[#pegs + 1] = p end
+    end
+    for _, a in ipairs({ 0, pi / 2 }) do
+        local p = moving(brick(cx, cy, a, 60, E.BRICK_H))
+        if add(p, "wheel") then pegs[#pegs + 1] = p end
+    end
+    mover({ kind = "wheel", pegs = pegs, cx = cx, cy = cy, speed = (rng() < 0.5 and 1 or -1) * (0.6 + d * 0.6), phase = 0 })
+end }
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Twin Wheels", build = function(rng, add, mover, exclude, d)
+    for i, cx in ipairs({ W * 0.3, W * 0.7 }) do
+        local cy, r = 300 + (rng() - 0.5) * 60, 46
+        local pegs = {}
+        exclude({ x0 = cx - r - 30, x1 = cx + r + 30, y0 = cy - r - 30, y1 = cy + r + 30 }, "twin" .. i)
+        for k = 0, 5 do
+            local a = 2 * pi * k / 6
+            local p = moving(peg(cx + r * cos(a), cy + r * sin(a)))
+            if add(p, "twin" .. i) then pegs[#pegs + 1] = p end
+        end
+        mover({ kind = "wheel", pegs = pegs, cx = cx, cy = cy, speed = (i == 1 and 1 or -1) * (0.8 + d * 0.6), phase = 0 })
+    end
+end }
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Pendulum", build = function(rng, add, mover, exclude, d)
+    local cx, cy = W / 2 + (rng() - 0.5) * 100, 240 + rng() * 80
+    local n = 5
+    local pegs = {}
+    local half = n * 31 / 2 + 24
+    exclude({ x0 = cx - half, x1 = cx + half, y0 = cy - half, y1 = cy + half }, "swing")
+    for k = 0, n - 1 do
+        local p = moving(brick(cx + (k - (n - 1) / 2) * 31, cy, 0))
+        if add(p, "swing") then pegs[#pegs + 1] = p end
+    end
+    mover({ kind = "swing", pegs = pegs, cx = cx, cy = cy, amp = 0.6 + d * 0.3, speed = 1.3 + d * 0.5, phase = 0 })
+end }
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Blocks", build = function(rng, add, mover, exclude, d)
+    for k = 1, 3 do
+        local p = brick(E.PEG_MARGIN + 50 + rng() * (W - 2 * E.PEG_MARGIN - 100), 170 + rng() * 280,
+            (rng() < 0.5) and 0 or (rng() - 0.5) * 0.8, 64, 14)
+        p.kind = "block"
+        add(p)
+    end
+end }
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Sliding Block", build = function(rng, add, mover, exclude, d)
+    local y = 200 + rng() * 200
+    local cx = W / 2
+    local amp = 90
+    exclude({ x0 = cx - 45 - amp - 20, x1 = cx + 45 + amp + 20, y0 = y - 24, y1 = y + 24 }, "sblock")
+    local p = moving(brick(cx, y, 0, 90, 14))
+    p.kind = "block"
+    if add(p, "sblock") then
+        mover({ kind = "slide", pegs = { p }, amp = amp, speed = 1.2 + d * 0.6, phase = 0 })
+    end
+end }
+
+L.GIMMICKS = GIMMICKS
+
+-- Which gimmicks a level gets: none before chapter 3, then most levels
+-- carry one and the late game sometimes two.
+function L:GimmicksFor(n, rng)
+    local list = {}
+    if n < 21 then return list end
+    if rng() < 0.25 then return list end
+    local first = ((n * 7 + floor(n / 10)) % #GIMMICKS) + 1
+    list[1] = GIMMICKS[first]
+    if n >= 300 and rng() < 0.45 then
+        local second = ((first + 2 + rng(0, 2)) % #GIMMICKS) + 1
+        if second ~= first then list[2] = GIMMICKS[second] end
+    end
+    return list
+end
+
+-- ---------------------------------------------------------------------
 
 function L:Seed(n) return n * 7919 + 12345 end
 
@@ -312,6 +433,9 @@ function L:Build(n)
     local family = FAMILIES[((n + chapter) % #FAMILIES) + 1]
 
     local pegs = {}
+    local movers, excludes = {}, {}
+    local function mover(mv) movers[#movers + 1] = mv end
+    local function exclude(rect, group) rect.group = group; excludes[#excludes + 1] = rect end
     local function clearOf(p, group)
         local rp = E.PegRadius(p)
         for _, q in ipairs(pegs) do
@@ -327,12 +451,21 @@ function L:Build(n)
         local rp = E.PegRadius(p)
         if p.x - rp < E.PEG_MARGIN - 6 or p.x + rp > W - E.PEG_MARGIN + 6 then return false end
         if p.y - rp < E.PEG_TOP or p.y + rp > E.PEG_BOTTOM then return false end
+        for _, r in ipairs(excludes) do
+            if r.group ~= group and p.x > r.x0 and p.x < r.x1 and p.y > r.y0 and p.y < r.y1 then return false end
+        end
         if not clearOf(p, group) then return false end
         p.group = group
         pegs[#pegs + 1] = p
         return true
     end
 
+    local gimmicks = self:GimmicksFor(n, rng)
+    local gimmickNames = {}
+    for _, g in ipairs(gimmicks) do
+        g.build(rng, add, mover, exclude, d)
+        gimmickNames[#gimmickNames + 1] = g.name
+    end
     family.build(rng, add, d)
 
     local tries = 0
@@ -341,11 +474,15 @@ function L:Build(n)
         add(peg(E.PEG_MARGIN + rng() * (W - 2 * E.PEG_MARGIN),
             E.PEG_TOP + 12 + rng() * (E.PEG_BOTTOM - E.PEG_TOP - 24)))
     end
-    while #pegs > target + 12 do table.remove(pegs, rng(1, #pegs)) end
+    while #pegs > target + 12 do
+        local i = rng(1, #pegs)
+        if not pegs[i].moving and pegs[i].kind ~= "block" then table.remove(pegs, i) end
+    end
 
-    if orange > #pegs - 3 then orange = #pegs - 3 end
+    -- colours go to everything but the solid blocks
     local order = {}
-    for i = 1, #pegs do order[i] = i end
+    for i, p in ipairs(pegs) do if p.kind ~= "block" then order[#order + 1] = i end end
+    if orange > #order - 3 then orange = #order - 3 end
     for i = #order, 2, -1 do
         local j = rng(1, i)
         order[i], order[j] = order[j], order[i]
@@ -356,8 +493,8 @@ function L:Build(n)
         if k <= orange then p.kind = "orange"
         elseif k <= orange + greens then p.kind = "green"
         else p.kind = "blue" end
-        p.lit, p.gone = false, false
     end
+    for _, p in ipairs(pegs) do p.lit, p.gone = false, false end
 
     return {
         level = n,
@@ -366,6 +503,8 @@ function L:Build(n)
         seed = seed,
         layout = family.name,
         pegs = pegs,
+        movers = movers,
+        gimmick = (#gimmickNames > 0) and table.concat(gimmickNames, " + ") or nil,
         orange = orange,
         balls = E.BALLS,
         power = self:PowerFor(chapter),

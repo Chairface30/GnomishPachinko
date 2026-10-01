@@ -15,7 +15,7 @@ Point the launcher with the mouse and click the field to shoot. You have ten bal
 - The **bucket** sliding along the bottom gives a ball back. So do 25,000, 75,000 and 125,000 points.
 - Hit the last orange peg and **Fever** begins: time slows and the ball drops into one of five bins worth 10,000 to 100,000 points, plus 10,000 for every spare ball.
 
-Twelve layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs, Brick Walls, Spiral, Waves, Hourglass, Honeycomb, Pillars) are built from the level number, so level 437 is the same level 437 for everyone.
+Twelve layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs, Brick Walls, Spiral, Waves, Hourglass, Honeycomb, Pillars) are built from the level number, so level 437 is the same level 437 for everyone. From chapter 3 most levels add a gimmick, and the late game sometimes two: a sliding row of bricks, rising and falling peg lifts, a turning wheel, twin wheels, a swinging pendulum bar, solid gray blocks that only bounce, and a sliding block.
 
 ## Commands
 

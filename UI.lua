@@ -21,6 +21,7 @@ local COLORS = {
     orange = { base = { 1.00, 0.50, 0.08 }, lit = { 1.00, 0.90, 0.50 }, glow = { 1.00, 0.70, 0.25 } },
     green  = { base = { 0.22, 0.88, 0.32 }, lit = { 0.78, 1.00, 0.78 }, glow = { 0.50, 1.00, 0.55 } },
     purple = { base = { 0.75, 0.35, 1.00 }, lit = { 0.95, 0.80, 1.00 }, glow = { 0.85, 0.55, 1.00 } },
+    block  = { base = { 0.42, 0.42, 0.48 }, lit = { 0.42, 0.42, 0.48 }, glow = { 0.42, 0.42, 0.48 } },
 }
 local BIN_COLORS = { [10000] = { 0.25, 0.45, 0.85 }, [50000] = { 0.95, 0.55, 0.15 }, [100000] = { 1.00, 0.85, 0.20 } }
 
@@ -709,6 +710,17 @@ function UI:Render(now)
                     t.shown = "base"
                 end
             end
+            -- gimmick pieces move: follow them
+            if p.moving and not p.gone then
+                t.disc:ClearAllPoints()
+                t.disc:SetPoint("CENTER", field, "TOPLEFT", p.x, -p.y)
+                t.ring:ClearAllPoints()
+                t.ring:SetPoint("CENTER", field, "TOPLEFT", p.x, -p.y)
+                if p.shape == "brick" and t.disc.SetRotation then
+                    t.disc:SetRotation(-p.angle)
+                    t.ring:SetRotation(-p.angle)
+                end
+            end
         end
     end
 
@@ -758,7 +770,8 @@ function UI:UpdateDisplay()
     if st then
         self.levelText:SetText(("Level %d / %d"):format(st.level, L.COUNT))
         self.chapterText:SetText("|cffaaddff" .. (st.name or "") .. "|r")
-        self.layoutText:SetText(("Chapter %d  -  %s"):format(st.chapter, st.layout or ""))
+        self.layoutText:SetText(("Chapter %d  -  %s%s"):format(st.chapter, st.layout or "",
+            st.gimmick and ("  +  " .. st.gimmick) or ""))
         local name, blurb = powerName(st.power)
         self.powerText:SetText("|cff88ff88" .. name .. "|r")
         self.powerBlurb:SetText(blurb)

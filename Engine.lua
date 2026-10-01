@@ -153,6 +153,8 @@ function E:NewLevel(spec)
         seed = spec.seed,
         layout = spec.layout,
         pegs = spec.pegs,
+        movers = spec.movers or {},
+        gimmick = spec.gimmick,
         orangeTotal = spec.orange,
         power = spec.power,
         balls = {},
@@ -173,7 +175,34 @@ function E:NewLevel(spec)
         rng = E.NewRng((spec.seed or 1) + 977),
     }
     self:MovePurple(state)
+    self:UpdateMovers(state)
     return state
+end
+
+-- Moving pieces (the gimmicks): each mover drives a group of pegs from
+-- their base positions (bx, by, bangle). slide moves along x, lift along
+-- y, wheel turns steadily about (cx, cy), swing rocks about it.
+function E:UpdateMovers(state)
+    local t = state.time
+    for _, mv in ipairs(state.movers) do
+        if mv.kind == "slide" or mv.kind == "lift" then
+            local off = mv.amp * sin(mv.speed * t + (mv.phase or 0))
+            for _, p in ipairs(mv.pegs) do
+                if mv.kind == "slide" then p.x = p.bx + off else p.y = p.by + off end
+            end
+        else
+            local th
+            if mv.kind == "wheel" then th = mv.speed * t + (mv.phase or 0)
+            else th = mv.amp * sin(mv.speed * t + (mv.phase or 0)) end
+            local c, s = cos(th), sin(th)
+            for _, p in ipairs(mv.pegs) do
+                local dx, dy = p.bx - mv.cx, p.by - mv.cy
+                p.x = mv.cx + dx * c - dy * s
+                p.y = mv.cy + dx * s + dy * c
+                if p.shape == "brick" then p.angle = (p.bangle or 0) + th end
+            end
+        end
+    end
 end
 
 -- The purple bonus peg hops to a fresh unlit blue peg before every shot.
@@ -389,7 +418,7 @@ collideBall = function(state, ball, events, light)
         if not p.gone then
             local depth, nx, ny = pegContact(p, ball.x, ball.y, R)
             if depth then
-                if ball.fire and light then
+                if ball.fire and light and p.kind ~= "block" then
                     -- a fireball burns through: light it, keep flying
                     if not p.lit then lightPeg(state, p, ball, events) end
                 else
@@ -401,7 +430,7 @@ collideBall = function(state, ball, events, light)
                         ball.vy = ball.vy - k * ny
                         if light then push(events, { type = "bounce", peg = p, speed = -vn }) end
                     end
-                    if light and not p.lit then lightPeg(state, p, ball, events) end
+                    if light and not p.lit and p.kind ~= "block" then lightPeg(state, p, ball, events) end
                 end
             end
         end
@@ -493,6 +522,7 @@ end
 
 local function substep(state, dt, events)
     state.time = state.time + dt
+    if #state.movers > 0 then E:UpdateMovers(state) end
     if state.phase ~= E.PHASE.FEVER then moveBucket(state, dt) end
     if state.phase == E.PHASE.AIM or state.phase == E.PHASE.OVER then return end
 
