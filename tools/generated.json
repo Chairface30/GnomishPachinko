@@ -1,0 +1,202 @@
+{
+  "bin": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A ball landing in a scoring slot with a satisfying bright ding, short.",
+    "secs": 0.6
+  },
+  "blast": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A deep cartoon explosion with a quick boom and a short sparkle tail, no long rumble.",
+    "secs": 1.2
+  },
+  "boss_down": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A small steam-powered machine breaking down: a clank, a hiss of steam, parts falling, cartoonish.",
+    "secs": 1.5
+  },
+  "boss_hit": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A dull metallic thud, a ball hitting a hollow iron machine, with a brief rattle.",
+    "secs": 0.5
+  },
+  "boss_turn": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A heavy mechanical ratchet winding and a clank, a machine taking its turn, short.",
+    "secs": 0.8
+  },
+  "bucket": {
+    "at": "2026-10-01 17:39",
+    "prompt": "An old mechanical cash register ka-ching: the key clacks, the drawer slams open with a loud brass bell ring, coins rattle in the tray, short.",
+    "secs": 1.2
+  },
+  "bumper": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A springy pinball bumper boing, low and bouncy, short.",
+    "secs": 0.4
+  },
+  "clear": {
+    "at": "2026-10-01 17:40",
+    "prompt": "A short victorious arcade jingle, bright and happy, level cleared.",
+    "secs": 2.5
+  },
+  "clink": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A short bright metallic tink, a steel ball striking an iron peg, no reverb.",
+    "secs": 0.3
+  },
+  "combo": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A sparkling ascending arpeggio burst, a combo reward, bright and quick.",
+    "secs": 1.0
+  },
+  "crack": {
+    "at": "2026-10-01 17:39",
+    "prompt": "An eggshell cracking, one quick sharp snap, close-miked, short.",
+    "secs": 0.4
+  },
+  "fail": {
+    "at": "2026-10-01 17:40",
+    "prompt": "A short sad trombone wah-wah, cartoon failure, brief.",
+    "secs": 1.4
+  },
+  "fanfare": {
+    "at": "2026-10-01 17:40",
+    "prompt": "A grand triumphant brass fanfare with timpani and a snare roll, celebratory, seamless loop.",
+    "secs": 6.0
+  },
+  "fever": {
+    "at": "2026-10-01 17:40",
+    "prompt": "A triumphant bright sting with a shimmering rise, a goal completed, short.",
+    "secs": 1.5
+  },
+  "free_ball": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A cheerful rising three-note chime, a bonus awarded, bright and short.",
+    "secs": 0.9
+  },
+  "gem": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A sparkling crystal chime, three rising glassy notes, short.",
+    "secs": 0.8
+  },
+  "gem_free": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A crystal coming loose from rock with a short glassy clink and a tumble.",
+    "secs": 0.6
+  },
+  "hatch": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A tiny creature chirping once as it hatches from an egg, cute and quick.",
+    "secs": 0.8
+  },
+  "heal": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A low mechanical whir winding up ending in a soft chime, a machine repairing itself, short.",
+    "secs": 0.8
+  },
+  "hop": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A quick cartoon spring boing with a whoosh, something jumping away, short.",
+    "secs": 0.5
+  },
+  "launch": {
+    "at": "2026-10-01 17:38",
+    "prompt": "A small spring-loaded cannon firing a steel ball, a short mechanical thunk with a quick whoosh, dry.",
+    "secs": 0.6
+  },
+  "lost": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A soft descending womp as a ball drops out of play, short and mild, cartoon.",
+    "secs": 0.6
+  },
+  "note_base": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A single clean bright marimba note, one strike, short, dry, no reverb, no other sounds.",
+    "secs": 0.8
+  },
+  "orange": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A bright glassy ping with a tiny sparkle, a bonus target lighting up, short.",
+    "secs": 0.6
+  },
+  "peg1": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A steel ball tapping a glass peg, one short bright tick, no reverb.",
+    "secs": 0.4
+  },
+  "peg2": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A steel ball tapping a glass peg, one short bright tick, slightly higher, no reverb.",
+    "secs": 0.4
+  },
+  "peg3": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A steel ball tapping a glass peg, one short bright tick, slightly lower, no reverb.",
+    "secs": 0.4
+  },
+  "power_fireball": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A fireball igniting with a whoosh and a crackle, short.",
+    "secs": 1.0
+  },
+  "power_guide": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A soft futuristic targeting beep sequence locking on, short.",
+    "secs": 1.0
+  },
+  "power_lightning": {
+    "at": "2026-10-01 17:39",
+    "prompt": "An electric charge building for a moment then a crackling zap, short.",
+    "secs": 1.0
+  },
+  "power_multiball": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A bright ping that splits into two echoing pings, a power-up, short.",
+    "secs": 1.0
+  },
+  "power_pyramid": {
+    "at": "2026-10-01 17:39",
+    "prompt": "Heavy stone blocks sliding into place with a dusty thud, short.",
+    "secs": 1.0
+  },
+  "power_spooky": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A spooky ghostly whoosh with a faint cartoon boo, a power-up, short.",
+    "secs": 1.2
+  },
+  "pyramid": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A ball bouncing hard off a stone ramp with a springy thump, short.",
+    "secs": 0.4
+  },
+  "rim": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A steel ball bouncing off the rim of a ceramic bowl, one short hollow ceramic clink, no reverb.",
+    "secs": 0.4
+  },
+  "shield": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A metallic force-field deflection, a short ringing clang.",
+    "secs": 0.5
+  },
+  "slowmo": {
+    "at": "2026-10-01 17:40",
+    "prompt": "A dramatic slow-motion whoosh with a single heartbeat thump, short.",
+    "secs": 0.9
+  },
+  "spooky": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A ghostly whoosh with a quick cartoon boo as a ball reappears, short.",
+    "secs": 0.8
+  },
+  "start": {
+    "at": "2026-10-01 17:40",
+    "prompt": "A short cheerful arcade level-start jingle, two bright rising notes.",
+    "secs": 1.0
+  },
+  "zap": {
+    "at": "2026-10-01 17:39",
+    "prompt": "A short crackling electric arc jumping between metal pins, zappy and bright.",
+    "secs": 0.5
+  }
+}

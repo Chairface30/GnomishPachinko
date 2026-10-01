@@ -106,6 +106,12 @@ def pick_voice(key, wanted):
         for v in lib:
             if v["id"] == wanted or v["name"].strip().lower() == wanted.strip().lower():
                 return v
+        if wanted in EXCLUDE_IDS or wanted.strip().lower() in EXCLUDE_NAMES:
+            sys.exit(f"Voice '{wanted}' is one of Trixie's and is not used for the announcer.")
+        if len(wanted) >= 16 and wanted.isalnum():
+            # an id outside My Voices (a library voice): use it as given
+            print(f"Voice id {wanted} is not in your library list; using it directly.")
+            return {"id": wanted, "name": wanted, "labels": ""}
         sys.exit(f"Voice '{wanted}' not found (or it is one of Trixie's). Try --list-voices.")
     if not lib:
         sys.exit("No voice in the library besides Trixie's. Add one and pass --voice.")

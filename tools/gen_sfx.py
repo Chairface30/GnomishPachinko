@@ -199,7 +199,8 @@ def make_scale(base):
 
 
 def fetch(key, prompt, secs, loop):
-    body = {"text": prompt, "duration_seconds": secs, "prompt_influence": 0.6}
+    # the model takes 0.5 s to 30 s; shorter clips are asked for at 0.5 s and trimmed
+    body = {"text": prompt, "duration_seconds": max(0.5, min(30.0, secs)), "prompt_influence": 0.6}
     if loop:
         body["loop"] = True
     req = urllib.request.Request(API + "?output_format=mp3_44100_128", data=json.dumps(body).encode("utf-8"),
