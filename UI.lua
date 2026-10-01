@@ -1206,7 +1206,8 @@ function UI:UpdateZoom(dt)
         if cur == 1 and self.zoomApplied == 1 then return end
         cur = target
     else
-        cur = cur + (target - cur) * math.min(1, dt * 5)
+        -- snaps in quickly, eases out more gently
+        cur = cur + (target - cur) * math.min(1, dt * (target > cur and 10 or 4))
     end
     self.zoomScale = cur
     local field = self.field

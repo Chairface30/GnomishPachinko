@@ -61,9 +61,10 @@ E.BUCKET_SPEED = 130
 E.FEVER_FIRST_GAP = 0.8    -- after the last piece lights, the leftover balls start firing this soon
 -- The last goal piece: when a ball closes in on it, time slows and the
 -- window zooms in on it (Peggle Blast's last-peg moment).
-E.LAST_SLOWMO     = 0.3
-E.LAST_NEAR       = 90       -- a ball this close and heading in starts it
-E.LAST_LEAVE      = 150      -- it ends when no ball is within this
+E.LAST_SLOWMO     = 0.22
+E.LAST_LOOKAHEAD  = 0.35     -- seconds of flight predicted; a path that reaches the piece starts it
+E.LAST_NEAR       = 110      -- fallback: a ball this close and heading in starts it too
+E.LAST_LEAVE      = 170      -- it ends when no ball is within this
 E.LAST_MAX_SECS   = 2.0      -- of slowed time, then it waits for the ball to leave and return
 E.LAST_ZOOM       = 1.8
 E.FEVER_BINS   = { 10000, 50000, 100000, 50000, 10000 }
@@ -861,6 +862,25 @@ local function lastGoalPiece(state)
     return nil
 end
 
+-- Does this ball's next LAST_LOOKAHEAD seconds of flight (bounces and
+-- all, nothing lit) touch the target?
+local function willReach(state, ball, target)
+    local b = { x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy, slow = 0, fire = ball.fire }
+    local R = E.BALL_R
+    local steps = floor(E.LAST_LOOKAHEAD / E.STEP)
+    for _ = 1, steps do
+        b.vy = b.vy + E.GRAVITY * E.STEP
+        b.x = b.x + b.vx * E.STEP
+        b.y = b.y + b.vy * E.STEP
+        if b.x < R then b.x = R; if b.vx < 0 then b.vx = -b.vx * E.RESTITUTION end end
+        if b.x > W - R then b.x = W - R; if b.vx > 0 then b.vx = -b.vx * E.RESTITUTION end end
+        if pegContact(target, b.x, b.y, R) then return true end
+        collideBall(state, b, nil, false)
+        if b.y - R > H then return false end
+    end
+    return false
+end
+
 local function updateLastPeg(state, dt, events)
     if state.phase ~= E.PHASE.FLIGHT then
         state.lastSlow = false
@@ -877,6 +897,15 @@ local function updateLastPeg(state, dt, events)
         local d = sqrt(dx * dx + dy * dy)
         if d < nearest then nearest = d end
         if d < E.LAST_NEAR and (ball.vx * dx + ball.vy * dy) > 0 then approaching = true end
+    end
+    -- the look-ahead, a few times a second rather than every substep
+    if not state.lastSlow and not approaching and state.lastSpent < E.LAST_MAX_SECS then
+        state.lastLook = (state.lastLook or 0) + 1
+        if state.lastLook % 6 == 0 then
+            for _, ball in ipairs(state.balls) do
+                if willReach(state, ball, target) then approaching = true break end
+            end
+        end
     end
     if state.lastSlow then
         state.lastSpent = state.lastSpent + dt
