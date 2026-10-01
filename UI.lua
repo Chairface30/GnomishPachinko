@@ -431,7 +431,7 @@ function UI:CreateFrame()
     tip:SetJustifyH("LEFT")
     tip:SetJustifyV("TOP")
     tip:SetTextColor(0.65, 0.65, 0.78)
-    tip:SetText("Click the field to shoot. Rimmed pieces take two or three hits.")
+    tip:SetText("Click the field to shoot. Rimmed pieces take two or three hits. Your host: Tinkmaster Overspark.")
 
     frame:SetScript("OnUpdate", function(_, dt) UI:OnUpdate(dt) end)
     frame:SetScript("OnShow", function() UI.lastHitSound = 0 end)
@@ -439,6 +439,7 @@ function UI:CreateFrame()
     self:CreateLevelSelect()
     self:CreatePlaysPanel()
     self:CreateCard()
+    if GP.Mascot then GP.Mascot:Create(view, view) end
     self.events = {}
 end
 
@@ -924,6 +925,7 @@ function UI:StartLevel(n, retry)
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
     GP:PlayVoice(spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start"))
     self:ShowStartCard()
+    GP.Mascot:React("start")
     self:UpdateDisplay()
     return true
 end
@@ -944,6 +946,7 @@ function UI:OnFieldClick()
     if E:Launch(st, self.events) then
         self:HideGuide()
         GP:PlaySfx("launch.ogg")
+        GP.Mascot:React("launch")
         self:UpdateDisplay()
     end
 end
@@ -1186,10 +1189,21 @@ local POWER_BANNERS = {
     lightning = "|cffaaddffCHAIN LIGHTNING!|r",
 }
 
+local MASCOT_REACTIONS = {
+    bucket = "bucket", freeball_score = "freeball", power = "power", combo = "combo", style = "style",
+    total_miss = "total_miss", last_peg = "last_peg", fever = "fever", gnome_bonus = "gnome_bonus",
+    crack = "boss_hit", boss_down = "boss_down", boss_turn = "boss_turn", unlock = "unlock",
+    gem_caught = "gem", gem_dropped = "gem",
+}
+
 function UI:HandleEvents(now)
     local st = self.state
     for _, ev in ipairs(self.events) do
         local t = ev.type
+        local reaction = MASCOT_REACTIONS[t]
+        if reaction and not (t == "crack" and ev.peg.kind ~= "boss") and not (t == "last_peg" and ev.again) then
+            GP.Mascot:React(reaction)
+        end
         if t == "bounce" then
             -- a knock on something already lit, or a barrier: a soft click
             if ev.speed > 60 and now - (self.lastHitSound or 0) > 0.08 then
@@ -1304,6 +1318,7 @@ function UI:HandleEvents(now)
                 self:Popup(ev.x, ev.y - 18, "HATCHED! +" .. ev.points, 1, 0.95, 0.6)
                 GP:PlaySfx("hatch.ogg")
                 GP:PlayVoice("hatched")
+                GP.Mascot:React("hatched")
             elseif k == "gem" then
                 self:Popup(ev.x, ev.y - 26, "+" .. ev.points, 0.6, 1, 1)
             elseif k == "boss" then
@@ -1352,8 +1367,8 @@ function UI:HandleEvents(now)
             GP:PlaySfx("bin.ogg")
             self:Popup(ev.x, E.FIELD_H - 44, "+" .. fmtBig(ev.points), 1, 0.9, 0.4)
         elseif t == "ready" then
-            if st.ballsLeft == 2 then self:ShowBanner("|cffff9060 2 BALLS LEFT|r", "", 1.5)
-            elseif st.ballsLeft == 1 then self:ShowBanner("|cffff6060LAST BALL|r", "", 1.5)
+            if st.ballsLeft == 2 then self:ShowBanner("|cffff9060 2 BALLS LEFT|r", "", 1.5); GP.Mascot:React("two_left")
+            elseif st.ballsLeft == 1 then self:ShowBanner("|cffff6060LAST BALL|r", "", 1.5); GP.Mascot:React("last_ball")
             elseif st.ballsLeft > 0 and not self.bannerUntil then self:ShowBanner("", "", 0) end
         elseif t == "level_over" then
             self:StopFanfare()
@@ -1367,6 +1382,7 @@ function UI:OnLevelOver(result)
     local db = GP:GetDB()
     local prevBest = db.best[result.level] or 0
     local stars, playsLeft = GP:RecordResult(result)
+    GP.Mascot:React(result.cleared and "cleared" or "failed")
     self.cardAt = GetTime() + 1.8
     self.cardResult, self.cardStars = result, stars
     if result.cleared then
@@ -1412,6 +1428,7 @@ function UI:OnUpdate(dt)
             self:UpdatePlaysPanel()
         end
     end
+    GP.Mascot:Tick(now)
     if self.shotTextUntil and now >= self.shotTextUntil then
         self.shotTextUntil = nil
         self.shotText:SetText("")

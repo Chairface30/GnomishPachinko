@@ -41,6 +41,10 @@ Every cleared level earns one to three stars by score. The marks come from the l
 
 Losing a level (running out of balls) spends one of the day's plays. You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back, and five more plays for the day can be bought for 10g: mail the gold to Chairface Chippendale with "pachinko plays purchase" as the subject, or press **Buy plays** at a mailbox and the mail fills itself in. The count is kept in an encrypted record mirrored to several places outside the addon folder, so reinstalling the addon does not reset it, and an edited copy locks the day.
 
+## Tinkmaster Overspark
+
+Tinkmaster Overspark, the gnome engineer of Tinker Town, hosts the game: his voice is the announcer and his 3D model stands in the field's top corner, acting out the match with the game's own animations. `/pachinko mascot` hides or shows him; `mascot target` swaps in any creature you target; `mascot scale`, `face`, `z` and `play <animation>` tune him.
+
 ## Layouts and gimmicks
 
 Chapter 1 is nine starter pictures that teach the game: level 1 is nine pegs and three oranges, bricks first appear on level 7, and level 10 is the first boss. From level 11 the real patterns begin, sparse at first and filling in until level 80.

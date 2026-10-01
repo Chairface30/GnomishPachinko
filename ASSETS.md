@@ -74,7 +74,7 @@ Everything below ships today as a generated placeholder (textures from `tools/ma
 
 ## Voice lines (`Sounds/Voice/`)
 
-The announcer. The hooks are already in the game and play `Sounds/Voice/<name>.ogg` if it exists, on the "Dialog" channel; `/pachinko voice` turns them off. Suggested character: an excitable gnome engineer, Peggle-announcer energy, a little tinny like he is on a loudspeaker. One take each is plenty; two or three variants can come later (ask and the game will pick one at random).
+The announcer is Tinkmaster Overspark, the gnome engineer who also stands in the field's corner as a 3D model. The hooks are already in the game and play `Sounds/Voice/<name>.ogg` if it exists, on the "Dialog" channel; `/pachinko voice` turns them off. Character: Tinkmaster Overspark himself, an excitable gnome engineer with Peggle-announcer energy, a little tinny like he is on a loudspeaker. One take each is plenty; two or three variants can come later (ask and the game will pick one at random).
 
 | File | Line | When |
 |---|---|---|

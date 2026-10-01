@@ -129,9 +129,11 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     elseif msg == "voice" then
         local db = GP:GetDB()
         db.voice = not db.voice
-        GP:Print("Announcer " .. (db.voice and "on" or "off") .. ".")
+        GP:Print("Tinkmaster Overspark's voice " .. (db.voice and "on" or "off") .. ".")
     elseif msg == "minimap" then
         GP.Minimap:Toggle()
+    elseif msg:match("^mascot") then
+        GP.Mascot:Command(msg:match("^mascot%s*(.*)$"))
     elseif msg == "plays" then
         GP:Print(GP.Plays:StatusText())
     elseif msg:match("^buy") then
@@ -143,7 +145,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
-            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko reset - wipe progress.")
+            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress.")
     end
 end
 

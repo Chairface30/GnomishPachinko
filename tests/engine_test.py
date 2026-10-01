@@ -127,7 +127,7 @@ end
 
 rt = lupa.LuaRuntime(unpack_returned_tuples=True)
 rt.execute(MOCK)
-for f in ("Core.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua"):
+for f in ("Core.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua", "Mascot.lua"):
     src = open(os.path.join(ADDON_DIR, f), encoding="utf-8").read()
     rt.execute(f"local function chunk(...) {src} end chunk('GnomishPachinko')")
 rt.execute("GP = GnomishPachinko; E = GP.Engine; L = GP.Levels; UI = GP.UI; P = GP.Plays")
@@ -1360,6 +1360,18 @@ check("an owner out of plays sees the free button on the panel", ev("UI.playsPan
 lua("UI.playsPanel.free:Click()")
 check("clicking it grants plays and the game resumes", ev("not UI.playsPanel:IsShown() and P:Remaining() == 5"))
 lua('__unitName, __unitSurname = "Thrall", "Frostwolf"; UI:UpdateDisplay()')
+
+# the mascot: a model frame in the corner that reacts to the game
+check("the mascot model exists in the window", ev("GP.Mascot.model ~= nil"))
+lua("GP.Mascot:React('fever')")
+check("Fever makes the mascot dance and hold it", ev("GP.Mascot.current") == "dance" and ev("GP.Mascot.held") == "dance")
+lua("GP.Mascot:React('bucket'); __now = __now + 3; GP.Mascot:Tick(__now)")
+check("a one-shot cheer returns to the held dance", ev("GP.Mascot.current") == "dance")
+lua("GP.Mascot:React('start'); __now = __now + 3; GP.Mascot:Tick(__now)")
+check("a new level clears the held animation back to standing", ev("GP.Mascot.current") == "stand")
+lua('GP.Mascot:Command("npc 7406"); GP.Mascot:Command("scale 1.2"); GP.Mascot:Command("")')
+check("mascot commands set the creature and scale and hide it", ev("GnomishPachinkoDB.mascot.npc") == 7406 and ev("GnomishPachinkoDB.mascot.scale") == 1.2 and ev("GnomishPachinkoDB.mascot.hide") == True)
+lua('GP.Mascot:Command("")')
 
 # minimap button and the announcer hooks
 lua("GP.Minimap:Create()")
