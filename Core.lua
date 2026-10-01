@@ -18,6 +18,8 @@ local DEFAULTS = {
     stars = {},            -- [level] = best stars (1-3)
     current = 1,           -- level the window opens on
     sound = true,
+    voice = true,          -- the announcer's lines (Sounds/Voice)
+    minimap = { hide = false, angle = 220 },
     scale = 1,
 }
 
@@ -41,6 +43,15 @@ function GP:PlaySfx(file)
     local db = self.db or self:GetDB()
     if db.sound == false then return end
     return PlaySoundFile("Interface\\AddOns\\GnomishPachinko\\Sounds\\" .. file, "SFX")
+end
+
+-- The announcer. Lines live in Sounds/Voice/<name>.ogg (see ASSETS.md);
+-- a line that is not there yet simply does not play.
+function GP:PlayVoice(name)
+    local db = self.db or self:GetDB()
+    if db.sound == false or db.voice == false then return end
+    local ok, played = pcall(PlaySoundFile, "Interface\\AddOns\\GnomishPachinko\\Sounds\\Voice\\" .. name .. ".ogg", "Dialog")
+    return ok and played
 end
 
 -- Progress -------------------------------------------------------------
@@ -101,6 +112,12 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         local db = GP:GetDB()
         db.sound = not db.sound
         GP:Print("Sound " .. (db.sound and "on" or "off") .. ".")
+    elseif msg == "voice" then
+        local db = GP:GetDB()
+        db.voice = not db.voice
+        GP:Print("Announcer " .. (db.voice and "on" or "off") .. ".")
+    elseif msg == "minimap" then
+        GP.Minimap:Toggle()
     elseif msg == "plays" then
         GP:Print(GP.Plays:StatusText())
     elseif msg:match("^buy") then
@@ -116,7 +133,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
-            "/pachinko sound - toggle sound. /pachinko reset - wipe progress.")
+            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko reset - wipe progress.")
     end
 end
 
@@ -130,6 +147,7 @@ loader:SetScript("OnEvent", function(_, event, name)
         loader:UnregisterEvent("ADDON_LOADED")
     elseif event == "PLAYER_LOGIN" then
         GP.Plays:Load()
+        if GP.Minimap then GP.Minimap:Create() end
     elseif event == "PLAYER_LOGOUT" then
         GP.Plays:Save()
     end

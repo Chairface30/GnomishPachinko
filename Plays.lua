@@ -419,10 +419,25 @@ function P:OnPurchase(copper)
     return lots
 end
 
+-- The mailbox button sits under the casino's "Buy Casino Credits" button
+-- when that one is there and showing; otherwise it takes its place.
+function P:AnchorMailButton()
+    local btn = self.mailHelperButton
+    if not btn or not MailFrame then return end
+    local casino = ChairfacesCasino and ChairfacesCasino.Arcade and ChairfacesCasino.Arcade.mailHelperButton
+    btn:ClearAllPoints()
+    if casino and casino:IsShown() then
+        btn:SetPoint("TOP", casino, "BOTTOM", 0, -2)
+        btn:SetWidth(casino:GetWidth() or 130)
+    else
+        btn:SetPoint("TOPRIGHT", MailFrame, "BOTTOMRIGHT", -4, -2)
+        btn:SetWidth(130)
+    end
+end
+
 if MailFrame then
     local mailBtn = CreateFrame("Button", nil, MailFrame, "UIPanelButtonTemplate")
     mailBtn:SetSize(130, 22)
-    mailBtn:SetPoint("TOPLEFT", MailFrame, "BOTTOMLEFT", 4, -2)
     mailBtn:SetText("Buy Pachinko Plays")
     mailBtn:SetScript("OnClick", function()
         local ok, err = P:FillPurchaseMail(1)
@@ -437,6 +452,9 @@ if MailFrame then
     end)
     mailBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
     P.mailHelperButton = mailBtn
+    P:AnchorMailButton()
+    -- the casino may load after us, or hide its button from its settings
+    MailFrame:HookScript("OnShow", function() P:AnchorMailButton() end)
     if SendMailFrame then
         SendMailFrame:HookScript("OnShow", function()
             if P.pendingFill and C_Timer and C_Timer.After then

@@ -31,7 +31,7 @@ One per chapter, in turn: Multiball, Super Guide (the full bounce path for three
 
 ### Stars
 
-Every cleared level earns one to three stars by score; the marks for two and three stars are shown on the side panel and in the level select tooltip. The level select keeps your stars and your total.
+Every cleared level earns one to three stars by score. The marks come from the level itself: what its pieces are worth, one Fever bin, and the bins of the spare balls a good player keeps, with fewer spare balls asked of harder levels. They are shown on the side panel and in the level select tooltip, and the level select keeps your stars and your total.
 
 ### Plays
 
@@ -39,7 +39,9 @@ Losing a level (running out of balls) spends one of the day's plays. You get fiv
 
 ## Layouts and gimmicks
 
-Fifteen layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs, Brick Walls, Spiral, Waves, Hourglass, Honeycomb, Pillars, Chevrons, Castle, Star), each a drawn pattern with a few variants and no random filler, are built from the level number, so level 437 is the same level 437 for everyone. From chapter 3 most levels add a gimmick, and the late game sometimes two: a sliding row of bricks, rising and falling peg lifts, a turning wheel, twin wheels, a swinging pendulum bar, solid gray blocks that only bounce, a sliding block, pink bumpers that throw the ball back harder, and a bumper gate.
+Chapter 1 is nine starter pictures that teach the game: level 1 is nine pegs and three oranges, bricks first appear on level 7, and level 10 is the first boss. From level 11 the real patterns begin, sparse at first and filling in until level 80.
+
+Fifteen layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs, Brick Walls, Spiral, Waves, Hourglass, Honeycomb, Pillars, Chevrons, Castle, Star), each a drawn pattern with a few variants and no random filler, are built from the level number, so level 437 is the same level 437 for everyone. From chapter 3 the gimmicks arrive one per chapter, each debuting on the first level of its chapter: a sliding row of bricks, rising and falling peg lifts, solid gray blocks that only bounce, a turning wheel, pink bumpers that throw the ball back harder, a swinging pendulum bar, twin wheels, a bumper gate and a sliding block. Later levels draw from the whole pool, and from level 300 sometimes twice.
 
 ## Commands
 
@@ -48,8 +50,13 @@ Fifteen layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs
 - `/pachinko 25` plays level 25, if it is unlocked.
 - `/pachinko plays` says how many plays are left today.
 - `/pachinko buy` (or `buy 2`) fills out the purchase mail at a mailbox.
-- `/pachinko sound` toggles the sound effects.
+- `/pachinko sound` toggles the sound effects, `/pachinko voice` the announcer.
+- `/pachinko minimap` shows or hides the minimap button (left-click plays, right-click opens the level select, drag to move).
 - `/pachinko reset` wipes your level progress (not the day's plays).
+
+## Art and audio
+
+`ASSETS.md` lists every texture, sound effect and announcer line the game wants, with sizes, formats and ElevenLabs prompts. Everything ships as a generated placeholder or a silent hook until the real file is dropped in under the same name.
 
 ## Development
 

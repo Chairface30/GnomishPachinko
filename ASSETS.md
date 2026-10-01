@@ -1,0 +1,87 @@
+# Gnomish Pachinko — Asset List
+
+Everything below ships today as a generated placeholder (textures from `tools/make_textures.py`, sounds from `tools/make_notes.py`) or as a silent hook (the voice lines). Drop the real file in under the same name and the game picks it up; nothing in the code needs to change.
+
+## Formats
+
+- **Textures**: 32-bit uncompressed TGA with an alpha channel, power-of-two sizes, origin bottom-left (what Photoshop/GIMP/Krita export by default). Pieces the game **tints** must be drawn in white and grays: the game multiplies the texture by a colour, so any colour you paint is lost. Pieces marked *full colour* are drawn as they are.
+- **Sounds**: OGG Vorbis, 44.1 kHz, mono is fine, peak around -3 dB. Short effects under half a second; voice lines under three seconds.
+- Filenames are case-sensitive on CurseForge's packager: keep them exactly as listed.
+
+## Textures (`Textures/`)
+
+### New pieces
+
+| File | Size | Tinted? | What it is |
+|---|---|---|---|
+| `egg.tga` | 64x64 | yes (cream) | A whole egg filling the square, slight point at the top. It is drawn 28 px tall in game, so keep the shading bold. Three hits hatch it; cracks are a separate overlay. |
+| `gem.tga` | 64x64 | yes (cyan) | A cut gemstone, faceted, drawn 22 px in game. It spins while falling. |
+| `boss.tga` | 64x64 | yes (per boss) | A round mechanical boss face, gnomish engineering: gear teeth round the rim, two eyes, a mouth. Drawn 54 px. One texture serves all five bosses through tinting (steel, brass, green, red, ice blue). |
+| `crack.tga` | 64x64 | no | White crack lines on a fully transparent square, no fill. Drawn over a damaged piece; shown faint after the first hit on a three-hit piece, solid when one hit remains. Also stretched over cracked bricks (30x11), so keep the cracks central. |
+| `rim.tga` | 64x64 | yes (steel or gold) | A thin ring hugging the edge of the square (the outer 20 % of the radius). Drawn around tough pegs and the minimap button. Shade it like a metal band: light at the top, dark at the bottom. |
+| `star.tga` | 32x32 | yes (gold or gray) | A five-point star with a lighter inner facet. Drawn at 9 px (level select), 12 px (side panel) and 28 px (result banner). |
+| `pyramid.tga` | 256x32 | no, full colour | A wide, low, golden trapezoid ramp with brick seams: the Pyramid power. Drawn 530x40 across the bottom of the field, so a horizontal design that tiles its detail works best. |
+| `blast.tga` | 128x128 | yes (orange) | A soft radial burst with ragged spikes, white in the middle fading to transparent at the edge. It scales from 40 px to about 300 px over half a second. |
+
+### Optional extras (the code would need small changes, ask when ready)
+
+| File | Size | Notes |
+|---|---|---|
+| `boss_drake.tga`, `boss_golem.tga`, `boss_spider.tga`, `boss_boar.tga`, `boss_yeti.tga` | 64x64 each | Five distinct boss faces instead of one tinted face. |
+| `brickcrack.tga` | 64x32 | Crack lines shaped for a brick rather than a disc. |
+| `background.tga` | 512x512 | A field background (dark, low contrast) instead of the plain navy with stars. Could be one per region later. |
+| `minimap.tga` | 64x64 | A drawn minimap icon, if the "GP" text button is to be replaced by art. |
+
+### Existing textures you may also want to redraw
+
+`peg.tga` (64x64, tinted disc), `brick.tga` (64x32, tinted bar), `ball.tga` (64x64, tinted), `ring.tga` (64x64, the lit glow), `dot.tga` (32x32, aim guide), `bucket.tga` (128x32, full colour), `icon.tga` (64x64, the addon list icon, full colour).
+
+## Sound effects (`Sounds/`)
+
+All of these exist as synthesized placeholders. ElevenLabs sound-effect prompts are suggested; keep them short and dry (no reverb tail), the game plays several a second during a good shot.
+
+| File | Length | Prompt |
+|---|---|---|
+| `clink.ogg` | 0.15 s | "A short bright metallic tink, a steel ball striking an iron peg, no reverb." |
+| `crack.ogg` | 0.25 s | "An eggshell cracking, a quick sharp snap, close-miked." |
+| `hatch.ogg` | 0.5 s | "A tiny creature chirping once as it hatches from an egg, cute and quick." |
+| `gem.ogg` | 0.45 s | "A sparkling crystal chime, three rising glassy notes, short." |
+| `boss_hit.ogg` | 0.3 s | "A dull metallic thud, a ball hitting a hollow iron machine, with a brief rattle." |
+| `boss_down.ogg` | 1.0 s | "A small steam-powered machine breaking down: a clank, a hiss of steam, parts falling, cartoonish." |
+| `zap.ogg` | 0.35 s | "A short crackling electric arc jumping between metal pins, zappy and bright." |
+| `blast.ogg` | 0.9 s | "A deep cartoon explosion with a quick boom and a short sparkle tail, no long rumble." |
+| `slowmo.ogg` | 0.7 s | "A dramatic slow-motion whoosh with a single heartbeat thump, short." (the last-peg moment) |
+| `bumper.ogg` | 0.3 s | "A springy pinball bumper boing, low and bouncy." (currently synthesized) |
+
+Already licensed and in place, keep unless you want a new set: `peg1-3.ogg`, `launch.ogg` (Kenney), `orange.ogg`, `free_ball.ogg`, `power.ogg` (Freesound CC0), `fever.ogg`, `clear.ogg` (yours), `note1-16.ogg` (synthesized C major scale; a real set of bell or marimba notes, C4 up two octaves, would replace them one-to-one).
+
+## Voice lines (`Sounds/Voice/`)
+
+The announcer. The hooks are already in the game and play `Sounds/Voice/<name>.ogg` if it exists, on the "Dialog" channel; `/pachinko voice` turns them off. Suggested character: an excitable gnome engineer, Peggle-announcer energy, a little tinny like he is on a loudspeaker. One take each is plenty; two or three variants can come later (ask and the game will pick one at random).
+
+| File | Line | When |
+|---|---|---|
+| `level_start.ogg` | "Here we go!" | A level starts |
+| `boss_start.ogg` | "Boss fight! Watch yourself!" | A boss level starts |
+| `free_ball.ogg` | "Free ball!" | The bucket, or a score mark |
+| `fever.ogg` | "Fever!" | The goal is done, Fever begins |
+| `level_cleared.ogg` | "Level cleared!" | A clear with one or two stars |
+| `three_stars.ogg` | "Three stars! Magnificent!" | A clear with three stars |
+| `out_of_balls.ogg` | "Awww... out of balls." | A loss with plays left |
+| `out_of_plays.ogg` | "That's all your plays for today, friend." | A loss that used the last play |
+| `last_one.ogg` | "Last one!" | A ball closes in on the last goal piece (time slows, the view zooms in) |
+| `combo.ogg` | "Combo!" | A 10 or 15 chain |
+| `combo_huge.ogg` | "Unbelievable combo!" | A 20, 25 or 30 chain |
+| `hatched.ogg` | "It hatched!" | An egg hatches |
+| `gem.ogg` | "Gem!" | A gem lands in the bucket |
+| `boss_shield.ogg` | "Shields up!" | The Bolt Golem shields itself |
+| `boss_down.ogg` | "Boss down!" | A boss is beaten |
+| `power_multiball.ogg` | "Multiball!" | Green peg |
+| `power_guide.ogg` | "Super Guide!" | Green peg |
+| `power_blast.ogg` | "Space Blast!" | Green peg |
+| `power_fireball.ogg` | "Fireball!" | Green peg |
+| `power_spooky.ogg` | "Spooky Ball!" | Green peg |
+| `power_pyramid.ogg` | "Pyramid!" | Green peg |
+| `power_lightning.ogg` | "Chain Lightning!" | Green peg |
+
+Optional later: a line per boss name on its entrance ("The Tin Drake approaches!"), a "New best!" line, and "Welcome back" when the window opens.

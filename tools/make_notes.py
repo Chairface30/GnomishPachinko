@@ -113,6 +113,16 @@ def zap(secs=0.35):
     return norm(tone, 0.45)
 
 
+def slowmo(secs=0.7):
+    t = np.linspace(0, secs, int(RATE * secs), endpoint=False)
+    # a falling whoosh with a heartbeat thump under it
+    freq = 1400 * np.exp(-t * 5) + 120
+    phase = 2 * math.pi * np.cumsum(freq) / RATE
+    tone = 0.5 * np.sin(phase) * np.exp(-t * 3)
+    thump = np.sin(2 * math.pi * 55 * t) * np.exp(-np.maximum(0, t - 0.25) * 18) * (t >= 0.25)
+    return norm(tone + 0.8 * thump, 0.55)
+
+
 def blast(secs=0.9):
     rng = np.random.default_rng(13)
     t = np.linspace(0, secs, int(RATE * secs), endpoint=False)
@@ -129,6 +139,7 @@ def blast(secs=0.9):
 EFFECTS = {
     "clink.ogg": clink, "crack.ogg": crack, "hatch.ogg": hatch, "gem.ogg": gem,
     "boss_hit.ogg": boss_hit, "boss_down.ogg": boss_down, "zap.ogg": zap, "blast.ogg": blast,
+    "slowmo.ogg": slowmo,
 }
 
 

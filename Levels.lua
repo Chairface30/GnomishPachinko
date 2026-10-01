@@ -116,7 +116,9 @@ local function brickCurve(add, f, count, group, rng, skip)
 end
 
 -- ---------------------------------------------------------------------
--- Layout families. Each gets (rng, add, d) where d is difficulty 0..1.
+-- Layout families. Each gets (rng, add, d, dens): d is difficulty 0..1,
+-- dens the density 0..1 of the picture (early levels draw a sparse
+-- version of the same picture: fewer rows, fewer structures).
 
 local FAMILIES = {}
 
@@ -178,12 +180,12 @@ local function brickArc(add, cx, cy, r, spread, group, frown)
 end
 
 -- 1. Brickwork: staggered rows with a lattice of holes
-FAMILIES[#FAMILIES + 1] = { name = "Brickwork", build = function(rng, add, d)
-    local rows = 7
+FAMILIES[#FAMILIES + 1] = { name = "Brickwork", build = function(rng, add, d, dens)
+    local rows = 3 + floor(4 * dens + 0.5)
     local spacing = (L_X1 - L_X0) / 8
     local motif = rng(0, 2)
     for r = 0, rows - 1 do
-        local y = 150 + (470 - 150) * r / (rows - 1)
+        local y = 150 + (470 - 150) * r / 6
         local offset = (r % 2) * spacing / 2
         local n = (r % 2 == 0) and 9 or 8
         for c = 0, n - 1 do
@@ -196,10 +198,12 @@ FAMILIES[#FAMILIES + 1] = { name = "Brickwork", build = function(rng, add, d)
 end }
 
 -- 2. Rainbow: four concentric arcs under a crown
-FAMILIES[#FAMILIES + 1] = { name = "Rainbow", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Rainbow", build = function(rng, add, d, dens)
     local cy = 760
     local bricksOn = d > 0.4
-    for i, rad in ipairs({ 300, 380, 460, 540 }) do
+    local radii = { 300, 380, 460, 540 }
+    for i = #radii - 1 - floor(2 * dens + 0.5), 1, -1 do table.remove(radii, i) end
+    for i, rad in ipairs(radii) do
         local reach = (CX - E.PEG_MARGIN) / rad
         if reach > 1 then reach = 1 end
         local tmax = math.asin(reach)
@@ -216,40 +220,48 @@ FAMILIES[#FAMILIES + 1] = { name = "Rainbow", build = function(rng, add, d)
             end
         end
     end
-    row(add, 150, 5, CX - 150, CX + 150)
+    if dens > 0.5 then row(add, 150, 5, CX - 150, CX + 150) end
 end }
 
 -- 3. Diamonds: three hollow diamonds, a crown and a floor
-FAMILIES[#FAMILIES + 1] = { name = "Diamonds", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Diamonds", build = function(rng, add, d, dens)
     -- three whole diamonds: the big one high in the middle, two smaller
     -- ones low at the sides, never touching
     local low = rng() < 0.5
-    diamond(add, 118, low and 350 or 330, 84, 3)
     diamond(add, CX, 240, 100, 4)
-    diamond(add, W - 118, low and 350 or 330, 84, 3)
     add(peg(CX, 240))
-    add(peg(118, low and 350 or 330))
-    add(peg(W - 118, low and 350 or 330))
-    row(add, 140, 2, CX - 170, CX + 170)
-    row(add, 485, 5, CX - 130, CX + 130)
+    if dens > 0.35 then
+        diamond(add, 118, low and 350 or 330, 84, 3)
+        diamond(add, W - 118, low and 350 or 330, 84, 3)
+        add(peg(118, low and 350 or 330))
+        add(peg(W - 118, low and 350 or 330))
+    end
+    if dens > 0.7 then
+        row(add, 140, 2, CX - 170, CX + 170)
+        row(add, 485, 5, CX - 130, CX + 130)
+    end
 end }
 
 -- 4. Rings: two rings in the middle, columns down each side, a floor
-FAMILIES[#FAMILIES + 1] = { name = "Rings", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Rings", build = function(rng, add, d, dens)
     local cy = 300
     local spin = rng(0, 1) * pi / 16
-    ring(add, CX, cy, 125, 16, spin)
-    ring(add, CX, cy, 62, 8, spin + pi / 8)
+    ring(add, CX, cy, 125, 10 + floor(6 * dens + 0.5), spin)
+    if dens > 0.35 then ring(add, CX, cy, 62, 8, spin + pi / 8) end
     add(peg(CX, cy))
-    column(add, L_X0 + 8, 150, 480, 7)
-    column(add, L_X1 - 8, 150, 480, 7)
-    row(add, 480, 6, 100, W - 100)
-    row(add, 140, 4, CX - 90, CX + 90)
+    if dens > 0.6 then
+        column(add, L_X0 + 8, 150, 480, 7)
+        column(add, L_X1 - 8, 150, 480, 7)
+    end
+    if dens > 0.8 then
+        row(add, 480, 6, 100, W - 100)
+        row(add, 140, 4, CX - 90, CX + 90)
+    end
 end }
 
 -- 5. Zigzag: five full shelves, alternating slope
-FAMILIES[#FAMILIES + 1] = { name = "Zigzag", build = function(rng, add, d)
-    for s = 0, 4 do
+FAMILIES[#FAMILIES + 1] = { name = "Zigzag", build = function(rng, add, d, dens)
+    for s = 0, 1 + floor(3 * dens + 0.5) do
         local y0 = 140 + s * 80
         local leftToRight = (s % 2 == 0)
         if d > 0.5 and s % 2 == 1 then
@@ -266,28 +278,34 @@ FAMILIES[#FAMILIES + 1] = { name = "Zigzag", build = function(rng, add, d)
 end }
 
 -- 6. Brick Arcs: three smiles of bricks with pegs in their bowls
-FAMILIES[#FAMILIES + 1] = { name = "Brick Arcs", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Brick Arcs", build = function(rng, add, d, dens)
     local frown = rng() < 0.3
     brickArc(add, CX, 200, 120, 0.9, "mid", frown)
-    brickArc(add, 120, 380, 80, 1.0, "left", frown)
-    brickArc(add, W - 120, 380, 80, 1.0, "right", frown)
     ring(add, CX, 200, 55, 6, pi / 6)
-    add(peg(120, 380))
-    add(peg(W - 120, 380))
-    row(add, 150, 2, 70, W - 70)
-    row(add, 470, 5, CX - 120, CX + 120)
     row(add, 300, 3, CX - 60, CX + 60)
-    column(add, 50, 160, 470, 5)
-    column(add, W - 50, 160, 470, 5)
-    row(add, 330, 2, CX - 150, CX + 150)
+    if dens > 0.35 then
+        brickArc(add, 120, 380, 80, 1.0, "left", frown)
+        brickArc(add, W - 120, 380, 80, 1.0, "right", frown)
+        add(peg(120, 380))
+        add(peg(W - 120, 380))
+    end
+    if dens > 0.6 then
+        row(add, 150, 2, 70, W - 70)
+        row(add, 470, 5, CX - 120, CX + 120)
+    end
+    if dens > 0.8 then
+        column(add, 50, 160, 470, 5)
+        column(add, W - 50, 160, 470, 5)
+        row(add, 330, 2, CX - 150, CX + 150)
+    end
 end }
 
 -- 7. Brick Walls: platform rows whose gap wanders, pegs in the gaps
-FAMILIES[#FAMILIES + 1] = { name = "Brick Walls", build = function(rng, add, d)
-    local rows = 5
+FAMILIES[#FAMILIES + 1] = { name = "Brick Walls", build = function(rng, add, d, dens)
+    local rows = 2 + floor(3 * dens + 0.5)
     local gaps = (rng() < 0.5) and { 1, 3, 5, 3, 1 } or { 3, 1, 5, 1, 3 }
     for r = 0, rows - 1 do
-        local y = 160 + r * (330 / (rows - 1))
+        local y = 160 + r * (330 / 4)
         local gapAt = gaps[r + 1]
         for seg = 1, 5 do
             local x = L_X0 + 10 + (seg - 1) * 94 + 35
@@ -299,60 +317,68 @@ FAMILIES[#FAMILIES + 1] = { name = "Brick Walls", build = function(rng, add, d)
         end
     end
     for r = 0, rows - 2 do
-        local y = 160 + (r + 0.5) * (330 / (rows - 1))
+        local y = 160 + (r + 0.5) * (330 / 4)
         row(add, y, 4, L_X0 + 60, L_X1 - 60)
     end
 end }
 
 -- 8. Spiral: one long spiral under a crown
-FAMILIES[#FAMILIES + 1] = { name = "Spiral", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Spiral", build = function(rng, add, d, dens)
     -- pegs every 46px of arc along an Archimedean spiral
     local cx, cy = CX, 315
     local dir = (rng() < 0.5) and 1 or -1
     local b = 172 / (2.5 * 2 * pi)       -- radius grows this much per radian
     local a, rad = 0, 24
-    while rad < 196 do
+    local limit = 96 + 100 * dens
+    while rad < limit do
         add(peg(cx + rad * cos(dir * a), cy + rad * sin(dir * a) * 0.95))
         local step = 46 / math.max(rad, 24)
         a = a + step
         rad = 24 + b * a
     end
-    row(add, 140, 5, 80, W - 80)
+    if dens > 0.6 then row(add, 140, 5, 80, W - 80) end
 end }
 
 -- 9. Waves: four sine rows in step, posts at the edges
-FAMILIES[#FAMILIES + 1] = { name = "Waves", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Waves", build = function(rng, add, d, dens)
     local phase = rng(0, 3) * pi / 2
-    for r = 0, 3 do
+    for r = 0, 1 + floor(2 * dens + 0.5) do
         local y0 = 170 + r * 100
         for k = 0, 9 do
             local f = k / 9
             add(peg(L_X0 + f * (L_X1 - L_X0), y0 + sin(f * 2 * pi + phase + r * pi / 2) * 30))
         end
     end
-    row(add, 480, 6, 100, W - 100)
+    if dens > 0.7 then row(add, 480, 6, 100, W - 100) end
 end }
 
 -- 10. Hourglass: a brick X with peg rows above, below and at the waist
-FAMILIES[#FAMILIES + 1] = { name = "Hourglass", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Hourglass", build = function(rng, add, d, dens)
     -- both arms share a group so they may cross in the middle
     brickLine(add, 70, 150, W - 70, 470, "x", 12)
     brickLine(add, W - 70, 150, 70, 470, "x", 12)
-    row(add, 130, 5, 100, W - 100)
-    row(add, 490, 5, 100, W - 100)
-    row(add, 310, 2, 60, W - 60)
-    column(add, 60, 200, 420, 4)
-    column(add, W - 60, 200, 420, 4)
+    if dens > 0.35 then
+        row(add, 130, 5, 100, W - 100)
+        row(add, 490, 5, 100, W - 100)
+    end
+    if dens > 0.6 then row(add, 310, 2, 60, W - 60) end
+    if dens > 0.8 then
+        column(add, 60, 200, 420, 4)
+        column(add, W - 60, 200, 420, 4)
+    end
 end }
 
 -- 11. Honeycomb: a full hex grid with a shape cut out of the middle
-FAMILIES[#FAMILIES + 1] = { name = "Honeycomb", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Honeycomb", build = function(rng, add, d, dens)
     local spacing = 44
     local rowH = spacing * 0.866
     local rows = floor((E.PEG_BOTTOM - E.PEG_TOP - 20) / rowH)
     local shape = rng(0, 2)
     local cy = (E.PEG_TOP + E.PEG_BOTTOM) / 2
-    for r = 0, rows - 1 do
+    -- sparse versions keep the middle rows
+    local keep = 3 + floor((rows - 3) * dens + 0.5)
+    local r0 = floor((rows - keep) / 2)
+    for r = r0, r0 + keep - 1 do
         local y = E.PEG_TOP + 20 + r * rowH
         local offset = (r % 2) * spacing / 2
         for c = 0, floor((W - 2 * E.PEG_MARGIN) / spacing) do
@@ -367,8 +393,8 @@ FAMILIES[#FAMILIES + 1] = { name = "Honeycomb", build = function(rng, add, d)
 end }
 
 -- 12. Pillars: four brick columns with peg rows between
-FAMILIES[#FAMILIES + 1] = { name = "Pillars", build = function(rng, add, d)
-    local cols = 4
+FAMILIES[#FAMILIES + 1] = { name = "Pillars", build = function(rng, add, d, dens)
+    local cols = 2 + floor(2 * dens + 0.5)
     local tall = rng() < 0.5
     for c = 1, cols do
         local x = L_X0 + 40 + (c - 1) * (L_X1 - L_X0 - 80) / (cols - 1)
@@ -382,13 +408,13 @@ FAMILIES[#FAMILIES + 1] = { name = "Pillars", build = function(rng, add, d)
             add(peg(L_X0 + 40 + (c + 0.5) * (L_X1 - L_X0 - 80) / (cols - 1), y))
         end
     end
-    row(add, 490, 7, 60, W - 60)
+    if dens > 0.6 then row(add, 490, 7, 60, W - 60) end
 end }
 
 -- 13. Chevrons: nested V rows pointing down, or up
-FAMILIES[#FAMILIES + 1] = { name = "Chevrons", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Chevrons", build = function(rng, add, d, dens)
     local up = rng() < 0.4
-    for r = 0, 3 do
+    for r = 0, 1 + floor(2 * dens + 0.5) do
         local y0 = 150 + r * 85
         for k = 0, 8 do
             local f = k / 8
@@ -396,30 +422,32 @@ FAMILIES[#FAMILIES + 1] = { name = "Chevrons", build = function(rng, add, d)
             add(peg(L_X0 + f * (L_X1 - L_X0), y0 + (up and -dip + 60 or dip)))
         end
     end
-    row(add, 490, 3, CX - 100, CX + 100)
+    if dens > 0.7 then row(add, 490, 3, CX - 100, CX + 100) end
 end }
 
 -- 14. Castle: a brick rampart with crenellations, towers at the sides
-FAMILIES[#FAMILIES + 1] = { name = "Castle", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Castle", build = function(rng, add, d, dens)
     -- rampart
     brickLine(add, 90, 330, W - 90, 330, "rampart", 12)
     for k = 0, 5 do add(peg(110 + k * 64, 290)) end
-    -- towers
-    for _, x in ipairs({ 60, W - 60 }) do
-        brickLine(add, x, 180, x, 440, "tower" .. x, 8)
-        add(peg(x, 150))
-        add(peg(x, 475))
-    end
     -- keep
     ring(add, CX, 200, 48, 6, pi / 6)
     add(peg(CX, 200))
+    -- towers
+    if dens > 0.35 then
+        for _, x in ipairs({ 60, W - 60 }) do
+            brickLine(add, x, 180, x, 440, "tower" .. x, 8)
+            add(peg(x, 150))
+            add(peg(x, 475))
+        end
+    end
     -- courtyard below the wall
-    row(add, 400, 5, 150, W - 150)
-    row(add, 470, 6, 130, W - 130)
+    if dens > 0.6 then row(add, 400, 5, 150, W - 150) end
+    if dens > 0.8 then row(add, 470, 6, 130, W - 130) end
 end }
 
 -- 15. Star: a five-point star of pegs with a ring in its heart
-FAMILIES[#FAMILIES + 1] = { name = "Star", build = function(rng, add, d)
+FAMILIES[#FAMILIES + 1] = { name = "Star", build = function(rng, add, d, dens)
     local cx, cy, R, r = CX, 310, 180, 80
     local spin = -pi / 2
     local pts = {}
@@ -435,13 +463,91 @@ FAMILIES[#FAMILIES + 1] = { name = "Star", build = function(rng, add, d)
             add(peg(a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f))
         end
     end
-    ring(add, cx, cy, 42, 5, spin)
-    column(add, 52, 160, 470, 5)
-    column(add, W - 52, 160, 470, 5)
-    row(add, 490, 4, 110, W - 110)
+    if dens > 0.4 then ring(add, cx, cy, 42, 5, spin) end
+    if dens > 0.7 then
+        column(add, 52, 160, 470, 5)
+        column(add, W - 52, 160, 470, 5)
+        row(add, 490, 4, 110, W - 110)
+    end
 end }
 
 L.FAMILIES = FAMILIES
+
+-- ---------------------------------------------------------------------
+-- Chapter 1: nine starter pictures, the simplest first. Level 10 is the
+-- first boss and uses the last of them.
+
+local STARTERS = {}
+
+STARTERS[1] = { name = "First Steps", build = function(rng, add)
+    row(add, 250, 5, CX - 120, CX + 120)
+    row(add, 340, 4, CX - 90, CX + 90)
+end }
+
+STARTERS[2] = { name = "Two Rows", build = function(rng, add)
+    row(add, 240, 7, CX - 180, CX + 180)
+    row(add, 330, 6, CX - 150, CX + 150)
+end }
+
+STARTERS[3] = { name = "Little Diamond", build = function(rng, add)
+    diamond(add, CX, 270, 80, 2)
+    add(peg(CX, 270))
+    row(add, 430, 5, CX - 120, CX + 120)
+end }
+
+STARTERS[4] = { name = "Three Shelves", build = function(rng, add)
+    row(add, 220, 7, CX - 180, CX + 180)
+    row(add, 310, 6, CX - 150, CX + 150)
+    row(add, 400, 7, CX - 180, CX + 180)
+end }
+
+STARTERS[5] = { name = "The V", build = function(rng, add)
+    for k = 0, 8 do
+        local f = k / 8
+        add(peg(L_X0 + 20 + f * (L_X1 - L_X0 - 40), 220 + 120 * (1 - math.abs(f - 0.5) * 2)))
+    end
+    row(add, 440, 4, CX - 90, CX + 90)
+end }
+
+STARTERS[6] = { name = "Small Ring", build = function(rng, add)
+    ring(add, CX, 290, 85, 12, pi / 12)
+    add(peg(CX, 290))
+    row(add, 460, 5, CX - 120, CX + 120)
+end }
+
+STARTERS[7] = { name = "First Bricks", build = function(rng, add)
+    brickLine(add, CX - 150, 230, CX - 30, 230, "shelfL", 4)
+    brickLine(add, CX + 30, 230, CX + 150, 230, "shelfR", 4)
+    row(add, 320, 5, CX - 120, CX + 120)
+    brickLine(add, CX - 60, 410, CX + 60, 410, "shelfM", 4)
+    row(add, 470, 4, CX - 150, CX + 150)
+end }
+
+STARTERS[8] = { name = "Zig", build = function(rng, add)
+    for k = 0, 7 do
+        local f = k / 7
+        add(peg(L_X0 + 20 + f * (L_X1 - L_X0 - 40), 220 + f * 50))
+    end
+    for k = 0, 7 do
+        local f = k / 7
+        add(peg(L_X0 + 20 + f * (L_X1 - L_X0 - 40), 360 + (1 - f) * 50))
+    end
+end }
+
+STARTERS[9] = { name = "Columns", build = function(rng, add)
+    column(add, CX - 150, 200, 400, 4)
+    column(add, CX, 240, 440, 4)
+    column(add, CX + 150, 200, 400, 4)
+    row(add, 480, 4, CX - 90, CX + 90)
+end }
+
+STARTERS[10] = { name = "Boss Shelves", build = function(rng, add)
+    row(add, 280, 7, CX - 180, CX + 180)
+    row(add, 360, 6, CX - 150, CX + 150)
+    row(add, 440, 7, CX - 180, CX + 180)
+end }
+
+L.STARTERS = STARTERS
 
 -- ---------------------------------------------------------------------
 -- Gimmicks: the moving and solid pieces of later chapters. Each builder
@@ -571,17 +677,33 @@ end }
 
 L.GIMMICKS = GIMMICKS
 
+-- The order the gimmicks arrive in: one new one per chapter from chapter
+-- 3, each making its debut on the first level of its chapter.
+L.GIMMICK_ORDER = { "Slider", "Lifts", "Blocks", "Wheel", "Bumpers", "Pendulum", "Twin Wheels", "Bumper Gate", "Sliding Block" }
+local function gimmickByName(name)
+    for _, g in ipairs(GIMMICKS) do if g.name == name then return g end end
+end
+
 -- Which gimmicks a level gets: none before chapter 3 and none on a boss
--- level, then most levels carry one and the late game sometimes two.
+-- level. The pool grows by one each chapter; a new gimmick always shows
+-- on its chapter's first level, otherwise levels draw from the pool more
+-- and more often, and from level 300 sometimes twice.
 function L:GimmicksFor(n, rng, objective)
     local list = {}
     if n < 21 or objective == "boss" then return list end
-    if rng() < 0.25 then return list end
-    local first = ((n * 5 + floor(n / 10) * 3) % #GIMMICKS) + 1
-    list[1] = GIMMICKS[first]
+    local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
+    local pool = math.min(#self.GIMMICK_ORDER, chapter - 2)
+    local debut = (n % 10 == 1) and chapter - 2 <= #self.GIMMICK_ORDER
+    if debut then
+        list[1] = gimmickByName(self.GIMMICK_ORDER[pool])
+        return list
+    end
+    if rng() > 0.35 + 0.4 * self:Stage(n) then return list end
+    local first = rng(1, pool)
+    list[1] = gimmickByName(self.GIMMICK_ORDER[first])
     if n >= 300 and rng() < 0.45 then
-        local second = ((first + 2 + rng(0, 2)) % #GIMMICKS) + 1
-        if second ~= first then list[2] = GIMMICKS[second] end
+        local second = rng(1, pool)
+        if second ~= first then list[2] = gimmickByName(self.GIMMICK_ORDER[second]) end
     end
     return list
 end
@@ -603,6 +725,25 @@ function L:Difficulty(n)
     return (n - 1) / (self.COUNT - 1)
 end
 
+-- The content ramp of the early game: 0 at level 1, 1 from level 80 on.
+function L:Stage(n)
+    return math.max(0, math.min(1, (n - 1) / 79))
+end
+
+-- How much of a family's picture a level draws: chapter 1 uses its own
+-- starter pictures; from level 11 the pictures fill in until level 80.
+function L:Density(n)
+    if n <= 10 then return 0 end
+    return math.min(1, 0.3 + 0.7 * (n - 11) / 69)
+end
+
+-- The fewest pieces a pattern may be left with before a gimmick is
+-- dropped from the level instead.
+function L:MinPieces(n)
+    if n <= 10 then return 7 end
+    return floor(12 + 16 * self:Density(n))
+end
+
 -- What level n asks of you. Every tenth level is a boss, eggs from
 -- chapter 2 (levels ending 5) and chapter 4 (ending 7), gems from chapter
 -- 3 (ending 3 and 8); the rest are classic orange-peg levels.
@@ -615,10 +756,12 @@ function L:Objective(n)
     return "classic"
 end
 
--- Oranges climb with the level: 15 -> 30. Piece counts come from the pattern.
+-- Oranges climb with the level: 3 on level 1, 8 by the end of chapter 1,
+-- 15 by level 40, 30 by level 1000. Piece counts come from the pattern.
 function L:Counts(n)
-    local d = self:Difficulty(n)
-    return floor(15 + d * 15 + 0.5)
+    if n <= 10 then return 3 + floor((n - 1) * 0.6) end
+    if n <= 40 then return 8 + floor((n - 10) * 7 / 30 + 0.5) end
+    return floor(15 + 15 * (n - 40) / 960 + 0.5)
 end
 
 -- Eggs or gems on a level: 3 -> 6.
@@ -641,16 +784,60 @@ end
 
 function L:ToughOrangesFrom() return 61 end
 
--- The boss for a level: kind by chapter, health climbing from 8 to 22.
+-- The boss for a level: kind by chapter, health climbing from 5 to 21.
 function L:BossFor(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local def = E.BOSSES[((chapter - 1) % #E.BOSSES) + 1]
-    return def, 8 + floor(chapter / 7)
+    return def, 5 + floor(chapter / 6)
+end
+
+-- Star marks come from the level itself: what its pieces are worth at a
+-- middling multiplier, one Fever bin, and the bins of the balls a good
+-- player has to spare. Harder levels (more goal pieces, tough pieces,
+-- eggs, gems, a boss) ask for fewer spare balls.
+L.STAR_BIN      = 45000      -- the first Fever bin, on average
+L.STAR_BALL     = 38000      -- what a spare ball fired at the bins is worth, on average
+L.STAR_SPARE    = { 3, 6 }   -- spare balls for two and three stars on the easiest level
+
+function L:ParFor(spec)
+    local pieces = 0
+    local tough, coloured = 0, 0
+    for _, p in ipairs(spec.pegs) do
+        if not E.IsSolid(p) then
+            local hp = p.maxhp or p.hp or 1
+            if p.kind == "boss" then
+                pieces = pieces + E.PEG_POINTS.boss * 10 + (hp - 1) * E.CHIP_POINTS.boss * 5
+            else
+                pieces = pieces + (E.PEG_POINTS[p.kind] or 25) * 5 + (hp - 1) * (E.CHIP_POINTS[p.kind] or 10) * 5
+                coloured = coloured + 1
+                if hp > 1 then tough = tough + 1 end
+            end
+        end
+    end
+    local goal = spec.goal or 0
+    local hard = 0.5 * math.min(1, goal / 30) + 0.5 * (coloured > 0 and tough / coloured or 0)
+    if spec.objective == "eggs" then hard = hard + 0.1
+    elseif spec.objective == "gems" then hard = hard + 0.2
+    elseif spec.objective == "boss" then hard = hard + 0.15 end
+    hard = math.max(0, math.min(1, hard))
+    local spare2 = self.STAR_SPARE[1] * (1 - 0.5 * hard)
+    local spare3 = self.STAR_SPARE[2] * (1 - 0.5 * hard)
+    -- the pieces weigh most: a board with more to light asks for more
+    local s2 = pieces * 4 + self.STAR_BIN + spare2 * self.STAR_BALL
+    local s3 = pieces * 6 + self.STAR_BIN + spare3 * self.STAR_BALL
+    return floor(s2 / 1000 + 0.5) * 1000, floor(s3 / 1000 + 0.5) * 1000
 end
 
 -- Score needed for two and three stars (one star is the clear itself).
 function L:StarScores(n)
-    return 200000 + 150 * n, 350000 + 300 * n
+    self.starCache = self.starCache or {}
+    local c = self.starCache[n]
+    if not c then
+        local spec = self:Build(n)
+        c = spec.stars
+        self.starCache[n] = c
+    end
+    return c[1], c[2]
 end
 
 function L:StarsFor(n, score, cleared)
@@ -701,7 +888,8 @@ function L:Build(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local d = self:Difficulty(n)
     local objective = self:Objective(n)
-    local family = FAMILIES[((n + chapter) % #FAMILIES) + 1]
+    local family = (n <= 10) and STARTERS[n] or FAMILIES[((n + chapter) % #FAMILIES) + 1]
+    local dens = self:Density(n)
     local bossDef, bossHp
     if objective == "boss" then bossDef, bossHp = self:BossFor(n) end
 
@@ -761,23 +949,26 @@ function L:Build(n)
         g.build(rng, add, mover, exclude, d)
         gimmickNames[#gimmickNames + 1] = g.name
     end
-    family.build(rng, add, d)
+    family.build(rng, add, d, dens)
     return pegs, movers, gimmickNames, rng
     end
 
     local pegs, movers, gimmickNames, rng = assemble(true)
     local static = 0
     for _, p in ipairs(pegs) do if not p.moving and not E.IsSolid(p) then static = static + 1 end end
-    if static < 28 and #gimmickNames > 0 then pegs, movers, gimmickNames, rng = assemble(false) end
+    if static < self:MinPieces(n) and #gimmickNames > 0 then pegs, movers, gimmickNames, rng = assemble(false) end
 
     -- Eggs and gems take the place of pattern pegs: round, still, well
     -- apart from each other, and (gems) high enough to fall through
     -- something. Anything the bigger piece would overlap is removed.
-    local function convert(kind, count, r)
+    -- Two passes: well spread out first, then closer together and lower
+    -- down if the pattern has too few round pegs for that.
+    local function convert(kind, count, r, spread, lowest)
+        spread, lowest = spread or 70, lowest or 420
         local cands = {}
         for _, p in ipairs(pegs) do
             if p.shape == "peg" and not p.moving and not E.IsSolid(p) and not p.goal
-                and (kind ~= "gem" or p.y < 420)
+                and (kind ~= "gem" or p.y < lowest)
                 and p.x - r >= E.PEG_MARGIN - 6 and p.x + r <= W - E.PEG_MARGIN + 6
                 and p.y - r >= E.PEG_TOP and p.y + r <= E.PEG_BOTTOM then
                 -- the bigger piece must not run into a moving one (those stay)
@@ -799,9 +990,12 @@ function L:Build(n)
             local ok = true
             for _, q in ipairs(chosen) do
                 local dx, dy = p.x - q.x, p.y - q.y
-                if dx * dx + dy * dy < 70 * 70 then ok = false break end
+                if dx * dx + dy * dy < spread * spread then ok = false break end
             end
             if ok then chosen[#chosen + 1] = p end
+        end
+        if #chosen < math.min(count, 3) and spread > 50 then
+            return convert(kind, count, r, 50, 470)
         end
         for _, p in ipairs(chosen) do
             p.kind = kind
@@ -839,8 +1033,9 @@ function L:Build(n)
     local orange = 0
     if objective == "classic" then
         orange = self:Counts(n)
-        -- small patterns keep at least six blue pieces
-        if orange > #order - 6 then orange = #order - 6 end
+        -- patterns keep at least a quarter of their pieces (and two) blue
+        local floorBlue = math.max(2, floor(#order * 0.25))
+        if orange > #order - floorBlue then orange = #order - floorBlue end
         goal = orange
     end
     for i = #order, 2, -1 do
@@ -876,8 +1071,7 @@ function L:Build(n)
         p.maxhp = p.hp
     end
 
-    local s2, s3 = self:StarScores(n)
-    return {
+    local spec = {
         level = n,
         chapter = chapter,
         name = self:ChapterName(chapter),
@@ -893,6 +1087,7 @@ function L:Build(n)
         boss = (objective == "boss") and { id = bossDef.id, name = bossDef.name, blurb = bossDef.blurb, hp = bossHp } or nil,
         balls = E.BALLS,
         power = self:PowerFor(chapter),
-        stars = { s2, s3 },
     }
+    spec.stars = { self:ParFor(spec) }
+    return spec
 end

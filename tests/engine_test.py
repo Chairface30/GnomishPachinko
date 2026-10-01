@@ -57,6 +57,7 @@ __cursor = { x = 270, y = 300 }
 function GetCursorPosition() return __cursor.x, __cursor.y end
 SlashCmdList = {}
 C_Timer = { After = function(_, fn) end }
+GameTooltip = nil
 
 local frames = {}
 local Obj = {}
@@ -104,6 +105,7 @@ function CreateFrame(kind, name, parent)
   rawset(f, "_parent", parent)
   return f
 end
+Minimap = CreateFrame("Frame", "Minimap")
 function __advance(secs)
   local stepDt = 1 / 30
   local target = __now + secs
@@ -123,7 +125,7 @@ end
 
 rt = lupa.LuaRuntime(unpack_returned_tuples=True)
 rt.execute(MOCK)
-for f in ("Core.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua"):
+for f in ("Core.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua"):
     src = open(os.path.join(ADDON_DIR, f), encoding="utf-8").read()
     rt.execute(f"local function chunk(...) {src} end chunk('GnomishPachinko')")
 rt.execute("GP = GnomishPachinko; E = GP.Engine; L = GP.Levels; UI = GP.UI; P = GP.Plays")
@@ -166,7 +168,8 @@ tough_orange_levels = 0
 sig1 = None
 for n in range(1, 1001):
     spec, counts, bad = report(n)
-    families.add(spec.layout)
+    if n > 10:
+        families.add(spec.layout)
     powers.add(spec.power)
     bricks_total += counts["brick"]
     moving_total += counts["moving"]
@@ -183,7 +186,8 @@ for n in range(1, 1001):
     if spec.objective != expected_kind and not (expected_kind in ("eggs", "gems") and spec.objective == "classic"):
         problems.append((n, "objective", spec.objective, expected_kind))
     if spec.objective == "classic":
-        orange_expected = min(round(15 + (n - 1) / 999 * 15), counts["total"] - counts["block"] - counts["bumper"] - 6)
+        coloured = counts["total"] - counts["block"] - counts["bumper"]
+        orange_expected = min(ev(f"L:Counts({n})"), coloured - max(2, coloured // 4))
         if counts["orange"] != orange_expected or spec.goal != orange_expected:
             problems.append((n, "oranges", counts["orange"], orange_expected))
     elif spec.objective == "eggs":
@@ -214,13 +218,30 @@ for n in range(1, 1001):
         problems.append((n, "three-hit piece too early"))
     if bad:
         problems.append((n, "placement", bad))
-    if counts["total"] < (22 if spec.objective == "boss" else 28):
+    if counts["total"] < (7 if n <= 10 else 11):
         problems.append((n, "thin", counts["total"]))
+    chapter = (n - 1) // 10 + 1
+    if spec.gimmick:
+        order = list(ev("L.GIMMICK_ORDER").values())
+        for g in spec.gimmick.split(" + "):
+            if order.index(g) + 1 > chapter - 2:
+                problems.append((n, "gimmick before its chapter", g))
+        if n % 10 == 1 and chapter - 2 <= len(order) and spec.gimmick != order[chapter - 3]:
+            problems.append((n, "debut", spec.gimmick, order[chapter - 3]))
+    elif n % 10 == 1 and 3 <= chapter <= 11:
+        problems.append((n, "no debut gimmick"))
+    if n == 1 and (counts["total"] > 12 or spec.goal != 3):
+        problems.append((n, "level 1 not simple", counts["total"], spec.goal))
+    if n <= 10 and (counts["brick"] > 0 and n < 7):
+        problems.append((n, "bricks before level 7"))
     if n == 500:
         sig1 = [(p.x, p.y, p.kind, p.shape, p.maxhp) for p in spec.pegs.values()]
 check("all 1000 levels build with the published goals, 2 greens, nothing overlapping", not problems, str(problems[:5]))
 check("every layout family appears", len(families) == len(ev("L.FAMILIES")), str(sorted(families)))
 check("every power is assigned somewhere", len(powers) == 7, str(powers))
+pieces_by_level = {n: report(n)[1]["total"] for n in (1, 5, 11, 30, 61, 81)}
+check("the board fills in as the levels climb", pieces_by_level[1] < pieces_by_level[5] <= pieces_by_level[11] + 10 and pieces_by_level[11] < pieces_by_level[81], str(pieces_by_level))
+print(f"      pieces by level {pieces_by_level}")
 check("every objective appears, bosses on every tenth level", objectives.get("boss") == 100 and objectives.get("eggs", 0) > 100 and objectives.get("gems", 0) > 100, str(objectives))
 check("every boss kind appears", len(bosses) == 5, str(bosses))
 check("bricks are in play", bricks_total > 1000, str(bricks_total))
@@ -322,10 +343,15 @@ function wipe(events) for i = #events, 1, -1 do events[i] = nil end end
 # combos: each piece lit in a shot pays more, and the tenth pays a bonus
 lua(r"""
 function combo_probe()
-  local st = E:NewLevel(L:Build(1))
+  -- the first level with ten plain round blue pegs
+  local st, blues
+  for n = 11, 200 do
+    st = E:NewLevel(L:Build(n))
+    blues = {}
+    for _, p in ipairs(st.pegs) do if p.kind == "blue" and p.shape == "peg" and p.maxhp == 1 then blues[#blues + 1] = p end end
+    if #blues >= 10 then break end
+  end
   local events = {}
-  local blues = {}
-  for _, p in ipairs(st.pegs) do if p.kind == "blue" then blues[#blues + 1] = p end end
   local pts, bonus = {}, 0
   for i = 1, 10 do
     touch(st, blues[i], events)
@@ -461,13 +487,13 @@ function boss_probe(n)
   while not b.lit and info.chips < 40 do
     touch(st, b, events)
     for _, e in ipairs(events) do if e.type == "crack" and e.peg == b then info.chips = info.chips + 1 end end
+    if b.mover.speed ~= speed0 then info.speedChanged = true end
     info.hops = info.hops + count(events, "boss_hop")
     info.fever = info.fever + count(events, "fever")
     info.down = info.down + count(events, "boss_down")
     wipe(events)
     for _ = 1, 30 do E:Step(st, 1 / 60) end
   end
-  info.speedChanged = b.mover.speed ~= speed0
   info.phase = st.phase
   return info
 end
@@ -771,9 +797,44 @@ end
 early, late = ev("lit_expires")()
 check("a touched piece is still there after one second and gone after two", (not early) and late)
 
-# stars
+# the last goal piece: time slows while a ball closes in, and stops when it is lit
+lua(r"""
+function last_peg_probe()
+  local st = E:NewLevel(L:Build(1))
+  local last
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "orange" then
+      if last then p.lit = true; p.gone = true; st.goalLeft = st.goalLeft - 1; st.goalHit = st.goalHit + 1 else last = p end
+    end
+  end
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = last.x, y = last.y - 80, vx = 0, vy = 120, slow = 0 }
+  local events = {}
+  local slowAt, lit, steps = nil, nil, 0
+  local wall = 0
+  while st.phase == E.PHASE.FLIGHT and steps < 600 do
+    E:Step(st, 1 / 60, events)
+    steps = steps + 1
+    wall = wall + 1 / 60
+    for _, e in ipairs(events) do if e.type == "last_peg" and not slowAt then slowAt = wall end end
+    if last.lit and not lit then lit = { wall = wall, slow = st.lastSlow } end
+    wipe(events)
+  end
+  return slowAt, lit and lit.wall, lit and lit.slow, st.phase
+end
+""")
+slow_at, lit_at, slow_when_lit, phase = ev("last_peg_probe")()
+check("time slows as a ball closes on the last orange peg and the slow ends when it lights",
+      slow_at is not None and lit_at is not None and lit_at > slow_at and not slow_when_lit and phase == "FEVER",
+      f"slow {slow_at} lit {lit_at} still slow {slow_when_lit} {phase}")
+
+# stars come from the level's own pieces
+s2, s3 = ev("L:StarScores(1)")
 check("stars: none for a loss, one for a clear, two and three at the marks",
-      [ev(f"L:StarsFor(1, {s}, {c})") for s, c in ((999999, "false"), (1000, "true"), (200150, "true"), (350300, "true"))] == [0, 1, 2, 3])
+      [ev(f"L:StarsFor(1, {s}, {c})") for s, c in ((999999, "false"), (1000, "true"), (s2 - 1, "true"), (s2, "true"), (s3, "true"))] == [0, 1, 1, 2, 3])
+b2, b3 = ev("L:StarScores(81)")
+check("a fuller board asks for a higher score", b2 > s2 * 1.2 and b3 > s3 * 1.2, f"level 1 {s2}/{s3}, level 81 {b2}/{b3}")
+check("star marks are cached and reproducible", ev("L:StarScores(81)") == (b2, b3))
 
 # ------------------------------------------------------------------ plays vault
 lua(r"""
@@ -895,11 +956,13 @@ else:
     lua("GP:RecordResult({ level = 1, cleared = true, score = 1234, objective = 'classic', goals = 15, goalTotal = 15 })")
     check("recording a clear unlocks the next level and awards a star", ev("GnomishPachinkoDB.unlocked") >= 2 and ev("GnomishPachinkoDB.stars[1]") == 1)
 lua("UI:ShowLevelSelect()")
-check("level select shows page 1 with level 2 open", ev("UI.levelPanel:IsShown() and UI.levelPanel.cells[2]:IsEnabled() and not UI.levelPanel.cells[3]:IsEnabled()"))
+check("the level map shows chapter 1 with level 2 open and the boss node tenth", ev("UI.levelPanel:IsShown() and UI.levelPanel.nodes[2]:IsEnabled() and not UI.levelPanel.nodes[3]:IsEnabled() and UI.levelPanel.nodes[10].level == 10"))
 lua("UI.levelPanel.cells[2]:Click()")
 check("clicking an open level starts it", ev("UI.state.level == 2 and not UI.levelPanel:IsShown()"))
 lua("UI:ShowLevelSelect(); UI.levelPanel.next:Click()")
-check("paging reaches levels 101-200", ev("UI.levelPanel.cells[1].level") == 101)
+check("Next steps to chapter 2 and >> ten chapters on", ev("UI.levelPanel.nodes[1].level") == 11)
+lua("UI.levelPanel.next10:Click()")
+check("the >> button jumps ten chapters", ev("UI.levelPanel.nodes[1].level") == 111 and "Chapter 12" in ev("UI.levelPanel.title:GetText()"))
 lua("UI:HideLevelSelect()")
 lua('SlashCmdList["GNOMISHPACHINKO"]("999")')
 check("slash refuses a locked level", any("not unlocked" in m for m in ev("__printed").values()))
@@ -916,6 +979,19 @@ __started = UI:StartLevel(1)
 check("with no plays left a level will not start and the out-of-plays panel shows", ev("__started") == False and ev("UI.playsPanel:IsShown()"))
 lua("P:AddLots(1); UI:OnPlaysChanged()")
 check("buying plays hides the panel and the game resumes", ev("not UI.playsPanel:IsShown()") and ev("UI.state ~= nil"))
+
+# minimap button and the announcer hooks
+lua("GP.Minimap:Create()")
+check("the minimap button exists with its GP label", ev("GP.Minimap.button ~= nil and GP.Minimap.button.label:GetText() == 'GP'"))
+lua("UI:Hide(); GP.Minimap.button:GetScript('OnClick')(GP.Minimap.button, 'LeftButton')")
+check("left-clicking the minimap button opens the game", ev("UI.frame:IsShown()"))
+lua("GP.Minimap.button:GetScript('OnClick')(GP.Minimap.button, 'RightButton')")
+check("right-clicking it opens the level select", ev("UI.levelPanel:IsShown()"))
+lua("UI:HideLevelSelect(); GP.Minimap:Toggle()")
+check("/pachinko minimap hides the button and remembers it", ev("not GP.Minimap.button:IsShown() and GnomishPachinkoDB.minimap.hide == true"))
+lua("GP.Minimap:Toggle()")
+lua("__ok = pcall(GP.PlayVoice, GP, 'fever')")
+check("a missing voice line plays silently without an error", ev("__ok"))
 
 # the window survives egg, gem and boss levels (textures laid out, events handled)
 lua(r"""

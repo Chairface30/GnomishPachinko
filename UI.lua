@@ -138,9 +138,16 @@ function UI:CreateFrame()
     closeBtn:SetScript("OnClick", function() UI:Hide() end)
 
     -- ===== field =====
-    local field = CreateFrame("Frame", nil, frame, "BackdropTemplate")
+    -- The view clips the field so it can zoom in on the last goal piece.
+    local view = CreateFrame("Frame", nil, frame)
+    view:SetSize(FW, FH)
+    view:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -TOP_H)
+    if view.SetClipsChildren then pcall(view.SetClipsChildren, view, true) end
+    self.view = view
+    local field = CreateFrame("Frame", nil, view, "BackdropTemplate")
     field:SetSize(FW, FH)
-    field:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -TOP_H)
+    field:SetPoint("TOPLEFT", view, "TOPLEFT", 0, 0)
+    self.zoomScale = 1
     field:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
     field:SetBackdropColor(0.03, 0.04, 0.14, 1)
     field:SetBackdropBorderColor(0.45, 0.35, 0.70, 1)
@@ -297,7 +304,7 @@ function UI:CreateFrame()
     -- ===== side panel =====
     local side = CreateFrame("Frame", nil, frame)
     side:SetSize(SIDE_W, FH)
-    side:SetPoint("TOPLEFT", field, "TOPRIGHT", PAD, 0)
+    side:SetPoint("TOPLEFT", view, "TOPRIGHT", PAD, 0)
     self.side = side
 
     local function label(text, y, template)
@@ -412,13 +419,21 @@ function UI:CreateFrame()
 end
 
 -- ---------------------------------------------------------------------
--- Level select overlay (covers the field)
+-- The level map (covers the field): one chapter a page, its ten levels
+-- climbing a winding path from the bottom left to the boss at the top,
+-- stars under every node. Prev/Next step a chapter, << and >> ten.
+
+local NODE_PATH = {}
+for i = 1, 10 do
+    local t = (i - 1) / 9
+    NODE_PATH[i] = { x = 300 + 200 * math.sin((i - 1) * 1.05 + 2.4), y = 520 - t * 400 }
+end
 
 function UI:CreateLevelSelect()
     local FW, FH = E.FIELD_W, E.FIELD_H
     local panel = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
     panel:SetSize(FW, FH)
-    panel:SetPoint("TOPLEFT", self.field, "TOPLEFT", 0, 0)
+    panel:SetPoint("TOPLEFT", self.view, "TOPLEFT", 0, 0)
     panel:SetFrameLevel(self.field:GetFrameLevel() + 10)
     panel:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
     panel:SetBackdropColor(0.05, 0.04, 0.12, 0.98)
@@ -429,35 +444,60 @@ function UI:CreateLevelSelect()
 
     panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     panel.title:SetPoint("TOP", 0, -14)
+    panel.title:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    panel.subtitle = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    panel.subtitle:SetPoint("TOP", panel.title, "BOTTOM", 0, -4)
+    panel.subtitle:SetTextColor(0.7, 0.7, 0.85)
 
+    panel.prev10 = makeButton(panel, 36, 24, "<<")
+    panel.prev10:SetPoint("TOPLEFT", 14, -12)
+    panel.prev10:SetScript("OnClick", function() UI:LevelPage(UI.levelPage - 10) end)
     panel.prev = makeButton(panel, 60, 24, "< Prev")
-    panel.prev:SetPoint("TOPLEFT", 14, -12)
+    panel.prev:SetPoint("LEFT", panel.prev10, "RIGHT", 4, 0)
     panel.prev:SetScript("OnClick", function() UI:LevelPage(UI.levelPage - 1) end)
+    panel.next10 = makeButton(panel, 36, 24, ">>")
+    panel.next10:SetPoint("TOPRIGHT", -14, -12)
+    panel.next10:SetScript("OnClick", function() UI:LevelPage(UI.levelPage + 10) end)
     panel.next = makeButton(panel, 60, 24, "Next >")
-    panel.next:SetPoint("TOPRIGHT", -14, -12)
+    panel.next:SetPoint("RIGHT", panel.next10, "LEFT", -4, 0)
     panel.next:SetScript("OnClick", function() UI:LevelPage(UI.levelPage + 1) end)
 
-    panel.cells = {}
-    local cols, rows = 10, 10
-    local cw, ch = 46, 42
-    local gx = (FW - cols * cw) / (cols + 1)
-    local top = 52
-    for i = 1, cols * rows do
-        local c = makeButton(panel, cw, ch, "")
-        local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
-        c:SetPoint("TOPLEFT", panel, "TOPLEFT", gx + col * (cw + gx), -(top + row * (ch + 5)))
+    -- the path: dots between the nodes
+    panel.pathDots = {}
+    for i = 1, 9 * 7 do
+        local d = panel:CreateTexture(nil, "ARTWORK")
+        d:SetSize(5, 5)
+        d:SetTexture(TEX .. "dot")
+        d:SetVertexColor(0.6, 0.5, 0.8, 0.6)
+        local seg, k = math.floor((i - 1) / 7) + 1, ((i - 1) % 7 + 1) / 8
+        local a, b = NODE_PATH[seg], NODE_PATH[seg + 1]
+        d:SetPoint("CENTER", panel, "TOPLEFT", a.x + (b.x - a.x) * k, -(a.y + (b.y - a.y) * k))
+        panel.pathDots[i] = d
+    end
+
+    panel.nodes = {}
+    for i = 1, 10 do
+        local size = (i == 10) and 58 or 44
+        local c = makeButton(panel, size, size, "")
+        c:SetPoint("CENTER", panel, "TOPLEFT", NODE_PATH[i].x, -NODE_PATH[i].y)
         c.text:ClearAllPoints()
-        c.text:SetPoint("TOP", 0, -3)
-        c.text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
+        c.text:SetPoint("CENTER", 0, 3)
+        c.text:SetFont("Fonts\\FRIZQT__.TTF", (i == 10) and 14 or 12, "OUTLINE")
         c.best = c:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-        c.best:SetPoint("TOP", 0, -17)
+        c.best:SetPoint("TOP", c, "BOTTOM", 0, 12)
         c.best:SetFont("Fonts\\FRIZQT__.TTF", 8, "")
-        c.stars = makeStars(c, 9, 1)
-        for k, s in ipairs(c.stars) do s:SetPoint("BOTTOM", c, "BOTTOM", (k - 2) * 11, 3) end
+        c.stars = makeStars(c, 10, 1)
+        for k, st in ipairs(c.stars) do st:SetPoint("TOP", c, "BOTTOM", (k - 2) * 12, 2) end
         c.kindMark = c:CreateTexture(nil, "OVERLAY")
-        c.kindMark:SetSize(6, 6)
+        c.kindMark:SetSize(7, 7)
         c.kindMark:SetTexture(TEX .. "dot")
         c.kindMark:SetPoint("TOPRIGHT", -3, -3)
+        c.bossMark = c:CreateTexture(nil, "BACKGROUND")
+        c.bossMark:SetSize(size + 14, size + 14)
+        c.bossMark:SetPoint("CENTER")
+        c.bossMark:SetTexture(TEX .. "rim")
+        c.bossMark:SetVertexColor(1, 0.3, 0.3, 0.9)
+        if i ~= 10 then c.bossMark:Hide() end
         c:SetScript("OnClick", function(self)
             if self.level and GP:IsUnlocked(self.level) then
                 UI:HideLevelSelect()
@@ -467,12 +507,21 @@ function UI:CreateLevelSelect()
         c:SetScript("OnEnter", function(self)
             if not self.level or not GameTooltip then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            local spec = L:Objective(self.level)
-            local chapter = math.floor((self.level - 1) / L.PER_CHAPTER) + 1
-            GameTooltip:AddLine("Level " .. self.level .. "  -  " .. L:ChapterName(chapter))
-            GameTooltip:AddLine((E.OBJECTIVES[spec] or E.OBJECTIVES.classic).name .. " level", 0.9, 0.9, 1)
-            local s2, s3 = L:StarScores(self.level)
-            GameTooltip:AddLine("2 stars at " .. fmtBig(s2) .. ", 3 stars at " .. fmtBig(s3), 0.7, 0.7, 0.8)
+            local kind = L:Objective(self.level)
+            GameTooltip:AddLine("Level " .. self.level)
+            local def = E.OBJECTIVES[kind] or E.OBJECTIVES.classic
+            if kind == "boss" then
+                local bossDef = L:BossFor(self.level)
+                GameTooltip:AddLine("Boss: " .. bossDef.name .. " - " .. bossDef.blurb, 1, 0.5, 0.5, true)
+            else
+                GameTooltip:AddLine(def.name .. " level: " .. def.text, 0.9, 0.9, 1, true)
+            end
+            if GP:IsUnlocked(self.level) then
+                local s2, s3 = L:StarScores(self.level)
+                GameTooltip:AddLine("2 stars at " .. fmtBig(s2) .. ", 3 stars at " .. fmtBig(s3), 0.7, 0.7, 0.8)
+            else
+                GameTooltip:AddLine("Locked: clear the level before it", 0.6, 0.6, 0.6)
+            end
             local db = GP:GetDB()
             if db.best[self.level] then GameTooltip:AddLine("Best " .. fmtBig(db.best[self.level]), 1, 0.85, 0.2) end
             GameTooltip:Show()
@@ -482,8 +531,9 @@ function UI:CreateLevelSelect()
             if GameTooltip then GameTooltip:Hide() end
             if self:IsEnabled() then self:SetBackdropBorderColor(1, 1, 1, 0.9) end
         end)
-        panel.cells[i] = c
+        panel.nodes[i] = c
     end
+    panel.cells = panel.nodes
 
     panel.back = makeButton(panel, 120, 26, "Back to the game")
     panel.back:SetPoint("BOTTOM", 0, 10)
@@ -501,7 +551,7 @@ end
 function UI:ShowLevelSelect()
     self:Initialize()
     local current = (self.state and self.state.level) or GP:GetDB().current or 1
-    self.levelPage = math.floor((current - 1) / 100) + 1
+    self.levelPage = math.floor((current - 1) / L.PER_CHAPTER) + 1
     self:LevelPage(self.levelPage)
     self.levelPanel:Show()
 end
@@ -514,17 +564,22 @@ local KIND_DOT = {
     classic = { 1, 0.5, 0.08 }, eggs = { 1, 0.94, 0.75 }, gems = { 0.38, 0.94, 1 }, boss = { 1, 0.25, 0.25 },
 }
 
+-- page = chapter
 function UI:LevelPage(page)
-    local pages = math.ceil(L.COUNT / 100)
+    local pages = math.ceil(L.COUNT / L.PER_CHAPTER)
     if page < 1 then page = 1 elseif page > pages then page = pages end
     self.levelPage = page
     local panel = self.levelPanel
-    local first = (page - 1) * 100
-    panel.title:SetText(("|cffffd700Levels %d - %d|r"):format(first + 1, math.min(L.COUNT, first + 100)))
+    local first = (page - 1) * L.PER_CHAPTER
+    panel.title:SetText(("|cffffd700Chapter %d  -  %s|r"):format(page, L:ChapterName(page)))
+    panel.subtitle:SetText(("Levels %d - %d"):format(first + 1, math.min(L.COUNT, first + L.PER_CHAPTER)))
     styleButton(panel.prev, page > 1, 0.3, 0.3, 0.45)
+    styleButton(panel.prev10, page > 1, 0.3, 0.3, 0.45)
     styleButton(panel.next, page < pages, 0.3, 0.3, 0.45)
+    styleButton(panel.next10, page < pages, 0.3, 0.3, 0.45)
     local db = GP:GetDB()
-    for i, c in ipairs(panel.cells) do
+    local current = (self.state and self.state.level) or db.current or 1
+    for i, c in ipairs(panel.nodes) do
         local n = first + i
         if n > L.COUNT then
             c:Hide()
@@ -538,24 +593,33 @@ function UI:LevelPage(page)
             local kd = KIND_DOT[L:Objective(n)] or KIND_DOT.classic
             c.kindMark:SetVertexColor(kd[1], kd[2], kd[3], 1)
             if db.cleared[n] then
-                c:SetBackdropColor(0.1, 0.4, 0.15, 0.9)
+                c:SetBackdropColor(0.1, 0.4, 0.15, 0.95)
                 c:SetBackdropBorderColor(0.4, 1, 0.5, 1)
                 c.text:SetTextColor(0.7, 1, 0.7)
                 c:Enable()
             elseif GP:IsUnlocked(n) then
-                c:SetBackdropColor(0.45, 0.35, 0.1, 0.9)
+                c:SetBackdropColor(0.45, 0.35, 0.1, 0.95)
                 c:SetBackdropBorderColor(1, 0.85, 0.2, 1)
                 c.text:SetTextColor(1, 0.9, 0.5)
                 c:Enable()
             else
-                c:SetBackdropColor(0.12, 0.12, 0.15, 0.9)
+                c:SetBackdropColor(0.12, 0.12, 0.15, 0.95)
                 c:SetBackdropBorderColor(0.3, 0.3, 0.35, 1)
                 c.text:SetTextColor(0.45, 0.45, 0.5)
                 c:Disable()
             end
+            if n == current then c:SetBackdropBorderColor(1, 1, 1, 1) end
         end
     end
-    panel.total:SetText(("Stars %d / %d"):format(GP:TotalStars(), L.COUNT * 3))
+    local pathOn = 0
+    for n = first + 1, first + L.PER_CHAPTER - 1 do if db.cleared[n] then pathOn = n - first end end
+    for i, d in ipairs(panel.pathDots) do
+        local seg = math.floor((i - 1) / 7) + 1
+        if seg <= pathOn then d:SetVertexColor(0.5, 1, 0.6, 0.9) else d:SetVertexColor(0.6, 0.5, 0.8, 0.5) end
+    end
+    local chapterStars = 0
+    for n = first + 1, first + L.PER_CHAPTER do chapterStars = chapterStars + (db.stars[n] or 0) end
+    panel.total:SetText(("Chapter stars %d / %d\nAll stars %d / %d"):format(chapterStars, L.PER_CHAPTER * 3, GP:TotalStars(), L.COUNT * 3))
 end
 
 -- ---------------------------------------------------------------------
@@ -565,7 +629,7 @@ function UI:CreatePlaysPanel()
     local FW, FH = E.FIELD_W, E.FIELD_H
     local panel = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
     panel:SetSize(FW, FH)
-    panel:SetPoint("TOPLEFT", self.field, "TOPLEFT", 0, 0)
+    panel:SetPoint("TOPLEFT", self.view, "TOPLEFT", 0, 0)
     panel:SetFrameLevel(self.field:GetFrameLevel() + 8)
     panel:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
     panel:SetBackdropColor(0.08, 0.03, 0.06, 0.96)
@@ -658,6 +722,7 @@ function UI:StartLevel(n)
     for _, g in ipairs(self.gemTex) do g:Hide() end
     self:HideGuide()
     self:ShowBanner(("|cffffd700Level %d|r"):format(n), self:ObjectiveText(self.state), 3)
+    GP:PlayVoice(spec.objective == "boss" and "boss_start" or "level_start")
     self:UpdateDisplay()
     return true
 end
@@ -920,19 +985,25 @@ function UI:HandleEvents(now)
             self:Popup(ev.x, ev.y - 30, "BLOCKED", 0.6, 0.8, 1)
         elseif t == "boss_shield" then
             self:ShowBanner("|cff88ccffSHIELD UP|r", "The boss blocks the next two hits", 1.4)
+            GP:PlayVoice("boss_shield")
         elseif t == "boss_hop" then
             self:Popup(ev.x, ev.y - 30, "!", 1, 1, 0.5)
         elseif t == "boss_heal" then
             self:Popup(ev.x, ev.y - 30, "+1", 1, 0.4, 0.4)
         elseif t == "boss_down" then
             GP:PlaySfx("boss_down.ogg")
+            GP:PlayVoice("boss_down")
         elseif t == "gem_free" then
             GP:PlaySfx("gem.ogg")
         elseif t == "gem_caught" then
             self:Popup(ev.x, ev.y - 10, "GEM!", 0.6, 1, 1)
             GP:PlaySfx("gem.ogg")
+            GP:PlayVoice("gem")
         elseif t == "gem_lost" then
             self:Popup(ev.x, E.FIELD_H - 30, "missed", 0.7, 0.7, 0.8)
+        elseif t == "last_peg" then
+            GP:PlaySfx("slowmo.ogg")
+            GP:PlayVoice("last_one")
         elseif t == "pyramid" then
             GP:PlaySfx("bumper.ogg")
         elseif t == "zap" then
@@ -951,6 +1022,7 @@ function UI:HandleEvents(now)
             elseif k == "egg" then
                 self:Popup(ev.x, ev.y - 18, "HATCHED! +" .. ev.points, 1, 0.95, 0.6)
                 GP:PlaySfx("hatch.ogg")
+                GP:PlayVoice("hatched")
             elseif k == "gem" then
                 self:Popup(ev.x, ev.y - 26, "+" .. ev.points, 0.6, 1, 1)
             elseif k == "boss" then
@@ -962,9 +1034,11 @@ function UI:HandleEvents(now)
             self:ShowBanner(("|cffffd700COMBO %d!|r"):format(ev.combo), "+" .. fmtBig(ev.bonus), 1.6)
             self:Popup(ev.x, ev.y - 30, "+" .. fmtBig(ev.bonus), 1, 0.9, 0.3)
             GP:PlaySfx("free_ball.ogg")
+            GP:PlayVoice(ev.combo >= 20 and "combo_huge" or "combo")
         elseif t == "power" then
             self:ShowBanner(POWER_BANNERS[ev.power] or "POWER!", "", 1.4)
             GP:PlaySfx("power.ogg")
+            GP:PlayVoice("power_" .. ev.power)
             if ev.power == "blast" then
                 self:ShowBlast(ev.x, ev.y, now)
                 GP:PlaySfx("blast.ogg")
@@ -972,15 +1046,18 @@ function UI:HandleEvents(now)
         elseif t == "fever" then
             self:ShowBanner("|cffffd700FEVER!|r", "The goal is done - the rest of your balls go for the bins", 3)
             GP:PlaySfx("fever.ogg")
+            GP:PlayVoice("fever")
             self.bucket:Hide()
             for _, bin in ipairs(self.bins) do bin:Show() end
         elseif t == "bucket" then
             self:ShowBanner("|cff88ccffFREE BALL!|r", "", 1.5)
             GP:PlaySfx("free_ball.ogg")
             self:Popup(ev.x, E.BucketTop() - 16, "FREE BALL", 0.6, 0.85, 1)
+            GP:PlayVoice("free_ball")
         elseif t == "freeball_score" then
             self:ShowBanner("|cff88ccffFREE BALL!|r", fmtBig(ev.score) .. " points", 1.5)
             GP:PlaySfx("free_ball.ogg")
+            GP:PlayVoice("free_ball")
         elseif t == "fever_shot" then
             GP:PlaySfx("launch.ogg")
         elseif t == "spooky" then
@@ -1007,6 +1084,7 @@ function UI:OnLevelOver(result)
         setStars(self.bannerStars, stars)
         for _, s in ipairs(self.bannerStars) do s:Show() end
         GP:PlaySfx("clear.ogg")
+        GP:PlayVoice(stars >= 3 and "three_stars" or "level_cleared")
         if result.level == L.COUNT then
             self:ShowBanner("|cffffd700ALL 1000 LEVELS CLEARED!|r", "Score " .. fmtBig(result.score) .. ". You conquered Azeroth.", 0)
         end
@@ -1017,6 +1095,7 @@ function UI:OnLevelOver(result)
         else progress = ("%d of %d %s."):format(result.goals, result.goalTotal, goalWord) end
         self:ShowBanner("|cffff6060OUT OF BALLS|r",
             progress .. ("  Plays left today: %d."):format(playsLeft) .. (playsLeft > 0 and "  Restart to try again." or ""), 0)
+        GP:PlayVoice(playsLeft <= 0 and "out_of_plays" or "out_of_balls")
         if playsLeft <= 0 then
             self:ShowOutOfPlays(("You ran out of balls on level %d."):format(result.level))
         end
@@ -1058,7 +1137,38 @@ function UI:OnUpdate(dt)
         self:HandleEvents(now)
         self:UpdateCounters()
     end
+    self:UpdateZoom(dt)
     self:Render(now)
+end
+
+-- The field zooms in on the last goal piece while time is slowed, and
+-- eases back out afterwards. The field scales inside its clipping view;
+-- the anchor offset keeps the piece where it was on screen.
+function UI:UpdateZoom(dt)
+    local st = self.state
+    local target = (st and st.lastSlow and st.lastPeg) and E.LAST_ZOOM or 1
+    local cur = self.zoomScale or 1
+    if math.abs(target - cur) < 0.002 then
+        if cur == 1 and self.zoomApplied == 1 then return end
+        cur = target
+    else
+        cur = cur + (target - cur) * math.min(1, dt * 5)
+    end
+    self.zoomScale = cur
+    local field = self.field
+    local FW, FH = E.FIELD_W, E.FIELD_H
+    local zx = (st and st.lastPeg and st.lastPeg.x) or FW / 2
+    local zy = (st and st.lastPeg and st.lastPeg.y) or FH / 2
+    local ox = zx * (1 / cur - 1)
+    local oy = zy * (1 / cur - 1)
+    local minO = FW / cur - FW
+    if ox < minO then ox = minO elseif ox > 0 then ox = 0 end
+    local minOy = FH / cur - FH
+    if oy < minOy then oy = minOy elseif oy > 0 then oy = 0 end
+    if field.SetScale then field:SetScale(cur) end
+    field:ClearAllPoints()
+    field:SetPoint("TOPLEFT", self.view, "TOPLEFT", ox, -oy)
+    self.zoomApplied = cur
 end
 
 function UI:Render(now)

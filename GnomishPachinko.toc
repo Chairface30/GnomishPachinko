@@ -13,3 +13,4 @@ Engine.lua
 Levels.lua
 Plays.lua
 UI.lua
+Minimap.lua

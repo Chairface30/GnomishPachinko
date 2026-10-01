@@ -57,6 +57,13 @@ E.BUCKET_W     = 84
 E.BUCKET_H     = 16
 E.BUCKET_SPEED = 130
 E.FEVER_SLOWMO = 0.35
+-- The last goal piece: when a ball closes in on it, time slows and the
+-- window zooms in on it (Peggle Blast's last-peg moment).
+E.LAST_SLOWMO     = 0.3
+E.LAST_NEAR       = 90       -- a ball this close and heading in starts it
+E.LAST_LEAVE      = 150      -- it ends when no ball is within this
+E.LAST_MAX_SECS   = 2.0      -- of slowed time, then it waits for the ball to leave and return
+E.LAST_ZOOM       = 1.8
 E.FEVER_BINS   = { 10000, 50000, 100000, 50000, 10000 }
 E.FEVER_SHOT_GAP = 0.3     -- seconds between the leftover balls fired at the clear
 E.FREE_BALL_SCORES = { 25000, 75000, 125000 }
@@ -256,6 +263,9 @@ function E:NewLevel(spec)
         superGuide = 0,
         pyramidShots = 0,
         pyramidBounces = 0,
+        lastSlow = false,
+        lastPeg = nil,
+        lastSpent = 0,
         bossHitThisShot = false,
         phase = E.PHASE.AIM,
         aim = 0,
@@ -835,6 +845,52 @@ local function integrateGem(state, g, dt, events)
     return true
 end
 
+-- The one goal piece left, one hit from done, or nil.
+local function lastGoalPiece(state)
+    local b = state.boss
+    if b then
+        if not b.lit and not b.gone and b.hp == 1 and (b.shield or 0) == 0 then return b end
+        return nil
+    end
+    if state.goalLeft ~= 1 then return nil end
+    for _, p in ipairs(state.pegs) do
+        if p.goal and not p.lit and not p.gone and (p.hp or 1) == 1 then return p end
+    end
+    return nil
+end
+
+local function updateLastPeg(state, dt, events)
+    if state.phase ~= E.PHASE.FLIGHT then
+        state.lastSlow = false
+        return
+    end
+    local target = lastGoalPiece(state)
+    if not target then
+        state.lastSlow = false
+        return
+    end
+    local nearest, approaching = math.huge, false
+    for _, ball in ipairs(state.balls) do
+        local dx, dy = target.x - ball.x, target.y - ball.y
+        local d = sqrt(dx * dx + dy * dy)
+        if d < nearest then nearest = d end
+        if d < E.LAST_NEAR and (ball.vx * dx + ball.vy * dy) > 0 then approaching = true end
+    end
+    if state.lastSlow then
+        state.lastSpent = state.lastSpent + dt
+        if nearest > E.LAST_LEAVE or state.lastSpent >= E.LAST_MAX_SECS then
+            state.lastSlow = false
+        end
+    else
+        if nearest > E.LAST_LEAVE then state.lastSpent = 0 end
+        if approaching and state.lastSpent < E.LAST_MAX_SECS then
+            state.lastSlow = true
+            state.lastPeg = target
+            push(events, { type = "last_peg", x = target.x, y = target.y })
+        end
+    end
+end
+
 local function substep(state, dt, events)
     state.time = state.time + dt
     if #state.movers > 0 then E:UpdateMovers(state) end
@@ -853,6 +909,7 @@ local function substep(state, dt, events)
             table.remove(state.gems, i)
         end
     end
+    updateLastPeg(state, dt, events)
 
     if state.phase == E.PHASE.FEVER then
         -- once the first ball has landed, the leftover balls are fired off
@@ -895,7 +952,8 @@ end
 
 function E:Step(state, dt, events)
     if dt > 0.1 then dt = 0.1 end
-    if state.phase == E.PHASE.FEVER and state.feverSlow then dt = dt * E.FEVER_SLOWMO end
+    if state.phase == E.PHASE.FEVER and state.feverSlow then dt = dt * E.FEVER_SLOWMO
+    elseif state.lastSlow then dt = dt * E.LAST_SLOWMO end
     state.acc = state.acc + dt
     local step = E.STEP
     local guard = 0
