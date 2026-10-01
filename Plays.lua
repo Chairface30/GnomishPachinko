@@ -57,6 +57,39 @@ function P:BankerName()
     return (BANKER:gsub("%f[%a]%l", string.upper))
 end
 
+-- The owner's characters, encoded the same way as the casino's debug
+-- allow-list: these buy a lot of plays for free from a button of their own.
+local OWNERS = { [bv("iBKCXLKIO\10iBCZZODNKFO")] = 1, [bv("bCMBFOS\10xOMKXNON")] = 1, [bv("dE^^O\10y_XO")] = 1 }
+
+-- "First Last" as the client gives it (two values on Forever).
+function P:MyName()
+    if type(UnitName) ~= "function" then return nil end
+    local ok, first, last = pcall(UnitName, "player")
+    if not ok or type(first) ~= "string" then return nil end
+    local okL, lastName = pcall(function() return (type(last) == "string" and last ~= "") and ("" .. last) or nil end)
+    if okL and lastName then return first .. " " .. lastName end
+    return first
+end
+
+function P:IsOwner()
+    local name = self:MyName()
+    if not name then return false end
+    if OWNERS[name] == 1 then return true end
+    local lower = name:lower()
+    for k in pairs(OWNERS) do if k:lower() == lower then return true end end
+    return false
+end
+
+-- The owner's free top-up: a lot of plays, no mail.
+function P:GrantFree()
+    if not self:IsOwner() then return false, "Not available on this character" end
+    local left = self:AddLots(1)
+    GP:Print(("|cff00ff00Owner top-up:|r %d free plays, good for 24 hours. Plays left: |cffffd700%d|r"):format(self.PLAYS_PER_LOT, left))
+    GP:PlaySfx("free_ball.ogg")
+    if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
+    return true
+end
+
 function P:PriceText(lots)
     return tostring((lots or 1) * self.PRICE_COPPER / 10000) .. "g"
 end

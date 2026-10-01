@@ -57,6 +57,8 @@ __cursor = { x = 270, y = 300 }
 function GetCursorPosition() return __cursor.x, __cursor.y end
 SlashCmdList = {}
 C_Timer = { After = function(_, fn) end }
+__unitName, __unitSurname = "Thrall", "Frostwolf"
+function UnitName(unit) return __unitName, __unitSurname end
 GameTooltip = nil
 
 local frames = {}
@@ -904,8 +906,17 @@ check("copies merge as a union of fails", v["mergedFails"] == 5, str(v["mergedFa
 check("a day later the free plays are back and the bought lot is gone", v["nextDay"] == 5, str(v["nextDay"]))
 check("an edited copy locks the day, and the lock lifts a day later", v["tampered"] and v["unlockedAgain"] == 5, f"{v['tampered']} {v['unlockedAgain']}")
 check("the banker name decodes", ev("P:BankerName()") == "Chairface Chippendale", ev("P:BankerName()"))
-lua("__buyPrinted = #__printed; P:OnPurchase(200000)")
-check("a confirmed mail purchase credits two lots", ev("P:BoughtLeft()") == 10 and ev("#__printed") == ev("__buyPrinted") + 1)
+check("a stranger is not an owner and gets nothing for free", not ev("P:IsOwner()") and not ev("(P:GrantFree())"))
+owners_ok = True
+for first, last in (("Chairface", "Chippendale"), ("Highley", "Regarded"), ("Notte", "Sure")):
+    lua(f'__unitName, __unitSurname = "{first}", "{last}"')
+    owners_ok = owners_ok and ev("P:IsOwner()")
+check("the three owner characters are recognised from the encoded list", owners_ok)
+lua("__before = P:BoughtLeft(); P:GrantFree()")
+check("an owner's free top-up adds a lot of plays", ev("P:BoughtLeft()") == ev("__before") + 5)
+lua('__unitName, __unitSurname = "Thrall", "Frostwolf"')
+lua("__buyPrinted = #__printed; __boughtBefore = P:BoughtLeft(); P:OnPurchase(200000)")
+check("a confirmed mail purchase credits two lots", ev("P:BoughtLeft()") == ev("__boughtBefore") + 10 and ev("#__printed") == ev("__buyPrinted") + 1)
 lua("P.rec = nil; GnomishPachinkoSaved, GnomishPachinkoChar = nil, nil; P:Load()")
 
 # ------------------------------------------------------------------ window
@@ -979,6 +990,12 @@ __started = UI:StartLevel(1)
 check("with no plays left a level will not start and the out-of-plays panel shows", ev("__started") == False and ev("UI.playsPanel:IsShown()"))
 lua("P:AddLots(1); UI:OnPlaysChanged()")
 check("buying plays hides the panel and the game resumes", ev("not UI.playsPanel:IsShown()") and ev("UI.state ~= nil"))
+check("a stranger sees no owner button", ev("not UI.freeBtn:IsShown()"))
+lua('__unitName, __unitSurname = "Notte", "Sure"; for _ = 1, 10 do P:RecordFail() end; UI:StartLevel(1)')
+check("an owner out of plays sees the free button on the panel", ev("UI.playsPanel:IsShown() and UI.playsPanel.free:IsShown() and UI.freeBtn:IsShown()"))
+lua("UI.playsPanel.free:Click()")
+check("clicking it grants plays and the game resumes", ev("not UI.playsPanel:IsShown() and P:Remaining() == 5"))
+lua('__unitName, __unitSurname = "Thrall", "Frostwolf"; UI:UpdateDisplay()')
 
 # minimap button and the announcer hooks
 lua("GP.Minimap:Create()")

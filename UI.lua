@@ -391,24 +391,30 @@ function UI:CreateFrame()
 
     self.playsText = label("", -448, "GameFontNormal")
     self.playsText:SetWidth(SIDE_W)
+    self.playsText:SetHeight(30)
     self.playsText:SetJustifyH("LEFT")
+    self.playsText:SetJustifyV("TOP")
     self.buyBtn = makeButton(side, SIDE_W, 24, "Buy " .. GP.Plays.PLAYS_PER_LOT .. " plays (" .. GP.Plays:PriceText(1) .. ")")
-    self.buyBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -466)
+    self.buyBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -482)
     self.buyBtn:SetScript("OnClick", function() UI:BuyPlays() end)
+    -- the owner's characters top up for free
+    self.freeBtn = makeButton(side, SIDE_W, 24, "Owner: " .. GP.Plays.PLAYS_PER_LOT .. " free plays")
+    self.freeBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -510)
+    self.freeBtn:SetScript("OnClick", function() UI:ClaimFreePlays() end)
+    self.freeBtn:Hide()
 
-    self.progressText = label("", -498)
+    self.progressText = label("", -540)
     self.progressText:SetWidth(SIDE_W)
     self.progressText:SetJustifyH("LEFT")
     self.progressText:SetTextColor(0.8, 0.8, 0.9)
 
     local tip = side:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    tip:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -532)
+    tip:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -574)
     tip:SetWidth(SIDE_W)
     tip:SetJustifyH("LEFT")
     tip:SetJustifyV("TOP")
     tip:SetTextColor(0.65, 0.65, 0.78)
-    tip:SetText("Point with the mouse, click the field to shoot. Steel-rimmed pieces take two hits, gold-rimmed three. " ..
-        "Losing a level spends one of the day's plays; clearing one never does.")
+    tip:SetText("Click the field to shoot. Rimmed pieces take two or three hits.")
 
     frame:SetScript("OnUpdate", function(_, dt) UI:OnUpdate(dt) end)
     frame:SetScript("OnShow", function() UI.lastHitSound = 0 end)
@@ -651,8 +657,12 @@ function UI:CreatePlaysPanel()
     panel.buy = makeButton(panel, 220, 30, "Buy " .. GP.Plays.PLAYS_PER_LOT .. " plays for " .. GP.Plays:PriceText(1))
     panel.buy:SetPoint("TOP", panel.wait, "BOTTOM", 0, -24)
     panel.buy:SetScript("OnClick", function() UI:BuyPlays() end)
+    panel.free = makeButton(panel, 220, 30, "Owner: " .. GP.Plays.PLAYS_PER_LOT .. " free plays")
+    panel.free:SetPoint("TOP", panel.buy, "BOTTOM", 0, -8)
+    panel.free:SetScript("OnClick", function() UI:ClaimFreePlays() end)
+    panel.free:Hide()
     panel.how = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.how:SetPoint("TOP", panel.buy, "BOTTOM", 0, -10)
+    panel.how:SetPoint("TOP", panel.free, "BOTTOM", 0, -10)
     panel.how:SetWidth(FW - 120)
     panel.how:SetTextColor(0.75, 0.75, 0.85)
     panel.levels = makeButton(panel, 140, 26, "Level select")
@@ -669,6 +679,16 @@ function UI:ShowOutOfPlays(reason)
         P:PriceText(1), P:BankerName(), P.SUBJECT))
     styleButton(panel.buy, true, 0.55, 0.4, 0.1)
     styleButton(panel.levels, true, 0.35, 0.3, 0.45)
+    if P:IsOwner() then
+        styleButton(panel.free, true, 0.2, 0.5, 0.25)
+        panel.free:Show()
+        panel.how:ClearAllPoints()
+        panel.how:SetPoint("TOP", panel.free, "BOTTOM", 0, -10)
+    else
+        panel.free:Hide()
+        panel.how:ClearAllPoints()
+        panel.how:SetPoint("TOP", panel.buy, "BOTTOM", 0, -10)
+    end
     self.playsPanel:Show()
     self:UpdatePlaysPanel()
 end
@@ -687,6 +707,11 @@ end
 
 function UI:BuyPlays()
     local ok, err = GP.Plays:FillPurchaseMail(1)
+    if not ok then GP:Print(err) end
+end
+
+function UI:ClaimFreePlays()
+    local ok, err = GP.Plays:GrantFree()
     if not ok then GP:Print(err) end
 end
 
@@ -1432,6 +1457,12 @@ function UI:UpdateDisplay()
     if free == 0 and bought == 0 then plays = plays .. "\n|cffff8080Next free play in " .. P:FormatWait(P:NextFreeIn()) .. "|r" end
     self.playsText:SetText(plays)
     styleButton(self.buyBtn, true, 0.5, 0.38, 0.1)
+    if P:IsOwner() then
+        styleButton(self.freeBtn, true, 0.2, 0.5, 0.25)
+        self.freeBtn:Show()
+    else
+        self.freeBtn:Hide()
+    end
     self.progressText:SetText(("Cleared %d of %d levels, unlocked to %d\nStars %d / %d"):format(
         GP:ClearedCount(), L.COUNT, db.unlocked or 1, GP:TotalStars(), L.COUNT * 3))
 end
