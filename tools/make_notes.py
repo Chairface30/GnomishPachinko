@@ -167,6 +167,47 @@ def blast(secs=0.9):
     return norm(tone, 0.7)
 
 
+def tone_seq(freqs, each=0.12, decay=9, level_=0.5):
+    """A quick run of bell tones, one after another."""
+    total = each * len(freqs) + 0.35
+    t = np.linspace(0, total, int(RATE * total), endpoint=False)
+    out = np.zeros_like(t)
+    for i, f in enumerate(freqs):
+        start = i * each
+        tt = np.maximum(0, t - start)
+        out += (np.sin(2 * math.pi * f * tt) + 0.4 * np.sin(2 * math.pi * 2 * f * tt)) * np.exp(-tt * decay) * (t >= start)
+    return norm(out, level_)
+
+
+def sweep(f0, f1, secs=0.5, decay=6, level_=0.5):
+    t = np.linspace(0, secs, int(RATE * secs), endpoint=False)
+    freq = f0 + (f1 - f0) * t / secs
+    phase = 2 * math.pi * np.cumsum(freq) / RATE
+    return norm(np.sin(phase) * np.exp(-t * decay) * np.minimum(1.0, t / 0.005), level_)
+
+
+STANDINS = {
+    "bucket.ogg": lambda: tone_seq((523, 784)),
+    "combo.ogg": lambda: tone_seq((523, 659, 784, 1047, 1319), each=0.07),
+    "bin.ogg": lambda: tone_seq((880,), decay=6),
+    "lost.ogg": lambda: sweep(300, 90, 0.5, 5),
+    "spooky.ogg": lambda: sweep(200, 600, 0.6, 4),
+    "fail.ogg": lambda: tone_seq((330, 311, 294, 262), each=0.25, decay=4),
+    "start.ogg": lambda: tone_seq((523, 784), each=0.18, decay=5),
+    "shield.ogg": lambda: tone_seq((1200, 900), each=0.05, decay=14),
+    "heal.ogg": lambda: sweep(200, 900, 0.6, 3),
+    "hop.ogg": lambda: sweep(400, 1200, 0.3, 8),
+    "gem_free.ogg": lambda: tone_seq((1568, 1319), each=0.06, decay=12),
+    "pyramid.ogg": lambda: sweep(180, 90, 0.3, 10),
+    "power_multiball.ogg": lambda: tone_seq((880, 880, 1109, 1109), each=0.09),
+    "power_guide.ogg": lambda: tone_seq((660, 660, 990), each=0.1, decay=12),
+    "power_fireball.ogg": lambda: sweep(120, 700, 0.6, 4),
+    "power_spooky.ogg": lambda: sweep(500, 150, 0.8, 3),
+    "power_pyramid.ogg": lambda: sweep(140, 60, 0.6, 5),
+    "power_lightning.ogg": lambda: sweep(300, 2400, 0.4, 5),
+}
+
+
 EFFECTS = {
     "clink.ogg": clink, "crack.ogg": crack, "hatch.ogg": hatch, "gem.ogg": gem,
     "boss_hit.ogg": boss_hit, "boss_down.ogg": boss_down, "zap.ogg": zap, "blast.ogg": blast,
@@ -184,6 +225,10 @@ if __name__ == "__main__":
     sf.write(path, boing(), RATE, format="OGG", subtype="VORBIS")
     print("wrote", path)
     for name, fn in EFFECTS.items():
+        path = os.path.join(OUT, name)
+        sf.write(path, fn(), RATE, format="OGG", subtype="VORBIS")
+        print("wrote", path)
+    for name, fn in STANDINS.items():
         path = os.path.join(OUT, name)
         sf.write(path, fn(), RATE, format="OGG", subtype="VORBIS")
         print("wrote", path)

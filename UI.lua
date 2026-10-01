@@ -749,6 +749,7 @@ function UI:StartLevel(n)
     self:StopFanfare()
     self:HideGuide()
     self:ShowBanner(("|cffffd700Level %d|r"):format(n), self:ObjectiveText(self.state), 3)
+    GP:PlaySfx("start.ogg")
     GP:PlayVoice(spec.objective == "boss" and "boss_start" or "level_start")
     self:UpdateDisplay()
     return true
@@ -1040,20 +1041,22 @@ function UI:HandleEvents(now)
                 GP:PlaySfx("clink.ogg")
             end
         elseif t == "shield" then
-            GP:PlaySfx("bumper.ogg")
+            GP:PlaySfx("shield.ogg")
             self:Popup(ev.x, ev.y - 30, "BLOCKED", 0.6, 0.8, 1)
         elseif t == "boss_shield" then
             self:ShowBanner("|cff88ccffSHIELD UP|r", "The boss blocks the next two hits", 1.4)
             GP:PlayVoice("boss_shield")
         elseif t == "boss_hop" then
+            GP:PlaySfx("hop.ogg")
             self:Popup(ev.x, ev.y - 30, "!", 1, 1, 0.5)
         elseif t == "boss_heal" then
+            GP:PlaySfx("heal.ogg")
             self:Popup(ev.x, ev.y - 30, "+1", 1, 0.4, 0.4)
         elseif t == "boss_down" then
             GP:PlaySfx("boss_down.ogg")
             GP:PlayVoice("boss_down")
         elseif t == "gem_free" then
-            GP:PlaySfx("gem.ogg")
+            GP:PlaySfx("gem_free.ogg")
         elseif t == "gem_caught" then
             self:Popup(ev.x, ev.y - 10, "GEM!", 0.6, 1, 1)
             GP:PlaySfx("gem.ogg")
@@ -1064,7 +1067,9 @@ function UI:HandleEvents(now)
             GP:PlaySfx("slowmo.ogg")
             GP:PlayVoice("last_one")
         elseif t == "pyramid" then
-            GP:PlaySfx("bumper.ogg")
+            GP:PlaySfx("pyramid.ogg")
+        elseif t == "lost" then
+            if st.phase ~= E.PHASE.FEVER then GP:PlaySfx("lost.ogg") end
         elseif t == "zap" then
             self:ShowBolt(ev.path, now)
             GP:PlaySfx("zap.ogg")
@@ -1092,15 +1097,18 @@ function UI:HandleEvents(now)
         elseif t == "combo" then
             self:ShowBanner(("|cffffd700COMBO %d!|r"):format(ev.combo), "+" .. fmtBig(ev.bonus), 1.6)
             self:Popup(ev.x, ev.y - 30, "+" .. fmtBig(ev.bonus), 1, 0.9, 0.3)
-            GP:PlaySfx("free_ball.ogg")
+            GP:PlaySfx("combo.ogg")
             GP:PlayVoice(ev.combo >= 20 and "combo_huge" or "combo")
         elseif t == "power" then
             self:ShowBanner(POWER_BANNERS[ev.power] or "POWER!", "", 1.4)
-            GP:PlaySfx("power.ogg")
             GP:PlayVoice("power_" .. ev.power)
             if ev.power == "blast" then
                 self:ShowBlast(ev.x, ev.y, now)
                 GP:PlaySfx("blast.ogg")
+            elseif ev.power == "lightning" then
+                GP:PlaySfx("power_lightning.ogg")
+            else
+                GP:PlaySfx("power_" .. ev.power .. ".ogg")
             end
         elseif t == "fever" then
             self:ShowBanner("|cffffd700FEVER!|r", "The goal is done - the rest of your balls go for the bins", 3)
@@ -1111,7 +1119,7 @@ function UI:HandleEvents(now)
             for _, bin in ipairs(self.bins) do bin:Show() end
         elseif t == "bucket" then
             self:ShowBanner("|cff88ccffFREE BALL!|r", "", 1.5)
-            GP:PlaySfx("free_ball.ogg")
+            GP:PlaySfx("bucket.ogg")
             self:Popup(ev.x, E.BucketTop() - 16, "FREE BALL", 0.6, 0.85, 1)
             GP:PlayVoice("free_ball")
         elseif t == "freeball_score" then
@@ -1121,8 +1129,10 @@ function UI:HandleEvents(now)
         elseif t == "fever_shot" then
             GP:PlaySfx("launch.ogg")
         elseif t == "spooky" then
+            GP:PlaySfx("spooky.ogg")
             self:Popup(ev.x, 30, "BOO", 0.7, 1, 0.7)
         elseif t == "bin" then
+            GP:PlaySfx("bin.ogg")
             self:Popup(ev.x, E.FIELD_H - 44, "+" .. fmtBig(ev.points), 1, 0.9, 0.4)
         elseif t == "ready" then
             if st.ballsLeft > 0 then self:ShowBanner("", "", 0) end
@@ -1156,6 +1166,7 @@ function UI:OnLevelOver(result)
         else progress = ("%d of %d %s."):format(result.goals, result.goalTotal, goalWord) end
         self:ShowBanner("|cffff6060OUT OF BALLS|r",
             progress .. ("  Plays left today: %d."):format(playsLeft) .. (playsLeft > 0 and "  Restart to try again." or ""), 0)
+        GP:PlaySfx("fail.ogg")
         GP:PlayVoice(playsLeft <= 0 and "out_of_plays" or "out_of_balls")
         if playsLeft <= 0 then
             self:ShowOutOfPlays(("You ran out of balls on level %d."):format(result.level))
