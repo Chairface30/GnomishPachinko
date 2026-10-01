@@ -674,6 +674,33 @@ check("the ladder scales to a 15-orange level", [mult(Eng, n, 15) for n in (2, 3
 check("the high corners hold no pieces", ev("L:ReachFloor(40)") > 180 and ev("L:ReachFloor(300)") < 60, f"{ev('L:ReachFloor(40)'):.0f} {ev('L:ReachFloor(300)'):.0f}")
 check("the bucket returns balls", buckets > 0)
 
+# the bucket's rim: a glancing ball bounces off with a rim event
+lua(r"""
+function rim_probe()
+  local spec = L:Build(1)
+  spec.pegs = {}
+  spec.goal = 0
+  local st = E:NewLevel(spec)
+  st.bucket.x = 300
+  st.bucket.dir = 0
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = 300 + E.BUCKET_W / 2 + 2, y = E.BucketTop() - 60, vx = 0, vy = 150, slow = 0 }
+  local events = {}
+  local rims, caught = 0, 0
+  for _ = 1, 60 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do
+      if e.type == "rim" then rims = rims + 1 end
+      if e.type == "bucket" then caught = caught + 1 end
+    end
+    wipe(events)
+  end
+  return rims, caught
+end
+""")
+rims, caught = ev("rim_probe")()
+check("a ball glancing off the bucket's lip reports a rim bounce, not a catch", rims >= 1 and caught == 0, f"rims {rims} caught {caught}")
+
 # powers, forced one at a time on an early level while hunting greens
 seen = {}
 for power in ("multiball", "guide", "blast", "fireball", "spooky", "pyramid", "lightning"):
@@ -841,6 +868,32 @@ slow_at, lit_at, slow_when_lit, phase, slowed_in_fever, first_shot = ev("last_pe
 check("time slows as a ball closes on the last orange peg and the slow ends when it lights",
       slow_at is not None and lit_at is not None and lit_at > slow_at and not slow_when_lit and phase == "FEVER",
       f"slow {slow_at} lit {lit_at} still slow {slow_when_lit} {phase}")
+lua(r"""
+function recue_probe()
+  local spec = L:Build(1)
+  spec.pegs = { { shape = "peg", x = 300, y = 420, kind = "orange", goal = true } }
+  spec.goal = 1
+  local st = E:NewLevel(spec)
+  st.aim = 0
+  local events = {}
+  E:Launch(st, events)
+  -- park the ball above the peg so the slow-mo keys in, interrupt it, let it key in again
+  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = 300, 320, 0, 120
+  local firsts, agains = 0, 0
+  for i = 1, 40 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do
+      if e.type == "last_peg" then if e.again then agains = agains + 1 else firsts = firsts + 1 end end
+    end
+    wipe(events)
+    if i == 12 then st.lastSlow = false; st.lastSpent = 0; st.balls[1].y = 320; st.balls[1].vy = 120 end
+    if st.phase ~= E.PHASE.FLIGHT then break end
+  end
+  return firsts, agains
+end
+""")
+firsts, agains = ev("recue_probe")()
+check("the slow-mo cue plays once a shot; a restart in the same shot is marked as a repeat", firsts == 1 and agains >= 1, f"firsts {firsts} agains {agains}")
 check("Fever runs at full speed and the leftover balls start firing within a second",
       not slowed_in_fever and first_shot is not None and first_shot <= 1.0, f"slowed {slowed_in_fever} first shot {first_shot}")
 

@@ -55,7 +55,9 @@ Everything below ships today as a generated placeholder (textures from `tools/ma
 | `bumper.ogg` | 0.3 s | "A springy pinball bumper boing, low and bouncy." |
 | `launch.ogg`, `peg1-3.ogg`, `orange.ogg` | short | the cannon, three peg ticks, the goal-peg ping |
 | `note1-16.ogg` | short | the combo scale, C4 up two octaves, resampled from one generated marimba note |
-| `bucket.ogg`, `free_ball.ogg`, `combo.ogg`, `bin.ogg` | under 1 s | the rewards |
+| `bucket.ogg` | 1.0 s | a cash-register ka-ching: the ball lands in the bucket |
+| `rim.ogg` | 0.4 s | a ceramic clink: the ball bounces off the bucket's rim |
+| `free_ball.ogg`, `combo.ogg`, `bin.ogg` | under 1 s | the other rewards |
 | `power_multiball/guide/fireball/spooky/pyramid/lightning.ogg` | about 1 s | one activation sound per power (`blast.ogg` is Space Blast's) |
 | `pyramid.ogg`, `lost.ogg`, `spooky.ogg`, `gem_free.ogg` | short | ramp bounce, a lost ball, the spooky re-entry, a gem knocked loose |
 | `shield.ogg`, `heal.ogg`, `hop.ogg` | short | the Bolt Golem's block, the Cog Yeti's heal, the Gyro Spider's jump |

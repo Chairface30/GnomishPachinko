@@ -737,7 +737,7 @@ local function finishLevel(state, events)
 end
 
 -- Bucket test shared by balls and gems: 1 = caught, 2 = rim bounce, nil = clear.
-local function bucketCheck(state, body)
+local function bucketCheck(state, body, events)
     local R = E.BALL_R
     local b = state.bucket
     local top = bucketTop()
@@ -747,9 +747,11 @@ local function bucketCheck(state, body)
         if abs(off) <= half - R then
             return 1
         elseif abs(off) <= half + R then
+            local speed = body.vy
             body.y = top - R
             body.vy = -body.vy * 0.45
             body.vx = body.vx + (off > 0 and 60 or -60)
+            if speed > 40 then push(events, { type = "rim", x = body.x, speed = speed }) end
             return 2
         end
     end
@@ -781,7 +783,7 @@ local function integrateBall(state, ball, dt, events)
             return false
         end
     else
-        if bucketCheck(state, ball) == 1 then
+        if bucketCheck(state, ball, events) == 1 then
             state.ballsLeft = state.ballsLeft + 1
             push(events, { type = "bucket", x = ball.x })
             return false
@@ -830,7 +832,7 @@ local function integrateGem(state, g, dt, events)
     if g.x < R then g.x = R; if g.vx < 0 then g.vx = -g.vx * E.RESTITUTION end end
     if g.x > W - R then g.x = W - R; if g.vx > 0 then g.vx = -g.vx * E.RESTITUTION end end
     collideBall(state, g, nil, false)
-    if bucketCheck(state, g) == 1 then
+    if bucketCheck(state, g, events) == 1 then
         local p = g.home
         p.collected = true
         lightPeg(state, p, nil, events, true, { x = g.x, y = bucketTop() - 10 })
@@ -960,7 +962,11 @@ local function updateLastPeg(state, dt, events)
         if approaching and state.lastSpent < E.LAST_MAX_SECS then
             state.lastSlow = true
             state.lastPeg = target
-            push(events, { type = "last_peg", x = target.x, y = target.y })
+            -- the cue (whoosh, voice) once a shot; a restart in the same
+            -- shot zooms again but stays quiet
+            local again = state.lastCueShot == state.shots
+            state.lastCueShot = state.shots
+            push(events, { type = "last_peg", x = target.x, y = target.y, again = again })
         end
     end
 end

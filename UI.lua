@@ -1088,8 +1088,16 @@ function UI:HandleEvents(now)
         elseif t == "gem_lost" then
             self:Popup(ev.x, E.FIELD_H - 30, "missed", 0.7, 0.7, 0.8)
         elseif t == "last_peg" then
-            GP:PlaySfx("slowmo.ogg")
-            GP:PlayVoice("last_one")
+            if not ev.again then
+                GP:PlaySfx("slowmo.ogg")
+                GP:PlayVoice("last_one")
+            end
+        elseif t == "rim" then
+            -- the ceramic lip of the bucket
+            if now - (self.lastRimSound or 0) > 0.1 then
+                self.lastRimSound = now
+                GP:PlaySfx("rim.ogg")
+            end
         elseif t == "pyramid" then
             GP:PlaySfx("pyramid.ogg")
         elseif t == "lost" then

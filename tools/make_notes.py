@@ -187,7 +187,8 @@ def sweep(f0, f1, secs=0.5, decay=6, level_=0.5):
 
 
 STANDINS = {
-    "bucket.ogg": lambda: tone_seq((523, 784)),
+    "bucket.ogg": lambda: tone_seq((2093, 2637, 3136, 2093), each=0.04, decay=5),
+    "rim.ogg": lambda: tone_seq((1900, 1400), each=0.03, decay=28),
     "combo.ogg": lambda: tone_seq((523, 659, 784, 1047, 1319), each=0.07),
     "bin.ogg": lambda: tone_seq((880,), decay=6),
     "lost.ogg": lambda: sweep(300, 90, 0.5, 5),
