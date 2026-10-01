@@ -50,6 +50,7 @@ All of these exist as synthesized placeholders. ElevenLabs sound-effect prompts 
 | `boss_down.ogg` | 1.0 s | "A small steam-powered machine breaking down: a clank, a hiss of steam, parts falling, cartoonish." |
 | `zap.ogg` | 0.35 s | "A short crackling electric arc jumping between metal pins, zappy and bright." |
 | `blast.ogg` | 0.9 s | "A deep cartoon explosion with a quick boom and a short sparkle tail, no long rumble." |
+| `fanfare.ogg` | 6.0 s, loopable | "A grand triumphant brass fanfare with timpani and a snare roll, celebratory, loops cleanly." Plays from the moment the last goal piece lights until every leftover ball has landed; it restarts every 6 s while that lasts, so keep it exactly 6 s or tell me the new length. |
 | `slowmo.ogg` | 0.7 s | "A dramatic slow-motion whoosh with a single heartbeat thump, short." (the last-peg moment) |
 | `bumper.ogg` | 0.3 s | "A springy pinball bumper boing, low and bouncy." (currently synthesized) |
 

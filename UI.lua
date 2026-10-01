@@ -16,6 +16,7 @@ local TEX = "Interface\\AddOns\\GnomishPachinko\\Textures\\"
 local WHITE = "Interface\\Buttons\\WHITE8x8"
 
 local PAD, SIDE_W, TOP_H = 16, 200, 44
+local FANFARE_SECS = 6.0     -- length of Sounds/fanfare.ogg; it loops while Fever lasts
 
 local COLORS = {
     blue   = { base = { 0.30, 0.58, 1.00 }, lit = { 0.78, 0.92, 1.00 }, glow = { 0.55, 0.80, 1.00 } },
@@ -745,6 +746,7 @@ function UI:StartLevel(n)
     self.blastRing:Hide()
     for _, d in ipairs(self.boltDots) do d:Hide() end
     for _, g in ipairs(self.gemTex) do g:Hide() end
+    self:StopFanfare()
     self:HideGuide()
     self:ShowBanner(("|cffffd700Level %d|r"):format(n), self:ObjectiveText(self.state), 3)
     GP:PlayVoice(spec.objective == "boss" and "boss_start" or "level_start")
@@ -942,6 +944,30 @@ function UI:UpdatePopups(now)
     end
 end
 
+-- The clearing fanfare: starts when the last goal piece lights, loops
+-- while the leftover balls fly, stops when the level is over.
+function UI:StartFanfare(now)
+    local _, handle = GP:PlaySfx("fanfare.ogg")
+    self.fanfareHandle = handle
+    self.fanfareAt = now
+end
+
+function UI:StopFanfare()
+    if self.fanfareHandle and type(StopSound) == "function" then pcall(StopSound, self.fanfareHandle, 600) end
+    self.fanfareHandle = nil
+    self.fanfareAt = nil
+end
+
+function UI:UpdateFanfare(now)
+    local st = self.state
+    if not self.fanfareAt then return end
+    if not st or st.phase ~= E.PHASE.FEVER then
+        self:StopFanfare()
+    elseif now - self.fanfareAt >= FANFARE_SECS - 0.05 then
+        self:StartFanfare(now)
+    end
+end
+
 -- A lightning bolt: dots along the path for a moment.
 function UI:ShowBolt(path, now)
     local k = 0
@@ -1071,6 +1097,7 @@ function UI:HandleEvents(now)
         elseif t == "fever" then
             self:ShowBanner("|cffffd700FEVER!|r", "The goal is done - the rest of your balls go for the bins", 3)
             GP:PlaySfx("fever.ogg")
+            self:StartFanfare(now)
             GP:PlayVoice("fever")
             self.bucket:Hide()
             for _, bin in ipairs(self.bins) do bin:Show() end
@@ -1092,6 +1119,7 @@ function UI:HandleEvents(now)
         elseif t == "ready" then
             if st.ballsLeft > 0 then self:ShowBanner("", "", 0) end
         elseif t == "level_over" then
+            self:StopFanfare()
             self:OnLevelOver(ev.result)
         end
     end
@@ -1163,6 +1191,7 @@ function UI:OnUpdate(dt)
         self:UpdateCounters()
     end
     self:UpdateZoom(dt)
+    self:UpdateFanfare(now)
     self:Render(now)
 end
 

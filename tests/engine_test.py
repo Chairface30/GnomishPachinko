@@ -822,13 +822,27 @@ function last_peg_probe()
     if last.lit and not lit then lit = { wall = wall, slow = st.lastSlow } end
     wipe(events)
   end
-  return slowAt, lit and lit.wall, lit and lit.slow, st.phase
+  -- Fever: no slow motion at all, and the leftover balls start flying within a second
+  local slowedInFever, firstShot, feverWall = false, nil, 0
+  local t0 = st.time
+  for _ = 1, 120 do
+    local before = st.time
+    E:Step(st, 1 / 60, events)
+    feverWall = feverWall + 1 / 60
+    if st.lastSlow or (st.time - before) < 1 / 60 - 0.0001 then slowedInFever = true end
+    for _, e in ipairs(events) do if e.type == "fever_shot" and not firstShot then firstShot = feverWall end end
+    wipe(events)
+    if st.phase ~= E.PHASE.FEVER then break end
+  end
+  return slowAt, lit and lit.wall, lit and lit.slow, st.phase, slowedInFever, firstShot
 end
 """)
-slow_at, lit_at, slow_when_lit, phase = ev("last_peg_probe")()
+slow_at, lit_at, slow_when_lit, phase, slowed_in_fever, first_shot = ev("last_peg_probe")()
 check("time slows as a ball closes on the last orange peg and the slow ends when it lights",
       slow_at is not None and lit_at is not None and lit_at > slow_at and not slow_when_lit and phase == "FEVER",
       f"slow {slow_at} lit {lit_at} still slow {slow_when_lit} {phase}")
+check("Fever runs at full speed and the leftover balls start firing within a second",
+      not slowed_in_fever and first_shot is not None and first_shot <= 1.0, f"slowed {slowed_in_fever} first shot {first_shot}")
 
 # stars come from the level's own pieces
 s2, s3 = ev("L:StarScores(1)")

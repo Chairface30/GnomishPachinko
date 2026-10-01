@@ -22,7 +22,9 @@
 
     A level: AIM (Aim/Guide, Launch on click) -> FLIGHT (Step) -> AIM when
     the ball drains, FEVER the moment the last goal is done -> OVER with
-    state.result (cleared or out of balls).
+    state.result (cleared or out of balls). The only slow motion is the
+    approach to the last goal piece; Fever runs at full speed while the
+    leftover balls are fired at the bins.
 ]]
 
 local GP = GnomishPachinko
@@ -56,7 +58,7 @@ E.HIT_COOLDOWN = 0.2        -- one ball cannot hit the same piece twice within t
 E.BUCKET_W     = 84
 E.BUCKET_H     = 16
 E.BUCKET_SPEED = 130
-E.FEVER_SLOWMO = 0.35
+E.FEVER_FIRST_GAP = 0.8    -- after the last piece lights, the leftover balls start firing this soon
 -- The last goal piece: when a ball closes in on it, time slows and the
 -- window zooms in on it (Peggle Blast's last-peg moment).
 E.LAST_SLOWMO     = 0.3
@@ -609,8 +611,9 @@ lightPeg = function(state, p, ball, events, quiet, at)
 
     if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then
         state.phase = E.PHASE.FEVER
-        state.feverSlow = true          -- slow motion until the first ball lands in a bin
+        state.lastSlow = false
         state.feverTotal = 0
+        state.feverNext = state.time + E.FEVER_FIRST_GAP
         push(events, { type = "fever" })
     end
 end
@@ -769,7 +772,6 @@ local function integrateBall(state, ball, dt, events)
             if idx < 1 then idx = 1 elseif idx > #E.FEVER_BINS then idx = #E.FEVER_BINS end
             local pts = E.FEVER_BINS[idx]
             if not state.feverBin then state.feverBin = pts end
-            state.feverSlow = false
             state.feverTotal = (state.feverTotal or 0) + pts
             addScore(state, pts, events)
             push(events, { type = "bin", index = idx, points = pts, x = ball.x })
@@ -912,9 +914,9 @@ local function substep(state, dt, events)
     updateLastPeg(state, dt, events)
 
     if state.phase == E.PHASE.FEVER then
-        -- once the first ball has landed, the leftover balls are fired off
-        -- in random directions, one every FEVER_SHOT_GAP, each worth its bin
-        if not state.feverSlow and state.ballsLeft > 0 and state.time >= (state.feverNext or 0) then
+        -- the leftover balls are fired off in random directions, one every
+        -- FEVER_SHOT_GAP, each worth its bin
+        if state.ballsLeft > 0 and state.time >= (state.feverNext or 0) then
             local a = (state.rng() - 0.5) * 2 * (E.MAX_AIM_DEG * pi / 180)
             local x, y = W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
             state.aim = a
@@ -952,8 +954,7 @@ end
 
 function E:Step(state, dt, events)
     if dt > 0.1 then dt = 0.1 end
-    if state.phase == E.PHASE.FEVER and state.feverSlow then dt = dt * E.FEVER_SLOWMO
-    elseif state.lastSlow then dt = dt * E.LAST_SLOWMO end
+    if state.lastSlow then dt = dt * E.LAST_SLOWMO end
     state.acc = state.acc + dt
     local step = E.STEP
     local guard = 0

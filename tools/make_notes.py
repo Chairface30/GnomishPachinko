@@ -123,6 +123,37 @@ def slowmo(secs=0.7):
     return norm(tone + 0.8 * thump, 0.55)
 
 
+def fanfare(secs=6.0):
+    """A placeholder clearing fanfare: a brass-like chord progression over a
+    drum roll, ending on the chord it starts on so it loops."""
+    t = np.linspace(0, secs, int(RATE * secs), endpoint=False)
+    out = np.zeros_like(t)
+    chords = [(261.63, 329.63, 392.00, 523.25), (349.23, 440.00, 523.25, 698.46),
+              (392.00, 493.88, 587.33, 783.99), (261.63, 329.63, 392.00, 523.25)]
+    beat = secs / len(chords)
+    for i, chord in enumerate(chords):
+        start = i * beat
+        seg = (t >= start) & (t < start + beat)
+        tt = t[seg] - start
+        env = np.minimum(1.0, tt / 0.03) * (1.0 - 0.3 * tt / beat)
+        for k, f in enumerate(chord):
+            brass = (np.sin(2 * math.pi * f * tt) + 0.5 * np.sin(2 * math.pi * 2 * f * tt)
+                     + 0.3 * np.sin(2 * math.pi * 3 * f * tt) + 0.15 * np.sin(2 * math.pi * 4 * f * tt))
+            out[seg] += brass * env * (1.0 if k == 3 else 0.7)
+        # a bass note under each chord
+        out[seg] += 0.8 * np.sin(2 * math.pi * chord[0] / 2 * tt) * env
+    # drum roll: bursts of noise every eighth
+    rng = np.random.default_rng(21)
+    noise = rng.standard_normal(t.size)
+    roll = np.zeros_like(t)
+    step = beat / 4
+    for k in range(int(secs / step)):
+        s0 = k * step
+        roll += (t >= s0) * np.exp(-np.maximum(0, t - s0) * 40) * (1.2 if k % 4 == 0 else 0.6)
+    out += 0.35 * noise * roll
+    return norm(out, 0.6)
+
+
 def blast(secs=0.9):
     rng = np.random.default_rng(13)
     t = np.linspace(0, secs, int(RATE * secs), endpoint=False)
@@ -139,7 +170,7 @@ def blast(secs=0.9):
 EFFECTS = {
     "clink.ogg": clink, "crack.ogg": crack, "hatch.ogg": hatch, "gem.ogg": gem,
     "boss_hit.ogg": boss_hit, "boss_down.ogg": boss_down, "zap.ogg": zap, "blast.ogg": blast,
-    "slowmo.ogg": slowmo,
+    "slowmo.ogg": slowmo, "fanfare.ogg": fanfare,
 }
 
 
