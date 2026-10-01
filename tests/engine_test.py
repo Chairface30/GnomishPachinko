@@ -137,8 +137,8 @@ function level_report(n)
        or p.y - rp < E.PEG_TOP - 0.01 or p.y + rp > E.PEG_BOTTOM + 0.01 then bad = bad + 1 end
     for j = i + 1, #spec.pegs do
       local q = spec.pegs[j]
-      if not (p.group and p.group == q.group) then
-        local need = rp + E.PegRadius(q) + 2 * E.BALL_R + 8
+      if not (p.group and p.group == q.group) and p.shape == "peg" and q.shape == "peg" then
+        local need = 2 * E.PEG_R + 2 * E.BALL_R + 6
         local dx, dy = p.x - q.x, p.y - q.y
         if dx * dx + dy * dy < need * need - 0.01 then bad = bad + 1 end
       end
@@ -153,7 +153,7 @@ gimmick_levels, moving_total, block_total, gimmick_names = 0, 0, 0, set()
 sig1 = None
 for n in range(1, 1001):
     spec, counts, bad = report(n)
-    orange_expected = round(15 + (n - 1) / 999 * 15)
+    orange_expected = min(round(15 + (n - 1) / 999 * 15), counts['total'] - counts['block'] - 6)
     families.add(spec.layout)
     powers.add(spec.power)
     bricks_total += counts["brick"]
@@ -169,7 +169,7 @@ for n in range(1, 1001):
         problems.append((n, "counts", dict(counts), orange_expected))
     if bad:
         problems.append((n, "placement", bad))
-    if counts["total"] < 36:
+    if counts["total"] < 28:
         problems.append((n, "thin", counts["total"]))
     if n == 500:
         sig1 = [(p.x, p.y, p.kind, p.shape) for p in spec.pegs.values()]

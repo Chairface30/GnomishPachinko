@@ -7,4 +7,5 @@
 - **Five powers** on the green pegs, one per chapter in turn: Multiball, Super Guide (the full bounce path for three shots), Space Blast, Fireball, Spooky Ball.
 - **Gimmicks** from chapter 3, like the real thing: Slider, Lifts, Wheel, Twin Wheels, Pendulum, Blocks (solid, never light) and Sliding Block, one a level and sometimes two late on.
 - **Touched pieces vanish two seconds after the touch**, while the ball is still flying, instead of waiting for it to drain.
+- **Every level is a drawn pattern**, nothing random sprinkled on top: fifteen families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs, Brick Walls, Spiral, Waves, Hourglass, Honeycomb, Pillars, Chevrons, Castle, Star), each with a few variants. A gimmick that would gut a pattern is left off that level.
 - **Level select** with 100 levels a page, cleared levels in green and best scores under each number. `/pachinko`, `/pachinko levels`, `/pachinko <n>`, `/pachinko sound`, `/pachinko reset`.
