@@ -46,11 +46,11 @@ E.BUCKET_H     = 16
 E.BUCKET_SPEED = 130
 E.FEVER_SLOWMO = 0.35
 E.FEVER_BINS   = { 10000, 50000, 100000, 50000, 10000 }
-E.FEVER_BALL_BONUS = 10000
+E.FEVER_SHOT_GAP = 0.3     -- seconds between the leftover balls fired at the clear
 E.FREE_BALL_SCORES = { 25000, 75000, 125000 }
 
 E.BALLS       = 10
-E.PEG_POINTS  = { blue = 10, orange = 100, green = 10, purple = 500 }
+E.PEG_POINTS  = { blue = 25, orange = 250, green = 25, purple = 1000 }
 E.BLAST_RADIUS = 85
 E.GUIDE_SHOTS = 3
 
@@ -70,11 +70,14 @@ local sin, cos, sqrt, floor, abs = math.sin, math.cos, math.sqrt, math.floor, ma
 local atan2 = math.atan2 or math.atan
 local pi = math.pi
 
-function E:ScoreMultiplier(orangesHit)
-    if orangesHit >= 25 then return 10 end
-    if orangesHit >= 20 then return 5 end
-    if orangesHit >= 15 then return 3 end
-    if orangesHit >= 10 then return 2 end
+-- The multiplier climbs with the share of the level's oranges already
+-- lit: x2 from a fifth, x3 from two fifths, x5 from three, x10 from four.
+function E:ScoreMultiplier(orangesHit, orangeTotal)
+    local f = orangesHit / math.max(1, orangeTotal or 25)
+    if f >= 0.8 then return 10 end
+    if f >= 0.6 then return 5 end
+    if f >= 0.4 then return 3 end
+    if f >= 0.2 then return 2 end
     return 1
 end
 
@@ -372,9 +375,9 @@ lightPeg = function(state, p, ball, events, quiet)
     if p.kind == "orange" then
         state.orangeHit = state.orangeHit + 1
         state.orangeLeft = state.orangeLeft - 1
-        pts = E.PEG_POINTS.orange * E:ScoreMultiplier(state.orangeHit)
+        pts = E.PEG_POINTS.orange * E:ScoreMultiplier(state.orangeHit, state.orangeTotal)
     else
-        pts = (E.PEG_POINTS[p.kind] or 10) * E:ScoreMultiplier(state.orangeHit)
+        pts = (E.PEG_POINTS[p.kind] or 10) * E:ScoreMultiplier(state.orangeHit, state.orangeTotal)
     end
     addScore(state, pts, events)
     push(events, { type = "peg", peg = p, points = pts, x = p.x, y = p.y, quiet = quiet })
@@ -383,6 +386,8 @@ lightPeg = function(state, p, ball, events, quiet)
 
     if p.kind == "orange" and state.orangeLeft == 0 and state.phase ~= E.PHASE.FEVER then
         state.phase = E.PHASE.FEVER
+        state.feverSlow = true          -- slow motion until the first ball lands in a bin
+        state.feverTotal = 0
         push(events, { type = "fever" })
     end
 end
@@ -453,15 +458,12 @@ end
 
 local function finishLevel(state, events)
     local cleared = state.orangeLeft == 0
-    if cleared then
-        local bonus = state.ballsLeft * E.FEVER_BALL_BONUS + (state.feverBin or 0)
-        state.score = state.score + bonus
-    end
     state.result = {
         cleared = cleared,
         score = state.score,
         oranges = state.orangeHit,
         binScore = state.feverBin,
+        feverTotal = state.feverTotal or 0,
         ballsLeft = state.ballsLeft,
         level = state.level,
     }
@@ -487,6 +489,9 @@ local function integrateBall(state, ball, dt, events)
             if idx < 1 then idx = 1 elseif idx > #E.FEVER_BINS then idx = #E.FEVER_BINS end
             local pts = E.FEVER_BINS[idx]
             if not state.feverBin then state.feverBin = pts end
+            state.feverSlow = false
+            state.feverTotal = (state.feverTotal or 0) + pts
+            addScore(state, pts, events)
             push(events, { type = "bin", index = idx, points = pts, x = ball.x })
             return false
         end
@@ -548,6 +553,23 @@ local function substep(state, dt, events)
         end
     end
 
+    if state.phase == E.PHASE.FEVER then
+        -- once the first ball has landed, the leftover balls are fired off
+        -- in random directions, one every FEVER_SHOT_GAP, each worth its bin
+        if not state.feverSlow and state.ballsLeft > 0 and state.time >= (state.feverNext or 0) then
+            local a = (state.rng() - 0.5) * 2 * (E.MAX_AIM_DEG * pi / 180)
+            local x, y = W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+            state.aim = a
+            state.balls[#state.balls + 1] = { x = x, y = y, vx = sin(a) * E.LAUNCH_SPEED, vy = cos(a) * E.LAUNCH_SPEED, slow = 0 }
+            state.ballsLeft = state.ballsLeft - 1
+            state.ballsFired = state.ballsFired + 1
+            state.feverNext = state.time + E.FEVER_SHOT_GAP
+            push(events, { type = "fever_shot", aim = a })
+        end
+        if #state.balls == 0 and state.ballsLeft == 0 then finishLevel(state, events) end
+        return
+    end
+
     if #state.balls == 0 then
         if state.phase == E.PHASE.FEVER then
             finishLevel(state, events)
@@ -566,7 +588,7 @@ end
 
 function E:Step(state, dt, events)
     if dt > 0.1 then dt = 0.1 end
-    if state.phase == E.PHASE.FEVER then dt = dt * E.FEVER_SLOWMO end
+    if state.phase == E.PHASE.FEVER and state.feverSlow then dt = dt * E.FEVER_SLOWMO end
     state.acc = state.acc + dt
     local step = E.STEP
     local guard = 0

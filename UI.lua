@@ -588,7 +588,7 @@ function UI:HandleEvents(now)
             self:ShowBanner(POWER_BANNERS[ev.power] or "POWER!", "", 1.4)
             GP:PlaySfx("power.ogg")
         elseif t == "fever" then
-            self:ShowBanner("|cffffd700FEVER!|r", "Every orange peg is lit", 3)
+            self:ShowBanner("|cffffd700FEVER!|r", "Every orange peg is lit - the rest of your balls go for the bins", 3)
             GP:PlaySfx("fever.ogg")
             self.bucket:Hide()
             for _, bin in ipairs(self.bins) do bin:Show() end
@@ -599,6 +599,8 @@ function UI:HandleEvents(now)
         elseif t == "freeball_score" then
             self:ShowBanner("|cff88ccffFREE BALL!|r", fmtBig(ev.score) .. " points", 1.5)
             GP:PlaySfx("free_ball.ogg")
+        elseif t == "fever_shot" then
+            GP:PlaySfx("launch.ogg")
         elseif t == "spooky" then
             self:Popup(ev.x, 30, "BOO", 0.7, 1, 0.7)
         elseif t == "bin" then
@@ -619,8 +621,7 @@ function UI:OnLevelOver(result)
     if result.cleared then
         local extra = result.score > prevBest and prevBest > 0 and "  |cff88ff88New best!|r" or ""
         self:ShowBanner("|cffffd700LEVEL CLEARED!|r",
-            ("Score %s with %d ball%s spare%s"):format(fmtBig(result.score), result.ballsLeft,
-                result.ballsLeft == 1 and "" or "s", extra), 0)
+            ("Score %s  (bins %s)%s"):format(fmtBig(result.score), fmtBig(result.feverTotal or 0), extra), 0)
         GP:PlaySfx("clear.ogg")
         if result.level == L.COUNT then
             self:ShowBanner("|cffffd700ALL 1000 LEVELS CLEARED!|r", "Score " .. fmtBig(result.score) .. ". You conquered Azeroth.", 0)
@@ -753,7 +754,7 @@ function UI:UpdateCounters()
     self.ballsText:SetText(tostring(st.ballsLeft + #st.balls))
     self.orangeText:SetText(st.orangeLeft .. " / " .. st.orangeTotal)
     self.scoreText:SetText(fmtBig(st.score))
-    self.multText:SetText("x" .. E:ScoreMultiplier(st.orangeHit))
+    self.multText:SetText("x" .. E:ScoreMultiplier(st.orangeHit, st.orangeTotal))
     local nextFree = E.FREE_BALL_SCORES[st.freeBallIdx]
     self.freeBallText:SetText(nextFree and fmtBig(nextFree) or "-")
     if st.power == "guide" then

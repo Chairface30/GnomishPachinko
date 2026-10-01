@@ -41,6 +41,46 @@ L.CHAPTERS = {
 }
 
 -- ---------------------------------------------------------------------
+-- The launcher's reach. The ball starts at the top centre and only ever
+-- falls, so the high corners can never be touched. ReachFloor(x) is the
+-- highest point (smallest y) any shot's centre passes at that x; a piece
+-- above it, by more than a ball and peg radius, is unreachable.
+local reachFloor
+
+local function buildReach()
+    reachFloor = {}
+    local cols = floor(W / 4) + 1
+    for c = 0, cols do reachFloor[c] = math.huge end
+    for deg = -E.MAX_AIM_DEG, E.MAX_AIM_DEG do
+        local a = deg * pi / 180
+        local x, y = W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+        local vx, vy = sin(a) * E.LAUNCH_SPEED, cos(a) * E.LAUNCH_SPEED
+        local dt = E.STEP
+        for _ = 1, 600 do
+            vy = vy + E.GRAVITY * dt
+            x, y = x + vx * dt, y + vy * dt
+            if x < E.BALL_R then x = E.BALL_R; vx = -vx * E.RESTITUTION end
+            if x > W - E.BALL_R then x = W - E.BALL_R; vx = -vx * E.RESTITUTION end
+            if y > E.FIELD_H then break end
+            local c = floor(x / 4)
+            if y < reachFloor[c] then reachFloor[c] = y end
+        end
+    end
+end
+
+function L:ReachFloor(x)
+    if not reachFloor then buildReach() end
+    local c = floor(x / 4)
+    if c < 0 then c = 0 elseif c > #reachFloor then c = #reachFloor end
+    return reachFloor[c]
+end
+
+function L:Reachable(p)
+    local rp = (p.shape == "brick") and (p.h / 2) or E.PEG_R
+    return p.y + rp + E.BALL_R >= self:ReachFloor(p.x) - 2
+end
+
+-- ---------------------------------------------------------------------
 -- Piece factories
 
 local function peg(x, y) return { shape = "peg", x = x, y = y } end
@@ -602,6 +642,7 @@ function L:Build(n)
         local rp = E.PegRadius(p)
         if p.x - rp < E.PEG_MARGIN - 6 or p.x + rp > W - E.PEG_MARGIN + 6 then return false end
         if p.y - rp < E.PEG_TOP or p.y + rp > E.PEG_BOTTOM then return false end
+        if not L:Reachable(p) then return false end
         for _, r in ipairs(excludes) do
             if r.group ~= group and p.x > r.x0 and p.x < r.x1 and p.y > r.y0 and p.y < r.y1 then return false end
         end

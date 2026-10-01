@@ -133,6 +133,7 @@ function level_report(n)
     if p.moving then counts.moving = counts.moving + 1 end
     if p.shape == "brick" then counts.brick = counts.brick + 1 end
     local rp = E.PegRadius(p)
+    if not L:Reachable(p) then bad = bad + 1 end
     if p.x - rp < E.PEG_MARGIN - 6.01 or p.x + rp > E.FIELD_W - E.PEG_MARGIN + 6.01
        or p.y - rp < E.PEG_TOP - 0.01 or p.y + rp > E.PEG_BOTTOM + 0.01 then bad = bad + 1 end
     for j = i + 1, #spec.pegs do
@@ -239,7 +240,7 @@ function play_level(n, aimMode, forcePower)
   if forcePower then spec.power = forcePower end
   local st = E:NewLevel(spec)
   local info = { escaped = false, fever = nil, powers = 0, buckets = 0, spooky = 0, scoreFree = 0,
-                 maxBalls = 0, steps = 0, stuck = 0, blastLit = 0, superGuideSeen = false }
+                 maxBalls = 0, steps = 0, stuck = 0, blastLit = 0, superGuideSeen = false, bins = 0 }
   local events = {}
   local shots = 0
   while st.phase ~= E.PHASE.OVER and info.steps < 400000 do
@@ -280,6 +281,7 @@ function play_level(n, aimMode, forcePower)
     end
     for _, e in ipairs(events) do
       if e.type == "fever" then info.fever = st.orangeLeft end
+      if e.type == "bin" then info.bins = info.bins + 1 end
       if e.type == "power" then info.powers = info.powers + 1 end
       if e.type == "bucket" then info.buckets = info.buckets + 1 end
       if e.type == "spooky" then info.spooky = info.spooky + 1 end
@@ -293,6 +295,7 @@ end
 """)
 play = ev("play_level")
 problems, cleared, buckets, stuck, multi = [], 0, 0, 0, 0
+max_cleared_score = 0
 for n in list(range(1, 41)) + list(range(480, 500)) + list(range(981, 1001)):
     st, info = play(n, "sweep", None)
     if st.phase != "OVER":
@@ -305,6 +308,12 @@ for n in list(range(1, 41)) + list(range(480, 500)) + list(range(981, 1001)):
         cleared += 1
         if info.fever != 0:
             problems.append((n, "fever timing", info.fever))
+        if r.ballsLeft != 0 or info.bins < 1:
+            problems.append((n, "leftover balls not fired", r.ballsLeft, info.bins))
+        if r.feverTotal < 10000 * info.bins:
+            problems.append((n, "bins not scored", r.feverTotal, info.bins))
+        if r.score > max_cleared_score:
+            max_cleared_score = r.score
         if r.binScore not in (10000, 50000, 100000):
             problems.append((n, "bin", r.binScore))
     elif info.fever is not None:
@@ -316,7 +325,13 @@ for n in list(range(1, 41)) + list(range(480, 500)) + list(range(981, 1001)):
     if info.maxBalls > 1:
         multi += 1
 check("80 scripted levels end cleanly with the rules intact", not problems, str(problems[:4]))
-print(f"      cleared {cleared}/80, free balls from the bucket {buckets}, stuck balls {stuck}, multiball levels {multi}")
+print(f"      cleared {cleared}/80, free balls from the bucket {buckets}, stuck balls {stuck}, multiball levels {multi}, best cleared score {max_cleared_score}")
+check("a cleared level can pass 25,000", max_cleared_score >= 25000, str(max_cleared_score))
+mult = ev("E.ScoreMultiplier")
+Eng = ev("E")
+check("the multiplier climbs with the share of oranges lit", [mult(Eng, n, 25) for n in (0, 4, 5, 9, 10, 14, 15, 19, 20, 25)] == [1, 1, 2, 2, 3, 3, 5, 5, 10, 10])
+check("the ladder scales to a 15-orange level", [mult(Eng, n, 15) for n in (2, 3, 6, 9, 12)] == [1, 2, 3, 5, 10])
+check("the high corners hold no pieces", ev("L:ReachFloor(40)") > 180 and ev("L:ReachFloor(300)") < 60, f"{ev('L:ReachFloor(40)'):.0f} {ev('L:ReachFloor(300)'):.0f}")
 check("the sweep bot clears some levels", cleared > 0)
 check("the bucket returns balls", buckets > 0)
 

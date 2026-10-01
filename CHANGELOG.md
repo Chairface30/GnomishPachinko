@@ -9,4 +9,7 @@
 - **Touched pieces vanish two seconds after the touch**, while the ball is still flying, instead of waiting for it to drain.
 - **Every level is a drawn pattern**, nothing random sprinkled on top: fifteen families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs, Brick Walls, Spiral, Waves, Hourglass, Honeycomb, Pillars, Chevrons, Castle, Star), each with a few variants. A gimmick that would gut a pattern is left off that level.
 - **The field is 600 wide** so every pattern fits whole, and pieces may sit as close as the pattern draws them, even touching.
+- **Clearing a level fires off every ball you had left**, in random directions, each scoring the bin it lands in.
+- **Scores are higher**: pegs 25, oranges 250, the purple 1,000, and the multiplier climbs with the share of the level's oranges you have lit (x2 at a fifth, up to x10 at four fifths), so the free balls at 25k, 75k and 125k are within reach.
+- **No pieces in the high corners** the launcher cannot reach.
 - **Level select** with 100 levels a page, cleared levels in green and best scores under each number. `/pachinko`, `/pachinko levels`, `/pachinko <n>`, `/pachinko sound`, `/pachinko reset`.
