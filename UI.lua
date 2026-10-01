@@ -830,6 +830,14 @@ function UI:LayoutPegs()
             end
         end
         for _, tex in ipairs({ t.disc, t.ring, t.rim, t.crack }) do placeAt(tex, field, p.x, p.y) end
+        -- the boss sits behind the pegs, everything else in front of it
+        if t.disc.SetDrawLayer then
+            local boss = p.kind == "boss"
+            pcall(t.ring.SetDrawLayer, t.ring, boss and "BACKGROUND" or "ARTWORK", boss and 4 or 0)
+            pcall(t.rim.SetDrawLayer, t.rim, boss and "BACKGROUND" or "ARTWORK", boss and 4 or 0)
+            pcall(t.disc.SetDrawLayer, t.disc, boss and "BACKGROUND" or "ARTWORK", boss and 5 or 1)
+            pcall(t.crack.SetDrawLayer, t.crack, boss and "BACKGROUND" or "ARTWORK", boss and 6 or 2)
+        end
         t.disc:SetAlpha(1)
         t.disc:Show()
         t.ring:Hide()

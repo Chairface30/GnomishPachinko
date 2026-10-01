@@ -844,6 +844,46 @@ check("time slows as a ball closes on the last orange peg and the slow ends when
 check("Fever runs at full speed and the leftover balls start firing within a second",
       not slowed_in_fever and first_shot is not None and first_shot <= 1.0, f"slowed {slowed_in_fever} first shot {first_shot}")
 
+# two goal hits in one swoop: the slow-mo starts before the first of them
+lua(r"""
+function close_call_probe()
+  -- pass one: a single orange; note where the ball is a quarter second after striking it
+  local function run(pegs, need)
+    local spec = L:Build(1)
+    spec.pegs = pegs
+    spec.goal = need
+    local st = E:NewLevel(spec)
+    local a = st.pegs[1]
+    st.phase = E.PHASE.FLIGHT
+    st.balls[1] = { x = a.x + 4, y = a.y - 120, vx = 0, vy = 200, slow = 0 }
+    local events = {}
+    local slowAt, litA, litB, wall, after = nil, nil, nil, 0, nil
+    for _ = 1, 300 do
+      E:Step(st, 1 / 60, events)
+      wall = wall + 1 / 60
+      for _, e in ipairs(events) do if e.type == "last_peg" and not slowAt then slowAt = wall end end
+      if a.lit and not litA then litA = wall end
+      if litA and not after and wall - litA >= 0.25 and st.balls[1] then after = { x = st.balls[1].x, y = st.balls[1].y } end
+      if st.pegs[2] and st.pegs[2].goal and st.pegs[2].lit and not litB then litB = wall end
+      wipe(events)
+      if st.phase ~= E.PHASE.FLIGHT then break end
+    end
+    return { slowAt = slowAt, litA = litA, litB = litB, after = after }
+  end
+  -- (a blue stand-in for the path probe, so the level does not end on the strike)
+  local A = { shape = "peg", x = 300, y = 300, kind = "blue" }
+  local first = run({ A, { shape = "peg", x = 100, y = 450, kind = "orange", goal = true } }, 1)
+  if not first.after then return nil end
+  -- pass two: a second orange right on that path
+  local B = { shape = "peg", x = first.after.x, y = first.after.y + 12, kind = "orange", goal = true }
+  local second = run({ { shape = "peg", x = 300, y = 300, kind = "orange", goal = true }, B, { shape = "peg", x = 100, y = 450, kind = "blue" } }, 2)
+  return { slowAt = second.slowAt, litA = second.litA, litB = second.litB, bx = B.x, by = B.y }
+end
+""")
+cc = ev("close_call_probe")()
+check("when the last two goal hits come in one swoop the slow-mo starts before the first",
+      cc is not None and cc.litB is not None and cc.slowAt is not None and cc.slowAt < cc.litA, str(dict(cc) if cc else None))
+
 # stars come from the level's own pieces
 s2, s3 = ev("L:StarScores(1)")
 check("stars: none for a loss, one for a clear, two and three at the marks",

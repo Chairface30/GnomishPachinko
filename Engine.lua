@@ -62,8 +62,10 @@ E.FEVER_FIRST_GAP = 0.8    -- after the last piece lights, the leftover balls st
 -- The last goal piece: when a ball closes in on it, time slows and the
 -- window zooms in on it (Peggle Blast's last-peg moment).
 E.LAST_SLOWMO     = 0.22
-E.LAST_LOOKAHEAD  = 0.35     -- seconds of flight predicted; a path that reaches the piece starts it
-E.LAST_NEAR       = 110      -- fallback: a ball this close and heading in starts it too
+E.LAST_LOOKAHEAD  = 0.35     -- seconds of flight predicted; a path that finishes the goal starts it
+E.LAST_LOOKAHEAD2 = 0.6      -- when two goal hits remain (a close call: both in one swoop)
+E.LAST_MAX_HITS   = 2        -- the slow-mo is on the table once this few goal hits remain
+E.LAST_NEAR       = 110      -- fallback: a ball this close to the one piece left and heading in starts it too
 E.LAST_LEAVE      = 170      -- it ends when no ball is within this
 E.LAST_MAX_SECS   = 2.0      -- of slowed time, then it waits for the ball to leave and return
 E.LAST_ZOOM       = 1.8
@@ -848,37 +850,58 @@ local function integrateGem(state, g, dt, events)
     return true
 end
 
--- The one goal piece left, one hit from done, or nil.
-local function lastGoalPiece(state)
+-- The goal pieces still to hit and how many hits they need between them.
+-- A boss counts its health and shield; eggs their remaining hits.
+local function goalHitsLeft(state, out)
+    local hits = 0
     local b = state.boss
     if b then
-        if not b.lit and not b.gone and b.hp == 1 and (b.shield or 0) == 0 then return b end
-        return nil
+        if not b.lit and not b.gone then
+            hits = b.hp + (b.shield or 0)
+            out[#out + 1] = b
+        end
+        return hits
     end
-    if state.goalLeft ~= 1 then return nil end
     for _, p in ipairs(state.pegs) do
-        if p.goal and not p.lit and not p.gone and (p.hp or 1) == 1 then return p end
+        if p.goal and not p.lit and not p.gone then
+            hits = hits + (p.hp or 1)
+            out[#out + 1] = p
+        end
     end
-    return nil
+    return hits
 end
 
--- Does this ball's next LAST_LOOKAHEAD seconds of flight (bounces and
--- all, nothing lit) touch the target?
-local function willReach(state, ball, target)
+-- Simulates this ball's next `secs` of flight (bounces and all, nothing
+-- lit) and counts its strikes on the goal pieces, each piece at most as
+-- many times as it has hits left and never twice within the hit
+-- cooldown. Returns the strike count and the piece struck last.
+local function predictGoalHits(state, ball, goals, secs)
     local b = { x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy, slow = 0, fire = ball.fire }
     local R = E.BALL_R
-    local steps = floor(E.LAST_LOOKAHEAD / E.STEP)
+    local steps = floor(secs / E.STEP)
+    local hits, lastPiece = 0, nil
+    local lastAt, count = {}, {}
+    local t = 0
     for _ = 1, steps do
+        t = t + E.STEP
         b.vy = b.vy + E.GRAVITY * E.STEP
         b.x = b.x + b.vx * E.STEP
         b.y = b.y + b.vy * E.STEP
         if b.x < R then b.x = R; if b.vx < 0 then b.vx = -b.vx * E.RESTITUTION end end
         if b.x > W - R then b.x = W - R; if b.vx > 0 then b.vx = -b.vx * E.RESTITUTION end end
-        if pegContact(target, b.x, b.y, R) then return true end
+        for _, g in ipairs(goals) do
+            if pegContact(g, b.x, b.y, R) and (not lastAt[g] or t - lastAt[g] >= E.HIT_COOLDOWN)
+                and (count[g] or 0) < ((g.hp or 1) + (g.shield or 0)) then
+                lastAt[g] = t
+                count[g] = (count[g] or 0) + 1
+                hits = hits + 1
+                lastPiece = g
+            end
+        end
         collideBall(state, b, nil, false)
-        if b.y - R > H then return false end
+        if b.y - R > H then break end
     end
-    return false
+    return hits, lastPiece
 end
 
 local function updateLastPeg(state, dt, events)
@@ -886,26 +909,46 @@ local function updateLastPeg(state, dt, events)
         state.lastSlow = false
         return
     end
-    local target = lastGoalPiece(state)
-    if not target then
+    local goals = {}
+    local need = goalHitsLeft(state, goals)
+    if need == 0 or need > E.LAST_MAX_HITS then
         state.lastSlow = false
         return
     end
+    -- the piece the moment is about: the one left, or the last one the
+    -- look-ahead saw struck
+    local target = (need == 1 and #goals == 1) and goals[1] or state.lastPeg
+    if target and (target.lit or target.gone) then target = nil end
     local nearest, approaching = math.huge, false
-    for _, ball in ipairs(state.balls) do
-        local dx, dy = target.x - ball.x, target.y - ball.y
-        local d = sqrt(dx * dx + dy * dy)
-        if d < nearest then nearest = d end
-        if d < E.LAST_NEAR and (ball.vx * dx + ball.vy * dy) > 0 then approaching = true end
+    if target then
+        for _, ball in ipairs(state.balls) do
+            local dx, dy = target.x - ball.x, target.y - ball.y
+            local d = sqrt(dx * dx + dy * dy)
+            if d < nearest then nearest = d end
+            if need == 1 and d < E.LAST_NEAR and (ball.vx * dx + ball.vy * dy) > 0 then approaching = true end
+        end
     end
-    -- the look-ahead, a few times a second rather than every substep
+    -- the look-ahead, a few times a second rather than every substep: the
+    -- slow-mo starts when a ball's path finishes the goal within it, two
+    -- strikes in one swoop included, so there is time before the first
     if not state.lastSlow and not approaching and state.lastSpent < E.LAST_MAX_SECS then
         state.lastLook = (state.lastLook or 0) + 1
         if state.lastLook % 6 == 0 then
+            local horizon = (need >= 2) and E.LAST_LOOKAHEAD2 or E.LAST_LOOKAHEAD
             for _, ball in ipairs(state.balls) do
-                if willReach(state, ball, target) then approaching = true break end
+                local hits, lastPiece = predictGoalHits(state, ball, goals, horizon)
+                if hits >= need and lastPiece then
+                    approaching = true
+                    target = lastPiece
+                    nearest = 0
+                    break
+                end
             end
         end
+    end
+    if not target then
+        state.lastSlow = false
+        return
     end
     if state.lastSlow then
         state.lastSpent = state.lastSpent + dt
