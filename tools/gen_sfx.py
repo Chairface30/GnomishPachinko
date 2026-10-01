@@ -53,7 +53,7 @@ EFFECTS = {
     "lost":     ("A soft descending womp as a ball drops out of play, short and mild, cartoon.", 0.6, {}),
     "spooky":   ("A ghostly whoosh with a quick cartoon boo as a ball reappears, short.", 0.8, {}),
     # rewards
-    "bucket":   ("A cash register ka-ching: a bright bell ring with a coin drawer jingle, short and satisfying.", 1.0, {"keep_tail": True}),
+    "bucket":   ("An old mechanical cash register ka-ching: the key clacks, the drawer slams open with a loud brass bell ring, coins rattle in the tray, short.", 1.2, {"keep_tail": True}),
     "rim":      ("A steel ball bouncing off the rim of a ceramic bowl, one short hollow ceramic clink, no reverb.", 0.4, {}),
     "free_ball": ("A cheerful rising three-note chime, a bonus awarded, bright and short.", 0.9, {"keep_tail": True}),
     "combo":    ("A sparkling ascending arpeggio burst, a combo reward, bright and quick.", 1.0, {"keep_tail": True}),

@@ -186,8 +186,38 @@ def sweep(f0, f1, secs=0.5, decay=6, level_=0.5):
     return norm(np.sin(phase) * np.exp(-t * decay) * np.minimum(1.0, t / 0.005), level_)
 
 
+def kaching(secs=1.1):
+    """A cash register: the drawer latch clacks, the bell rings (inharmonic
+    partials, not a clean tone), and a handful of coins ping and rattle."""
+    rng = np.random.default_rng(17)
+    t = np.linspace(0, secs, int(RATE * secs), endpoint=False)
+    out = np.zeros_like(t)
+    # the latch: a sharp click of filtered noise
+    click = rng.standard_normal(t.size) * np.exp(-t * 180)
+    out += 0.9 * click
+    # the bell: struck at 60 ms, bell-like partial ratios with a bright edge
+    tb = np.maximum(0, t - 0.06)
+    bell = np.zeros_like(t)
+    for ratio, amp, dec in ((1.0, 1.0, 5), (2.76, 0.6, 7), (5.40, 0.4, 10), (8.93, 0.25, 14), (1.02, 0.5, 5)):
+        bell += amp * np.sin(2 * math.pi * 1180 * ratio * tb) * np.exp(-tb * dec)
+    bell *= (t >= 0.06) * np.minimum(1.0, tb / 0.002)
+    out += 0.8 * bell
+    # the drawer sliding open: a short low rumble of noise
+    k = 40
+    rumble = np.convolve(rng.standard_normal(t.size), np.ones(k) / k, mode="same")
+    rumble *= ((t >= 0.08) & (t < 0.30)) * np.exp(-np.maximum(0, t - 0.08) * 12)
+    out += 1.4 * rumble
+    # coins: a scatter of tiny metallic pings over the next half second
+    for i in range(9):
+        start = 0.12 + i * 0.045 + rng.uniform(0, 0.02)
+        f = rng.uniform(3200, 6400)
+        tt = np.maximum(0, t - start)
+        out += 0.22 * (np.sin(2 * math.pi * f * tt) + 0.5 * np.sin(2 * math.pi * f * 1.5 * tt)) * np.exp(-tt * 45) * (t >= start)
+    return norm(out, 0.6)
+
+
 STANDINS = {
-    "bucket.ogg": lambda: tone_seq((2093, 2637, 3136, 2093), each=0.04, decay=5),
+    "bucket.ogg": kaching,
     "rim.ogg": lambda: tone_seq((1900, 1400), each=0.03, decay=28),
     "combo.ogg": lambda: tone_seq((523, 659, 784, 1047, 1319), each=0.07),
     "bin.ogg": lambda: tone_seq((880,), decay=6),
