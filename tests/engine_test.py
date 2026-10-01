@@ -138,7 +138,7 @@ function level_report(n)
     for j = i + 1, #spec.pegs do
       local q = spec.pegs[j]
       if not (p.group and p.group == q.group) and p.shape == "peg" and q.shape == "peg" then
-        local need = 2 * E.PEG_R + 2 * E.BALL_R + 6
+        local need = 2 * E.PEG_R - 0.5     -- touching is fine, overlapping is not
         local dx, dy = p.x - q.x, p.y - q.y
         if dx * dx + dy * dy < need * need - 0.01 then bad = bad + 1 end
       end
@@ -173,7 +173,7 @@ for n in range(1, 1001):
         problems.append((n, "thin", counts["total"]))
     if n == 500:
         sig1 = [(p.x, p.y, p.kind, p.shape) for p in spec.pegs.values()]
-check("all 1000 levels build with the published orange count, 2 greens, no overlaps", not problems, str(problems[:4]))
+check("all 1000 levels build with the published orange count, 2 greens, nothing overlapping", not problems, str(problems[:4]))
 check("every layout family appears", len(families) == len(ev("L.FAMILIES")), str(sorted(families)))
 check("every power is assigned somewhere", len(powers) == 5, str(powers))
 check("bricks are in play", bricks_total > 1000, str(bricks_total))

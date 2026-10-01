@@ -8,5 +8,5 @@
 - **Gimmicks** from chapter 3, like the real thing: Slider, Lifts, Wheel, Twin Wheels, Pendulum, Blocks (solid, never light) and Sliding Block, one a level and sometimes two late on.
 - **Touched pieces vanish two seconds after the touch**, while the ball is still flying, instead of waiting for it to drain.
 - **Every level is a drawn pattern**, nothing random sprinkled on top: fifteen families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs, Brick Walls, Spiral, Waves, Hourglass, Honeycomb, Pillars, Chevrons, Castle, Star), each with a few variants. A gimmick that would gut a pattern is left off that level.
-- **The field is 600 wide** so every pattern fits whole.
+- **The field is 600 wide** so every pattern fits whole, and pieces may sit as close as the pattern draws them, even touching.
 - **Level select** with 100 levels a page, cleared levels in green and best scores under each number. `/pachinko`, `/pachinko levels`, `/pachinko <n>`, `/pachinko sound`, `/pachinko reset`.

@@ -176,7 +176,7 @@ FAMILIES[#FAMILIES + 1] = { name = "Diamonds", build = function(rng, add, d)
     -- ones low at the sides, never touching
     local low = rng() < 0.5
     diamond(add, 118, low and 350 or 330, 84, 3)
-    diamond(add, CX, 240, 100, 3)
+    diamond(add, CX, 240, 100, 4)
     diamond(add, W - 118, low and 350 or 330, 84, 3)
     add(peg(CX, 240))
     add(peg(118, low and 350 or 330))
@@ -557,8 +557,9 @@ function L:Build(n)
     local movers, excludes = {}, {}
     local function mover(mv) movers[#movers + 1] = mv end
     local function exclude(rect, group) rect.group = group; excludes[#excludes + 1] = rect end
-    -- surface-to-surface clearance so a ball can pass between pieces;
-    -- bricks are measured as the rectangles they are, not as big circles
+    -- pieces may sit as close as the pattern wants, even touching; only
+    -- real overlaps are refused. Bricks are measured as the rectangles
+    -- they are, not as big circles
     local function pointRectDist(px, py, q)
         local c, sn = cos(q.angle), sin(q.angle)
         local dx, dy = px - q.x, py - q.y
@@ -589,7 +590,7 @@ function L:Build(n)
         end
     end
     local function clearOf(p, group)
-        local need = 2 * E.BALL_R + 6
+        local need = -0.5          -- touching is allowed
         for _, q in ipairs(pegs) do
             if not (group and q.group == group) then
                 if surfaceDist(p, q) < need then return false end
