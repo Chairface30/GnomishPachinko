@@ -1,0 +1,9 @@
+# CurseForge packaging. The folder must be named like the .toc for the game
+# to load it.
+package-as: GnomishPachinko
+
+# Kept in the repository, left out of the download: tests, build tools, notes.
+ignore:
+  - tests
+  - tools
+  - README.md

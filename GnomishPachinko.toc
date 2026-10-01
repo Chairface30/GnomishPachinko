@@ -1,0 +1,12 @@
+## Interface: 16001
+## Title: Gnomish Pachinko
+## Notes: A peg-shooting puzzle game: 1000 generated levels of pegs and bricks to clear. No gambling, no gold.
+## Author: Chairface Chippendale
+## Version: 1.0.0
+## IconTexture: Interface\AddOns\GnomishPachinko\Textures\icon.tga
+## SavedVariables: GnomishPachinkoDB
+
+Core.lua
+Engine.lua
+Levels.lua
+UI.lua
