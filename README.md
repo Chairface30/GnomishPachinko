@@ -23,7 +23,7 @@ Every level is one of four kinds, marked by a coloured dot on the level select:
 - **Classic**: light every orange peg.
 - **Eggs** (levels ending 5 from chapter 2, and 7 from chapter 4): hatch every egg. Eggs take three hits and crack a little more each time.
 - **Gems** (levels ending 3 and 8 from chapter 3): knock every gem loose and catch it in the bucket. A gem that misses goes back to its nest for the next shot.
-- **Boss** (every tenth level): a big mechanical boss slides along the top. Hit it until its health is gone. Five bosses take turns, each with a trick: the Tin Drake speeds up as it weakens, the Bolt Golem raises a two-hit shield every third shot, the Gyro Spider jumps when hit, the Mechano-Boar charges and turns around when hit, the Cog Yeti heals after any shot that misses it.
+- **Boss** (every tenth level): a big mechanical boss slides back and forth along the bottom, under the pegs, so the ball has to come down through the pattern or thread a gap to reach it. Hit it until its health is gone. Five bosses take turns, each with a trick: the Tin Drake speeds up as it weakens, the Bolt Golem raises a two-hit shield every third shot, the Gyro Spider jumps when hit, the Mechano-Boar charges and turns around when hit, the Cog Yeti heals after any shot that misses it.
 
 ### Powers
 

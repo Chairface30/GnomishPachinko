@@ -924,7 +924,7 @@ function L:Build(n)
         return true
     end
 
-    -- the boss first: it owns a band near the top that nothing else enters
+    -- the boss first: it owns a band along the bottom that nothing else enters
     if bossDef then
         local band = E.BOSS_BAND
         exclude({ x0 = -1, x1 = W + 1, y0 = band.y0, y1 = band.y1 }, "boss")

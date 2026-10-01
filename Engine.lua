@@ -12,8 +12,8 @@
     Kinds: blue (points), orange (goal), green (the level's power), purple
     (one bonus peg, moves every shot), egg (goal, three hits to hatch), gem
     (goal, knocked loose and caught in the bucket), boss (goal, a big
-    moving piece with health), block (solid, never lights) and bumper
-    (solid, round, over-bouncy).
+    piece with health sliding along the bottom under the pegs), block
+    (solid, never lights) and bumper (solid, round, over-bouncy).
 
     Every hit takes one point of hp. A piece with hp 2 or 3 (a "tough"
     piece) cracks first and only lights on its last hit. A piece whose
@@ -99,11 +99,13 @@ E.BUMPER_R      = 15
 E.BUMPER_BOUNCE = 1.3
 E.BUMPER_KICK   = 260
 
--- The boss: a big round piece that slides along a band near the top. It
--- bounces like a bumper so the ball comes back down through the pegs.
+-- The boss: a big round piece that slides along a band at the BOTTOM of
+-- the field, under the pattern, so the ball has to find its way down
+-- through the pegs (or thread a gap) to reach it. It bounces like a
+-- bumper so the ball comes back up for more.
 E.BOSS_BOUNCE = 1.0
 E.BOSS_KICK   = 220
-E.BOSS_BAND   = { y0 = 146, y1 = 236, y = 186 }
+E.BOSS_BAND   = { y0 = 416, y1 = 500, y = 458 }
 E.GOLEM_SHIELD = 2
 E.GOLEM_EVERY  = 3
 
