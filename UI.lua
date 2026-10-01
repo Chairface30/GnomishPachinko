@@ -95,11 +95,20 @@ function UI:ObjectiveText(st)
     local o = st.objective
     if o == "eggs" then return ("Hatch all %d eggs (three hits each)"):format(st.goalTotal) end
     if o == "gems" then return ("Catch all %d gems in the bucket"):format(st.goalTotal) end
-    if o == "boss" and st.boss then return ("Beat the %s (%d health)"):format(st.boss.bossName or "boss", st.boss.maxhp) end
-    return ("Light all %d orange pegs"):format(st.goalTotal)
+    local text
+    if o == "boss" and st.boss then text = ("Beat the %s (%d health)"):format(st.boss.bossName or "boss", st.boss.maxhp)
+    elseif o == "duel" and st.duel then text = ("Light all %d orange pegs. %s takes a turn after each of your shots (%d turns)"):format(st.goalTotal, st.duel.name, st.duel.turnsTotal)
+    else text = ("Light all %d orange pegs"):format(st.goalTotal) end
+    if st.noBucket then text = text .. ". No bucket on this level" end
+    return text
 end
 
-local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to catch", boss = "Boss health" }
+local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to catch", boss = "Boss health", duel = "Orange pegs left" }
+local DUEL_TURN_TEXT = {
+    rebuilder = function(ev) return ev.added > 0 and ("adds %d orange pegs"):format(ev.added) or "has nothing left to add" end,
+    shuffler = function(ev) return ("shuffles the orange pegs (%d moved)"):format(ev.moved or 0) end,
+    thief = function(ev) return ev.stole and "steals a ball!" or "finds nothing to steal" end,
+}
 
 function UI:Initialize()
     if self.frame then return end
@@ -520,9 +529,13 @@ function UI:CreateLevelSelect()
             if kind == "boss" then
                 local bossDef = L:BossFor(self.level)
                 GameTooltip:AddLine("Boss: " .. bossDef.name .. " - " .. bossDef.blurb, 1, 0.5, 0.5, true)
+            elseif kind == "duel" then
+                local duelDef, turns = L:DuelFor(self.level)
+                GameTooltip:AddLine(("Duel: %s (%d turns) - %s"):format(duelDef.name, turns, duelDef.blurb), 1, 0.5, 0.5, true)
             else
                 GameTooltip:AddLine(def.name .. " level: " .. def.text, 0.9, 0.9, 1, true)
             end
+            if L:NoBucket(self.level) then GameTooltip:AddLine("No bucket on this level", 1, 0.8, 0.4) end
             if GP:IsUnlocked(self.level) then
                 local s2, s3 = L:StarScores(self.level)
                 GameTooltip:AddLine("2 stars at " .. fmtBig(s2) .. ", 3 stars at " .. fmtBig(s3), 0.7, 0.7, 0.8)
@@ -587,6 +600,7 @@ end
 
 local KIND_DOT = {
     classic = { 1, 0.5, 0.08 }, eggs = { 1, 0.94, 0.75 }, gems = { 0.38, 0.94, 1 }, boss = { 1, 0.25, 0.25 },
+    duel = { 1, 0.25, 0.25 },
 }
 
 -- page = chapter
@@ -770,11 +784,12 @@ function UI:StartLevel(n)
     self.blastRing:Hide()
     for _, d in ipairs(self.boltDots) do d:Hide() end
     for _, g in ipairs(self.gemTex) do g:Hide() end
+    if self.state.noBucket then self.bucket:Hide() end
     self:StopFanfare()
     self:HideGuide()
     self:ShowBanner(("|cffffd700Level %d|r"):format(n), self:ObjectiveText(self.state), 3)
     GP:PlaySfx("start.ogg")
-    GP:PlayVoice(spec.objective == "boss" and "boss_start" or "level_start")
+    GP:PlayVoice(spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start"))
     self:UpdateDisplay()
     return true
 end
@@ -1079,6 +1094,13 @@ function UI:HandleEvents(now)
         elseif t == "boss_down" then
             GP:PlaySfx("boss_down.ogg")
             GP:PlayVoice("boss_down")
+        elseif t == "boss_turn" then
+            local what = DUEL_TURN_TEXT[ev.id] and DUEL_TURN_TEXT[ev.id](ev) or "takes a turn"
+            self:ShowBanner(("|cffff6060%s|r"):format(ev.name:upper() .. "'S TURN"),
+                ev.name .. " " .. what .. (ev.turnsLeft > 0 and ("  (%d turns left)"):format(ev.turnsLeft) or "  (its last turn)"), 2.5)
+            GP:PlaySfx("boss_turn.ogg")
+            GP:PlayVoice(ev.stole and "ball_stolen" or "boss_turn")
+            self:LayoutPegs()
         elseif t == "gem_free" then
             GP:PlaySfx("gem_free.ogg")
         elseif t == "gem_caught" then
@@ -1489,7 +1511,7 @@ function UI:Render(now)
         end
     end
 
-    if st.phase ~= E.PHASE.FEVER and st.phase ~= E.PHASE.OVER then
+    if st.phase ~= E.PHASE.FEVER and st.phase ~= E.PHASE.OVER and not st.noBucket then
         self.bucket:ClearAllPoints()
         self.bucket:SetPoint("TOP", field, "TOPLEFT", st.bucket.x, -(E.BucketTop() - 4))
     end
@@ -1506,6 +1528,9 @@ function UI:UpdateCounters()
         self.goalText:SetText(math.max(0, st.boss.hp) .. " / " .. st.boss.maxhp)
     else
         self.goalText:SetText(st.goalLeft .. " / " .. st.goalTotal)
+    end
+    if st.duel then
+        self.objectiveText:SetText(self:ObjectiveText(st) .. ("\n%d turns left"):format(st.duel.turns))
     end
     self.scoreText:SetText(fmtBig(st.score))
     self.multText:SetText("x" .. E:ScoreMultiplier(E:Progress(st)))
@@ -1538,6 +1563,8 @@ function UI:UpdateDisplay()
             local def
             for _, d in ipairs(E.BOSSES) do if d.id == st.boss.ability then def = d end end
             if def then objective = objective .. "\n" .. def.blurb end
+        elseif st.duel then
+            objective = objective .. "\n" .. st.duel.blurb
         end
         self.objectiveText:SetText(objective)
         self.goalLabel:SetText(GOAL_LABEL[st.objective] or GOAL_LABEL.classic)

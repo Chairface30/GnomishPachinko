@@ -128,7 +128,17 @@ E.OBJECTIVES = {
     eggs    = { name = "Eggs",    goalWord = "eggs",        text = "Hatch every egg: three hits each" },
     gems    = { name = "Gems",    goalWord = "gems",        text = "Knock every gem loose and catch it in the bucket" },
     boss    = { name = "Boss",    goalWord = "boss health", text = "Beat the boss: hit it until its health is gone" },
+    duel    = { name = "Duel",    goalWord = "orange pegs", text = "Light every orange peg while the boss takes its turns" },
 }
+
+-- Duel bosses: no piece to hit. You shoot, then the boss takes a turn,
+-- for as many turns as it has; the goal is the orange pegs as usual.
+E.DUELS = {
+    { id = "rebuilder", name = "Gear Rebuilder", blurb = "Adds two orange pegs after each of your shots while its supply lasts." },
+    { id = "shuffler",  name = "Cog Shuffler",   blurb = "Moves the orange pegs to new spots after each of your shots." },
+    { id = "thief",     name = "Sprocket Thief", blurb = "Steals a ball after any shot that lights no orange peg." },
+}
+E.REBUILD_PER_TURN = 2
 
 -- The bosses, one kind per chapter in turn. `ability` is what Engine does
 -- with it; the names and blurbs are for the panel.
@@ -256,6 +266,10 @@ function E:NewLevel(spec)
         goalTotal = spec.goal or spec.orange or 0,
         goalLeft = spec.goal or spec.orange or 0,
         goalHit = 0,
+        goalHitThisShot = 0,
+        noBucket = spec.noBucket or false,
+        duel = spec.duel and { id = spec.duel.id, name = spec.duel.name, blurb = spec.duel.blurb,
+            turns = spec.duel.turns, turnsTotal = spec.duel.turns } or nil,
         power = spec.power,
         balls = {},
         gems = {},
@@ -445,6 +459,7 @@ function E:Launch(state, events)
     state.ballsFired = state.ballsFired + 1
     state.shots = state.shots + 1
     state.combo = 0
+    state.goalHitThisShot = 0
     state.bossHitThisShot = false
     if state.superGuide > 0 then state.superGuide = state.superGuide - 1 end
     if state.pyramidShots > 0 then
@@ -598,6 +613,7 @@ lightPeg = function(state, p, ball, events, quiet, at)
     if p.goal then
         state.goalHit = state.goalHit + 1
         state.goalLeft = state.goalLeft - 1
+        state.goalHitThisShot = state.goalHitThisShot + 1
     end
     local pts = (E.PEG_POINTS[p.kind] or 10) * E:ScoreMultiplier(E:Progress(state))
     pts = pts + E.COMBO_STEP * (state.combo - 1)
@@ -652,6 +668,7 @@ local function bucketTop() return H - E.BUCKET_H - 6 end
 E.BucketTop = bucketTop
 
 local function moveBucket(state, dt)
+    if state.noBucket then return end
     local b = state.bucket
     local lo, hi = E.BUCKET_W / 2 + 4, W - E.BUCKET_W / 2 - 4
     b.x = b.x + b.dir * E.BUCKET_SPEED * dt
@@ -739,6 +756,7 @@ end
 
 -- Bucket test shared by balls and gems: 1 = caught, 2 = rim bounce, nil = clear.
 local function bucketCheck(state, body, events)
+    if state.noBucket then return nil end
     local R = E.BALL_R
     local b = state.bucket
     local top = bucketTop()
@@ -815,6 +833,60 @@ local function integrateBall(state, ball, dt, events)
         end
     end
     return true
+end
+
+-- The duel boss's turn, after a shot ends and before the next.
+local function duelTurn(state, events)
+    local d = state.duel
+    if not d or d.turns <= 0 then return end
+    local ev = { type = "boss_turn", id = d.id, name = d.name }
+    local function unlit(kind)
+        local pool = {}
+        for _, p in ipairs(state.pegs) do
+            if p.kind == kind and not p.lit and not p.gone and not p.special then pool[#pool + 1] = p end
+        end
+        return pool
+    end
+    if d.id == "rebuilder" then
+        local pool = unlit("blue")
+        local added = 0
+        for _ = 1, E.REBUILD_PER_TURN do
+            if #pool == 0 then break end
+            local i = state.rng(1, #pool)
+            local p = pool[i]
+            table.remove(pool, i)
+            p.kind = "orange"
+            p.goal = true
+            state.goalTotal = state.goalTotal + 1
+            state.goalLeft = state.goalLeft + 1
+            added = added + 1
+        end
+        ev.added = added
+        if added == 0 then d.turns = 1 end     -- nothing left to add: this is its last turn
+    elseif d.id == "shuffler" then
+        local oranges, blues = unlit("orange"), unlit("blue")
+        local moved = 0
+        for _, p in ipairs(oranges) do
+            if #blues == 0 then break end
+            local i = state.rng(1, #blues)
+            local q = blues[i]
+            table.remove(blues, i)
+            q.kind, q.goal = "orange", true
+            p.kind, p.goal = "blue", nil
+            moved = moved + 1
+        end
+        ev.moved = moved
+    elseif d.id == "thief" then
+        if state.goalHitThisShot == 0 and state.ballsLeft > 1 then
+            state.ballsLeft = state.ballsLeft - 1
+            ev.stole = true
+        else
+            ev.stole = false
+        end
+    end
+    d.turns = d.turns - 1
+    ev.turnsLeft = d.turns
+    push(events, ev)
 end
 
 -- A gem back in its nest, ready for the next shot.
@@ -1035,6 +1107,7 @@ local function substep(state, dt, events)
             b.hp = b.hp + 1
             push(events, { type = "boss_heal", x = b.x, y = b.y, hp = b.hp })
         end
+        duelTurn(state, events)
         if state.ballsLeft > 0 then
             state.phase = E.PHASE.AIM
             E:MovePurple(state)

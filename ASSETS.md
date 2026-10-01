@@ -60,6 +60,7 @@ Everything below ships today as a generated placeholder (textures from `tools/ma
 | `free_ball.ogg`, `combo.ogg`, `bin.ogg` | under 1 s | the other rewards |
 | `power_multiball/guide/fireball/spooky/pyramid/lightning.ogg` | about 1 s | one activation sound per power (`blast.ogg` is Space Blast's) |
 | `pyramid.ogg`, `lost.ogg`, `spooky.ogg`, `gem_free.ogg` | short | ramp bounce, a lost ball, the spooky re-entry, a gem knocked loose |
+| `boss_turn.ogg` | 0.8 s | a ratchet and clank: a duel boss takes its turn |
 | `shield.ogg`, `heal.ogg`, `hop.ogg` | short | the Bolt Golem's block, the Cog Yeti's heal, the Gyro Spider's jump |
 | `start.ogg`, `fail.ogg` | about 1 s | level start, out of balls |
 
@@ -77,6 +78,9 @@ The announcer. The hooks are already in the game and play `Sounds/Voice/<name>.o
 |---|---|---|
 | `level_start.ogg` | "Here we go!" | A level starts |
 | `boss_start.ogg` | "Boss fight! Watch yourself!" | A boss level starts |
+| `duel_start.ogg` | "A duel! Make every shot count." | A duel level starts |
+| `boss_turn.ogg` | "My move!" | A duel boss takes its turn |
+| `ball_stolen.ogg` | "Ha! That one's mine now." | The Sprocket Thief steals a ball |
 | `free_ball.ogg` | "Free ball!" | The bucket, or a score mark |
 | `fever.ogg` | "Fever!" | The goal is done, Fever begins |
 | `level_cleared.ogg` | "Level cleared!" | A clear with one or two stars |

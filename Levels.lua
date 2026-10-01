@@ -690,7 +690,7 @@ end
 -- and more often, and from level 300 sometimes twice.
 function L:GimmicksFor(n, rng, objective)
     local list = {}
-    if n < 21 or objective == "boss" then return list end
+    if n < 21 or objective == "boss" or objective == "duel" then return list end
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local pool = math.min(#self.GIMMICK_ORDER, chapter - 2)
     local debut = (n % 10 == 1) and chapter - 2 <= #self.GIMMICK_ORDER
@@ -749,7 +749,11 @@ end
 -- 3 (ending 3 and 8); the rest are classic orange-peg levels.
 function L:Objective(n)
     local last = n % 10
-    if last == 0 and n >= 10 then return "boss" end
+    if last == 0 and n >= 10 then
+        -- the first boss is a target; from then on even chapters duel
+        local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
+        return (chapter % 2 == 0) and "duel" or "boss"
+    end
     if last == 5 and n >= 11 then return "eggs" end
     if last == 7 and n >= 31 then return "eggs" end
     if (last == 3 or last == 8) and n >= 21 then return "gems" end
@@ -783,6 +787,27 @@ function L:HeavyShare(n)
 end
 
 function L:ToughOrangesFrom() return 61 end
+
+-- Levels without the bucket: from chapter 5, levels ending 4 and 9 (never
+-- a gem level, the bucket is its goal).
+function L:NoBucket(n)
+    if n < 41 then return false end
+    local last = n % 10
+    if last ~= 4 and last ~= 9 then return false end
+    return self:Objective(n) ~= "gems"
+end
+
+-- The duel boss for an even chapter's tenth level: kind by chapter, turns
+-- climbing with it.
+function L:DuelFor(n)
+    local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
+    local def = E.DUELS[((floor(chapter / 2) - 1) % #E.DUELS) + 1]
+    local turns
+    if def.id == "rebuilder" then turns = 3 + floor(chapter / 20)
+    elseif def.id == "shuffler" then turns = 4 + floor(chapter / 12)
+    else turns = 3 + floor(chapter / 15) end
+    return def, turns
+end
 
 -- The boss for a level: kind by chapter, health climbing from 5 to 21.
 function L:BossFor(n)
@@ -818,7 +843,9 @@ function L:ParFor(spec)
     local hard = 0.5 * math.min(1, goal / 30) + 0.5 * (coloured > 0 and tough / coloured or 0)
     if spec.objective == "eggs" then hard = hard + 0.1
     elseif spec.objective == "gems" then hard = hard + 0.2
-    elseif spec.objective == "boss" then hard = hard + 0.15 end
+    elseif spec.objective == "boss" then hard = hard + 0.15
+    elseif spec.objective == "duel" then hard = hard + 0.15 end
+    if spec.noBucket then hard = hard + 0.1 end
     hard = math.max(0, math.min(1, hard))
     local spare2 = self.STAR_SPARE[1] * (1 - 0.5 * hard)
     local spare3 = self.STAR_SPARE[2] * (1 - 0.5 * hard)
@@ -892,6 +919,8 @@ function L:Build(n)
     local dens = self:Density(n)
     local bossDef, bossHp
     if objective == "boss" then bossDef, bossHp = self:BossFor(n) end
+    local duelDef, duelTurns
+    if objective == "duel" then duelDef, duelTurns = self:DuelFor(n) end
 
     -- Assemble the level; a gimmick that would gut the pattern is dropped
     -- and the pattern built alone.
@@ -1025,13 +1054,13 @@ function L:Build(n)
     elseif objective == "boss" then
         for _, p in ipairs(pegs) do if p.kind == "boss" then goal = 1 end end
     end
-    if goal == 0 then objective = "classic" end
+    if goal == 0 and objective ~= "classic" and objective ~= "duel" then objective = "classic" end
 
     -- colours go to everything but the solid and special pieces
     local order = {}
     for i, p in ipairs(pegs) do if not E.IsSolid(p) and not p.special then order[#order + 1] = i end end
     local orange = 0
-    if objective == "classic" then
+    if objective == "classic" or objective == "duel" then
         orange = self:Counts(n)
         -- patterns keep at least a quarter of their pieces (and two) blue
         local floorBlue = math.max(2, floor(#order * 0.25))
@@ -1085,6 +1114,8 @@ function L:Build(n)
         orange = orange,
         tough = tough,
         boss = (objective == "boss") and { id = bossDef.id, name = bossDef.name, blurb = bossDef.blurb, hp = bossHp } or nil,
+        duel = (objective == "duel") and { id = duelDef.id, name = duelDef.name, blurb = duelDef.blurb, turns = duelTurns } or nil,
+        noBucket = self:NoBucket(n),
         balls = E.BALLS,
         power = self:PowerFor(chapter),
     }

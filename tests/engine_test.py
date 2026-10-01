@@ -166,6 +166,7 @@ report = ev("level_report")
 families, powers, problems, bricks_total = set(), set(), [], 0
 gimmick_levels, moving_total, block_total, gimmick_names = 0, 0, 0, set()
 bumper_total, bosses, objectives, tough_levels, heavy_levels = 0, set(), {}, 0, 0
+duels, no_bucket = set(), 0
 tough_orange_levels = 0
 sig1 = None
 for n in range(1, 1001):
@@ -202,6 +203,14 @@ for n in range(1, 1001):
         bosses.add(spec.boss.id)
         if counts["boss"] != 1 or spec.goal != 1 or spec.gimmick or counts["orange"] != 0:
             problems.append((n, "boss", counts["boss"], spec.gimmick))
+    elif spec.objective == "duel":
+        duels.add(spec.duel.id)
+        if counts["boss"] != 0 or spec.gimmick or counts["orange"] != spec.goal or spec.goal < 8 or spec.duel.turns < 3:
+            problems.append((n, "duel", counts["orange"], spec.goal, spec.duel.turns))
+    if spec.noBucket:
+        no_bucket += 1
+        if spec.objective == "gems" or n < 41:
+            problems.append((n, "bucket removed on the wrong level"))
     if counts["goal"] != spec.goal:
         problems.append((n, "goal flags", counts["goal"], spec.goal))
     if counts["green"] != 2:
@@ -244,8 +253,9 @@ check("every power is assigned somewhere", len(powers) == 7, str(powers))
 pieces_by_level = {n: report(n)[1]["total"] for n in (1, 5, 11, 30, 61, 81)}
 check("the board fills in as the levels climb", pieces_by_level[1] < pieces_by_level[5] <= pieces_by_level[11] + 10 and pieces_by_level[11] < pieces_by_level[81], str(pieces_by_level))
 print(f"      pieces by level {pieces_by_level}")
-check("every objective appears, bosses on every tenth level", objectives.get("boss") == 100 and objectives.get("eggs", 0) > 100 and objectives.get("gems", 0) > 100, str(objectives))
-check("every boss kind appears", len(bosses) == 5, str(bosses))
+check("every objective appears, a boss or a duel on every tenth level", objectives.get("boss", 0) + objectives.get("duel", 0) == 100 and objectives.get("duel", 0) >= 40 and objectives.get("eggs", 0) > 100 and objectives.get("gems", 0) > 100, str(objectives))
+check("every boss kind and every duel kind appears", len(bosses) == 5 and len(duels) == 3, f"{bosses} {duels}")
+check("some levels from chapter 5 have no bucket, never a gem level", no_bucket > 100, str(no_bucket))
 check("bricks are in play", bricks_total > 1000, str(bricks_total))
 check("most levels from chapter 3 carry a gimmick", gimmick_levels > 450, str(gimmick_levels))
 check("every gimmick appears", gimmick_names == set(g.name for g in ev("L.GIMMICKS").values()), str(sorted(gimmick_names)))
@@ -501,7 +511,7 @@ function boss_probe(n)
 end
 function boss_heal_probe()
   local spec
-  for n = 10, 1000, 10 do spec = L:Build(n) if spec.boss.id == "yeti" then break end end
+  for n = 10, 1000, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "yeti" then break end end
   local st = E:NewLevel(spec)
   local b = st.boss
   local events = {}
@@ -519,7 +529,7 @@ function boss_heal_probe()
 end
 function boss_shield_probe()
   local spec
-  for n = 10, 1000, 10 do spec = L:Build(n) if spec.boss.id == "golem" then break end end
+  for n = 10, 1000, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "golem" then break end end
   local st = E:NewLevel(spec)
   local b = st.boss
   local events = {}
@@ -537,7 +547,7 @@ end
 """)
 boss_probe = ev("boss_probe")
 abilities = {}
-for n in (10, 20, 30, 40, 50):
+for n in (10, 30, 50, 70, 90):
     info = boss_probe(n)
     abilities[info.ability] = info
     check(f"level {n}: the {info.name} slides, takes {info.maxhp} hits and dies into Fever",
@@ -551,6 +561,66 @@ check("the Cog Yeti heals after a shot that misses it", heals == 1 and hp_after 
 shields, shield, blocked, full = ev("boss_shield_probe")()
 check("the Bolt Golem raises a shield on the third shot that soaks a hit", shields == 1 and shield == 1 and blocked == 1 and full,
       f"shields {shields} left {shield} blocked {blocked} full {full}")
+
+# duels: a shot ends, the boss takes its turn
+lua(r"""
+function duel_probe(id)
+  local spec
+  for n = 20, 1000, 20 do spec = L:Build(n) if spec.duel and spec.duel.id == id then break end end
+  local st = E:NewLevel(spec)
+  local function orangeSet()
+    local s = {}
+    for _, p in ipairs(st.pegs) do if p.kind == "orange" and not p.lit then s[#s + 1] = p.x .. "," .. p.y end end
+    table.sort(s)
+    return table.concat(s, ";")
+  end
+  local before = { total = st.goalTotal, balls = st.ballsLeft, set = orangeSet() }
+  local events = {}
+  st.aim = 0
+  assert(E:Launch(st, events))
+  -- a shot that touches nothing: drop the ball straight out at the side
+  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = 20, 560, 0, 300
+  local turn
+  for _ = 1, 120 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "boss_turn" then turn = e end end
+    wipe(events)
+    if st.phase == E.PHASE.AIM then break end
+  end
+  return spec.level, turn and turn.id, turn and turn.turnsLeft, st.duel.turns, st.goalTotal - before.total,
+         before.balls - 1 - st.ballsLeft, orangeSet() ~= before.set
+end
+""")
+duel_probe = ev("duel_probe")
+n, tid, left, turns, added, stolen, moved = duel_probe("rebuilder")
+check(f"the Gear Rebuilder adds two oranges after a shot (level {n})", tid == "rebuilder" and added == 2 and left == turns, f"{tid} added {added} left {left}")
+n, tid, left, turns, added, stolen, moved = duel_probe("shuffler")
+check(f"the Cog Shuffler moves the oranges after a shot (level {n})", tid == "shuffler" and moved and added == 0, f"{tid} moved {moved}")
+n, tid, left, turns, added, stolen, moved = duel_probe("thief")
+check(f"the Sprocket Thief steals a ball after a shot that lit nothing (level {n})", tid == "thief" and stolen == 1, f"{tid} stolen {stolen}")
+
+# no bucket: a ball dropped where the bucket sits falls straight out
+lua(r"""
+function no_bucket_probe()
+  local spec = L:Build(44)
+  local st = E:NewLevel(spec)
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = st.bucket.x, y = E.BucketTop() - 40, vx = 0, vy = 100, slow = 0 }
+  local events = {}
+  local caught, lost = 0, 0
+  for _ = 1, 90 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do
+      if e.type == "bucket" then caught = caught + 1 end
+      if e.type == "lost" then lost = lost + 1 end
+    end
+    wipe(events)
+  end
+  return spec.noBucket, caught, lost, L:Build(23).noBucket
+end
+""")
+nb, caught, lost, gems_nb = ev("no_bucket_probe")()
+check("level 44 has no bucket and a ball dropped on its spot is lost; gem level 23 keeps its bucket", nb and caught == 0 and lost == 1 and not gems_nb, f"{nb} {caught} {lost} {gems_nb}")
 
 spec2 = report(500)[0]
 check("a level rebuilds identically", sig1 == [(p.x, p.y, p.kind, p.shape, p.maxhp) for p in spec2.pegs.values()])

@@ -79,6 +79,7 @@ EFFECTS = {
     "shield":    ("A metallic force-field deflection, a short ringing clang.", 0.5, {"keep_tail": True}),
     "heal":      ("A low mechanical whir winding up ending in a soft chime, a machine repairing itself, short.", 0.8, {}),
     "hop":       ("A quick cartoon spring boing with a whoosh, something jumping away, short.", 0.5, {}),
+    "boss_turn": ("A heavy mechanical ratchet winding and a clank, a machine taking its turn, short.", 0.8, {}),
     # moments
     "start":    ("A short cheerful arcade level-start jingle, two bright rising notes.", 1.0, {"keep_tail": True}),
     "slowmo":   ("A dramatic slow-motion whoosh with a single heartbeat thump, short.", 0.9, {}),

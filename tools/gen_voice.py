@@ -55,6 +55,9 @@ SETTINGS = [
 LINES = {
     "level_start":     "[excited] Here we go!",
     "boss_start":      "[dramatic] Boss fight! Watch yourself!",
+    "duel_start":      "[sly] A duel! Make every shot count.",
+    "boss_turn":       "[mechanical, taunting] My move!",
+    "ball_stolen":     "[gloating] Ha! That one's mine now.",
     "free_ball":       "[cheerful] Free ball!",
     "fever":           "[shouting, thrilled] Fever!",
     "level_cleared":   "[triumphant] Level cleared!",
