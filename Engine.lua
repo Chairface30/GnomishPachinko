@@ -8,9 +8,10 @@
 
     Pieces: round pegs and BRICKS (rotated rectangles, like the brick arcs
     in the Pogo Peggle). Both share the peg record: { shape, x, y, kind,
-    lit, gone } with w/h/angle on bricks. Kinds: blue (points), orange
-    (clear them all), green (the level's power), purple (one bonus peg,
-    moves every shot).
+    lit, gone } with w/h/angle on bricks and an optional r on round ones.
+    Kinds: blue (points), orange (clear them all), green (the level's
+    power), purple (one bonus peg, moves every shot), block (a solid
+    barrier that never lights) and bumper (solid, round, over-bouncy).
 
     A level: AIM (Aim/Guide, Launch on click) -> FLIGHT (Step) -> AIM when
     the ball drains, FEVER the moment the last orange lights -> OVER with
@@ -53,6 +54,17 @@ E.BALLS       = 10
 E.PEG_POINTS  = { blue = 25, orange = 250, green = 25, purple = 1000 }
 E.BLAST_RADIUS = 85
 E.GUIDE_SHOTS = 3
+
+-- Combos: every piece lit in one shot adds COMBO_STEP x (hits so far)
+-- to its points, and long chains pay a bonus at these lengths.
+E.COMBO_STEP  = 15
+E.COMBO_BONUS = { [10] = 5000, [15] = 10000, [20] = 20000, [25] = 50000, [30] = 100000 }
+
+-- Bumpers: round, never light, and throw the ball back harder than it
+-- came (bounce above 1), with a floor on the outgoing speed.
+E.BUMPER_R      = 15
+E.BUMPER_BOUNCE = 1.3
+E.BUMPER_KICK   = 260
 
 E.PHASE = { AIM = "AIM", FLIGHT = "FLIGHT", FEVER = "FEVER", OVER = "OVER" }
 
@@ -128,7 +140,7 @@ local function pegContact(p, x, y, R)
         return depth, nx * c - ny * s, nx * s + ny * c
     else
         local dx, dy = x - p.x, y - p.y
-        local rr = R + E.PEG_R
+        local rr = R + (p.r or E.PEG_R)
         local d2 = dx * dx + dy * dy
         if d2 >= rr * rr then return nil end
         local d = sqrt(d2)
@@ -138,10 +150,14 @@ local function pegContact(p, x, y, R)
 end
 E.PegContact = pegContact
 
+-- Solid pieces never light: barriers and bumpers.
+local function isSolid(p) return p.kind == "block" or p.kind == "bumper" end
+E.IsSolid = isSolid
+
 -- Bounding radius used for spacing checks.
 local function pegRadius(p)
     if p.shape == "brick" then return sqrt(p.w * p.w + p.h * p.h) / 2 end
-    return E.PEG_R
+    return p.r or E.PEG_R
 end
 E.PegRadius = pegRadius
 
@@ -167,6 +183,8 @@ function E:NewLevel(spec)
         orangeLeft = spec.orange,
         orangeHit = 0,
         score = 0,
+        combo = 0,
+        bestCombo = 0,
         freeBallIdx = 1,
         superGuide = 0,
         phase = E.PHASE.AIM,
@@ -318,6 +336,7 @@ function E:Launch(state)
     }
     state.ballsLeft = state.ballsLeft - 1
     state.ballsFired = state.ballsFired + 1
+    state.combo = 0
     if state.superGuide > 0 then state.superGuide = state.superGuide - 1 end
     state.phase = E.PHASE.FLIGHT
     return true
@@ -371,6 +390,8 @@ end
 lightPeg = function(state, p, ball, events, quiet)
     p.lit = true
     p.hitAt = state.time
+    state.combo = state.combo + 1
+    if state.combo > state.bestCombo then state.bestCombo = state.combo end
     local pts
     if p.kind == "orange" then
         state.orangeHit = state.orangeHit + 1
@@ -379,8 +400,14 @@ lightPeg = function(state, p, ball, events, quiet)
     else
         pts = (E.PEG_POINTS[p.kind] or 10) * E:ScoreMultiplier(state.orangeHit, state.orangeTotal)
     end
+    pts = pts + E.COMBO_STEP * (state.combo - 1)
     addScore(state, pts, events)
-    push(events, { type = "peg", peg = p, points = pts, x = p.x, y = p.y, quiet = quiet })
+    push(events, { type = "peg", peg = p, points = pts, x = p.x, y = p.y, quiet = quiet, combo = state.combo })
+    local bonus = E.COMBO_BONUS[state.combo]
+    if bonus then
+        addScore(state, bonus, events)
+        push(events, { type = "combo", combo = state.combo, bonus = bonus, x = p.x, y = p.y })
+    end
 
     if p.kind == "green" then applyPower(state, p, ball, events) end
 
@@ -437,19 +464,30 @@ collideBall = function(state, ball, events, light)
         if not p.gone then
             local depth, nx, ny = pegContact(p, ball.x, ball.y, R)
             if depth then
-                if ball.fire and light and p.kind ~= "block" then
+                if ball.fire and light and not isSolid(p) then
                     -- a fireball burns through: light it, keep flying
                     if not p.lit then lightPeg(state, p, ball, events) end
                 else
                     ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
                     local vn = ball.vx * nx + ball.vy * ny
                     if vn < 0 then
-                        local k = (1 + E.RESTITUTION) * vn
+                        local e = p.bounce or E.RESTITUTION
+                        local k = (1 + e) * vn
                         ball.vx = ball.vx - k * nx
                         ball.vy = ball.vy - k * ny
-                        if light then push(events, { type = "bounce", peg = p, speed = -vn }) end
+                        if p.kind == "bumper" then
+                            -- a bumper never sends the ball away slower than its kick
+                            local out = ball.vx * nx + ball.vy * ny
+                            if out < E.BUMPER_KICK then
+                                ball.vx = ball.vx + (E.BUMPER_KICK - out) * nx
+                                ball.vy = ball.vy + (E.BUMPER_KICK - out) * ny
+                            end
+                            if light then push(events, { type = "bumper", peg = p, x = p.x, y = p.y }) end
+                        elseif light then
+                            push(events, { type = "bounce", peg = p, speed = -vn })
+                        end
                     end
-                    if light and not p.lit and p.kind ~= "block" then lightPeg(state, p, ball, events) end
+                    if light and not p.lit and not isSolid(p) then lightPeg(state, p, ball, events) end
                 end
             end
         end
@@ -464,6 +502,7 @@ local function finishLevel(state, events)
         oranges = state.orangeHit,
         binScore = state.feverBin,
         feverTotal = state.feverTotal or 0,
+        bestCombo = state.bestCombo,
         ballsLeft = state.ballsLeft,
         level = state.level,
     }

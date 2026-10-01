@@ -76,7 +76,7 @@ function L:ReachFloor(x)
 end
 
 function L:Reachable(p)
-    local rp = (p.shape == "brick") and (p.h / 2) or E.PEG_R
+    local rp = (p.shape == "brick") and (p.h / 2) or (p.r or E.PEG_R)
     return p.y + rp + E.BALL_R >= self:ReachFloor(p.x) - 2
 end
 
@@ -86,6 +86,14 @@ end
 local function peg(x, y) return { shape = "peg", x = x, y = y } end
 local function brick(x, y, angle, w, h)
     return { shape = "brick", x = x, y = y, angle = angle or 0, w = w or E.BRICK_W, h = h or E.BRICK_H }
+end
+local function bumper(x, y)
+    return { shape = "peg", x = x, y = y, r = E.BUMPER_R, kind = "bumper", bounce = E.BUMPER_BOUNCE }
+end
+local function barrier(x, y, angle, w)
+    local p = brick(x, y, angle, w or 64, 14)
+    p.kind = "block"
+    return p
 end
 
 -- A chain of touching bricks along a curve f(t) -> x, y for t in [0, 1].
@@ -529,6 +537,25 @@ GIMMICKS[#GIMMICKS + 1] = { name = "Blocks", build = function(rng, add, mover, e
     end
 end }
 
+GIMMICKS[#GIMMICKS + 1] = { name = "Bumpers", build = function(rng, add, mover, exclude, d)
+    -- three bumpers in a triangle, point up or point down
+    local cy = 250 + rng(0, 2) * 60
+    local up = rng() < 0.5
+    add(bumper(CX, up and cy or cy + 90))
+    add(bumper(CX - 110, up and cy + 90 or cy))
+    add(bumper(CX + 110, up and cy + 90 or cy))
+end }
+
+GIMMICKS[#GIMMICKS + 1] = { name = "Bumper Gate", build = function(rng, add, mover, exclude, d)
+    -- two slanted barriers funnel toward a bumper that throws the ball back out
+    local y = 230 + rng(0, 2) * 70
+    add(barrier(CX - 120, y, 0.45, 90))
+    add(barrier(CX + 120, y, -0.45, 90))
+    add(bumper(CX, y + 60))
+    add(bumper(70, y + 150))
+    add(bumper(W - 70, y + 150))
+end }
+
 GIMMICKS[#GIMMICKS + 1] = { name = "Sliding Block", build = function(rng, add, mover, exclude, d)
     local y = 200 + rng() * 200
     local cx = W / 2
@@ -612,7 +639,7 @@ function L:Build(n)
         local pb, qb = p.shape == "brick", q.shape == "brick"
         if not pb and not qb then
             local dx, dy = p.x - q.x, p.y - q.y
-            return sqrt(dx * dx + dy * dy) - 2 * E.PEG_R
+            return sqrt(dx * dx + dy * dy) - (p.r or E.PEG_R) - (q.r or E.PEG_R)
         elseif pb and qb then
             local best = math.huge
             for _, pair in ipairs({ { p, q }, { q, p } }) do
@@ -626,7 +653,7 @@ function L:Build(n)
             return best
         else
             local br, pg = pb and p or q, pb and q or p
-            return pointRectDist(pg.x, pg.y, br) - E.PEG_R
+            return pointRectDist(pg.x, pg.y, br) - (pg.r or E.PEG_R)
         end
     end
     local function clearOf(p, group)
@@ -664,14 +691,14 @@ function L:Build(n)
 
     local pegs, movers, gimmickNames, rng = assemble(true)
     local static = 0
-    for _, p in ipairs(pegs) do if not p.moving and p.kind ~= "block" then static = static + 1 end end
+    for _, p in ipairs(pegs) do if not p.moving and not E.IsSolid(p) then static = static + 1 end end
     if static < 28 and #gimmickNames > 0 then pegs, movers, gimmickNames, rng = assemble(false) end
 
     -- no random fill: the pattern is the level
 
-    -- colours go to everything but the solid blocks
+    -- colours go to everything but the solid pieces (barriers, bumpers)
     local order = {}
-    for i, p in ipairs(pegs) do if p.kind ~= "block" then order[#order + 1] = i end end
+    for i, p in ipairs(pegs) do if not E.IsSolid(p) then order[#order + 1] = i end end
     -- small patterns keep at least six blue pieces
     if orange > #order - 6 then orange = #order - 6 end
     for i = #order, 2, -1 do

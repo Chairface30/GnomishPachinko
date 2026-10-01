@@ -14,5 +14,6 @@ Freesound.org - CC0 1.0 (public domain):
                  https://freesound.org/people/Diim_1/sounds/854248/
 
 fever.ogg and clear.ogg are author-supplied (shared with Chairface's Casino).
+note1.ogg .. note16.ogg and bumper.ogg are synthesized by tools/make_notes.py.
 
 This addon is distributed free of charge. Do not resell these sounds standalone.

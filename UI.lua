@@ -22,6 +22,7 @@ local COLORS = {
     green  = { base = { 0.22, 0.88, 0.32 }, lit = { 0.78, 1.00, 0.78 }, glow = { 0.50, 1.00, 0.55 } },
     purple = { base = { 0.75, 0.35, 1.00 }, lit = { 0.95, 0.80, 1.00 }, glow = { 0.85, 0.55, 1.00 } },
     block  = { base = { 0.42, 0.42, 0.48 }, lit = { 0.42, 0.42, 0.48 }, glow = { 0.42, 0.42, 0.48 } },
+    bumper = { base = { 1.00, 0.35, 0.60 }, lit = { 1.00, 0.35, 0.60 }, glow = { 1.00, 0.70, 0.85 } },
 }
 local BIN_COLORS = { [10000] = { 0.25, 0.45, 0.85 }, [50000] = { 0.95, 0.55, 0.15 }, [100000] = { 1.00, 0.85, 0.20 } }
 
@@ -236,40 +237,43 @@ function UI:CreateFrame()
     self.scoreText = value(-182, "GameFontHighlight")
     label("Multiplier", -200)
     self.multText = value(-200, "GameFontHighlightSmall")
-    label("Best on this level", -216)
-    self.bestText = value(-216, "GameFontHighlightSmall")
-    label("Next free ball at", -232)
-    self.freeBallText = value(-232, "GameFontHighlightSmall")
+    label("Combo (this shot / best)", -216)
+    self.comboText = value(-216, "GameFontHighlightSmall")
+    label("Best on this level", -232)
+    self.bestText = value(-232, "GameFontHighlightSmall")
+    label("Next free ball at", -248)
+    self.freeBallText = value(-248, "GameFontHighlightSmall")
 
     local div2 = side:CreateTexture(nil, "ARTWORK")
     div2:SetSize(SIDE_W, 1)
-    div2:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -254)
+    div2:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -266)
     div2:SetTexture(WHITE)
     div2:SetVertexColor(0.5, 0.4, 0.7, 0.6)
 
     self.nextBtn = makeButton(side, SIDE_W, 32, "NEXT LEVEL")
-    self.nextBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -264)
+    self.nextBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -276)
     self.nextBtn:SetScript("OnClick", function() UI:NextLevel() end)
     self.retryBtn = makeButton(side, SIDE_W, 26, "Restart level")
-    self.retryBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -302)
+    self.retryBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -314)
     self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current) end)
     self.levelsBtn = makeButton(side, SIDE_W, 26, "Level select")
-    self.levelsBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -332)
+    self.levelsBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -344)
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 
-    self.progressText = label("", -370)
+    self.progressText = label("", -382)
     self.progressText:SetWidth(SIDE_W)
     self.progressText:SetJustifyH("LEFT")
     self.progressText:SetTextColor(0.8, 0.8, 0.9)
 
     local tip = side:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    tip:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -400)
+    tip:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -412)
     tip:SetWidth(SIDE_W)
     tip:SetJustifyH("LEFT")
     tip:SetJustifyV("TOP")
     tip:SetTextColor(0.65, 0.65, 0.78)
     tip:SetText("Point with the mouse, click the field to shoot. Light every orange peg. " ..
         "Blue pegs and bricks are points, the purple one is worth 500, green pegs fire the level's power. " ..
+        "Gray bars are solid, pink bumpers throw the ball back harder. Every piece lit in one shot rings a note higher and pays more; chains of 10, 15, 20, 25 and 30 pay a bonus. " ..
         "The bucket gives the ball back. Points at 25k, 75k and 125k earn a free ball.")
 
     frame:SetScript("OnUpdate", function(_, dt) UI:OnUpdate(dt) end)
@@ -431,6 +435,7 @@ end
 function UI:LayoutPegs()
     local st = self.state
     local field = self.field
+    self.pegIndex = {}
     for i, p in ipairs(st.pegs) do
         local t = self.pegTex[i]
         if not t then
@@ -449,10 +454,11 @@ function UI:LayoutPegs()
                 t.ring:SetRotation(-p.angle)
             end
         else
+            local r = p.r or E.PEG_R
             t.disc:SetTexture(TEX .. "peg")
-            t.disc:SetSize(E.PEG_R * 2 + 2, E.PEG_R * 2 + 2)
+            t.disc:SetSize(r * 2 + 2, r * 2 + 2)
             t.ring:SetTexture(TEX .. "ring")
-            t.ring:SetSize(E.PEG_R * 2 + 18, E.PEG_R * 2 + 18)
+            t.ring:SetSize(r * 2 + 18, r * 2 + 18)
             if t.disc.SetRotation then
                 t.disc:SetRotation(0)
                 t.ring:SetRotation(0)
@@ -467,6 +473,8 @@ function UI:LayoutPegs()
         t.ring:Hide()
         t.shown = nil
         t.kind = nil
+        t.flashUntil = nil
+        self.pegIndex[p] = i
     end
     for i = #st.pegs + 1, #self.pegTex do
         self.pegTex[i].disc:Hide()
@@ -571,19 +579,32 @@ function UI:HandleEvents(now)
     for _, ev in ipairs(self.events) do
         local t = ev.type
         if t == "bounce" then
-            if ev.speed > 60 and now - (self.lastHitSound or 0) > 0.06 then
+            -- a knock on something already lit, or a barrier: a soft click
+            if ev.speed > 60 and now - (self.lastHitSound or 0) > 0.08 then
                 self.lastHitSound = now
                 GP:PlaySfx("peg" .. math.random(3) .. ".ogg")
             end
+        elseif t == "bumper" then
+            GP:PlaySfx("bumper.ogg")
+            local idx = self.pegIndex and self.pegIndex[ev.peg]
+            local tx = idx and self.pegTex[idx]
+            if tx then tx.flashUntil = now + 0.2 end
         elseif t == "peg" then
+            -- every piece lit in a shot rings one note higher
+            if not ev.quiet then GP:PlaySfx("note" .. math.min(16, ev.combo or 1) .. ".ogg") end
             if ev.peg.kind == "orange" then
-                if not ev.quiet then GP:PlaySfx("orange.ogg") end
                 self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 1, 0.8, 0.3)
             elseif ev.peg.kind == "purple" then
                 self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 0.9, 0.6, 1)
             elseif ev.peg.kind == "green" then
                 self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 0.6, 1, 0.6)
+            elseif (ev.combo or 0) >= 5 then
+                self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 0.8, 0.9, 1)
             end
+        elseif t == "combo" then
+            self:ShowBanner(("|cffffd700COMBO %d!|r"):format(ev.combo), "+" .. fmtBig(ev.bonus), 1.6)
+            self:Popup(ev.x, ev.y - 30, "+" .. fmtBig(ev.bonus), 1, 0.9, 0.3)
+            GP:PlaySfx("free_ball.ogg")
         elseif t == "power" then
             self:ShowBanner(POWER_BANNERS[ev.power] or "POWER!", "", 1.4)
             GP:PlaySfx("power.ogg")
@@ -693,6 +714,21 @@ function UI:Render(now)
                     t.ring:SetAlpha(alpha * 0.8)
                     t.shown = "fading"
                 end
+            elseif p.kind == "bumper" then
+                -- bumpers flash when struck
+                if t.shown ~= "base" then
+                    local c = COLORS.bumper
+                    t.disc:SetVertexColor(c.base[1], c.base[2], c.base[3], 1)
+                    t.ring:SetVertexColor(c.glow[1], c.glow[2], c.glow[3], 1)
+                    t.kind = p.kind
+                    t.shown = "base"
+                end
+                if t.flashUntil and now < t.flashUntil then
+                    t.ring:SetAlpha(1)
+                    t.ring:Show()
+                else
+                    t.ring:Hide()
+                end
             elseif p.lit then
                 local c = COLORS[p.kind] or COLORS.blue
                 if t.shown ~= "lit" then
@@ -755,6 +791,7 @@ function UI:UpdateCounters()
     self.orangeText:SetText(st.orangeLeft .. " / " .. st.orangeTotal)
     self.scoreText:SetText(fmtBig(st.score))
     self.multText:SetText("x" .. E:ScoreMultiplier(st.orangeHit, st.orangeTotal))
+    self.comboText:SetText(st.combo .. " / " .. st.bestCombo)
     local nextFree = E.FREE_BALL_SCORES[st.freeBallIdx]
     self.freeBallText:SetText(nextFree and fmtBig(nextFree) or "-")
     if st.power == "guide" then

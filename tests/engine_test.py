@@ -127,6 +127,7 @@ function level_report(n)
   local counts = { orange = 0, green = 0, blue = 0, purple = 0, brick = 0, total = #spec.pegs }
   local bad = 0
   counts.block = 0
+  counts.bumper = 0
   counts.moving = 0
   for i, p in ipairs(spec.pegs) do
     counts[p.kind] = (counts[p.kind] or 0) + 1
@@ -151,15 +152,17 @@ end
 report = ev("level_report")
 families, powers, problems, bricks_total = set(), set(), [], 0
 gimmick_levels, moving_total, block_total, gimmick_names = 0, 0, 0, set()
+bumper_total = 0
 sig1 = None
 for n in range(1, 1001):
     spec, counts, bad = report(n)
-    orange_expected = min(round(15 + (n - 1) / 999 * 15), counts['total'] - counts['block'] - 6)
+    orange_expected = min(round(15 + (n - 1) / 999 * 15), counts['total'] - counts['block'] - counts['bumper'] - 6)
     families.add(spec.layout)
     powers.add(spec.power)
     bricks_total += counts["brick"]
     moving_total += counts["moving"]
     block_total += counts["block"]
+    bumper_total += counts["bumper"]
     if spec.gimmick:
         gimmick_levels += 1
         for g in spec.gimmick.split(" + "):
@@ -180,6 +183,7 @@ check("every power is assigned somewhere", len(powers) == 5, str(powers))
 check("bricks are in play", bricks_total > 1000, str(bricks_total))
 check("most levels from chapter 3 carry a gimmick", gimmick_levels > 500, str(gimmick_levels))
 check("every gimmick appears", gimmick_names == set(g.name for g in ev("L.GIMMICKS").values()), str(sorted(gimmick_names)))
+check("bumpers are in play", bumper_total > 100, str(bumper_total))
 print(f"      gimmick levels {gimmick_levels}, moving pieces {moving_total}, solid blocks {block_total}")
 
 # a wheel turns, a slider slides, blocks never light
@@ -229,6 +233,57 @@ end
 """)
 ok, n = ev("blocks_stay_dark")()
 check(f"solid blocks never light, even for a fireball (level {n})", ok)
+
+# a bumper throws the ball back harder than it arrived, and never lights
+lua(r"""
+function bumper_probe()
+  local spec = L:Build(1)
+  spec.pegs = { { shape = "peg", x = 300, y = 300, r = E.BUMPER_R, kind = "bumper", bounce = E.BUMPER_BOUNCE } }
+  spec.orange = 0
+  local st = E:NewLevel(spec)
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = 300, y = 300 - E.BUMPER_R - E.BALL_R - 20, vx = 0, vy = 150, slow = 0 }
+  local events = {}
+  local hit, fastest = false, 0
+  for _ = 1, 40 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "bumper" then hit = true end end
+    local b = st.balls[1]
+    if b and b.vy < 0 and -b.vy > fastest then fastest = -b.vy end
+    for i = #events, 1, -1 do events[i] = nil end
+  end
+  return hit, fastest, spec.pegs[1].lit
+end
+""")
+hit, fastest, lit = ev("bumper_probe")()
+check("a bumper throws the ball back faster than it arrived", hit and fastest > 200 and not lit, f"hit {hit} up {fastest:.0f} lit {lit}")
+
+# combos: each piece lit in a shot pays more, and the tenth pays a bonus
+lua(r"""
+function combo_probe()
+  local st = E:NewLevel(L:Build(1))
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = 10, y = 10, vx = 0, vy = 0, slow = 0 }
+  local events = {}
+  local blues = {}
+  for _, p in ipairs(st.pegs) do if p.kind == "blue" then blues[#blues + 1] = p end end
+  local pts, bonus = {}, 0
+  for i = 1, 10 do
+    local p = blues[i]
+    st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = p.x, p.y - E.PEG_R - E.BALL_R + 1, 0, 0
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do
+      if e.type == "peg" then pts[#pts + 1] = e.points end
+      if e.type == "combo" then bonus = e.bonus end
+    end
+    for j = #events, 1, -1 do events[j] = nil end
+  end
+  return pts[1], pts[2], pts[10], bonus, st.combo
+end
+""")
+p1, p2, p10, bonus, combo = ev("combo_probe")()
+check("each piece lit in a shot pays more than the one before", p1 == 25 and p2 == 40 and p10 == 25 + 15 * 9, f"{p1} {p2} {p10}")
+check("the tenth piece in a shot pays the combo bonus", bonus == 5000 and combo == 10, f"bonus {bonus} combo {combo}")
 spec2 = report(500)[0]
 check("a level rebuilds identically", sig1 == [(p.x, p.y, p.kind, p.shape) for p in spec2.pegs.values()])
 check("chapter names cycle through 100 places", ev("L:ChapterName(1)") == "Elwynn Forest" and ev("L:ChapterName(100)") == "Sunwell Plateau" and ev("L:ChapterName(101)") == "Elwynn Forest")
