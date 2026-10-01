@@ -1027,6 +1027,13 @@ check("clicking an open level starts it", ev("UI.state.level == 2 and not UI.lev
 lua("UI:ShowLevelSelect(); UI.levelPanel.next:Click()")
 check("Next steps to chapter 2 and >> ten chapters on", ev("UI.levelPanel.nodes[1].level") == 11)
 lua("UI.levelPanel.next10:Click()")
+lua("GnomishPachinkoDB.stars[3] = 2; GnomishPachinkoDB.cleared[3] = true; UI.levelPanel.reset:Click()")
+check("the first click on Reset progress only arms it", ev("GnomishPachinkoDB.cleared[3] == true") and "Really" in ev("UI.levelPanel.reset.text:GetText()"))
+lua("UI.levelPanel.reset:Click()")
+check("the second click wipes levels and stars, keeps the plays, and starts level 1",
+      ev("GnomishPachinkoDB.cleared[3] == nil and GnomishPachinkoDB.stars[3] == nil and GnomishPachinkoDB.unlocked == 1 and UI.state.level == 1 and not UI.levelPanel:IsShown()")
+      and ev("P:Remaining()") >= 1)
+lua("GnomishPachinkoDB.unlocked = 2; UI:ShowLevelSelect(); UI.levelPanel.next:Click(); UI.levelPanel.next10:Click()")
 check("the >> button jumps ten chapters", ev("UI.levelPanel.nodes[1].level") == 111 and "Chapter 12" in ev("UI.levelPanel.title:GetText()"))
 lua("UI:HideLevelSelect()")
 lua('SlashCmdList["GNOMISHPACHINKO"]("999")')

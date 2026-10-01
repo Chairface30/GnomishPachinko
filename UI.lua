@@ -543,8 +543,26 @@ function UI:CreateLevelSelect()
     panel.cells = panel.nodes
 
     panel.back = makeButton(panel, 120, 26, "Back to the game")
-    panel.back:SetPoint("BOTTOM", 0, 10)
+    panel.back:SetPoint("BOTTOM", -66, 10)
     panel.back:SetScript("OnClick", function() UI:HideLevelSelect() end)
+    -- wipes progress after a second click within a few seconds
+    panel.reset = makeButton(panel, 120, 26, "Reset progress")
+    panel.reset:SetPoint("BOTTOM", 66, 10)
+    panel.reset:SetScript("OnClick", function(self)
+        if self.armedUntil and GetTime() < self.armedUntil then
+            self.armedUntil = nil
+            self.text:SetText("Reset progress")
+            GP:ResetProgress()
+        else
+            self.armedUntil = GetTime() + 6
+            self.text:SetText("|cffff6060Really? Click again|r")
+            GP:Print("Reset progress: click the button again within six seconds to wipe every level, star and best score. The day's plays are kept.")
+        end
+    end)
+    panel.reset:SetScript("OnLeave", function(self)
+        if GameTooltip then GameTooltip:Hide() end
+        if self:IsEnabled() then self:SetBackdropBorderColor(1, 1, 1, 0.9) end
+    end)
     panel.legend = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     panel.legend:SetPoint("BOTTOMLEFT", 14, 14)
     panel.legend:SetText("|cff66ff66green|r cleared   |cffffd700gold|r open   |cff777777gray|r locked\n" ..
@@ -584,6 +602,12 @@ function UI:LevelPage(page)
     styleButton(panel.prev10, page > 1, 0.3, 0.3, 0.45)
     styleButton(panel.next, page < pages, 0.3, 0.3, 0.45)
     styleButton(panel.next10, page < pages, 0.3, 0.3, 0.45)
+    styleButton(panel.back, true, 0.35, 0.3, 0.45)
+    styleButton(panel.reset, true, 0.45, 0.2, 0.2)
+    if panel.reset.armedUntil and GetTime() >= panel.reset.armedUntil then
+        panel.reset.armedUntil = nil
+        panel.reset.text:SetText("Reset progress")
+    end
     local db = GP:GetDB()
     local current = (self.state and self.state.level) or db.current or 1
     for i, c in ipairs(panel.nodes) do

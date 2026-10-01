@@ -52,7 +52,7 @@ Fifteen layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs
 - `/pachinko buy` (or `buy 2`) fills out the purchase mail at a mailbox.
 - `/pachinko sound` toggles the sound effects, `/pachinko voice` the announcer.
 - `/pachinko minimap` shows or hides the minimap button (left-click plays, right-click opens the level select, drag to move).
-- `/pachinko reset` wipes your level progress (not the day's plays).
+- `/pachinko reset` wipes your level progress (not the day's plays); the level map has a Reset progress button that does the same after a confirming second click.
 
 ## Art and audio
 

@@ -89,6 +89,20 @@ function GP:TotalStars()
     return n
 end
 
+-- Wipes levels, stars and best scores. The day's plays live in the vault
+-- and are not touched.
+function GP:ResetProgress()
+    GnomishPachinkoDB = nil
+    self.db = nil
+    self:GetDB()
+    if self.Levels then self.Levels.starCache = nil end
+    self:Print("Progress wiped. Back to level 1. (The day's plays are not reset.)")
+    if self.UI and self.UI.frame then
+        self.UI:HideLevelSelect()
+        self.UI:StartLevel(1)
+    end
+end
+
 -- Slash ----------------------------------------------------------------
 
 SLASH_GNOMISHPACHINKO1 = "/pachinko"
@@ -125,11 +139,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         local ok, err = GP.Plays:FillPurchaseMail(lots)
         if not ok then GP:Print(err) end
     elseif msg == "reset" then
-        GnomishPachinkoDB = nil
-        GP.db = nil
-        GP:GetDB()
-        GP:Print("Progress wiped. Back to level 1. (The day's plays are not reset.)")
-        if GP.UI.frame then GP.UI:StartLevel(1) end
+        GP:ResetProgress()
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
