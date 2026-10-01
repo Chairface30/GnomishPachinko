@@ -2,7 +2,8 @@
     Gnomish Pachinko - Levels.lua
     1000 levels generated from their number alone. Level n gets a seed,
     a chapter (ten levels each, named after a place in Azeroth), a layout
-    family, counts that climb with n, and the chapter's power.
+    family, an objective (classic oranges, eggs, gems or a boss), counts
+    and tough pieces that climb with n, and the chapter's power.
 
     Generators call add(peg) for every piece they want; add rejects pieces
     outside the zone or too close to one already placed, except within the
@@ -570,11 +571,11 @@ end }
 
 L.GIMMICKS = GIMMICKS
 
--- Which gimmicks a level gets: none before chapter 3, then most levels
--- carry one and the late game sometimes two.
-function L:GimmicksFor(n, rng)
+-- Which gimmicks a level gets: none before chapter 3 and none on a boss
+-- level, then most levels carry one and the late game sometimes two.
+function L:GimmicksFor(n, rng, objective)
     local list = {}
-    if n < 21 then return list end
+    if n < 21 or objective == "boss" then return list end
     if rng() < 0.25 then return list end
     local first = ((n * 5 + floor(n / 10) * 3) % #GIMMICKS) + 1
     list[1] = GIMMICKS[first]
@@ -602,19 +603,107 @@ function L:Difficulty(n)
     return (n - 1) / (self.COUNT - 1)
 end
 
+-- What level n asks of you. Every tenth level is a boss, eggs from
+-- chapter 2 (levels ending 5) and chapter 4 (ending 7), gems from chapter
+-- 3 (ending 3 and 8); the rest are classic orange-peg levels.
+function L:Objective(n)
+    local last = n % 10
+    if last == 0 and n >= 10 then return "boss" end
+    if last == 5 and n >= 11 then return "eggs" end
+    if last == 7 and n >= 31 then return "eggs" end
+    if (last == 3 or last == 8) and n >= 21 then return "gems" end
+    return "classic"
+end
+
 -- Oranges climb with the level: 15 -> 30. Piece counts come from the pattern.
 function L:Counts(n)
     local d = self:Difficulty(n)
     return floor(15 + d * 15 + 0.5)
 end
 
+-- Eggs or gems on a level: 3 -> 6.
+function L:SpecialCount(n)
+    return 3 + floor(self:Difficulty(n) * 3.99)
+end
+
+-- Tough pieces (two hits) start in chapter 4 and grow to a third of the
+-- board; from level 300 a growing share of them take three hits. Oranges
+-- can be tough from chapter 7.
+function L:ToughShare(n)
+    if n < 31 then return 0 end
+    return 0.08 + 0.30 * self:Difficulty(n)
+end
+
+function L:HeavyShare(n)
+    if n < 300 then return 0 end
+    return 0.15 + 0.35 * (n - 300) / 700
+end
+
+function L:ToughOrangesFrom() return 61 end
+
+-- The boss for a level: kind by chapter, health climbing from 8 to 22.
+function L:BossFor(n)
+    local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
+    local def = E.BOSSES[((chapter - 1) % #E.BOSSES) + 1]
+    return def, 8 + floor(chapter / 7)
+end
+
+-- Score needed for two and three stars (one star is the clear itself).
+function L:StarScores(n)
+    return 200000 + 150 * n, 350000 + 300 * n
+end
+
+function L:StarsFor(n, score, cleared)
+    if not cleared then return 0 end
+    local s2, s3 = self:StarScores(n)
+    if score >= s3 then return 3 end
+    if score >= s2 then return 2 end
+    return 1
+end
+
+-- Pieces may sit as close as the pattern wants, even touching; only real
+-- overlaps are refused. Bricks are measured as the rectangles they are.
+local function pointRectDist(px, py, q)
+    local c, sn = cos(q.angle), sin(q.angle)
+    local dx, dy = px - q.x, py - q.y
+    local lx, ly = dx * c + dy * sn, -dx * sn + dy * c
+    local ex = math.max(math.abs(lx) - q.w / 2, 0)
+    local ey = math.max(math.abs(ly) - q.h / 2, 0)
+    return sqrt(ex * ex + ey * ey)
+end
+
+local function surfaceDist(p, q)
+    local pb, qb = p.shape == "brick", q.shape == "brick"
+    if not pb and not qb then
+        local dx, dy = p.x - q.x, p.y - q.y
+        return sqrt(dx * dx + dy * dy) - (p.r or E.PEG_R) - (q.r or E.PEG_R)
+    elseif pb and qb then
+        local best = math.huge
+        for _, pair in ipairs({ { p, q }, { q, p } }) do
+            local a, b = pair[1], pair[2]
+            local c, sn = cos(a.angle), sin(a.angle)
+            for _, f in ipairs({ -0.5, 0, 0.5 }) do
+                local d = pointRectDist(a.x + c * a.w * f, a.y + sn * a.w * f, b) - a.h / 2
+                if d < best then best = d end
+            end
+        end
+        return best
+    else
+        local br, pg = pb and p or q, pb and q or p
+        return pointRectDist(pg.x, pg.y, br) - (pg.r or E.PEG_R)
+    end
+end
+L.SurfaceDist = surfaceDist
+
 function L:Build(n)
     n = math.max(1, math.min(self.COUNT, floor(n)))
     local seed = self:Seed(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local d = self:Difficulty(n)
-    local orange = self:Counts(n)
+    local objective = self:Objective(n)
     local family = FAMILIES[((n + chapter) % #FAMILIES) + 1]
+    local bossDef, bossHp
+    if objective == "boss" then bossDef, bossHp = self:BossFor(n) end
 
     -- Assemble the level; a gimmick that would gut the pattern is dropped
     -- and the pattern built alone.
@@ -624,38 +713,6 @@ function L:Build(n)
     local movers, excludes = {}, {}
     local function mover(mv) movers[#movers + 1] = mv end
     local function exclude(rect, group) rect.group = group; excludes[#excludes + 1] = rect end
-    -- pieces may sit as close as the pattern wants, even touching; only
-    -- real overlaps are refused. Bricks are measured as the rectangles
-    -- they are, not as big circles
-    local function pointRectDist(px, py, q)
-        local c, sn = cos(q.angle), sin(q.angle)
-        local dx, dy = px - q.x, py - q.y
-        local lx, ly = dx * c + dy * sn, -dx * sn + dy * c
-        local ex = math.max(math.abs(lx) - q.w / 2, 0)
-        local ey = math.max(math.abs(ly) - q.h / 2, 0)
-        return sqrt(ex * ex + ey * ey)
-    end
-    local function surfaceDist(p, q)
-        local pb, qb = p.shape == "brick", q.shape == "brick"
-        if not pb and not qb then
-            local dx, dy = p.x - q.x, p.y - q.y
-            return sqrt(dx * dx + dy * dy) - (p.r or E.PEG_R) - (q.r or E.PEG_R)
-        elseif pb and qb then
-            local best = math.huge
-            for _, pair in ipairs({ { p, q }, { q, p } }) do
-                local a, b = pair[1], pair[2]
-                local c, sn = cos(a.angle), sin(a.angle)
-                for _, f in ipairs({ -0.5, 0, 0.5 }) do
-                    local d = pointRectDist(a.x + c * a.w * f, a.y + sn * a.w * f, b) - a.h / 2
-                    if d < best then best = d end
-                end
-            end
-            return best
-        else
-            local br, pg = pb and p or q, pb and q or p
-            return pointRectDist(pg.x, pg.y, br) - (pg.r or E.PEG_R)
-        end
-    end
     local function clearOf(p, group)
         local need = -0.5          -- touching is allowed
         for _, q in ipairs(pegs) do
@@ -679,7 +736,26 @@ function L:Build(n)
         return true
     end
 
-    local gimmicks = allowGimmicks and self:GimmicksFor(n, rng) or {}
+    -- the boss first: it owns a band near the top that nothing else enters
+    if bossDef then
+        local band = E.BOSS_BAND
+        exclude({ x0 = -1, x1 = W + 1, y0 = band.y0, y1 = band.y1 }, "boss")
+        local b = moving(peg(CX, band.y))
+        b.r = E.BOSS_R
+        b.kind = "boss"
+        b.goal = true
+        b.special = true
+        b.hp = bossHp
+        b.bounce = E.BOSS_BOUNCE
+        b.ability = bossDef.id
+        b.bossName = bossDef.name
+        if add(b, "boss") then
+            local amp = (bossDef.id == "spider") and 40 or (W / 2 - 90)
+            mover({ kind = "slide", pegs = { b }, amp = amp, speed = bossDef.speed, phase = 0 })
+        end
+    end
+
+    local gimmicks = allowGimmicks and self:GimmicksFor(n, rng, objective) or {}
     local gimmickNames = {}
     for _, g in ipairs(gimmicks) do
         g.build(rng, add, mover, exclude, d)
@@ -694,13 +770,79 @@ function L:Build(n)
     for _, p in ipairs(pegs) do if not p.moving and not E.IsSolid(p) then static = static + 1 end end
     if static < 28 and #gimmickNames > 0 then pegs, movers, gimmickNames, rng = assemble(false) end
 
-    -- no random fill: the pattern is the level
+    -- Eggs and gems take the place of pattern pegs: round, still, well
+    -- apart from each other, and (gems) high enough to fall through
+    -- something. Anything the bigger piece would overlap is removed.
+    local function convert(kind, count, r)
+        local cands = {}
+        for _, p in ipairs(pegs) do
+            if p.shape == "peg" and not p.moving and not E.IsSolid(p) and not p.goal
+                and (kind ~= "gem" or p.y < 420)
+                and p.x - r >= E.PEG_MARGIN - 6 and p.x + r <= W - E.PEG_MARGIN + 6
+                and p.y - r >= E.PEG_TOP and p.y + r <= E.PEG_BOTTOM then
+                -- the bigger piece must not run into a moving one (those stay)
+                local probe = { shape = "peg", x = p.x, y = p.y, r = r }
+                local clear = true
+                for _, q in ipairs(pegs) do
+                    if q.moving and surfaceDist(probe, q) < -0.5 then clear = false break end
+                end
+                if clear then cands[#cands + 1] = p end
+            end
+        end
+        for i = #cands, 2, -1 do
+            local j = rng(1, i)
+            cands[i], cands[j] = cands[j], cands[i]
+        end
+        local chosen = {}
+        for _, p in ipairs(cands) do
+            if #chosen >= count then break end
+            local ok = true
+            for _, q in ipairs(chosen) do
+                local dx, dy = p.x - q.x, p.y - q.y
+                if dx * dx + dy * dy < 70 * 70 then ok = false break end
+            end
+            if ok then chosen[#chosen + 1] = p end
+        end
+        for _, p in ipairs(chosen) do
+            p.kind = kind
+            p.goal = true
+            p.r = r
+            p.special = true
+            if kind == "egg" then p.hp = 3 end
+        end
+        if #chosen > 0 then
+            for i = #pegs, 1, -1 do
+                local q = pegs[i]
+                if not q.special and not q.moving then
+                    for _, p in ipairs(chosen) do
+                        if surfaceDist(p, q) < -0.5 then table.remove(pegs, i) break end
+                    end
+                end
+            end
+        end
+        return #chosen
+    end
 
-    -- colours go to everything but the solid pieces (barriers, bumpers)
+    local goal = 0
+    if objective == "eggs" then
+        goal = convert("egg", self:SpecialCount(n), E.EGG_R)
+    elseif objective == "gems" then
+        goal = convert("gem", self:SpecialCount(n), E.GEM_R)
+    elseif objective == "boss" then
+        for _, p in ipairs(pegs) do if p.kind == "boss" then goal = 1 end end
+    end
+    if goal == 0 then objective = "classic" end
+
+    -- colours go to everything but the solid and special pieces
     local order = {}
-    for i, p in ipairs(pegs) do if not E.IsSolid(p) then order[#order + 1] = i end end
-    -- small patterns keep at least six blue pieces
-    if orange > #order - 6 then orange = #order - 6 end
+    for i, p in ipairs(pegs) do if not E.IsSolid(p) and not p.special then order[#order + 1] = i end end
+    local orange = 0
+    if objective == "classic" then
+        orange = self:Counts(n)
+        -- small patterns keep at least six blue pieces
+        if orange > #order - 6 then orange = #order - 6 end
+        goal = orange
+    end
     for i = #order, 2, -1 do
         local j = rng(1, i)
         order[i], order[j] = order[j], order[i]
@@ -708,23 +850,49 @@ function L:Build(n)
     local greens = 2
     for k, idx in ipairs(order) do
         local p = pegs[idx]
-        if k <= orange then p.kind = "orange"
+        if k <= orange then p.kind = "orange"; p.goal = true
         elseif k <= orange + greens then p.kind = "green"
         else p.kind = "blue" end
     end
-    for _, p in ipairs(pegs) do p.lit, p.gone = false, false end
 
+    -- tough pieces: a steel rim and two (or three) hits to light
+    local toughShare, heavyShare = self:ToughShare(n), self:HeavyShare(n)
+    local tough = 0
+    if toughShare > 0 then
+        for _, idx in ipairs(order) do
+            local p = pegs[idx]
+            if p.kind == "blue" or (p.kind == "orange" and n >= self:ToughOrangesFrom()) then
+                if rng() < toughShare then
+                    p.hp = (rng() < heavyShare) and 3 or 2
+                    tough = tough + 1
+                end
+            end
+        end
+    end
+
+    for _, p in ipairs(pegs) do
+        p.lit, p.gone = false, false
+        p.hp = p.hp or 1
+        p.maxhp = p.hp
+    end
+
+    local s2, s3 = self:StarScores(n)
     return {
         level = n,
         chapter = chapter,
         name = self:ChapterName(chapter),
         seed = seed,
         layout = family.name,
+        objective = objective,
         pegs = pegs,
         movers = movers,
         gimmick = (#gimmickNames > 0) and table.concat(gimmickNames, " + ") or nil,
+        goal = goal,
         orange = orange,
+        tough = tough,
+        boss = (objective == "boss") and { id = bossDef.id, name = bossDef.name, blurb = bossDef.blurb, hp = bossHp } or nil,
         balls = E.BALLS,
         power = self:PowerFor(chapter),
+        stars = { s2, s3 },
     }
 end
