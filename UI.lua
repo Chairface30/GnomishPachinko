@@ -1246,9 +1246,10 @@ function UI:OnUpdate(dt)
     self:Render(now)
 end
 
--- The field zooms in on the last goal piece while time is slowed, and
--- eases back out afterwards. The field scales inside its clipping view;
--- the anchor offset keeps the piece where it was on screen.
+-- The field zooms in while time is slowed, centred on the ball closing on
+-- the last goal piece and following it; after the hit it eases back out
+-- from where the ball was. The field scales inside its clipping view; the
+-- anchor offset keeps that point where it was on screen.
 function UI:UpdateZoom(dt)
     local st = self.state
     local target = (st and st.lastSlow and st.lastPeg) and E.LAST_ZOOM or 1
@@ -1263,8 +1264,19 @@ function UI:UpdateZoom(dt)
     self.zoomScale = cur
     local field = self.field
     local FW, FH = E.FIELD_W, E.FIELD_H
-    local zx = (st and st.lastPeg and st.lastPeg.x) or FW / 2
-    local zy = (st and st.lastPeg and st.lastPeg.y) or FH / 2
+    -- the ball nearest the piece is the centre; keep the last one seen once it is gone
+    if st and st.lastPeg and #st.balls > 0 then
+        local best, bd = nil, math.huge
+        for _, b in ipairs(st.balls) do
+            local dx, dy = b.x - st.lastPeg.x, b.y - st.lastPeg.y
+            local d = dx * dx + dy * dy
+            if d < bd then best, bd = b, d end
+        end
+        self.zoomX, self.zoomY = best.x, best.y
+    elseif not self.zoomX then
+        self.zoomX, self.zoomY = FW / 2, FH / 2
+    end
+    local zx, zy = self.zoomX, self.zoomY
     local ox = zx * (1 / cur - 1)
     local oy = zy * (1 / cur - 1)
     local minO = FW / cur - FW
@@ -1275,6 +1287,7 @@ function UI:UpdateZoom(dt)
     field:ClearAllPoints()
     field:SetPoint("TOPLEFT", self.view, "TOPLEFT", ox, -oy)
     self.zoomApplied = cur
+    if cur == 1 then self.zoomX, self.zoomY = nil, nil end
 end
 
 function UI:Render(now)
