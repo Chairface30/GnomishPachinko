@@ -172,14 +172,17 @@ end }
 
 -- 3. Diamonds: three hollow diamonds, a crown and a floor
 FAMILIES[#FAMILIES + 1] = { name = "Diamonds", build = function(rng, add, d)
-    local wide = rng() < 0.5
-    diamond(add, wide and 100 or 120, 330, 85, 3)
-    diamond(add, CX, 250, 100, 4)
-    diamond(add, wide and W - 100 or W - 120, 330, 85, 3)
-    add(peg(CX, 410))
-    add(peg(CX, 250))
-    row(add, 150, 3, CX - 120, CX + 120)
-    row(add, 480, 7, 60, W - 60)
+    -- three whole diamonds: the big one high in the middle, two smaller
+    -- ones low at the sides, never touching
+    local low = rng() < 0.5
+    diamond(add, 118, low and 350 or 330, 84, 3)
+    diamond(add, CX, 240, 100, 3)
+    diamond(add, W - 118, low and 350 or 330, 84, 3)
+    add(peg(CX, 240))
+    add(peg(118, low and 350 or 330))
+    add(peg(W - 118, low and 350 or 330))
+    row(add, 140, 2, CX - 170, CX + 170)
+    row(add, 485, 5, CX - 130, CX + 130)
 end }
 
 -- 4. Rings: two rings in the middle, columns down each side, a floor
@@ -254,15 +257,16 @@ end }
 
 -- 8. Spiral: one long spiral under a crown
 FAMILIES[#FAMILIES + 1] = { name = "Spiral", build = function(rng, add, d)
+    -- pegs every 46px of arc along an Archimedean spiral
     local cx, cy = CX, 315
-    local turns = 2.5
-    local n = 44
     local dir = (rng() < 0.5) and 1 or -1
-    for k = 0, n - 1 do
-        local t = k / (n - 1)
-        local a = dir * t * turns * 2 * pi
-        local rad = 22 + t * 172
-        add(peg(cx + rad * cos(a), cy + rad * sin(a) * 0.95))
+    local b = 172 / (2.5 * 2 * pi)       -- radius grows this much per radian
+    local a, rad = 0, 24
+    while rad < 196 do
+        add(peg(cx + rad * cos(dir * a), cy + rad * sin(dir * a) * 0.95))
+        local step = 46 / math.max(rad, 24)
+        a = a + step
+        rad = 24 + b * a
     end
     row(add, 140, 5, 80, W - 80)
 end }
@@ -282,8 +286,9 @@ end }
 
 -- 10. Hourglass: a brick X with peg rows above, below and at the waist
 FAMILIES[#FAMILIES + 1] = { name = "Hourglass", build = function(rng, add, d)
-    brickLine(add, 70, 150, W - 70, 470, "x1", 11)
-    brickLine(add, W - 70, 150, 70, 470, "x2", 11)
+    -- both arms share a group so they may cross in the middle
+    brickLine(add, 70, 150, W - 70, 470, "x", 12)
+    brickLine(add, W - 70, 150, 70, 470, "x", 12)
     row(add, 130, 5, 100, W - 100)
     row(add, 490, 5, 100, W - 100)
     row(add, 310, 2, 60, W - 60)

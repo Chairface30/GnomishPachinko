@@ -21,7 +21,7 @@ local GP = GnomishPachinko
 GP.Engine = GP.Engine or {}
 local E = GP.Engine
 
-E.FIELD_W, E.FIELD_H = 540, 600
+E.FIELD_W, E.FIELD_H = 600, 600
 E.BALL_R      = 7
 E.PEG_R       = 9
 E.BRICK_W     = 30
