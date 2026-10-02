@@ -17,8 +17,13 @@ local UI = GP.UI
 -- plain fill left, for bars and the field's border.
 local WHITE = ART.WHITE
 
-local PAD, SIDE_W, TOP_H = 36, 240, 108    -- gutters clear the frame's copper border; the top band holds the logo and Tinkmaster's box
-local PORTRAIT = 96                         -- the portrait box, centred over the field's top edge
+-- The window, after the mockup: the logo centred at the top with the host's
+-- box under it straddling the board's top edge; a column left of the board
+-- for the special-ball buttons; a column right of it with the info block at
+-- the top and the level and plays buttons at the bottom.
+local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 30, 110, 16, 240, 160
+local PAD = EDGE
+local PORTRAIT = 124                        -- the host's box
 local FANFARE_SECS = 6.0     -- length of Sounds/fanfare.ogg; it loops while Fever lasts
 local FX_POOL = 48           -- sparkle, confetti and glow textures in flight at once
 local TRAIL_LEN = 14         -- segments of the ball's ribbon
@@ -202,8 +207,8 @@ end
 
 function UI:CreateFrame()
     local FW, FH = E.FIELD_W, E.FIELD_H
-    local FRAME_W = PAD + FW + PAD + SIDE_W + PAD
-    local FRAME_H = TOP_H + FH + PAD
+    local FRAME_W = EDGE + LEFT_W + GAP + FW + GAP + SIDE_W + EDGE
+    local FRAME_H = TOP_H + FH + EDGE
 
     local frame = CreateFrame("Frame", "GnomishPachinkoFrame", UIParent)
     frame:SetSize(FRAME_W, FRAME_H)
@@ -220,10 +225,10 @@ function UI:CreateFrame()
     self.frame = frame
     if UISpecialFrames then tinsert(UISpecialFrames, "GnomishPachinkoFrame") end
 
-    -- the logo, top left
+    -- the logo, centred over the board
     local logo = frame:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(280, 70)
-    logo:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -22)
+    logo:SetSize(360, 90)
+    logo:SetPoint("TOP", frame, "TOP", (LEFT_W + GAP - GAP - SIDE_W) / 2, -14)
     ART:Set(logo, "logo")
     self.logo = logo
 
@@ -235,7 +240,7 @@ function UI:CreateFrame()
     -- The view clips the field so it can zoom in on the last goal piece.
     local view = CreateFrame("Frame", nil, frame)
     view:SetSize(FW, FH)
-    view:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -TOP_H)
+    view:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + LEFT_W + GAP, -TOP_H)
     if view.SetClipsChildren then pcall(view.SetClipsChildren, view, true) end
     self.view = view
     local field = CreateFrame("Frame", nil, view, "BackdropTemplate")
@@ -444,9 +449,8 @@ function UI:CreateFrame()
     -- power-up slots: armed for the next shot
     self.itemSlots = {}
     for i, id in ipairs({ "ring", "rainbow" }) do
-        local b = makeButton(field, 86, 26, "")
-        b:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", 8, 36 + (i - 1) * 30)
-        b:SetFrameLevel(field:GetFrameLevel() + 4)
+        local b = makeButton(frame, LEFT_W, 30, "")
+        b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", EDGE, EDGE + (i - 1) * 36)
         b.item = id
         buttonIcon(b, ART:Item(id), 20)
         b:SetScript("OnClick", function(self) UI:ToggleItem(self.item) end)
@@ -569,9 +573,6 @@ function UI:CreateFrame()
     self.powerStatus = label("", -154)
     self.powerStatus:SetTextColor(0.6, 1, 0.6)
 
-    plate(-168, 24)
-    plate(-192, 24)
-    plate(-216, 22)
     label("Balls", -172, "GameFontNormal")
     self.ballsText = value(-172, "GameFontHighlightLarge")
     self.goalIcon = icon(0, -194, 18, "goal_orange")
@@ -629,41 +630,31 @@ function UI:CreateFrame()
     divider(-366)
 
     self.nextBtn = makeButton(side, SIDE_W, 32, "NEXT LEVEL")
-    self.nextBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -374)
+    self.nextBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 158)
     self.nextBtn:SetScript("OnClick", function() UI:NextLevel() end)
     self.retryBtn = makeButton(side, SIDE_W, 26, "Restart level")
-    self.retryBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -412)
+    self.retryBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 126)
     self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current, true) end)
     self.levelsBtn = makeButton(side, SIDE_W, 26, "Level select")
-    self.levelsBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -442)
+    self.levelsBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 96)
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 
-    self.playsText = label("", -476, "GameFontNormal")
+    self.playsText = label("", 0, "GameFontNormal")
+    self.playsText:ClearAllPoints()
+    self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 60)
     self.playsText:SetWidth(SIDE_W)
     self.playsText:SetHeight(30)
     self.playsText:SetJustifyH("LEFT")
     self.playsText:SetJustifyV("TOP")
     self.buyBtn = makeButton(side, SIDE_W, 24, "Buy " .. GP.Plays.PLAYS_PER_LOT .. " plays (" .. GP.Plays:PriceText(1) .. ")")
-    self.buyBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -510)
+    self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 30)
     self.buyBtn:SetScript("OnClick", function() UI:BuyPlays() end)
     -- the owner's characters top up for free
     self.freeBtn = makeButton(side, SIDE_W, 24, "Owner: " .. GP.Plays.PLAYS_PER_LOT .. " free plays")
-    self.freeBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -538)
+    self.freeBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 0)
     self.freeBtn:SetScript("OnClick", function() UI:ClaimFreePlays() end)
     self.freeBtn:Hide()
 
-    self.progressText = label("", -568)
-    self.progressText:SetWidth(SIDE_W)
-    self.progressText:SetJustifyH("LEFT")
-    self.progressText:SetTextColor(0.8, 0.8, 0.9)
-
-    local tip = side:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    tip:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -602)
-    tip:SetWidth(SIDE_W)
-    tip:SetJustifyH("LEFT")
-    tip:SetJustifyV("TOP")
-    tip:SetTextColor(0.65, 0.65, 0.78)
-    tip:SetText("Click the field to shoot. Rimmed pieces take two or three hits. Your host: Tinkmaster Overspark.")
 
     frame:SetScript("OnUpdate", function(_, dt) UI:OnUpdate(dt) end)
     frame:SetScript("OnShow", function() UI.lastHitSound = 0 end)
@@ -674,7 +665,7 @@ function UI:CreateFrame()
     -- the host's box: a round frame centred over the field's top edge, the model inside it
     local box = CreateFrame("Frame", nil, frame)
     box:SetSize(PORTRAIT, PORTRAIT)
-    box:SetPoint("CENTER", view, "TOP", 0, 10)
+    box:SetPoint("CENTER", view, "TOP", 0, 24)
     box:SetFrameLevel(field:GetFrameLevel() + 12)
     local boxBg = box:CreateTexture(nil, "BACKGROUND")
     boxBg:SetSize(PORTRAIT - 14, PORTRAIT - 14)
@@ -691,6 +682,7 @@ function UI:CreateFrame()
     ring:SetAllPoints(ringFrame)
     ART:Set(ring, "portrait_frame")
     self.portraitRing = ring
+    self.portraitRingFrame = ringFrame
     self.events = {}
 end
 
@@ -734,23 +726,20 @@ function UI:CreateCard()
     card.line3:SetWidth(330)
     card.line3:SetTextColor(0.75, 0.75, 0.85)
     -- the master selector: any power unlocked so far
-    card.powerPrev = makeButton(card, 24, 22, "<")
-    card.powerPrev:SetPoint("TOP", card.line3, "BOTTOM", -140, -10)
-    card.powerNext = makeButton(card, 24, 22, ">")
-    card.powerNext:SetPoint("TOP", card.line3, "BOTTOM", 140, -10)
+    card.powerPrev = makeButton(card, 46, 34, "<")
+    card.powerPrev:SetPoint("TOP", card.line3, "BOTTOM", -150, -6)
+    card.powerPrev.text:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    card.powerNext = makeButton(card, 46, 34, ">")
+    card.powerNext:SetPoint("TOP", card.line3, "BOTTOM", 150, -6)
+    card.powerNext.text:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
     card.powerText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.powerText:SetPoint("TOP", card.line3, "BOTTOM", 0, -12)
     card.powerText:SetWidth(230)
-    card.powerIcon = card:CreateTexture(nil, "ARTWORK")
-    card.powerIcon:SetSize(22, 22)
-    card.powerIcon:SetPoint("RIGHT", card.powerText, "LEFT", 6, 0)
-    ART:Set(card.powerIcon, "power_multiball")
     card.powerPrev:SetScript("OnClick", function() UI:CyclePower(-1) end)
     card.powerNext:SetScript("OnClick", function() UI:CyclePower(1) end)
     -- the Extra Green Peg boost
-    card.boost = makeButton(card, 200, 22, "")
-    card.boost:SetPoint("TOP", card.powerText, "BOTTOM", 0, -8)
-    buttonIcon(card.boost, "item_green", 16)
+    card.boost = makeButton(card, 300, 26, "")
+    card.boost:SetPoint("TOP", card.powerText, "BOTTOM", 0, -10)
     card.boost:SetScript("OnClick", function() UI:ToggleGreenBoost() end)
     card.main = makeButton(card, 150, 32, "PLAY")
     card.main:SetPoint("BOTTOM", 0, 70)
@@ -800,9 +789,11 @@ function UI:ShowStartCard()
     card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect() end)
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right:Hide()
+    card.left:ClearAllPoints()
+    card.left:SetPoint("BOTTOM", card, "BOTTOM", 0, 32)       -- alone: centred
     self.greenBoost = false
     self:RefreshCardChoices()
-    card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.powerIcon:Show(); card.boost:Show()
+    card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.boost:Show()
     self.cardSheet:Show()
     card:Show()
 end
@@ -811,7 +802,6 @@ function UI:RefreshCardChoices()
     local st, card = self.state, self.card
     local name, blurb = powerName(st.power)
     card.powerText:SetText(("Power: |cff88ff88%s|r"):format(name))
-    ART:Set(card.powerIcon, ART:Power(st.power))
     local many = #GP:UnlockedPowers() > 1
     styleButton(card.powerPrev, many, 0.3, 0.3, 0.45)
     styleButton(card.powerNext, many, 0.3, 0.3, 0.45)
@@ -898,7 +888,11 @@ function UI:ShowResultCard(result, stars)
     card.right:SetScript("OnClick", function() UI:SettlePendingFail(); UI:HideCard(); UI:StartLevel(st.level, true) end)
     styleButton(card.right, GP.Plays:Remaining() >= (self.pendingFail and 2 or 1), 0.45, 0.3, 0.2)
     card.right:Show()
-    card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide(); card.powerIcon:Hide()
+    card.left:ClearAllPoints()                                -- the pair, centred as a group
+    card.left:SetPoint("BOTTOM", card, "BOTTOM", -66, 32)
+    card.right:ClearAllPoints()
+    card.right:SetPoint("BOTTOM", card, "BOTTOM", 66, 32)
+    card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
     if result.rewards and #result.rewards > 0 then
         local parts = {}
         for _, r in ipairs(result.rewards) do parts[#parts + 1] = ("+%d %s"):format(r.n, E.ITEMS[r.item].name) end
@@ -1056,17 +1050,23 @@ function UI:CreateLevelSelect()
         if GameTooltip then GameTooltip:Hide() end
         if self:IsEnabled() then hoverButton(self, false) end
     end)
-    panel.legend = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.legend:SetPoint("BOTTOMLEFT", 12, 44)
-    panel.legend:SetWidth(FW / 2 - 20)
-    panel.legend:SetJustifyH("LEFT")
-    panel.legend:SetJustifyV("BOTTOM")
-    panel.legend:SetText("|cff66ff66green|r cleared, |cffffd700brown|r open, |cff777777gray|r locked. The corner icon is the level's goal.")
-    panel.total = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.total:SetPoint("BOTTOMRIGHT", -12, 44)
-    panel.total:SetWidth(FW / 2 - 20)
-    panel.total:SetJustifyH("RIGHT")
-    panel.total:SetJustifyV("BOTTOM")
+end
+
+-- The board's chrome: the host's box, the balls-left strip, the special-ball
+-- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
+function UI:SetBoardChrome(shown)
+    local function set(obj) if obj then if shown then obj:Show() else obj:Hide() end end end
+    set(self.portraitBox); set(self.portraitRingFrame)
+    for _, b in ipairs(self.ballStrip or {}) do if shown then b:Show() else b:Hide() end end
+    if not shown then self.ballStripMore:SetText("") end
+    for _, b in ipairs(self.itemSlots or {}) do set(b) end
+    if shown then
+        if self.state and not self.state.noBucket and self.state.phase ~= E.PHASE.FEVER then self.bucket:Show() end
+        self:UpdateCounters()
+    else
+        self.bucket:Hide()
+        self.splashTex:Hide()
+    end
 end
 
 function UI:ShowLevelSelect()
@@ -1075,10 +1075,12 @@ function UI:ShowLevelSelect()
     self.levelPage = math.floor((current - 1) / L.PER_CHAPTER) + 1
     self:LevelPage(self.levelPage)
     self.levelPanel:Show()
+    self:SetBoardChrome(false)
 end
 
 function UI:HideLevelSelect()
     if self.levelPanel then self.levelPanel:Hide() end
+    if self.playsPanel and not self.playsPanel:IsShown() then self:SetBoardChrome(true) end
 end
 
 -- page = chapter
@@ -1142,7 +1144,6 @@ function UI:LevelPage(page)
     end
     local chapterStars = 0
     for n = first + 1, first + L.PER_CHAPTER do chapterStars = chapterStars + (db.stars[n] or 0) end
-    panel.total:SetText(("Chapter stars %d / %d\nAll stars %d / %d"):format(chapterStars, L.PER_CHAPTER * 3, GP:TotalStars(), L.COUNT * 3))
 end
 
 -- ---------------------------------------------------------------------
@@ -1206,6 +1207,7 @@ function UI:ShowOutOfPlays(reason)
         panel.how:SetPoint("TOP", panel.buy, "BOTTOM", 0, -10)
     end
     self.playsPanel:Show()
+    self:SetBoardChrome(false)
     self:UpdatePlaysPanel()
 end
 
@@ -1213,6 +1215,7 @@ function UI:UpdatePlaysPanel()
     local P = GP.Plays
     if P:CanPlay() then
         self.playsPanel:Hide()
+        if not (self.levelPanel and self.levelPanel:IsShown()) then self:SetBoardChrome(true) end
         if not self.state or self.state.phase == E.PHASE.OVER then
             self:StartLevel(GP:GetDB().current or 1)
         end
@@ -2529,6 +2532,7 @@ function UI:UpdateCounters()
     self.ballsText:SetText(tostring(st.ballsLeft + #st.balls))
     -- the strip of little balls still to fire (hidden during a duel's turns)
     local strip = (st.duel and st.duel.stage == 2) and 0 or st.ballsLeft
+    if (self.levelPanel and self.levelPanel:IsShown()) or (self.playsPanel and self.playsPanel:IsShown()) then strip = 0 end
     for i, b in ipairs(self.ballStrip) do
         if i <= strip then b:Show() else b:Hide() end
     end
@@ -2614,8 +2618,6 @@ function UI:UpdateDisplay()
     else
         self.freeBtn:Hide()
     end
-    self.progressText:SetText(("Cleared %d of %d levels, unlocked to %d\nStars %d / %d"):format(
-        GP:ClearedCount(), L.COUNT, db.unlocked or 1, GP:TotalStars(), L.COUNT * 3))
 end
 
 function UI:Show()

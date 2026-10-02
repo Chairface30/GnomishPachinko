@@ -382,8 +382,11 @@ def save_record(rec):
     json.dump(rec, open(RECORD, "w", encoding="utf-8"), indent=1, sort_keys=True)
 
 
-def save_slot(img, slot, scale=None):
-    out, used = fit(img, slot, scale)
+def save_slot(img, slot, scale=None, stretch=False):
+    if stretch:
+        out, used = img.resize((slot["w"], slot["h"]), Image.LANCZOS), None
+    else:
+        out, used = fit(img, slot, scale)
     out.save(os.path.join(OUT, slot["file"] + ".tga"), format="TGA")
     return used
 
@@ -394,7 +397,7 @@ def main():
     ap.add_argument("--map", default=os.path.join(TOOLS, "sheets", "pegs.json"))
     ap.add_argument("--go", action="store_true", help="spend credits; without it only the plan is printed")
     ap.add_argument("--only", nargs="*")
-    ap.add_argument("--stage", choices=["sheet", "derive", "pose", "asset", "all"], default="all")
+    ap.add_argument("--stage", choices=["sheet", "derive", "pose", "asset", "refit", "all"], default="all")
     ap.add_argument("--force", action="store_true", help="redo slots already recorded")
     ap.add_argument("--quality", choices=["turbo", "ultra"], default="ultra")
     ap.add_argument("--alpha", type=int, default=16, help="alpha a sheet pixel needs to count as part of a sprite")
@@ -451,8 +454,27 @@ def main():
         save_record(rec)
 
     api = None
-    if args.stage in ("pose", "asset", "all") and (todo("pose") or todo("asset")):
+    if args.stage in ("pose", "asset", "all") and (todo("pose") or todo("asset")) or args.stage == "refit":
         api = AutoSprite(open(KEY_FILE, encoding="utf-8").read().strip())
+
+    # ---- refit: fetch recorded assets again and fit them afresh (no credits)
+    if args.stage == "refit":
+        for n in slots:
+            entry = rec["slots"].get(n, {})
+            p = PLAN[n]
+            if n in want and p["how"] == "asset" and entry.get("assetId"):
+                try:
+                    info = api.call("get_asset", assetId=entry["assetId"])
+                    a = info.get("asset", info)
+                    url = (a.get("baseImageNoBgUrl") if not p["keep_bg"] else None) or a.get("baseImageUrl")
+                    img = download(url)
+                    if not p["keep_bg"]:
+                        img = crop_content(strip_background(img))
+                    save_slot(img, slots[n], stretch=p["keep_bg"])
+                    print(f"  refit  {n}")
+                except Exception as e:
+                    print(f"  refit  {n}: FAILED {e}")
+        return 0
 
     # ---- 2. assets: preview -> save -> strip background -> download
     if args.stage in ("asset", "all"):
@@ -492,7 +514,7 @@ def main():
                 img = download(url)
                 if not p["keep_bg"]:
                     img = crop_content(strip_background(img))
-                save_slot(img, slots[n])
+                save_slot(img, slots[n], stretch=p["keep_bg"])
                 entry["done"] = True
                 rec["slots"][n] = entry
                 save_record(rec)

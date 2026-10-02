@@ -300,6 +300,7 @@ function E:NewLevel(spec)
         level = spec.level,
         chapter = spec.chapter,
         name = spec.name,
+        title = spec.title,
         seed = spec.seed,
         layout = spec.layout,
         objective = spec.objective or "classic",
