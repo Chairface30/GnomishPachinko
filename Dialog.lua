@@ -44,6 +44,10 @@ D.SCRIPTS = {
         { "tink", "See the buttons to the left of the board? Those are my special balls." },
         { "tink", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot." },
     } },
+    { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end, lines = {
+        { "tink", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
+        { "tink", "Use them for a ricochet, or curse them when they're in the way." },
+    } },
     { key = "tough", when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, lines = {
         { "tink", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
     } },

@@ -60,6 +60,7 @@ E.STEP         = 1 / 120
 E.MAX_AIM_DEG  = 82
 E.STUCK_SPEED  = 35
 E.STUCK_SECS   = 1.5
+E.MAX_FLIGHT   = 25         -- seconds a ball may stay in play
 E.LIT_SECS     = 2.0        -- a lit piece vanishes this long after the hit
 E.HIT_COOLDOWN = 0.2        -- one ball cannot hit the same piece twice within this
 E.BOSS_COOLDOWN = 0.05      -- a boss counts every real strike, even three in a quick bank shot
@@ -1138,6 +1139,12 @@ local function integrateBall(state, ball, dt, events)
 
     local speed = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
     if speed < E.STUCK_SPEED then ball.slow = ball.slow + dt else ball.slow = 0 end
+    -- a ball caught bouncing for ever (between balloons, say) retires
+    ball.age = (ball.age or 0) + dt
+    if ball.age > E.MAX_FLIGHT then
+        push(events, { type = "lost", x = ball.x, stuck = true })
+        return false
+    end
     if ball.slow > E.STUCK_SECS then
         if clearLitPegs(state, events) > 0 then
             ball.slow = 0

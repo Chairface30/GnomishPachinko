@@ -139,7 +139,7 @@ local function pieceSlot(p, state)
     end
     if k == "gem" then return "gem" end
     if k == "key" then return p.silver and "key_silver" or "key_gold" end
-    if k == "bumper" then return "bumper" end
+    if k == "bumper" then return p.balloon and "fever_balloon" or "bumper" end
     if k == "block" then
         if p.lock then return p.silver and "cage_silver" or "cage_gold" end
         return (p.shape == "brick") and "rail" or "block"

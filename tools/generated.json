@@ -69,6 +69,11 @@
     "prompt": "A triumphant bright sting with a shimmering rise, a goal completed, short.",
     "secs": 1.5
   },
+  "fever_music": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A short exciting arcane fever music loop, bright synth arpeggios over driving drums and brass hits, building, about eight seconds.",
+    "secs": 8.0
+  },
   "free_ball": {
     "at": "2026-10-01 17:39",
     "prompt": "A cheerful rising three-note chime, a bonus awarded, bright and short.",
@@ -83,6 +88,36 @@
     "at": "2026-10-01 17:39",
     "prompt": "A crystal coming loose from rock with a short glassy clink and a tumble.",
     "secs": 0.6
+  },
+  "grumble1": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 1.",
+    "secs": 1.4
+  },
+  "grumble2": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 2.",
+    "secs": 1.4
+  },
+  "grumble3": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 3.",
+    "secs": 1.4
+  },
+  "grumble4": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 4.",
+    "secs": 1.4
+  },
+  "grumble5": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 5.",
+    "secs": 1.4
+  },
+  "grumble6": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 6.",
+    "secs": 1.4
   },
   "hatch": {
     "at": "2026-10-01 17:39",
@@ -108,6 +143,36 @@
     "at": "2026-10-01 17:39",
     "prompt": "A soft descending womp as a ball drops out of play, short and mild, cartoon.",
     "secs": 0.6
+  },
+  "mumble1": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 1.",
+    "secs": 1.2
+  },
+  "mumble2": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 2.",
+    "secs": 1.2
+  },
+  "mumble3": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 3.",
+    "secs": 1.2
+  },
+  "mumble4": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 4.",
+    "secs": 1.2
+  },
+  "mumble5": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 5.",
+    "secs": 1.2
+  },
+  "mumble6": {
+    "at": "2026-10-02 17:49",
+    "prompt": "A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 6.",
+    "secs": 1.2
   },
   "note_base": {
     "at": "2026-10-01 17:39",
@@ -175,9 +240,9 @@
     "secs": 0.4
   },
   "rim": {
-    "at": "2026-10-01 17:39",
-    "prompt": "A steel ball bouncing off the rim of a ceramic bowl, one short hollow ceramic clink, no reverb.",
-    "secs": 0.4
+    "at": "2026-10-02 17:49",
+    "prompt": "A steel ball striking the brass rim of a metal bucket, one short bright bell-like clang, metallic ring, no reverb.",
+    "secs": 0.5
   },
   "shield": {
     "at": "2026-10-01 17:39",

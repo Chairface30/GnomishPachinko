@@ -93,6 +93,11 @@ end
 local function bumper(x, y)
     return { shape = "peg", x = x, y = y, r = E.BUMPER_R, kind = "bumper", bounce = E.BUMPER_BOUNCE }
 end
+-- a balloon: a soft round bumper of any size, never lights
+local function balloon(x, y, r)
+    return { shape = "peg", x = x, y = y, r = r, kind = "bumper", balloon = true,
+        bounce = E.BALLOON_BOUNCE, kick = E.BALLOON_KICK }
+end
 -- a loose key: light it and every piece locked to it dissolves
 local function key(x, y, id)
     return { shape = "peg", x = x, y = y, r = 10, kind = "key", unlocks = id, special = true }
@@ -139,6 +144,36 @@ local FAMILIES = {}
 -- randomness is which variant of the picture a level gets.
 local L_X0, L_X1 = E.PEG_MARGIN + 6, W - E.PEG_MARGIN - 6
 local CX = W / 2
+
+L.BALLOON_SIZES = { 12, 16, 21, 27 }     -- field pixels
+
+-- Balloons from chapter 2: some near the walls for ricochets, some out in
+-- the open where they block a route; more and bigger as the levels climb.
+function L:BalloonCount(n)
+    if n <= 10 then return 0 end
+    return 1 + floor(self:Difficulty(n) * 3.5)
+end
+local function placeBalloons(rng, add, n, count)
+    local placed = 0
+    for k = 1, count * 12 do
+        if placed >= count then break end
+        local r = L.BALLOON_SIZES[rng(1, #L.BALLOON_SIZES)]
+        local x
+        if (placed % 2) == 0 then
+            -- a ricochet: near one of the walls
+            local side = (rng() < 0.5) and 1 or -1
+            x = CX + side * (W / 2 - 70 - rng() * 60)
+        else
+            -- a blocker: somewhere in the pattern's open space
+            x = 90 + rng() * (W - 180)
+        end
+        local y = 190 + rng() * 300
+        local b = balloon(x, y, r)
+        if add(b, "balloon" .. k) then placed = placed + 1 end
+    end
+    return placed
+end
+
 
 local function row(add, y, n, x0, x1)
     x0, x1 = x0 or L_X0, x1 or L_X1
@@ -1097,6 +1132,7 @@ function L:Build(n, attempt, opts)
         gimmickNames[#gimmickNames + 1] = g.name
     end
     family.build(rng, add, d, dens)
+    if not opts.stage2 then placeBalloons(rng, add, n, self:BalloonCount(n)) end
     return pegs, movers, gimmickNames, rng
     end
 

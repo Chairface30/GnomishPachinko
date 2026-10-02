@@ -1739,6 +1739,31 @@ check("every chapter has its own map and board backdrop, the tenth level its bos
       ev("ART:MapBackdrop(17)") == "map_bg_17" and ev("ART:FieldBackdrop(161)") == "field_bg_17" and ev("ART:FieldBackdrop(170)") == "field_boss_17"
       and ev("ART:FieldBackdrop(400)") == "field_boss_40" and ev("ART.CHAPTERS") == ev("#L.CHAPTERS"))
 
+# balloons in the levels: from chapter 2, several sizes, soft bounce, never lit
+lua(r"""
+function balloon_probe()
+  local levels, sizes, early, soft = 0, {}, 0, true
+  for n = 1, 400 do
+    local spec = L:Build(n)
+    local any = false
+    for _, p in ipairs(spec.pegs) do
+      if p.balloon then
+        any = true
+        sizes[p.r] = true
+        if p.kind ~= "bumper" or p.bounce ~= E.BALLOON_BOUNCE then soft = false end
+        if n <= 10 then early = early + 1 end
+      end
+    end
+    if any then levels = levels + 1 end
+  end
+  local n = 0
+  for _ in pairs(sizes) do n = n + 1 end
+  return levels, n, early, soft
+end
+""")
+levels, nsizes, early, soft = ev("balloon_probe")()
+check("balloons stand in most levels from chapter 2, in several sizes, with the soft bounce", levels > 300 and nsizes >= 3 and early == 0 and soft, f"{levels} {nsizes} {early} {soft}")
+
 # this round's rules
 lua(r"""
 function round_probe()
