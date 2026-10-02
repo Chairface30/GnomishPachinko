@@ -223,7 +223,7 @@ derive("spark4", "spark2", "spread", amount=1.4, fade=0.6)
 asset("phoenix", "character", "fiery phoenix bird flying straight up, wings spread wide, flames trailing below, seen from behind, " + STYLE)
 asset("confetti", "effect", "scattered colourful confetti bits mid-air, " + STYLE)
 asset("firework", "effect", "radial firework burst, white centre, golden rays, " + STYLE)
-anim("bucket_suck", "bucket", "the brass vacuum tube mouth cartoonishly sucking: it bulges and squashes rhythmically, wind swirls spiral into the opening, the pressure gauge needle wobbles")
+anim("bucket_suck", "bucket", "the brass vacuum tube mouth wildly and cartoonishly sucking: the funnel violently inhales, stretching tall and squashing wide, the pipe shakes, a big swirling vortex of wind spirals into the opening, the gauge needle spins")
 tool("peg", "brick", "key", "boss", "ring", "rim", "crack", "dot", "star", "blast", "pyramid", "icon", "trail", "glow_soft")
 
 

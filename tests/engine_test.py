@@ -1942,6 +1942,34 @@ check("a hatched egg's phoenix lights the pieces in its column and no others", r
 check("a lost egg ends the level even while aiming", r["eggAim"])
 check("a gem on a slope rolls off instead of sticking", r["rolls"])
 check("the suction tube draws a falling ball toward the bucket", r["suction"])
+lua(r"""
+function suction_steer_probe()
+  local st = E:NewLevel(L:Build(1))
+  st.pegs = {}
+  st.bucket.x, st.bucket.dir = 330, 0
+  st.armed = "suction"
+  st.aim = 0
+  local events = {}
+  E:Launch(st, events)
+  local ball = st.balls[1]
+  ball.x, ball.y, ball.vx, ball.vy = 180, E.FIELD_H - 330, 0, 60
+  -- the same fall with no suction, for the vertical speeds
+  local t0 = st.time
+  local sameFall = true
+  local caught = 0
+  for _ = 1, 120 do
+    E:Step(st, 1 / 120, events)
+    local b = st.balls[1]
+    if b and b.vy > 0 and math.abs(b.vy - (60 + E.GRAVITY * (st.time - t0))) > 1 then sameFall = false end
+    for _, e in ipairs(events) do if e.type == "bucket" then caught = caught + 1 end end
+    wipe(events)
+    if #st.balls == 0 then break end
+  end
+  return caught, sameFall
+end
+""")
+caught, same_fall = ev("suction_steer_probe")()
+check("the suction tube steers a ball falling 150 px off into the tube without touching its fall speed", caught == 1 and same_fall, f"{caught} {same_fall}")
 check("every level's objective is the one its map node shows", True)
 
 # ------------------------------------------------------------------ art slots

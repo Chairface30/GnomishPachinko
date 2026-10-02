@@ -2729,14 +2729,18 @@ function UI:Render(now)
     if not st.noBucket then
         if st.phase == E.PHASE.AIM and st.armed == "suction" then sucking = true end
         if st.phase == E.PHASE.FLIGHT then
-            for _, b in ipairs(st.balls) do if b.suction then sucking = true break end end
+            if st.suctionShot and #st.balls > 0 then sucking = true end
         end
     end
     if sucking then
-        local frame = math.floor(now * 14) % 16
+        local frame = math.floor(now * 28) % 16
         ART:Set(self.bucket, "bucket_suck")
         local c, r = frame % 4, math.floor(frame / 4)
         self.bucket:SetTexCoord(c / 4, (c + 1) / 4, r / 4, (r + 1) / 4)
+        -- a big cartoon gulp on top: the tube stretches tall and squashes wide
+        local k = 0.22 * math.sin(now * 2 * math.pi * 4.5)
+        local size = E.BUCKET_W + 16
+        self.bucket:SetSize(size * (1 - k), size * (1 + k))
         if not self.suckUntil or now >= self.suckUntil then
             local _, handle = GP:PlaySfx("suction.ogg")
             self.suckHandle = handle
@@ -2745,6 +2749,7 @@ function UI:Render(now)
     elseif self.bucket.slot == "bucket_suck" then
         ART:Set(self.bucket, "bucket")
         self.bucket:SetTexCoord(0, 1, 0, 1)
+        self.bucket:SetSize(E.BUCKET_W + 16, E.BUCKET_W + 16)
         if self.suckHandle and type(StopSound) == "function" then pcall(StopSound, self.suckHandle, 200) end
         self.suckHandle, self.suckUntil = nil, nil
     end

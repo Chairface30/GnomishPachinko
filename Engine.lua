@@ -163,8 +163,9 @@ E.ITEMS = {
     green   = { name = "Extra Green Peg", blurb = "Start the level with one more green peg." },
     suction = { name = "Suction Tube",    blurb = "For the next shot the bucket's tube draws a falling ball toward it." },
 }
-E.SUCTION_REACH = 230       -- the tube pulls on a ball this close above the floor
-E.SUCTION_PULL  = 700       -- sideways pull at its strongest, pixels a second squared
+E.SUCTION_REACH = 340       -- the tube draws on a falling ball this close above the floor ...
+E.SUCTION_SIDE  = 230       -- ... and this close to either side of it
+E.SUCTION_PULL  = 3000      -- how hard it can bend the ball's sideways speed, pixels a second squared
 
 -- What a level asks of you.
 E.OBJECTIVES = {
@@ -560,6 +561,7 @@ function E:Launch(state, events)
         suction = state.armed == "suction" or nil,
         item = state.armed,
     }
+    state.suctionShot = state.armed == "suction"     -- every ball of this shot, twins included
     if state.armed then push(events, { type = "item_used", item = state.armed }) end
     state.armed = nil
     state.ballsLeft = state.ballsLeft - 1
@@ -1099,14 +1101,23 @@ local function integrateBall(state, ball, dt, events)
     if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.y < R then ball.y = R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
 
-    -- the suction tube draws a falling ball toward the bucket
-    if ball.suction and not state.noBucket and state.phase ~= E.PHASE.FEVER and ball.vy > 0 then
-        local above = H - ball.y
-        if above < E.SUCTION_REACH then
-            local dx = state.bucket.x - ball.x
-            local k = 1 - above / E.SUCTION_REACH
-            local pull = E.SUCTION_PULL * k
-            ball.vx = ball.vx + (dx > 0 and 1 or -1) * math.min(pull, abs(dx) * 12) * dt
+    -- the suction tube steers every falling ball of a suction shot toward it:
+    -- it bends the sideways speed toward the speed that lands the ball in the
+    -- tube, and never touches the fall itself (not a magnet: no stopping, no lift)
+    if (ball.suction or state.suctionShot) and not state.noBucket and state.phase ~= E.PHASE.FEVER and ball.vy > 0 then
+        local above = bucketTop() - ball.y
+        local dx = state.bucket.x - ball.x
+        if above > 0 and above < E.SUCTION_REACH and abs(dx) < E.SUCTION_SIDE then
+            -- time left to fall to the tube's mouth
+            local g = E.GRAVITY
+            local tFall = (-ball.vy + sqrt(ball.vy * ball.vy + 2 * g * above)) / g
+            local want = dx / math.max(tFall, 0.05) + state.bucket.dir * E.BUCKET_SPEED
+            -- stronger the closer it gets
+            local k = (0.6 + 0.4 * (1 - above / E.SUCTION_REACH)) * (1 - abs(dx) / E.SUCTION_SIDE * 0.4)
+            local step = E.SUCTION_PULL * k * dt
+            local diff = want - ball.vx
+            if diff > step then diff = step elseif diff < -step then diff = -step end
+            ball.vx = ball.vx + diff
         end
     end
 
