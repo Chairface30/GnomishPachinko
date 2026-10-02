@@ -71,7 +71,7 @@ Fifteen layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs
 
 ## Art and audio
 
-Every picture is a named slot in `Art.lua` with a generated placeholder in `Textures/`; a finished sprite dropped in under the slot's name is used with no code change. `ASSETS.md` lists them all with sizes and rules. `tools/cut_sheet.py` slices a transparent sprite sheet into the slots from a small JSON map (`tools/sheets/`). The audio is all generated with ElevenLabs.
+Every picture is a named slot in `Art.lua` with a generated placeholder in `Textures/`; a finished sprite dropped in under the slot's name is used with no code change. `ASSETS.md` lists them all with sizes and rules. `tools/cut_sheet.py` slices a transparent sprite sheet into the slots from a small JSON map (`tools/sheets/`), and `tools/gen_sprites.py` fills every other slot through AutoSprite in the sheet's style (dry run until `--go`). The audio is all generated with ElevenLabs.
 
 ## Development
 

@@ -1,0 +1,335 @@
+{
+ "characters": {
+  "ball": "cmur6f3g20019oqycgm5rqjlc",
+  "egg": "cmur6f0ar0012oqychqq6x2tu"
+ },
+ "slots": {
+  "ball": {
+   "assetId": "cmur5rpuj0006tq7hyw0euu5p",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "ball_electric": {
+   "done": false,
+   "how": "pose",
+   "jobId": "cf_64313242-a971-4072-acb1-c7fdd6ec5754"
+  },
+  "ball_fire": {
+   "done": false,
+   "how": "pose",
+   "jobId": "cf_c82a37c9-2b28-4ce7-bf97-5ceed9066faa"
+  },
+  "ball_rainbow": {
+   "done": false,
+   "how": "pose",
+   "jobId": "cf_77c1b6ae-e49d-4cde-8cb2-1f096ae38e75"
+  },
+  "ball_small": {
+   "done": true,
+   "how": "derive"
+  },
+  "ball_spooky": {
+   "done": false,
+   "how": "pose",
+   "jobId": "cf_d2dff7de-a057-4ba0-a661-b3e2e5665d61"
+  },
+  "ball_wing": {
+   "done": false,
+   "how": "pose",
+   "jobId": "cf_2cfe03d5-f93f-4281-a4f8-d4927fac537f"
+  },
+  "banner": {
+   "assetId": "cmur69fhw0001ujyvdrhyydqj",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "block": {
+   "assetId": "cmur5tlwn000ni1b3o3h11pua",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "boss_boar": {
+   "assetId": "cmur5xsdb000caphttr88951m",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "boss_drake": {
+   "assetId": "cmur5w9lc000qv47i4angpa2k",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "boss_golem": {
+   "assetId": "cmur5ws0j000dnflo5cr5m6dh",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "boss_spider": {
+   "assetId": "cmur5xahn000xnfloe2i92ou6",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "boss_yeti": {
+   "assetId": "cmur5yaaf000710j6pcm2wkq7",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "bumper": {
+   "assetId": "cmur5t0im0005i1b35gpcofa4",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "cage_gold": {
+   "assetId": "cmur5uho60002kw8d4chap06j",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "cage_silver": {
+   "done": true,
+   "how": "derive"
+  },
+  "card": {
+   "assetId": "cmur68ny0000jqpwagkkywecw",
+   "done": true,
+   "how": "asset"
+  },
+  "confetti": {
+   "assetId": "cmur6do9g0023v47ii475p8mk",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "egg": {
+   "assetId": "cmur5ve2r0008fm0uokx5s5ew",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "egg_cracked": {
+   "done": false,
+   "how": "pose",
+   "jobId": "cf_68f08ba5-2481-46a4-80af-6e0f27351e96"
+  },
+  "egg_hatched": {
+   "done": false,
+   "how": "pose",
+   "jobId": "cf_7b0ec02b-e3a2-4808-83c4-65fc43a84290"
+  },
+  "fever_bucket": {
+   "assetId": "cmur5zl2s0001uu6ha010te1p",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "fever_bucket_lit": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_1": {
+   "assetId": "cmur6cwb20007d4lldygt9spd",
+   "done": true,
+   "how": "asset"
+  },
+  "firework": {
+   "assetId": "cmur6e3l4000cvdgla188te4d",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "frame_bg": {
+   "assetId": "cmur689vn001uv47i0hj5ox5v",
+   "done": true,
+   "how": "asset"
+  },
+  "gauge": {
+   "assetId": "cmur68zfm0001xl1z08b2lfqt",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "gauge_fill": {
+   "done": true,
+   "how": "derive"
+  },
+  "gem": {
+   "assetId": "cmur5vtpb000f11nfunqm8f92",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "goal_boss": {
+   "assetId": "cmur66s8m0009fjoueovz06tu",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "goal_duel": {
+   "assetId": "cmur67cke000g3eeru9uke11s",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "goal_egg": {
+   "assetId": "cmur65sej000bzl5bmvyvsqja",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "goal_gem": {
+   "assetId": "cmur669kd0003vw84yokax2h6",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "goal_longshot": {
+   "assetId": "cmur67u1l001fv47iitn4qd9y",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "goal_orange": {
+   "assetId": "cmur65c060001udyc9qyumk1u",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "item_green": {
+   "assetId": "cmur64vl60001bt7mmjtzusnv",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "item_rainbow": {
+   "assetId": "cmur64dps0004v63lupc5oila",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "item_ring": {
+   "assetId": "cmur63viv000dzxl05dit8aah",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "key_gold": {
+   "assetId": "cmur5uy1u0006kw8doryggehm",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "key_silver": {
+   "done": true,
+   "how": "derive"
+  },
+  "launcher_barrel": {
+   "assetId": "cmur5yqph000yv47iv08zwmob",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "launcher_hub": {
+   "assetId": "cmur5z49e000c10j6f6jt5r75",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_1": {
+   "assetId": "cmur6ci2x000110t3ahdhqye4",
+   "done": true,
+   "how": "asset"
+  },
+  "map_node": {
+   "assetId": "cmur69v3e0011nul9la4d9ilf",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "map_node_boss": {
+   "assetId": "cmur6bryn00089i0mj4dskvah",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "map_node_done": {
+   "assetId": "cmur6awhh0005bl4twq7juthe",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "map_node_locked": {
+   "assetId": "cmur6bbsa0004zb83hsyl7lba",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "minimap": {
+   "assetId": "cmur6d8ck000od4llpps9vwtn",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_blast": {
+   "assetId": "cmur60ycu000110f5bgxcy3rh",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_fireball": {
+   "assetId": "cmur61hj20001gs2i0dn5ecgz",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_frenzy": {
+   "assetId": "cmur63fqs0001zxl0md038c5k",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_guide": {
+   "assetId": "cmur60isy000suo8bhoqkljs3",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_lightning": {
+   "assetId": "cmur62xml000113yjyei72h29",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_multiball": {
+   "assetId": "cmur603hh0018uu6h5zv3sw9y",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_pyramid": {
+   "assetId": "cmur62hsn000cylwmyac9gwn7",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "power_spooky": {
+   "assetId": "cmur61zrs0001gzo18yt0aq00",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "rail": {
+   "assetId": "cmur5u1g6000hfuapv7ox7nvq",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  }
+ }
+}

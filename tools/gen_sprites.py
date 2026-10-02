@@ -466,7 +466,7 @@ def main():
                         print(f"    background removal failed for {n}: {e}; stripping locally")
                 info = api.call("get_asset", assetId=entry["assetId"])
                 a = info.get("asset", info)
-                url = a.get("noBgImageUrl") or a.get("transparentImageUrl") or a.get("baseImageUrl")
+                url = (a.get("baseImageNoBgUrl") if not p["keep_bg"] else None) or a.get("baseImageUrl")
                 img = download(url)
                 if not p["keep_bg"]:
                     img = crop_content(strip_background(img))
