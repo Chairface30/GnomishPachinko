@@ -479,7 +479,7 @@ function UI:CreateFrame()
     self.itemSlots = {}
     for i, id in ipairs({ "ring", "rainbow", "suction" }) do
         local b = makeButton(frame, LEFT_W, 30, "")
-        b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", EDGE, EDGE + (i - 1) * 36)
+        b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", EDGE, EDGE + (3 - i) * 36)
         b.item = id
         buttonIcon(b, ART:Item(id), 20)
         b:SetScript("OnClick", function(self) UI:ToggleItem(self.item) end)
@@ -747,7 +747,7 @@ end
 function UI:CreateCard()
     local FW, FH = E.FIELD_W, E.FIELD_H
     local card = CreateFrame("Frame", nil, self.frame)
-    card:SetSize(430, 430)
+    card:SetSize(430, 470)
     card:SetPoint("CENTER", self.view, "CENTER", 0, 10)
     card:SetFrameLevel(self.field:GetFrameLevel() + 6)
     card.skin = ART:NewSkin(card, "card", "BACKGROUND", 0)
@@ -770,8 +770,14 @@ function UI:CreateCard()
     card.stars = makeStars(card, 30, 4)
     for i, s in ipairs(card.stars) do s:SetPoint("TOP", card, "TOP", (i - 2) * 36, -90) end
     card.line1 = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    card.line1:SetPoint("TOP", 0, -132)
-    card.line1:SetWidth(330)
+    card.line1:SetPoint("TOP", 18, -128)
+    card.line1:SetWidth(300)
+    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+    card.goalIcon = card:CreateTexture(nil, "ARTWORK")
+    card.goalIcon:SetSize(34, 34)
+    card.goalIcon:SetPoint("RIGHT", card.line1, "LEFT", -6, 0)
+    ART:Set(card.goalIcon, "goal_orange")
+    card.goalIcon:Hide()
     card.line2 = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.line2:SetPoint("TOP", card.line1, "BOTTOM", 0, -8)
     card.line2:SetWidth(330)
@@ -815,7 +821,12 @@ function UI:ShowStartCard()
     local card = self.card
     card.title:SetText(("|cffffd700%d. %s|r"):format(st.level, st.title or ""))
     setStars(card.stars, GP:GetDB().stars[st.level] or 0)
+    -- the goal, big and gold, with its icon: most players never read small print
+    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
+    card.line1:SetTextColor(1, 0.85, 0.25)
     card.line1:SetText(self:ObjectiveText(st))
+    ART:Set(card.goalIcon, ART:Goal(st.objective))
+    card.goalIcon:Show()
     local s2, s3 = L:StarScores(st.level)
     card.line2:SetText(("|cffffd7002 stars|r at %s   |cffffd7003 stars|r at %s"):format(fmtBig(s2), fmtBig(s3)))
     local extra = {}
@@ -905,6 +916,9 @@ function UI:ShowResultCard(result, stars)
     if result.duel then goalLine = ("YOU %s  -  %s %s"):format(fmtBig(result.duel.you), result.duel.name, fmtBig(result.duel.rival))
     elseif result.objective == "boss" then goalLine = cleared and "Boss beaten" or "The boss survived"
     else goalLine = ("%d of %d %s"):format(result.goals, result.goalTotal, def.goalWord) end
+    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+    card.line1:SetTextColor(1, 1, 1)
+    card.goalIcon:Hide()
     card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(result.score)))
     card.line2:SetText((cleared and "|cff66ff66done|r  " or "|cffff6060missed|r  ") .. goalLine)
     local s2, s3 = L:StarScores(st.level)
