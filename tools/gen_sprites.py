@@ -90,11 +90,11 @@ sheet("peg_blue", "peg_orange", "peg_green", "peg_purple",
       "bucket", "bucket_splash1", "spark1", "spark2", "plate", "callout_fever")
 # the sheet's button says START; the game writes its own labels, so the button is drawn blank
 asset("button_green", "prop", "wide rounded glossy green button with a dark green bevelled edge, blank, no text, four times as wide as tall, " + STYLE)
-pose("peg_purple_gone", "peg_purple", "the same purple orb shattering into flying shards and sparks, mid-burst, transparent background")
+pose("peg_purple_gone", "peg_purple", "the same purple orb broken into five separate flying glass shards with clear gaps between them and a few small sparks, mid-burst, nothing else")
 for c in ("blue", "orange", "green", "purple"):
     pose("brick_%s" % c, "peg_%s" % c, "the same %s glossy material shaped as a wide rounded rectangular bar, twice as wide as tall, lit from the top, no orb" % c)
     pose("brick_%s_lit" % c, "peg_%s_lit" % c, "the same glowing %s material shaped as a wide rounded rectangular bar twice as wide as tall, bright halo, no orb" % c)
-    pose("brick_%s_gone" % c, "peg_%s_gone" % c, "the same %s shards and sparks bursting from a wide rounded bar shape, no orb" % c)
+    pose("brick_%s_gone" % c, "peg_%s_gone" % c, "the same %s glass shards, now from a broken wide rounded bar: six separate rectangular fragments flying apart with gaps between them and small sparks, no orb" % c)
 asset("ball", "item", "small chrome steel ball, mirror polished, bright highlight, " + STYLE)
 pose("ball_fire", "ball", "the same ball wreathed in orange fire, flames trailing")
 pose("ball_electric", "ball", "the same ball crackling with blue electricity, small lightning arcs around it")
