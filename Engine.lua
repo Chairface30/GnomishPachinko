@@ -493,7 +493,7 @@ function E:Guide(state, maxT, every)
             nextSample = nextSample + every
         end
     end
-    return pts, first
+    return pts, first, x, y      -- the piece the ball first meets, and where the ball is then
 end
 
 local collideBall  -- forward
@@ -669,6 +669,8 @@ end
 -- and the kick puts energy back into the ball, so a ball either drops
 -- into a cup or is thrown back up.
 E.FEVER_BALLOON_R = 16
+E.BALLOON_BOUNCE  = 1.05     -- a balloon gives back a little more than it takes ...
+E.BALLOON_KICK    = 150      -- ... and never sends the ball off slower than this (a bumper: 1.3 and 260)
 E.FEVER_POST_R = E.FEVER_BALLOON_R
 E.FEVER_POST_Y = H - E.FEVER_BALLOON_R
 local function startFever(state, events)
@@ -679,7 +681,7 @@ local function startFever(state, events)
     local binW = W / #E.FEVER_BINS
     for i = 0, #E.FEVER_BINS do
         state.pegs[#state.pegs + 1] = { shape = "peg", x = i * binW, y = E.FEVER_POST_Y, r = E.FEVER_BALLOON_R,
-            kind = "bumper", post = true, balloon = true, bounce = E.BUMPER_BOUNCE }
+            kind = "bumper", post = true, balloon = true, bounce = E.BALLOON_BOUNCE, kick = E.BALLOON_KICK }
     end
     push(events, { type = "fever" })
 end
@@ -926,7 +928,7 @@ collideBall = function(state, ball, events, light)
                         ball.vy = ball.vy - k * ny
                         if p.kind == "bumper" or p.kind == "boss" then
                             -- never sends the ball away slower than its kick
-                            local kick = (p.kind == "boss") and E.BOSS_KICK or E.BUMPER_KICK
+                            local kick = p.kick or ((p.kind == "boss") and E.BOSS_KICK or E.BUMPER_KICK)
                             local out = ball.vx * nx + ball.vy * ny
                             if out < kick then
                                 ball.vx = ball.vx + (kick - out) * nx

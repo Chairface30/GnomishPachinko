@@ -286,6 +286,11 @@ function UI:CreateFrame()
 
     -- the barrel and its flash are made with the host's box below: they ride its rim
 
+    local ghost = field:CreateTexture(nil, "ARTWORK", nil, 2)
+    ART:SetPiece(ghost, "ball", E.BALL_R * 2 + 2)
+    ghost:SetAlpha(0.55)
+    ghost:Hide()
+    self.guideBall = ghost
     self.guideDots = {}
     for i = 1, 64 do
         local d = field:CreateTexture(nil, "ARTWORK", nil, 1)
@@ -680,6 +685,7 @@ function UI:CreateFrame()
     self:CreateLevelSelect()
     self:CreatePlaysPanel()
     self:CreateCard()
+    if GP.Dialog then GP.Dialog:Create(frame, view, field:GetFrameLevel() + 30) end
     -- the host's box: a round frame centred over the field's top edge, the model inside it
     local box = CreateFrame("Frame", nil, frame)
     box:SetSize(PORTRAIT, PORTRAIT)
@@ -809,17 +815,7 @@ function UI:ShowStartCard()
     if st.duel then extra[#extra + 1] = st.duel.blurb end
     local best = GP:GetDB().best[st.level]
     if best then extra[#extra + 1] = "Best " .. fmtBig(best) end
-    -- the first tip that applies and has not been shown
-    local db = GP:GetDB()
-    db.tips = db.tips or {}
     self.cardTip = nil
-    for _, tip in ipairs(TIPS) do
-        if not db.tips[tip.key] and tip.when(st) then
-            self.cardTip = tip.key
-            extra = { "|cffffd700" .. tip.text .. "|r" }
-            break
-        end
-    end
     card.line3:SetText(table.concat(extra, "  -  "))
     card.main.text:SetText("PLAY")
     card.main:SetScript("OnClick", function() UI:PlayFromCard() end)
@@ -1369,9 +1365,15 @@ function UI:StartLevel(n, retry)
     self:HideGuide()
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
     GP:PlayVoice(spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start"))
-    self:ShowStartCard()
     GP.Mascot:React("start")
     self:UpdateDisplay()
+    local talk = GP.Dialog and GP.Dialog:For(self.state) or {}
+    if #talk > 0 then
+        self.cardSheet:Show()
+        GP.Dialog:Play(talk, function() UI:ShowStartCard() end)
+    else
+        self:ShowStartCard()
+    end
     return true
 end
 
@@ -1579,14 +1581,22 @@ end
 
 function UI:HideGuide()
     for _, d in ipairs(self.guideDots) do d:Hide() end
+    if self.guideBall then self.guideBall:Hide() end
     self.guideAim = nil
 end
 
 function UI:DrawGuide()
     local st = self.state
-    local pts
+    local pts, hit, hx, hy
     local super = st.superGuide > 0
-    if super then pts = E:Simulate(st) else pts = E:Guide(st) end
+    if super then pts = E:Simulate(st) else pts, hit, hx, hy = E:Guide(st) end
+    -- the ball drawn where it first meets a piece (walls do not count)
+    if hit and hx then
+        placeAt(self.guideBall, self.field, hx, hy)
+        self.guideBall:Show()
+    else
+        self.guideBall:Hide()
+    end
     for i, d in ipairs(self.guideDots) do
         local p = pts[i]
         if p then
@@ -1622,14 +1632,14 @@ function UI:CursorField()
     return cx / scale - left, top - cy / scale
 end
 
--- Left/Right nudge the aim by 1.2 degrees, Space pauses. Other keys pass
+-- Left/Right nudge the aim by a quarter of a degree, Space pauses. Other keys pass
 -- through to the game where the client allows it.
 function UI:OnKey(key)
     local st = self.state
     local handled = false
     if key == "LEFT" or key == "RIGHT" then
         if st and st.phase == E.PHASE.AIM then
-            local step = 1.2 * math.pi / 180
+            local step = 0.25 * math.pi / 180
             st.aim = math.max(-E.MAX_AIM_DEG * math.pi / 180, math.min(E.MAX_AIM_DEG * math.pi / 180, (st.aim or 0) + (key == "LEFT" and -step or step)))
             self.keyAimUntil = GetTime() + 2
             self.keyAimCursor = { self:CursorField() }

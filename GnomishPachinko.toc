@@ -16,3 +16,4 @@ Plays.lua
 UI.lua
 Minimap.lua
 Mascot.lua
+Dialog.lua

@@ -38,7 +38,7 @@ Powers unlock one per chapter and the level card lets you pick any you have: Mul
 
 Two power-ups can be armed for a shot from the slots at the field's bottom-left: Ring of Fire (the first hit also hits everything in a small ring) and Rainbow Ball (a wide ring). The level card offers one boost, Extra Green Peg. They are earned, never bought: a Ring of Fire for every clear, an Extra Green Peg for three stars, two Rainbow Balls for a boss or a duel won.
 
-With the mouse over the field, Left and Right nudge the aim by 1.2 degrees and Space pauses.
+With the mouse over the field, Left and Right nudge the aim by a quarter of a degree and Space pauses. The guide shows a faint ball where the shot first meets a piece.
 
 ### Stars
 

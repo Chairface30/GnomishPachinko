@@ -154,7 +154,7 @@
    "jobId": "cf_3dbabd24-02d8-4c46-9702-5658f4360b95"
   },
   "bucket": {
-   "assetId": "cmurf1bii0001smrmot8ltlnz",
+   "assetId": "cmurhqwax0002124ozuygivjz",
    "bgRemoved": true,
    "done": true,
    "how": "asset"
@@ -265,6 +265,52 @@
    "bgRemoved": true,
    "done": true,
    "how": "asset"
+  },
+  "fever_tube": {
+   "assetId": "cmurhrbr70009fidr2io4n4dz",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "fever_tube_e": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_e_lit": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_g": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_g_lit": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_m": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_m_lit": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_n": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_n_lit": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_o": {
+   "done": true,
+   "how": "derive"
+  },
+  "fever_tube_o_lit": {
+   "done": true,
+   "how": "derive"
   },
   "field_bg_1": {
    "done": true,
@@ -592,7 +638,7 @@
    "how": "asset"
   },
   "field_boss_4": {
-   "assetId": "cmurh86gj001912zefnyqhvfd",
+   "assetId": "cmurhsrul0001blxenn42x4lq",
    "done": true,
    "how": "asset"
   },
@@ -701,6 +747,12 @@
   },
   "item_ring": {
    "assetId": "cmur63viv000dzxl05dit8aah",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
+  "item_suction": {
+   "assetId": "cmurhrv4s0005rfyg0d7japgk",
    "bgRemoved": true,
    "done": true,
    "how": "asset"
@@ -903,7 +955,7 @@
    "how": "asset"
   },
   "map_bg_4": {
-   "assetId": "cmurgsils000727qddkz4uwew",
+   "assetId": "cmurhsdbm0006szez4l0sxr0c",
    "done": true,
    "how": "asset"
   },
@@ -1015,6 +1067,12 @@
   "peg_purple_lit": {
    "done": true,
    "how": "sheet"
+  },
+  "phoenix": {
+   "assetId": "cmurht4j7000b13vx99ilm2l0",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
   },
   "plate": {
    "done": true,

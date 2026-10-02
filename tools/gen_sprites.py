@@ -164,7 +164,7 @@ asset("map_node_boss", "item", "round red iron level button with a skull, " + ST
 BIOMES = [('Elwynn Forest', 'sunlit oak forest with meadows, a stream and a farmhouse'),
           ('Durotar', 'red desert of dry earth, cacti and rust-coloured canyons'),
           ('Dun Morogh', 'snowy pine mountains with frozen lakes and stone huts'),
-          ('Mulgore', 'golden rolling grassland with mesas and totem poles'),
+          ('Mulgore', 'a high golden grassland plateau on top of flat mesas with sheer cliff edges, tauren tents and totems'),
           ('Teldrassil', 'moonlit forest of giant purple-leafed trees and glowing lanterns'),
           ('Tirisfal Glades', 'gloomy dead forest with graveyards, fog and crooked trees'),
           ('Westfall', 'dry golden farmland with windmills and haystacks under a hazy sky'),

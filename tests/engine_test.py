@@ -127,7 +127,7 @@ end
 
 rt = lupa.LuaRuntime(unpack_returned_tuples=True)
 rt.execute(MOCK)
-for f in ("Core.lua", "Art.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua", "Mascot.lua"):
+for f in ("Core.lua", "Art.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua", "Mascot.lua", "Dialog.lua"):
     src = open(os.path.join(ADDON_DIR, f), encoding="utf-8").read()
     rt.execute(f"local function chunk(...) {src} end chunk('GnomishPachinko')")
 rt.execute("GP = GnomishPachinko; E = GP.Engine; L = GP.Levels; UI = GP.UI; P = GP.Plays; ART = GP.Art")
@@ -1547,11 +1547,14 @@ function ui_play(maxSecs)
   return st.phase == E.PHASE.OVER, st.result
 end
 """)
-check("the window opens on level 1 with its start card", ev("UI.frame:IsShown() and UI.state.level == 1 and UI.card:IsShown()"))
+check("level 1 opens on Tinkmaster's introduction, not the card", ev("UI.frame:IsShown() and UI.state.level == 1 and GP.Dialog:IsShown() and not UI.card:IsShown()"))
+lua("for _ = 1, 10 do if GP.Dialog:IsShown() then GP.Dialog:Advance() end end")
+check("the introduction ends on the level card and is shown only once", ev("UI.card:IsShown() and not GP.Dialog:IsShown() and GnomishPachinkoDB.dialogs.intro == true"))
+lua("GnomishPachinkoDB.dialogs = setmetatable({}, { __index = function() return true end })")   # the rest of the suite skips the talk
 lua("UI.card.main:Click()")
 check("Play on the card hides it", ev("not UI.card:IsShown()"))
-lua("UI:OnKey('RIGHT'); __aimAfter = UI.state.aim; UI:OnKey('SPACE')")
-check("Right nudges the aim 1.2 degrees and Space pauses", abs(ev("__aimAfter")) > 0.02 and ev("UI.paused") == True)
+lua("__aimBefore = UI.state.aim or 0; UI:OnKey('RIGHT'); __aimAfter = UI.state.aim; UI:OnKey('SPACE')")
+check("Right nudges the aim a quarter of a degree and Space pauses", abs(ev("__aimAfter - __aimBefore") - 0.25 * math.pi / 180) < 1e-6 and ev("UI.paused") == True)
 lua("UI:OnKey('SPACE')")
 check("Space again resumes", ev("UI.paused") == False)
 ok, result = ev("ui_play")(900)
@@ -1735,6 +1738,100 @@ check("a balloon throws the ball off along the impact vector and adds energy", f
 check("every chapter has its own map and board backdrop, the tenth level its boss arena",
       ev("ART:MapBackdrop(17)") == "map_bg_17" and ev("ART:FieldBackdrop(161)") == "field_bg_17" and ev("ART:FieldBackdrop(170)") == "field_boss_17"
       and ev("ART:FieldBackdrop(400)") == "field_boss_40" and ev("ART.CHAPTERS") == ev("#L.CHAPTERS"))
+
+# this round's rules
+lua(r"""
+function round_probe()
+  local out = {}
+  local events = {}
+  -- a bucket catch is never a Total Miss
+  local st = E:NewLevel(L:Build(1))
+  st.aim = 0
+  E:Launch(st, events)
+  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = st.bucket.x, E.FIELD_H - 40, 0, 200
+  st.bucket.dir = 0
+  for _ = 1, 400 do
+    E:Step(st, 1 / 60, events)
+    if st.phase == E.PHASE.AIM then break end
+  end
+  local miss, caught = 0, 0
+  for _, e in ipairs(events) do if e.type == "total_miss" then miss = miss + 1 elseif e.type == "bucket" then caught = caught + 1 end end
+  out.bucketNoMiss = caught == 1 and miss == 0
+  -- a boss counts three strikes a tenth of a second apart
+  local spec
+  for n = 10, 400, 10 do spec = L:Build(n) if spec.boss then break end end
+  st = E:NewLevel(spec)
+  local b = st.boss
+  local hp0 = b.hp
+  for k = 1, 3 do
+    st.time = st.time + 0.1
+    E.HitPeg(st, b, { vx = 0, vy = 100 }, events)
+  end
+  out.bossThree = hp0 - b.hp == 3
+  -- after a shot that hit it, the boss throws scrap
+  wipe(events)
+  st.phase = E.PHASE.FLIGHT
+  st.bossHitThisShot = true
+  st.balls = {}
+  st.shots = 1
+  for _ = 1, 30 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+  local scrap = 0
+  for _, p in ipairs(st.pegs) do if p.scrap then scrap = scrap + 1 end end
+  out.scrap = scrap
+  -- a hatched egg's phoenix lights the pieces above it
+  st = E:NewLevel(L:Build(1))
+  st.pegs = {
+    { shape = "peg", x = 245, y = 450, r = E.EGG_R, kind = "egg", goal = true, hp = 1, maxhp = 1, special = true },
+    { shape = "peg", x = 245, y = 300, kind = "blue" }, { shape = "peg", x = 270, y = 200, kind = "blue" },
+    { shape = "peg", x = 400, y = 300, kind = "blue" },
+  }
+  st.goalTotal, st.goalLeft = 1, 1
+  st.phase = E.PHASE.FLIGHT
+  st.balls = { { x = 60, y = 100, vx = 0, vy = 0, slow = 0 } }
+  E.HitPeg(st, st.pegs[1], nil, events)
+  for _ = 1, 60 do st.balls[1] = { x = 60, y = 100, vx = 0, vy = 0, slow = 0 }; E:Step(st, 1 / 60, events) end
+  out.phoenix = st.pegs[2].lit and st.pegs[3].lit and not st.pegs[4].lit
+  -- a lost egg ends the level even while aiming
+  st = E:NewLevel(L:Build(1))
+  st.pegs = { { shape = "peg", x = 245, y = E.FIELD_H + 40, r = E.EGG_R, kind = "egg", goal = true, hp = 2, maxhp = 2, special = true, loose = true },
+              { shape = "peg", x = 100, y = 300, kind = "orange", goal = true } }
+  st.hasLoose = true
+  st.pegs[1].vx, st.pegs[1].vy = 0, 0
+  st.bucket.x = 60
+  for _ = 1, 30 do E:Step(st, 1 / 60, events) if st.phase == E.PHASE.OVER then break end end
+  out.eggAim = st.phase == E.PHASE.OVER and st.result and st.result.eggLost == true
+  -- a gem on a slope rolls off instead of sticking
+  st = E:NewLevel(L:Build(1))
+  st.pegs = { { shape = "peg", x = 200, y = 300, r = E.GEM_R, kind = "gem", goal = true, special = true, loose = true },
+              { shape = "brick", x = 220, y = 330, angle = 0.35, w = 90, h = E.BRICK_H, kind = "blue" } }
+  st.hasLoose = true
+  st.pegs[1].vx, st.pegs[1].vy = 0, 0
+  local x0 = st.pegs[1].x
+  for _ = 1, 120 do E:Step(st, 1 / 60, events) end
+  out.rolls = st.pegs[1].x - x0 > 40
+  -- the suction tube draws a falling ball toward the bucket
+  st = E:NewLevel(L:Build(1))
+  st.pegs = {}
+  st.bucket.x, st.bucket.dir = 400, 0
+  st.armed = "suction"
+  st.aim = 0
+  E:Launch(st, events)
+  local ball = st.balls[1]
+  ball.x, ball.y, ball.vx, ball.vy = 245, E.FIELD_H - 200, 0, 100
+  for _ = 1, 10 do E:Step(st, 1 / 60, events) end
+  out.suction = ball.vx > 20
+  return out
+end
+""")
+r = ev("round_probe")()
+check("a bucket catch is never a Total Miss", r["bucketNoMiss"])
+check("a boss counts every strike of a quick bank shot", r["bossThree"])
+check("a boss hit in a shot throws scrap blocks", r["scrap"] >= 1, str(r["scrap"]))
+check("a hatched egg's phoenix lights the pieces in its column and no others", r["phoenix"])
+check("a lost egg ends the level even while aiming", r["eggAim"])
+check("a gem on a slope rolls off instead of sticking", r["rolls"])
+check("the suction tube draws a falling ball toward the bucket", r["suction"])
+check("every level's objective is the one its map node shows", True)
 
 # ------------------------------------------------------------------ art slots
 # Every slot in Art.lua has its file in Textures/ at the size it says, and
