@@ -52,7 +52,9 @@ function BreakUpLargeNumbers(n) return tostring(n) end
 __printed = {}
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) __printed[#__printed + 1] = m end }
 __sfx = 0
-function PlaySoundFile() __sfx = __sfx + 1 end
+__played_files, __stopped = {}, {}
+function PlaySoundFile(path) __sfx = __sfx + 1; __played_files[#__played_files + 1] = path; return true, __sfx end
+function StopSound(handle, fade) __stopped[#__stopped + 1] = { handle, fade } end
 __cursor = { x = 270, y = 300 }
 function GetCursorPosition() return __cursor.x, __cursor.y end
 SlashCmdList = {}
@@ -1550,7 +1552,10 @@ function ui_play(maxSecs)
 end
 """)
 check("level 1 opens on Tinkmaster's introduction, not the card", ev("UI.frame:IsShown() and UI.state.level == 1 and GP.Dialog:IsShown() and not UI.card:IsShown()"))
+lua("__stopped = {}; GP.Dialog:Advance(); __cut = __stopped[1] and __stopped[1][2]")
+check("Continue cuts the spoken line off at once", ev("__cut") == 0)
 lua("for _ = 1, 10 do if GP.Dialog:IsShown() then GP.Dialog:Advance() end end")
+check("the introduction plays each line's spoken clip", ev('(function() for _, p in ipairs(__played_files) do if p:find("Voice\\\\dialog\\\\intro_1.ogg", 1, true) then return true end end return false end)()'))
 check("the introduction ends on the level card and is shown only once", ev("UI.card:IsShown() and not GP.Dialog:IsShown() and GnomishPachinkoDB.dialogs.intro == true"))
 lua("GnomishPachinkoDB.dialogs = setmetatable({}, { __index = function() return true end })")   # the rest of the suite skips the talk
 lua("UI.card.main:Click()")
@@ -1826,6 +1831,24 @@ end
 first, last, free = ev("drake_probe")()
 check("the Tin Drake throws scrap after every shot, even a miss, and keeps three columns clear",
       first >= 1 and last > first and free >= 3, f"{first} {last} {free}")
+
+# arming the Suction Tube starts the tube sucking; disarming it unfired stops it
+lua("""
+GnomishPachinkoDB.unlocked = 400
+UI:StartLevel(3)
+if UI.card:IsShown() then UI.card.main:Click() end
+UI.state.noBucket = false
+GP:ToggleUnlimited()
+UI:ToggleItem("suction")
+__advance(0.2)
+__suckArmed = UI.bucket.slot
+UI:ToggleItem("suction")
+__advance(0.2)
+__suckDisarmed = UI.bucket.slot
+GP:ToggleUnlimited()
+""")
+check("arming the Suction Tube starts the tube sucking, disarming it unfired stops it",
+      ev("__suckArmed") == "bucket_suck" and ev("__suckDisarmed") == "bucket", f"{ev('__suckArmed')} {ev('__suckDisarmed')}")
 
 # this round's rules
 lua(r"""

@@ -2721,9 +2721,13 @@ function UI:Render(now)
         self.bucket:SetPoint("TOP", field, "TOPLEFT", st.bucket.x, -(E.BucketTop() - 22))
     end
     -- a Suction Tube ball in flight: the tube sucks, and whooshes
+    -- (from the moment it is armed, until the ball lands or it is disarmed unfired)
     local sucking = false
-    if st.phase == E.PHASE.FLIGHT and not st.noBucket then
-        for _, b in ipairs(st.balls) do if b.suction then sucking = true break end end
+    if not st.noBucket then
+        if st.phase == E.PHASE.AIM and st.armed == "suction" then sucking = true end
+        if st.phase == E.PHASE.FLIGHT then
+            for _, b in ipairs(st.balls) do if b.suction then sucking = true break end end
+        end
     end
     if sucking then
         local frame = math.floor(now * 14) % 16

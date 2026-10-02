@@ -3,9 +3,10 @@
     Short conversations before a level: Tinkmaster introduces himself,
     explains each mechanic the first time it turns up, and the
     adversaries (the bosses and his brother Cogwhistle) introduce
-    themselves, each as a creature model from the game. Nobody speaks
-    words: every line plays a mumble ("mrh hrm wah"), a high chatter for
-    the gnomes and a low grumble for the machines. A conversation is shown
+    themselves, each as a creature model from the game. Every line is
+    spoken (Sounds/Voice/dialog/<script>_<n>.ogg, voiced by
+    tools/gen_dialog.py); a line with no clip falls back to a mumble.
+    Continue and Skip cut the voice off at once. A conversation is shown
     once (db.dialogs) and the level card follows it.
 ]]
 
@@ -176,7 +177,9 @@ function D:Play(list, done)
     self.queue = {}
     for _, sc in ipairs(list) do
         db()[sc.key] = true
-        for _, line in ipairs(sc.lines) do self.queue[#self.queue + 1] = line end
+        for n, line in ipairs(sc.lines) do
+            self.queue[#self.queue + 1] = { line[1], line[2], clip = sc.key .. "_" .. n }
+        end
     end
     self.done = done
     self.index = 0
@@ -197,10 +200,31 @@ function D:Show(line)
         if self.model.SetCamera then pcall(self.model.SetCamera, self.model, 0) end
     end
     if self.model.SetAnimation then pcall(self.model.SetAnimation, self.model, 60) end   -- talk
-    GP:PlaySfx(sp.voice .. math.random(self.MUMBLES) .. ".ogg")
+    self:StopVoice()
+    local willPlay, handle = self:PlayLine(line.clip)
+    if not willPlay then
+        willPlay, handle = GP:PlaySfx(sp.voice .. math.random(self.MUMBLES) .. ".ogg")
+    end
+    self.voiceHandle = handle
+end
+
+-- The spoken line, on the Dialog channel (the voice setting can mute it).
+function D:PlayLine(clip)
+    local db = GP:GetDB()
+    if not clip or db.sound == false or db.voice == false then return false end
+    local ok, willPlay, handle = pcall(PlaySoundFile, "Interface\\AddOns\\GnomishPachinko\\Sounds\\Voice\\dialog\\" .. clip .. ".ogg", "Dialog")
+    if ok then return willPlay, handle end
+    return false
+end
+
+-- Cuts the current line off at once.
+function D:StopVoice()
+    if self.voiceHandle and type(StopSound) == "function" then pcall(StopSound, self.voiceHandle, 0) end
+    self.voiceHandle = nil
 end
 
 function D:Advance()
+    self:StopVoice()
     self.index = (self.index or 0) + 1
     local line = self.queue and self.queue[self.index]
     if not line then return self:Finish() end
@@ -209,6 +233,7 @@ function D:Advance()
 end
 
 function D:Finish()
+    self:StopVoice()
     if self.panel then self.panel:Hide() end
     self.queue, self.speaker = nil, nil
     local done = self.done
