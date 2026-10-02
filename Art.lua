@@ -96,6 +96,7 @@ for _, c in ipairs(ART.PEG_COLORS) do
 end
 slot("bumper",      64, 64, { fill = 0.7, note = "a star bumper: throws the ball back harder" })
 slot("block",       64, 64, { fill = 0.7, note = "a round solid steel block: never lights" })
+slot("boss_platform", 128, 64, { note = "a round gnomish hover platform seen from the front and a little above: brass rim, riveted steel top, a blue glow underneath. The boss's model stands on it" })
 slot("web",         64, 64, { fill = 0.7, note = "a round silvery spider web, spokes and rings, the Gyro Spider's: catches a ball" })
 slot("rail",        64, 32, { fill = 0.9, note = "a solid grey steel bar with end caps: never lights" })
 slot("cage_gold",   64, 32, { fill = 0.9, note = "one gold bar of a key cage, stretched like a brick" })

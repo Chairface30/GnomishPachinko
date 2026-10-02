@@ -818,6 +818,27 @@ def web_img(size, fill=0.7):
     return img
 
 
+def platform_img(w, h):
+    bw, bh = w * SS, h * SS
+    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    glow = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).ellipse([bw * 0.12, bh * 0.45, bw * 0.88, bh * 0.98], fill=(90, 170, 255, 150))
+    from PIL import ImageFilter
+    img = Image.alpha_composite(img, glow.filter(ImageFilter.GaussianBlur(SS * 4)))
+    d = ImageDraw.Draw(img)
+    d.ellipse([bw * 0.04, bh * 0.22, bw * 0.96, bh * 0.78], fill=(150, 110, 45, 255))     # brass side
+    d.ellipse([bw * 0.04, bh * 0.12, bw * 0.96, bh * 0.66], fill=(205, 160, 70, 255))     # brass rim
+    d.ellipse([bw * 0.1, bh * 0.17, bw * 0.9, bh * 0.61], fill=(120, 128, 140, 255))      # steel top
+    d.ellipse([bw * 0.2, bh * 0.24, bw * 0.8, bh * 0.54], outline=(160, 168, 180, 255), width=SS)
+    for k in range(12):
+        a = k * 2 * math.pi / 12
+        x = bw / 2 + math.cos(a) * bw * 0.43
+        y = bh * 0.39 + math.sin(a) * bh * 0.245
+        r = SS * 1.4
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(250, 220, 140, 255))
+    return img
+
+
 def dust_img(size):
     import random
     rnd = random.Random(11)
@@ -929,6 +950,7 @@ def make_all(slots, only, from_base):
         put("pyramid_crumble%d" % i, step_pyramid_img(512, 128, i))
     put("pyramid_dust", dust_img(128))
     put("web", web_img(64))
+    put("boss_platform", platform_img(128, 64))
     put("icon", addon_icon())
 
     for c, (body, hi) in COLORS.items():

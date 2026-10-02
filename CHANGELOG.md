@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Bosses are 3D.** Each boss is its creature model standing on a round hover platform that slides with it. It flinches when hit and plays its death when beaten. The flat face shows until the model loads, and stays if the client lacks the model.
 - Fixed: stray balloons appeared around the board in Fever and did nothing. They were old piece pictures from a bigger board, re-shown at their old spots when Fever added its balloons.
 - **Chain Lightning is a real bolt.** A jagged, flickering line with a blue glow leaps from the green peg to each piece in turn, flashing on each one, then fades.
 - The right column names the level's host above the Power line.

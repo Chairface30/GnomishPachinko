@@ -406,6 +406,21 @@ function UI:CreateFrame()
     self.ballStripMore:SetPoint("TOP", self.ballStrip[10], "BOTTOM", 0, -4)
     self.ballStripMore:SetText("")
 
+    -- the boss in 3D: its creature model riding a round hover platform that
+    -- slides with it. The flat face stays as the picture until the model has
+    -- loaded (and for good if the client has no such model).
+    local plat = field:CreateTexture(nil, "ARTWORK", nil, 0)
+    ART:Set(plat, "boss_platform")
+    plat:SetSize(E.BOSS_R * 3.4, E.BOSS_R * 1.3)
+    plat:Hide()
+    self.bossPlatform = plat
+    local bm = CreateFrame("PlayerModel", nil, field)
+    bm:SetSize(E.BOSS_R * 3.2, E.BOSS_R * 3.2)
+    if bm.EnableMouse then bm:EnableMouse(false) end
+    bm:Hide()
+    bm:SetScript("OnModelLoaded", function() UI:PoseBossModel() end)
+    self.bossModel = bm
+
     -- the boss's health bar and name
     local bossBg = field:CreateTexture(nil, "OVERLAY", nil, 5)
     bossBg:SetSize(72, 7)
@@ -1220,6 +1235,10 @@ function UI:SetBoardChrome(shown)
         self.bucket:Hide()
         self.splashTex:Hide()
     end
+    if self.bossModel then
+        if shown and self.bossModelNpc then self.bossModel:Show(); self.bossPlatform:Show()
+        else self.bossModel:Hide(); self.bossPlatform:Hide() end
+    end
 end
 
 function UI:ShowLevelSelect()
@@ -1693,9 +1712,70 @@ function UI:LayoutPegs(midLevel)
     if st.boss then
         self.bossName:SetText(st.boss.bossName or "Boss")
         self.bossBg:Show(); self.bossFill:Show(); self.bossName:Show()
+        if not midLevel or self.bossModelFor ~= st.boss.ability then self:LoadBossModel(st.boss.ability) end
     else
         self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
+        self:HideBossModel()
     end
+end
+
+-- The boss's creature model (the speaker's npc in Dialog.lua). A creature
+-- the client has not cached yet loads a moment later, so the call repeats
+-- until the model is there.
+UI.BOSS_ANIM = { stand = 0, wound = 9, death = 1, dead = 6 }
+function UI:LoadBossModel(ability)
+    local m = self.bossModel
+    local sp = GP.Dialog and GP.Dialog.SPEAKERS and GP.Dialog.SPEAKERS[ability]
+    self.bossModelFor = ability
+    self.bossModelNpc = sp and sp.npc
+    self.bossModelReady = false
+    self.bossAnim = nil
+    if m.ClearModel then pcall(m.ClearModel, m) end
+    if not self.bossModelNpc then return self:HideBossModel() end
+    self.bossPlatform:Show()
+    m:Show()
+    self.bossLoadToken = (self.bossLoadToken or 0) + 1
+    local token = self.bossLoadToken
+    local function try(left)
+        if token ~= self.bossLoadToken then return end
+        pcall(m.SetCreature, m, self.bossModelNpc)
+        self:PoseBossModel()
+        if not self:BossModelLoaded() and left > 0 and C_Timer and C_Timer.After then
+            C_Timer.After(0.25, function() try(left - 1) end)
+        end
+    end
+    try(12)
+end
+
+function UI:BossModelLoaded()
+    local m = self.bossModel
+    if not m.GetModelFileID then return true end
+    local ok, id = pcall(m.GetModelFileID, m)
+    return ok and id ~= nil
+end
+
+function UI:PoseBossModel()
+    local m = self.bossModel
+    pcall(function()
+        if m.SetCamera then m:SetCamera(0) end
+        m:SetPosition(0, 0, 0)
+        m:SetFacing(0.5)
+    end)
+    self.bossAnim = nil
+end
+
+function UI:HideBossModel()
+    self.bossLoadToken = (self.bossLoadToken or 0) + 1
+    self.bossModelFor, self.bossModelNpc, self.bossModelReady = nil, nil, false
+    self.bossModel:Hide()
+    self.bossPlatform:Hide()
+end
+
+function UI:BossAnim(which)
+    if self.bossAnim == which then return end
+    self.bossAnim = which
+    local m = self.bossModel
+    if m.SetAnimation then pcall(m.SetAnimation, m, self.BOSS_ANIM[which] or 0) end
 end
 
 function UI:HideGuide()
@@ -2684,6 +2764,26 @@ function UI:Render(now)
                     if flashing then t.ring:SetAlpha(1); t.ring:Show() else t.ring:Hide() end
                 elseif p.kind == "boss" then
                     ART:Set(t.disc, ART:Boss(p.ability))
+                    -- the model and its platform ride with the boss
+                    if self.bossModelNpc then
+                        if not self.bossModelReady and self:BossModelLoaded() then self.bossModelReady = true end
+                        self.bossPlatform:ClearAllPoints()
+                        self.bossPlatform:SetPoint("CENTER", field, "TOPLEFT", p.x, -(p.y + E.BOSS_R * 0.75))
+                        self.bossModel:ClearAllPoints()
+                        self.bossModel:SetPoint("BOTTOM", field, "TOPLEFT", p.x, -(p.y + E.BOSS_R * 0.8))
+                        if p.lit then
+                            if self.bossAnim ~= "death" and self.bossAnim ~= "dead" then
+                                self:BossAnim("death")
+                                self.bossDeadAt = now
+                            elseif self.bossAnim == "death" and now - (self.bossDeadAt or now) > 1.5 then
+                                self:BossAnim("dead")
+                            end
+                        elseif flashing then
+                            self:BossAnim("wound")
+                        else
+                            self:BossAnim("stand")
+                        end
+                    end
                     if p.lit then t.disc:SetVertexColor(0.4, 0.4, 0.4, 1) else t.disc:SetVertexColor(1, 1, 1, 1) end
                     if flashing and not t.flashed then
                         -- a hit flash: a soft glow over the face
@@ -2702,6 +2802,8 @@ function UI:Render(now)
                     t.ring:SetVertexColor(1, 0.5, 0.5, 1)
                     if flashing then t.ring:SetAlpha(1); t.ring:Show() else t.ring:Hide() end
                     t.shown = "boss"
+                    -- the loaded model replaces the flat face
+                    t.disc:SetAlpha(self.bossModelReady and 0 or 1)
                 elseif p.lit then
                     local c = COLORS[p.kind] or COLORS.blue
                     if t.shown ~= "lit" then
@@ -2780,7 +2882,7 @@ function UI:Render(now)
     -- the boss's bar follows it
     local b = st.boss
     if b and not b.gone then
-        local y = b.y - E.BOSS_R - 12
+        local y = b.y - (self.bossModelReady and (E.BOSS_R * 2.6 + 8) or (E.BOSS_R + 12))
         placeAt(self.bossBg, field, b.x, y)
         self.bossFill:ClearAllPoints()
         self.bossFill:SetPoint("LEFT", self.bossBg, "LEFT", 1, 0)

@@ -56,6 +56,7 @@ The authoritative list is `Art.lua` (run `python tools/make_textures.py --sheet 
 | `pyramid_crumble1..4.tga` | 512x128 | The same pyramid after 1 to 4 of its 5 strikes | 490x122 |
 | `pyramid_dust.tga` | 128x128 | A sandstone dust cloud: strikes and the collapse | varies |
 | `web.tga` | 64x64 | The Gyro Spider's web | 26x26 body |
+| `boss_platform.tga` | 128x64 | The round hover platform the boss's 3D model stands on | 88x34 |
 | `icon.tga` | 64x64 | Addon list icon (full colour) | 64 px |
 
 ### Pegs and bricks (full colour, three states each)

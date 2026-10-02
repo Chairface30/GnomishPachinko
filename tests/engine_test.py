@@ -1816,6 +1816,17 @@ __bigBoard = big > #st.pegs - 7
 """)
 check("no stray balloon pictures in Fever: the balloons are drawn only by the Fever art", ev("__stray") == 0, str(ev("__stray")))
 
+# the boss stands as its creature model on a platform that rides with it
+lua(r"""
+UI:StartLevel(10, true)
+__bmShown = UI.bossModel:IsShown() and UI.bossPlatform:IsShown()
+__bmNpc = UI.bossModelNpc
+UI:StartLevel(11, true)
+__bmGone = not UI.bossModel:IsShown() and not UI.bossPlatform:IsShown()
+""")
+check("a boss level shows the boss's creature model on its platform; other levels do not",
+      ev("__bmShown") and ev("__bmNpc") == 6235 and ev("__bmGone"), f'{ev("__bmShown")} {ev("__bmNpc")} {ev("__bmGone")}')
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
