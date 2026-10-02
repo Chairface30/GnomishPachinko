@@ -21,9 +21,9 @@ local WHITE = ART.WHITE
 -- box under it straddling the board's top edge; a column left of the board
 -- for the special-ball buttons; a column right of it with the info block at
 -- the top and the level and plays buttons at the bottom.
-local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 30, 110, 16, 240, 160
+local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 60, 110, 16, 240, 270
 local PAD = EDGE
-local PORTRAIT = 124                        -- the host's box
+local PORTRAIT = 2 * (E.LAUNCH_R - 12)      -- the host's box: the launcher slides round its rim
 local FANFARE_SECS = 6.0     -- length of Sounds/fanfare.ogg; it loops while Fever lasts
 local FX_POOL = 48           -- sparkle, confetti and glow textures in flight at once
 local TRAIL_LEN = 14         -- segments of the ball's ribbon
@@ -227,8 +227,8 @@ function UI:CreateFrame()
 
     -- the logo, centred over the board
     local logo = frame:CreateTexture(nil, "ARTWORK")
-    logo:SetSize(360, 90)
-    logo:SetPoint("TOP", frame, "TOP", (LEFT_W + GAP - GAP - SIDE_W) / 2, -14)
+    logo:SetSize(560, 140)
+    logo:SetPoint("TOP", frame, "TOP", (LEFT_W + GAP - GAP - SIDE_W) / 2, -6)
     ART:Set(logo, "logo")
     self.logo = logo
 
@@ -275,19 +275,7 @@ function UI:CreateFrame()
         s:SetPoint("CENTER", field, "TOPLEFT", 6 + math.random() * (FW - 12), -(6 + math.random() * (FH - 12)))
     end
 
-    local barrel = field:CreateTexture(nil, "ARTWORK", nil, 2)
-    barrel:SetSize(16, 32)
-    ART:Set(barrel, "launcher_barrel")
-    self.barrel = barrel
-    local hub = field:CreateTexture(nil, "ARTWORK", nil, 3)
-    hub:SetSize(26, 26)
-    ART:Set(hub, "launcher_hub")
-    hub:SetPoint("CENTER", field, "TOPLEFT", FW / 2, -E.LAUNCHER_Y)
-    local flash = field:CreateTexture(nil, "OVERLAY", nil, 5)
-    flash:SetSize(34, 34)
-    ART:Set(flash, "launcher_flash", 1, 0.9, 0.6)
-    flash:Hide()
-    self.flashTex = flash
+    -- the barrel and its flash are made with the host's box below: they ride its rim
 
     self.guideDots = {}
     for i = 1, 64 do
@@ -665,13 +653,12 @@ function UI:CreateFrame()
     -- the host's box: a round frame centred over the field's top edge, the model inside it
     local box = CreateFrame("Frame", nil, frame)
     box:SetSize(PORTRAIT, PORTRAIT)
-    box:SetPoint("CENTER", view, "TOP", 0, 24)
+    box:SetPoint("CENTER", view, "TOP", 0, -E.LAUNCH_CY)
     box:SetFrameLevel(field:GetFrameLevel() + 12)
     local boxBg = box:CreateTexture(nil, "BACKGROUND")
-    boxBg:SetSize(PORTRAIT - 14, PORTRAIT - 14)
+    boxBg:SetSize(PORTRAIT - 10, PORTRAIT - 10)
     boxBg:SetPoint("CENTER")
-    boxBg:SetTexture(WHITE)
-    boxBg:SetVertexColor(0.03, 0.04, 0.14, 1)
+    ART:Set(boxBg, "dot", 0.03, 0.04, 0.14)   -- a dark disc behind the host
     self.portraitBox = box
     if GP.Mascot then GP.Mascot:Create(box, box, PORTRAIT - 16, PORTRAIT - 16) end
     local ringFrame = CreateFrame("Frame", nil, frame)
@@ -683,6 +670,16 @@ function UI:CreateFrame()
     ART:Set(ring, "portrait_frame")
     self.portraitRing = ring
     self.portraitRingFrame = ringFrame
+    -- the cannon slides round the box's rim, pointing the way the ball goes
+    local barrel = ringFrame:CreateTexture(nil, "OVERLAY", nil, 2)
+    barrel:SetSize(20, 40)
+    ART:Set(barrel, "launcher_barrel")
+    self.barrel = barrel
+    local flash = ringFrame:CreateTexture(nil, "OVERLAY", nil, 5)
+    flash:SetSize(34, 34)
+    ART:Set(flash, "launcher_flash", 1, 0.9, 0.6)
+    flash:Hide()
+    self.flashTex = flash
     self.events = {}
 end
 
@@ -693,7 +690,7 @@ end
 function UI:CreateCard()
     local FW, FH = E.FIELD_W, E.FIELD_H
     local card = CreateFrame("Frame", nil, self.frame)
-    card:SetSize(400, 380)
+    card:SetSize(430, 430)
     card:SetPoint("CENTER", self.view, "CENTER", 0, 10)
     card:SetFrameLevel(self.field:GetFrameLevel() + 6)
     card.skin = ART:NewSkin(card, "card", "BACKGROUND", 0)
@@ -710,13 +707,13 @@ function UI:CreateCard()
     self.cardSheet = sheet
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    card.title:SetPoint("TOP", 0, -38)
+    card.title:SetPoint("TOP", 0, -56)
     card.title:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
     card.title:SetWidth(340)
     card.stars = makeStars(card, 30, 4)
-    for i, s in ipairs(card.stars) do s:SetPoint("TOP", card, "TOP", (i - 2) * 36, -72) end
+    for i, s in ipairs(card.stars) do s:SetPoint("TOP", card, "TOP", (i - 2) * 36, -90) end
     card.line1 = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    card.line1:SetPoint("TOP", 0, -114)
+    card.line1:SetPoint("TOP", 0, -132)
     card.line1:SetWidth(330)
     card.line2 = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.line2:SetPoint("TOP", card.line1, "BOTTOM", 0, -8)
@@ -742,7 +739,7 @@ function UI:CreateCard()
     card.boost:SetPoint("TOP", card.powerText, "BOTTOM", 0, -10)
     card.boost:SetScript("OnClick", function() UI:ToggleGreenBoost() end)
     card.main = makeButton(card, 150, 32, "PLAY")
-    card.main:SetPoint("BOTTOM", 0, 70)
+    card.main:SetPoint("BOTTOM", 0, 92)
     card.left = makeButton(card, 110, 26, "Map")
     card.left:SetPoint("BOTTOMLEFT", 30, 32)
     card.right = makeButton(card, 110, 26, "Retry")
@@ -790,7 +787,7 @@ function UI:ShowStartCard()
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right:Hide()
     card.left:ClearAllPoints()
-    card.left:SetPoint("BOTTOM", card, "BOTTOM", 0, 32)       -- alone: centred
+    card.left:SetPoint("BOTTOM", card, "BOTTOM", 0, 52)       -- alone: centred
     self.greenBoost = false
     self:RefreshCardChoices()
     card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.boost:Show()
@@ -889,9 +886,9 @@ function UI:ShowResultCard(result, stars)
     styleButton(card.right, GP.Plays:Remaining() >= (self.pendingFail and 2 or 1), 0.45, 0.3, 0.2)
     card.right:Show()
     card.left:ClearAllPoints()                                -- the pair, centred as a group
-    card.left:SetPoint("BOTTOM", card, "BOTTOM", -66, 32)
+    card.left:SetPoint("BOTTOM", card, "BOTTOM", -66, 52)
     card.right:ClearAllPoints()
-    card.right:SetPoint("BOTTOM", card, "BOTTOM", 66, 32)
+    card.right:SetPoint("BOTTOM", card, "BOTTOM", 66, 52)
     card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
     if result.rewards and #result.rewards > 0 then
         local parts = {}
@@ -1162,7 +1159,7 @@ function UI:CreatePlaysPanel()
     self.playsPanel = panel
 
     panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    panel.title:SetPoint("TOP", 0, -190)
+    panel.title:SetPoint("TOP", 0, -200)
     panel.title:SetFont("Fonts\\FRIZQT__.TTF", 28, "OUTLINE")
     panel.title:SetText("|cffff6060OUT OF PLAYS|r")
     panel.text = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
@@ -1183,7 +1180,7 @@ function UI:CreatePlaysPanel()
     panel.how:SetWidth(FW - 120)
     panel.how:SetTextColor(0.75, 0.75, 0.85)
     panel.levels = makeButton(panel, 140, 26, "Level select")
-    panel.levels:SetPoint("BOTTOM", 0, 32)
+    panel.levels:SetPoint("BOTTOM", 0, 52)
     panel.levels:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 end
 
@@ -2265,8 +2262,8 @@ function UI:Render(now)
     local field = self.field
 
     local a = st.aim or 0
-    local half = 15
-    placeAt(self.barrel, field, E.FIELD_W / 2 + math.sin(a) * half, E.LAUNCHER_Y + math.cos(a) * half)
+    local cx, cy = E.FIELD_W / 2, E.LAUNCH_CY
+    placeAt(self.barrel, field, cx + math.sin(a) * (E.LAUNCH_R - 16), cy + math.cos(a) * (E.LAUNCH_R - 16))
     if self.barrel.SetRotation then self.barrel:SetRotation(a) end
     -- the muzzle flash
     if self.flashAt then
@@ -2274,7 +2271,7 @@ function UI:Render(now)
             self.flashAt = nil
             self.flashTex:Hide()
         else
-            placeAt(self.flashTex, field, E.FIELD_W / 2 + math.sin(a) * (half + 18), E.LAUNCHER_Y + math.cos(a) * (half + 18))
+            placeAt(self.flashTex, field, cx + math.sin(a) * (E.LAUNCH_R + 8), cy + math.cos(a) * (E.LAUNCH_R + 8))
             if self.flashTex.SetRotation then self.flashTex:SetRotation(a) end
             self.flashTex:SetAlpha(1 - (now - self.flashAt) / FLASH_SECS)
             self.flashTex:Show()

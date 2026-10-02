@@ -143,7 +143,7 @@ for c in ("green", "orange", "grey"):
 derive("gauge", "plate", "copy")
 derive("gauge_fill", "button_green", "rainbow")
 asset("fever_post", "prop", "small round brass post with a domed riveted top, seen from above, " + STYLE)
-asset("logo", "item", "one game logo: the words GNOMISH PACHINKO in chunky glossy gold letters on a copper plate with gears and a blue orb, single wide emblem, " + STYLE)
+asset("logo", "item", "one very wide horizontal game logo banner: the words GNOMISH PACHINKO in chunky glossy gold letters across a long copper plate with gears at both ends, wide aspect, " + STYLE)
 asset("portrait_frame", "prop", "round ornate copper frame ring with rivets, hollow empty centre, thick, " + STYLE)
 asset("banner", "prop", "long horizontal navy ribbon banner with gold edges and notched ends, eight times as wide as tall, " + STYLE)
 asset("map_node", "item", "round carved wooden level button, brown, " + STYLE)

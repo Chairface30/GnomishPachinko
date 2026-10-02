@@ -56,7 +56,7 @@ local function buildReach()
     for c = 0, cols do reachFloor[c] = math.huge end
     for deg = -E.MAX_AIM_DEG, E.MAX_AIM_DEG do
         local a = deg * pi / 180
-        local x, y = FW / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+        local x, y = FW / 2 + sin(a) * E.LAUNCH_R, E.LAUNCH_CY + cos(a) * E.LAUNCH_R
         local vx, vy = sin(a) * E.LAUNCH_SPEED, cos(a) * E.LAUNCH_SPEED
         local dt = E.STEP
         for _ = 1, 600 do

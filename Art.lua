@@ -133,9 +133,9 @@ for _, id in ipairs(ART.ITEM_IDS) do slot("item_" .. id, 64, 64, { note = "power
 for _, id in ipairs(ART.GOAL_IDS) do slot("goal_" .. id, 32, 32, { note = "objective icon: " .. id }) end
 
 section("HUD, cards and map")
-slot("frame_bg",  512, 512, { inset = 32, edge = 24, note = "the window's copper plate, 9-slice" })
+slot("frame_bg",  512, 512, { inset = 60, edge = 40, note = "the window's copper plate, 9-slice: the painted border is the outer 60 px, drawn 40" })
 slot("plate",     256, 64,  { inset = 16, edge = 8, note = "an inset plate behind a readout" })
-slot("card",      512, 512, { inset = 32, edge = 24, note = "the parchment card: level start, result, out of plays" })
+slot("card",      512, 512, { inset = 60, edge = 36, note = "the card: level start, result, out of plays; 9-slice, border the outer 60 px, drawn 36" })
 for _, c in ipairs(ART.BUTTON_SKINS) do
     slot("button_" .. c,           256, 64, { inset = 16, edge = 8, note = c .. " button" })
     slot("button_" .. c .. "_down", 256, 64, { inset = 16, edge = 8, note = c .. " button, pressed" })

@@ -821,7 +821,11 @@ mult = ev("E.ScoreMultiplier")
 Eng = ev("E")
 check("the multiplier climbs with the share of the goal done", [mult(Eng, n, 25) for n in (0, 4, 5, 9, 10, 14, 15, 19, 20, 25)] == [1, 1, 2, 2, 3, 3, 5, 5, 10, 10])
 check("the ladder scales to a 15-orange level", [mult(Eng, n, 15) for n in (2, 3, 6, 9, 12)] == [1, 2, 3, 5, 10])
-check("the high corners hold no pieces", ev("L:ReachFloor(20)") > 120 and ev("L:ReachFloor(245)") < 60, f"{ev('L:ReachFloor(20)'):.0f} {ev('L:ReachFloor(245)'):.0f}")
+# the launcher slides round the host's box: shots start along its rim, so the
+# corners are reachable while the box's shadow in the centre is not
+check("the rim launcher reaches the corners and the host's box shadows the centre top",
+      ev("L:ReachFloor(20)") < 60 and 100 < ev("L:ReachFloor(245)") < 150 and ev("E.PEG_TOP") >= ev("E.LAUNCH_CY + E.LAUNCH_R"),
+      f"{ev('L:ReachFloor(20)'):.0f} {ev('L:ReachFloor(245)'):.0f}")
 check("the field has Peggle Blast's portrait proportions", abs(ev("E.FIELD_W / E.FIELD_H") - 0.7) < 0.01)
 check("the bucket returns balls", buckets > 0)
 

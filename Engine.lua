@@ -41,7 +41,13 @@ E.GEM_R       = 20
 E.BOSS_R      = 26
 E.BRICK_W     = 30
 E.BRICK_H     = 11
-E.LAUNCHER_Y  = 30
+-- The launcher slides round the rim of the host's round box, which hangs
+-- over the top of the field: the muzzle is LAUNCH_R from the box's centre
+-- (W / 2, LAUNCH_CY) in the aim's direction. The window sizes the box to
+-- match (LAUNCH_R less the barrel).
+E.LAUNCH_CY   = -10
+E.LAUNCH_R    = 136
+E.LAUNCHER_Y  = E.LAUNCH_CY
 E.PEG_TOP     = 150         -- the pattern zone, in field pixels (Levels maps its 600-wide design space into it)
 E.PEG_BOTTOM  = 480
 E.PEG_MARGIN  = 27
@@ -435,9 +441,11 @@ function E:Aim(state, tx, ty)
     return state.aim
 end
 
+local function muzzle(a)
+    return W / 2 + sin(a) * E.LAUNCH_R, E.LAUNCH_CY + cos(a) * E.LAUNCH_R
+end
 function E:MuzzlePos(state)
-    local a = state.aim or 0
-    return W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+    return muzzle(state.aim or 0)
 end
 
 local function firstContact(state, x, y)
@@ -1019,6 +1027,10 @@ local function integrateBall(state, ball, dt, events)
 
     collideBall(state, ball, events, true)
     collidePyramid(state, ball, events)
+    -- a piece against the wall can push the ball through it: keep it inside
+    if ball.x < R then ball.x = R; if ball.vx < 0 then ball.vx = -ball.vx * E.RESTITUTION end end
+    if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
+    if ball.y < R then ball.y = R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
 
     if state.phase == E.PHASE.FEVER then
         if ball.y + R >= H - 2 then
@@ -1099,7 +1111,7 @@ function E:RivalAim(state)
     local R = E.BALL_R
     for deg = -78, 78, 4 do
         local a = deg * pi / 180
-        local x, y = W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+        local x, y = muzzle(a)
         local b = { x = x, y = y, vx = sin(a) * E.LAUNCH_SPEED, vy = cos(a) * E.LAUNCH_SPEED, slow = 0 }
         local touched, value = {}, 0
         for _ = 1, floor(1.6 / E.STEP) do
@@ -1436,7 +1448,7 @@ local function substep(state, dt, events)
         -- FEVER_SHOT_GAP, each worth its bin
         if state.ballsLeft > 0 and state.time >= (state.feverNext or 0) then
             local a = (state.rng() - 0.5) * 2 * (E.MAX_AIM_DEG * pi / 180)
-            local x, y = W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+            local x, y = muzzle(a)
             state.aim = a
             state.balls[#state.balls + 1] = { x = x, y = y, vx = sin(a) * E.LAUNCH_SPEED, vy = cos(a) * E.LAUNCH_SPEED, slow = 0 }
             state.ballsLeft = state.ballsLeft - 1
