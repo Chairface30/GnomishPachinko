@@ -390,15 +390,14 @@ function UI:CreateFrame()
     splash:Hide()
     self.splashTex = splash
 
-    -- the dividers between the Fever cups (the engine adds them as pieces):
-    -- a post from the floor to the rim with a dome on top
+    -- the balloons between the Fever cups (the engine adds them as bumpers);
+    -- each squashes for a moment when a ball strikes it
     self.postTex = {}
-    local postH = E.FEVER_POST_H + E.FEVER_POST_R + 2
     for i = 1, #E.FEVER_BINS - 1 do
         local t = field:CreateTexture(nil, "OVERLAY", nil, 2)
-        ART:Set(t, "fever_post")
-        t:SetSize(E.FEVER_POST_W + 6, postH)
-        t:SetPoint("CENTER", field, "TOPLEFT", i * FW / #E.FEVER_BINS, -(FH - postH / 2))
+        ART:SetPiece(t, "fever_balloon", E.FEVER_BALLOON_R * 2)
+        t.x, t.y = i * FW / #E.FEVER_BINS, E.FEVER_POST_Y
+        t:SetPoint("CENTER", field, "TOPLEFT", t.x, -t.y)
         t:Hide()
         self.postTex[i] = t
     end
@@ -1883,6 +1882,11 @@ function UI:HandleEvents(now)
             end
         elseif t == "bumper" then
             GP:PlaySfx("bumper.ogg")
+            if ev.peg.balloon then
+                for _, b in ipairs(self.postTex) do
+                    if math.abs(b.x - ev.peg.x) < 1 then b.squashAt = now end
+                end
+            end
             local idx = self.pegIndex and self.pegIndex[ev.peg]
             local tx = idx and self.pegTex[idx]
             if tx then tx.flashUntil = now + 0.2 end
@@ -2502,6 +2506,22 @@ function UI:Render(now)
     local lead = st.balls[1]
     self:UpdateTrail((lead and (st.phase == E.PHASE.FEVER or lead.item == "rainbow")) and lead or nil, now)
 
+    -- a struck balloon squashes and springs back over a fifth of a second
+    for _, b in ipairs(self.postTex) do
+        if b.squashAt then
+            local f = (now - b.squashAt) / 0.2
+            local base = ART:Size("fever_balloon", E.FEVER_BALLOON_R * 2)
+            if f >= 1 then
+                b.squashAt = nil
+                b:SetSize(base, base)
+            else
+                local k = math.sin(f * math.pi) * 0.22
+                b:SetSize(base * (1 + k), base * (1 - k))
+            end
+            b:ClearAllPoints()
+            b:SetPoint("CENTER", field, "TOPLEFT", b.x, -b.y)
+        end
+    end
     -- the Fever cups light as they score
     if st.phase == E.PHASE.FEVER then
         for i, bin in ipairs(self.bins) do

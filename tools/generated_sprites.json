@@ -286,6 +286,11 @@
    "done": true,
    "how": "asset"
   },
+  "field_bg_5": {
+   "assetId": "cmurfr4h8000mska5sl26nnf1",
+   "done": true,
+   "how": "asset"
+  },
   "firework": {
    "assetId": "cmur6e3l4000cvdgla188te4d",
    "bgRemoved": true,
@@ -402,8 +407,108 @@
    "done": true,
    "how": "asset"
   },
+  "map_bg_10": {
+   "assetId": "cmurfeoh8000c13xbaf0irieo",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_11": {
+   "assetId": "cmurff3jo0001pc84xmy9l586",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_12": {
+   "assetId": "cmurffg8u000bpc84es8kqmt8",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_13": {
+   "assetId": "cmurffuo300074ptmltjjp302",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_14": {
+   "assetId": "cmurfg986000hkudrzm9rv79r",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_15": {
+   "assetId": "cmurfgomu00011454qnl82stj",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_16": {
+   "assetId": "cmurfh32g0010hpdbf7477739",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_17": {
+   "assetId": "cmurfhh86001ehpdbi3b3sz4i",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_18": {
+   "assetId": "cmurfhufs000dfots7a7skpo5",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_19": {
+   "assetId": "cmurfibv9000aibd732ukfmgo",
+   "done": true,
+   "how": "asset"
+  },
   "map_bg_2": {
    "assetId": "cmurdcp2e002mv5ae7qlpb5lw",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_20": {
+   "assetId": "cmurfiqol0017nbkxzlztw1ff",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_21": {
+   "assetId": "cmurfj7qj000b7aznduikyu4v",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_22": {
+   "assetId": "cmurfjmgn000kj4bzzkc2qnre",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_23": {
+   "assetId": "cmurfjy0y00098uomltpy9f1m",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_24": {
+   "assetId": "cmurfk9ux000j8uom3rgtwwfw",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_25": {
+   "assetId": "cmurfknw8000u8uomnmhozy9r",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_26": {
+   "assetId": "cmurfl1xr000pbqdkmp86yb2v",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_27": {
+   "assetId": "cmurflim3001dbqdkl4ysnqvf",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_28": {
+   "assetId": "cmurflxpq00067viye1iz71yg",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_29": {
+   "assetId": "cmurfmbz3000aznct39unfm37",
    "done": true,
    "how": "asset"
   },
@@ -412,8 +517,88 @@
    "done": true,
    "how": "asset"
   },
+  "map_bg_30": {
+   "assetId": "cmurfmq9o0005t5r6efhhtv7p",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_31": {
+   "assetId": "cmurfn4ub001dnbkxu8zx5tm4",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_32": {
+   "assetId": "cmurfnjgm000qpnrsmqpji9b4",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_33": {
+   "assetId": "cmurfnxna0015o0n8bu18ijc0",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_34": {
+   "assetId": "cmurfobs30005c19kejbaq2bk",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_35": {
+   "assetId": "cmurfoq39000113y5ymmw88w2",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_36": {
+   "assetId": "cmurfp47n0001y7pcfrwao7hu",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_37": {
+   "assetId": "cmurfpiv0000devfqjemjp78e",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_38": {
+   "assetId": "cmurfpuyl0001e4j54ncxciw7",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_39": {
+   "assetId": "cmurfq8vl000ii2ti6mpshu3h",
+   "done": true,
+   "how": "asset"
+  },
   "map_bg_4": {
    "assetId": "cmurddj3k000yp1obimab334k",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_40": {
+   "assetId": "cmurfqpfi000128nqlnmg452f",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_5": {
+   "assetId": "cmurfcjpw0001h07cj10stjn9",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_6": {
+   "assetId": "cmurfd1gv0005hssec909bzk9",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_7": {
+   "assetId": "cmurfdgrd000bkvxdbcl1zobj",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_8": {
+   "assetId": "cmurfdw4y000fb6alv076pnn3",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_9": {
+   "assetId": "cmurfea000003220hs6qbqvmh",
    "done": true,
    "how": "asset"
   },

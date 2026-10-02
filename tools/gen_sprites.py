@@ -144,7 +144,7 @@ for c in ("green", "orange", "grey"):
     derive("button_%s_down" % c, "button_%s" % c, "darken", amount=0.72)
 derive("gauge", "plate", "copy")
 derive("gauge_fill", "button_green", "rainbow")
-asset("fever_post", "prop", "tall thin brass post with a domed riveted cap, vertical, three times as tall as wide, " + STYLE)
+asset("fever_balloon", "item", "round inflated glossy purple rubber balloon bumper with a brass band and rivets, " + STYLE)
 asset("logo", "item", "one very wide horizontal game logo banner: the words GNOMISH PACHINKO in chunky glossy gold letters across a long copper plate with gears at both ends, wide aspect, " + STYLE)
 asset("portrait_frame", "prop", "round ornate copper frame ring with rivets, hollow empty centre, thick, " + STYLE)
 asset("banner", "prop", "long horizontal navy ribbon banner with gold edges and notched ends, eight times as wide as tall, " + STYLE)

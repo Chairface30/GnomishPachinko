@@ -647,13 +647,14 @@ applyPower = function(state, p, ball, events)
     push(events, { type = "power", power = power, x = p.x, y = p.y })
 end
 
--- Fever: the goal is done, the bottom becomes the five cups, and four
--- dividers stand between them, floor to rim with a domed cap, so a ball
--- either drops into a cup or bounces off a divider; nothing slips between.
-E.FEVER_POST_W = 12         -- a divider's thickness
-E.FEVER_POST_H = 32         -- its height off the floor (the cups' rim)
-E.FEVER_POST_R = 7          -- the dome on top
-E.FEVER_POST_Y = H - E.FEVER_POST_H
+-- Fever: the goal is done, the bottom becomes the five cups, and an
+-- inflated balloon rests on the floor at each cup boundary. It is a
+-- bumper: the bounce follows the vector the ball strikes the sphere on,
+-- and the kick puts energy back into the ball, so a ball either drops
+-- into a cup or is thrown back up.
+E.FEVER_BALLOON_R = 16
+E.FEVER_POST_R = E.FEVER_BALLOON_R
+E.FEVER_POST_Y = H - E.FEVER_BALLOON_R
 local function startFever(state, events)
     state.phase = E.PHASE.FEVER
     state.lastSlow = false
@@ -661,11 +662,8 @@ local function startFever(state, events)
     state.feverNext = state.time + E.FEVER_FIRST_GAP
     local binW = W / #E.FEVER_BINS
     for i = 1, #E.FEVER_BINS - 1 do
-        local x = i * binW
-        state.pegs[#state.pegs + 1] = { shape = "brick", x = x, y = H - E.FEVER_POST_H / 2, angle = pi / 2,
-            w = E.FEVER_POST_H, h = E.FEVER_POST_W, kind = "block", post = true, divider = true, bounce = 0.8 }
-        state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = E.FEVER_POST_Y, r = E.FEVER_POST_R,
-            kind = "block", post = true, bounce = 0.8 }
+        state.pegs[#state.pegs + 1] = { shape = "peg", x = i * binW, y = E.FEVER_POST_Y, r = E.FEVER_BALLOON_R,
+            kind = "bumper", post = true, balloon = true, bounce = E.BUMPER_BOUNCE }
     end
     push(events, { type = "fever" })
 end

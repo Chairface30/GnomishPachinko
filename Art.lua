@@ -124,7 +124,7 @@ slot("bucket",          128, 128, { note = "the free-ball bucket (a nest, a pot,
 for i = 1, 4 do slot("bucket_splash" .. i, 128, 128, { note = "a catch: splash frame " .. i .. " of 4, drawn over the bucket" }) end
 slot("fever_bucket",     128, 32, { note = "one Fever cup; the game writes the letter and value on it" })
 slot("fever_bucket_lit", 128, 32, { note = "a Fever cup already scored" })
-slot("fever_post",       32, 96,  { note = "a divider between two Fever cups: a brass post from the floor to the rim with a domed cap, drawn 18 by 41" })
+slot("fever_balloon",    64, 64,  { fill = 0.8, note = "the inflated balloon bumper resting between two Fever cups; it squashes when hit" })
 
 section("Icons")
 for _, id in ipairs(ART.POWER_IDS) do slot("power_" .. id, 64, 64, { note = "power icon: " .. id }) end

@@ -1709,24 +1709,28 @@ function post_probe()
   local st = E:NewLevel(L:Build(1))
   local events = {}
   for _, p in ipairs(st.pegs) do if p.kind == "orange" then E.HitPeg(st, p, nil, events, true) end end
-  local dividers, caps, solid, floor = 0, 0, true, true
+  local balloons, onFloor = 0, true
+  local first
   for _, p in ipairs(st.pegs) do
-    if p.post then
-      if p.divider then dividers = dividers + 1; if p.y + p.w / 2 < E.FIELD_H - 0.5 then floor = false end else caps = caps + 1 end
-      if not E.IsSolid(p) then solid = false end
+    if p.balloon then
+      balloons = balloons + 1
+      first = first or p
+      if p.kind ~= "bumper" or math.abs(p.y + p.r - E.FIELD_H) > 0.5 then onFloor = false end
     end
   end
-  -- a ball dropped straight onto a divider's line cannot pass it
-  local blocked = false
-  for _, p in ipairs(st.pegs) do
-    if p.divider and math.abs(p.x - E.FIELD_W / 5) < 1 and E.PegContact(p, E.FIELD_W / 5, E.FIELD_H - 10, E.BALL_R) then blocked = true end
-  end
-  return st.phase, dividers, caps, solid, floor, blocked
+  -- drop a slow ball onto the first balloon, off centre: it leaves faster than
+  -- it came, thrown away along the line from the balloon's centre
+  st.balls = { { x = first.x + 8, y = first.y - first.r - E.BALL_R - 1, vx = 0, vy = 60, slow = 0 } }
+  local before = 60
+  for _ = 1, 8 do E:Step(st, 1 / 120, events) end
+  local b = st.balls[1]
+  local speed = b and math.sqrt(b.vx * b.vx + b.vy * b.vy) or 0
+  return st.phase, balloons, onFloor, speed > before * 2, b and b.vx > 0, b and b.vy < 0
 end
 """)
-phase, dividers, caps, solid, floor, blocked = ev("post_probe")()
-check("Fever stands four solid floor-to-rim dividers with caps between the cups", phase == "FEVER" and dividers == 4 and caps == 4 and solid and floor and blocked,
-      f"{phase} {dividers} {caps} {solid} {floor} {blocked}")
+phase, balloons, on_floor, faster, right, up = ev("post_probe")()
+check("Fever rests four balloon bumpers on the floor between the cups", phase == "FEVER" and balloons == 4 and on_floor, f"{phase} {balloons} {on_floor}")
+check("a balloon throws the ball off along the impact vector and adds energy", faster and right and up, f"{faster} {right} {up}")
 
 check("every chapter has its own map and board backdrop, the tenth level its boss arena",
       ev("ART:MapBackdrop(17)") == "map_bg_17" and ev("ART:FieldBackdrop(161)") == "field_bg_17" and ev("ART:FieldBackdrop(170)") == "field_boss_17"
