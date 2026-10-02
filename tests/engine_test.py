@@ -1275,8 +1275,9 @@ function longshot_level_probe()
   local st = E:NewLevel(spec)
   local events = {}
   local oranges = {}
-  for _, p in ipairs(st.pegs) do if p.kind == "orange" and p.shape == "peg" and p.maxhp == 1 then oranges[#oranges + 1] = p end end
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" and p.maxhp == 1 and not p.moving then oranges[#oranges + 1] = p end end
   table.sort(oranges, function(a, b) return a.x < b.x end)
+  local function above(p) return p.y - ((p.shape == "brick") and (p.h / 2) or (p.r or E.PEG_R)) - E.BALL_R + 1 end
   local goals = 0
   for shot = 1, st.goalTotal do
     -- the two unlit oranges furthest apart
@@ -1288,9 +1289,9 @@ function longshot_level_probe()
     if not a or best < E.LONG_SHOT then return n, spec.goal, goals, "no pair " .. best end
     st.phase = E.PHASE.FLIGHT
     st.shotGoals = {}; st.shotStyles = {}
-    st.balls[1] = { x = a.x, y = a.y - 16, vx = 0, vy = 0, slow = 0 }
+    st.balls[1] = { x = a.x, y = above(a), vx = 0, vy = 0, slow = 0 }
     E:Step(st, 1 / 60, events)
-    st.balls[1] = { x = b.x, y = b.y - 16, vx = 0, vy = 0, slow = 0 }
+    st.balls[1] = { x = b.x, y = above(b), vx = 0, vy = 0, slow = 0 }
     E:Step(st, 1 / 60, events)
     goals = goals + count(events, "longshot_goal")
     wipe(events)

@@ -1222,6 +1222,25 @@ function L:Build(n, attempt, opts)
         local j = rng(1, i)
         order[i], order[j] = order[j], order[i]
     end
+    -- a Long Shot level seats its first oranges at both edges of the
+    -- board, so there are always pairs far enough apart to make them
+    if objective == "longshots" then
+        table.sort(order, function(a, b) return pegs[a].x < pegs[b].x end)
+        local edged, k = {}, goal + 1
+        for i = 1, math.min(k, #order) do edged[#edged + 1] = order[i] end
+        for i = #order, math.max(1, #order - k + 1), -1 do edged[#edged + 1] = order[i] end
+        local used = {}
+        for _, idx in ipairs(edged) do used[idx] = true end
+        local rest = {}
+        for _, idx in ipairs(order) do if not used[idx] then rest[#rest + 1] = idx end end
+        for i = #rest, 2, -1 do
+            local j = rng(1, i)
+            rest[i], rest[j] = rest[j], rest[i]
+        end
+        order = {}
+        for _, idx in ipairs(edged) do order[#order + 1] = idx end
+        for _, idx in ipairs(rest) do order[#order + 1] = idx end
+    end
     -- the pegs inside a key cage are orange first, the rest of the oranges
     -- fall where the shuffle put them
     local greens = 2
