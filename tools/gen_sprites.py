@@ -28,6 +28,7 @@ Run: python tools/gen_sprites.py --sheet path/to/sheet.png          plan only
 Needs: pip install pillow lupa numpy
 """
 import argparse
+import re
 import io
 import json
 import os
@@ -457,6 +458,32 @@ def op_board(img, red=False):
     return out.convert("RGBA")
 
 
+def brick_frame(img):
+    """A brick's outline: rounded ends and a dark rim, so neighbouring bricks
+    of one colour read as separate pieces when the game lays them end to end."""
+    from PIL import ImageDraw, ImageFilter
+    img = img.convert("RGBA")
+    w, h = img.size
+    ss = 4
+    mask = Image.new("L", (w * ss, h * ss), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([ss, ss, w * ss - 1 - ss, h * ss - 1 - ss], radius=int(h * ss * 0.32), fill=255)
+    mask = mask.resize((w, h), Image.LANCZOS)
+    inner = mask.filter(ImageFilter.MinFilter(5))            # two pixels in from the edge
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px, po, pm, pi = img.load(), out.load(), mask.load(), inner.load()
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            m = pm[x, y]
+            if m == 0:
+                continue
+            if pi[x, y] < 128:
+                # the rim: the brick's own colour, much darker
+                r, g, b = int(r * 0.35), int(g * 0.35), int(b * 0.4)
+            po[x, y] = (r, g, b, min(a, m))
+    return out
+
+
 def op_bright(img, amount=1.45):
     """Lit: brighter and warmer, toward white-gold."""
     out = ImageEnhance.Brightness(img).enhance(amount)
@@ -705,7 +732,11 @@ def main():
                         url = st.get("resultUrl")
                         img = crop_content(strip_background(download(url)))
                         base = PLAN[n]["base"]
-                        save_slot(img, slots[n], scales.get(base))
+                        if re.match(r"brick_(blue|orange|green|purple)(_lit)?$", n):
+                            img = brick_frame(img.resize((slots[n]["w"], slots[n]["h"]), Image.LANCZOS))
+                            img.save(os.path.join(OUT, slots[n]["file"] + ".tga"), format="TGA")
+                        else:
+                            save_slot(img, slots[n], scales.get(base))
                         rec["slots"][n]["done"] = True
                         save_record(rec)
                         print(f"  pose   {n}: done")
