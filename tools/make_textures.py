@@ -888,7 +888,7 @@ def make_all(slots, only, from_base):
         suck.alpha_composite(f, ((k % 4) * 128 + (128 - f.width) // 2, (k // 4) * 128 + (128 - f.height) // 2))
     if "bucket_suck" not in [n for n in made] and not os.path.exists(os.path.join(OUT, "bucket_suck.tga")):
         put("bucket_suck", suck)
-    tube = bucket_img(128, 64, (150, 100, 40), (230, 190, 110))
+    tube = bucket_img(128, 128, (150, 100, 40), (230, 190, 110))
     put("fever_tube", tube)
     for letter in "gnome":
         for lit in (False, True):

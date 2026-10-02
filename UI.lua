@@ -423,8 +423,11 @@ function UI:CreateFrame()
     local binW = FW / #E.FEVER_BINS
     for i, pts in ipairs(E.FEVER_BINS) do
         local bin = CreateFrame("Frame", nil, field)
-        bin:SetSize(binW - 2 * E.FEVER_BALLOON_R, 40)
-        bin:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", (i - 1) * binW + E.FEVER_BALLOON_R, 0)
+        -- the tube's flare reaches under the balloons either side, so no gap shows
+        local tuck = math.floor(E.FEVER_BALLOON_R * 0.6)
+        bin:SetSize(binW - 2 * E.FEVER_BALLOON_R + 2 * tuck, E.FEVER_TUBE_H + 6)
+        bin:SetPoint("BOTTOM", field, "BOTTOMLEFT", (i - 0.5) * binW, 0)
+        bin:SetFrameLevel(field:GetFrameLevel() + 1)
         bin.letter = (E.FEVER_LETTERS[i] or "g"):lower()
         bin.tube = bin:CreateTexture(nil, "BACKGROUND")
         bin.tube:SetAllPoints(bin)

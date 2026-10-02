@@ -1740,7 +1740,7 @@ function post_probe()
     if p.balloon then
       balloons = balloons + 1
       first = first or p
-      if p.kind ~= "bumper" or math.abs(p.y + p.r - E.FIELD_H) > 0.5 then onFloor = false end
+      if p.kind ~= "bumper" or math.abs(p.y - (E.FIELD_H - E.FEVER_TUBE_H)) > 0.5 then onFloor = false end
     end
   end
   -- drop a slow ball onto the first balloon, off centre: it leaves faster than
@@ -1754,7 +1754,7 @@ function post_probe()
 end
 """)
 phase, balloons, on_floor, faster, right, up = ev("post_probe")()
-check("Fever rests six balloon bumpers on the floor, one on every cup boundary and wall", phase == "FEVER" and balloons == 6 and on_floor, f"{phase} {balloons} {on_floor}")
+check("Fever sets six balloon bumpers on every tube boundary and wall, centres level with the tube tops", phase == "FEVER" and balloons == 6 and on_floor, f"{phase} {balloons} {on_floor}")
 check("a balloon throws the ball off along the impact vector and adds energy", faster and right and up, f"{faster} {right} {up}")
 
 check("every chapter has its own map and board backdrop, the tenth level its boss arena",

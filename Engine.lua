@@ -688,7 +688,8 @@ E.FEVER_BALLOON_R = 16
 E.BALLOON_BOUNCE  = 1.05     -- a balloon gives back a little more than it takes ...
 E.BALLOON_KICK    = 150      -- ... and never sends the ball off slower than this (a bumper: 1.3 and 260)
 E.FEVER_POST_R = E.FEVER_BALLOON_R
-E.FEVER_POST_Y = H - E.FEVER_BALLOON_R
+E.FEVER_TUBE_H  = 72         -- the Fever tubes stand this tall off the floor ...
+E.FEVER_POST_Y  = H - E.FEVER_TUBE_H   -- ... and the balloons' centres are level with their tops
 local function startFever(state, events)
     state.phase = E.PHASE.FEVER
     state.lastSlow = false

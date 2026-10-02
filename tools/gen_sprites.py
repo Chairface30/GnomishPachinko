@@ -141,7 +141,7 @@ derive("launcher_flash", "spark1", "copy")
 derive("bucket_splash2", "bucket_splash1", "spread", amount=1.25)
 derive("bucket_splash3", "bucket_splash1", "spread", amount=1.5)
 derive("bucket_splash4", "bucket_splash1", "spread", amount=1.75, fade=0.6)
-asset("fever_tube", "prop", "wide flared mouth of a gnomish brass vacuum tube opening upward, glass ring and rivets, front view, twice as wide as tall, " + STYLE)
+asset("fever_tube", "prop", "straight vertical gnomish brass vacuum pipe with parallel sides and a wide flared horn mouth at the top opening upward, rivets and a glass band, front view, " + STYLE, post="fill")
 for letter in "gnome":
     derive("fever_tube_" + letter, "fever_tube", "letter", letter=letter.upper())
     derive("fever_tube_%s_lit" % letter, "fever_tube", "letter", letter=letter.upper(), lit=True)
@@ -474,14 +474,14 @@ def op_letter(img, letter="G", lit=False):
     out = op_bright(img, 1.35) if lit else img.copy()
     w, h = out.size
     try:
-        font = ImageFont.truetype("C:/Windows/Fonts/impact.ttf", int(h * 0.62))
+        font = ImageFont.truetype("C:/Windows/Fonts/impact.ttf", int(h * 0.42))
     except OSError:
         font = ImageFont.load_default()
     layer = Image.new("RGBA", out.size, (0, 0, 0, 0))
     d = ImageDraw.Draw(layer)
     box = d.textbbox((0, 0), letter, font=font)
     tx = (w - (box[2] - box[0])) / 2 - box[0]
-    ty = (h - (box[3] - box[1])) / 2 - box[1] + h * 0.04
+    ty = (h - (box[3] - box[1])) / 2 - box[1] + h * 0.14
     fill = (255, 245, 170, 255) if lit else (250, 205, 70, 255)
     d.text((tx, ty), letter, font=font, fill=fill, stroke_width=max(2, h // 20), stroke_fill=(70, 35, 10, 255))
     if lit:
@@ -647,7 +647,7 @@ def main():
                     img = scene_crop(img, slots[n])
                 if p.get("post") == "arena":
                     img = op_board(img, red=True)
-                save_slot(img, slots[n], stretch=p["keep_bg"])
+                save_slot(img, slots[n], stretch=p["keep_bg"] or p.get("post") == "fill")
                 entry["done"] = True
                 rec["slots"][n] = entry
                 save_record(rec)
