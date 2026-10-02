@@ -1895,6 +1895,84 @@ rides = [ride(k / 10) for k in range(-260, -180)]
 full = sum(1 for lit, total, railed in rides if railed and lit == total)
 check("level 8's spiral rides end to end from a band of aims, not one pixel", full >= 8, f"{full} aims of 0.1 degree ride all of it")
 
+# rails keep their speed; gems tip off points; a lit cradle drops its egg at once; rails across the levels
+lua(r"""
+function feel_probe()
+  local out = {}
+  local events = {}
+  -- the level 8 spiral ridden from the best aim: the speed on the rail never drops
+  local st = E:NewLevel(L:Build(8))
+  st.aim = -24 * math.pi / 180
+  E:Launch(st, events)
+  local first, minRatio = nil, 9
+  for _ = 1, 600 do
+    E:Step(st, 1 / 120, events)
+    local b = st.balls[1]
+    if not b then break end
+    if b.rail then
+      local sp = math.sqrt(b.vx * b.vx + b.vy * b.vy)
+      first = first or sp
+      minRatio = math.min(minRatio, sp / first)
+    end
+  end
+  out.railKeeps = first ~= nil and minRatio > 0.98
+  -- a gem dropped dead centre on a lone peg does not balance there
+  st = E:NewLevel(L:Build(1))
+  st.pegs = { { shape = "peg", x = 245, y = 300 - E.GEM_R - E.PEG_R - 1, r = E.GEM_R, kind = "gem", goal = true, special = true, loose = true },
+              { shape = "peg", x = 245, y = 300, kind = "blue" } }
+  st.hasLoose = true
+  st.pegs[1].vx, st.pegs[1].vy = 0, 0
+  for _ = 1, 120 do E:Step(st, 1 / 60, events) end
+  out.gemTips = math.abs(st.pegs[1].x - 245) > 20
+  -- an egg on a V cradle falls the moment the cradle is lit, not when it fades
+  st = E:NewLevel(L:Build(15))
+  local egg
+  for _, p in ipairs(st.pegs) do if p.kind == "egg" then egg = p break end end
+  for _ = 1, 240 do E:Step(st, 1 / 60, events) end
+  local y0 = egg.y
+  for _, p in ipairs(st.pegs) do
+    if p.cradle and math.abs(p.x - egg.x) < 60 and p.y > egg.y then p.lit = true; p.hitAt = st.time end
+  end
+  for _ = 1, 30 do E:Step(st, 1 / 60, events) end      -- half a second: the cradle is lit, not yet gone
+  out.eggFalls = egg.y > y0 + 20
+  -- rails here and there from chapter 2
+  local withRails = 0
+  for n = 11, 400 do
+    for _, p in ipairs(L:Build(n).pegs) do if p.rail then withRails = withRails + 1 break end end
+  end
+  out.withRails = withRails
+  return out
+end
+""")
+r = ev("feel_probe")()
+check("a Super Slide keeps its speed for the whole ride", r["railKeeps"])
+check("a gem cannot balance on the point of a peg", r["gemTips"])
+check("an egg falls the moment its cradle is lit, not when the bricks fade", r["eggFalls"])
+check("small rails (bowls and spirals) turn up across the levels", 120 < r["withRails"] < 330, str(r["withRails"]))
+
+# Super Guide: three bounces, six when earned again while it runs
+lua(r"""
+function guide_levels_probe()
+  local st = E:NewLevel(L:Build(25))
+  st.power = "guide"
+  local events = {}
+  local green
+  for _, p in ipairs(st.pegs) do if p.kind == "green" then green = p break end end
+  E.HitPeg(st, green, { vx = 0, vy = 100 }, events)
+  local lvl1 = st.guideLevel
+  local _, b1 = E:Simulate(st, nil, nil, E.GUIDE_BOUNCES[st.guideLevel])
+  -- earned again while running
+  local green2
+  for _, p in ipairs(st.pegs) do if p.kind == "green" and p ~= green then green2 = p break end end
+  st.time = st.time + 1
+  E.HitPeg(st, green2, { vx = 0, vy = 100 }, events)
+  local _, b2 = E:Simulate(st, nil, nil, E.GUIDE_BOUNCES[st.guideLevel])
+  return lvl1, st.guideLevel, b1, b2
+end
+""")
+lvl1, lvl2, b1, b2 = ev("guide_levels_probe")()
+check("Super Guide shows three bounces, and six when earned again while it runs", lvl1 == 1 and lvl2 == 2 and b1 <= 3 and b2 <= 6 and b2 >= b1, f"{lvl1} {lvl2} {b1} {b2}")
+
 # this round's rules
 lua(r"""
 function round_probe()

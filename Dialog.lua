@@ -229,10 +229,7 @@ function D:Show(line)
     self.panel.text:SetText(line[2])
     if self.speaker ~= line[1] then
         self.speaker = line[1]
-        pcall(self.model.SetCreature, self.model, sp.npc)
-        pcall(self.model.SetPosition, self.model, 0, 0, 0)
-        pcall(self.model.SetFacing, self.model, 0.4)
-        if self.model.SetCamera then pcall(self.model.SetCamera, self.model, 0) end
+        self:ShowSpeaker(sp)
     end
     if self.model.SetAnimation then pcall(self.model.SetAnimation, self.model, self.TALK_ANIM or 60) end   -- talk
     self.talkClock = 0
@@ -243,6 +240,34 @@ function D:Show(line)
         willPlay, handle = GP:PlaySfx(sp.voice .. math.random(self.MUMBLES) .. ".ogg")
     end
     self.voiceHandle = handle
+end
+
+-- The speaker's model. The old one is cleared first, so the box never
+-- shows the last speaker while the new model loads; a creature the client
+-- has not cached yet loads a moment later, so the call is repeated until
+-- the model is there (or the speaker changes).
+function D:ShowSpeaker(sp)
+    local m = self.model
+    if m.ClearModel then pcall(m.ClearModel, m) end
+    self.loadToken = (self.loadToken or 0) + 1
+    local token = self.loadToken
+    local function try(left)
+        if token ~= self.loadToken then return end
+        pcall(m.SetCreature, m, sp.npc)
+        pcall(m.SetPosition, m, 0, 0, 0)
+        pcall(m.SetFacing, m, 0.4)
+        if m.SetCamera then pcall(m.SetCamera, m, 0) end
+        if m.SetAnimation then pcall(m.SetAnimation, m, self.TALK_ANIM or 60) end
+        local has = true
+        if m.GetModelFileID then
+            local ok, id = pcall(m.GetModelFileID, m)
+            has = ok and id ~= nil
+        end
+        if not has and left > 0 and C_Timer and C_Timer.After then
+            C_Timer.After(0.25, function() try(left - 1) end)
+        end
+    end
+    try(12)
 end
 
 -- The spoken line, on the Dialog channel (the voice setting can mute it).

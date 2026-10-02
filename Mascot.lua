@@ -79,12 +79,15 @@ function M:Candidates()
     return list
 end
 
+-- The host's own framing (some models stand taller than others) unless the
+-- player has tuned it with /pachinko mascot z / scale.
 function M:Pose()
     local model, s = self.model, settings()
+    local h = (not s.custom) and self.hostPose or {}
     pcall(function()
-        model:SetPosition(0, 0, s.z or -0.1)
+        model:SetPosition(0, 0, s.z or h.z or -0.1)
         model:SetFacing(s.facing or 0.35)
-        if model.SetModelScale then model:SetModelScale(s.scale or 1) end
+        if model.SetModelScale then model:SetModelScale(s.scale or h.scale or 1) end
         if model.SetCamera then model:SetCamera(0) end
     end)
 end
@@ -145,9 +148,10 @@ function M:Create(parent, anchor, w, h)
 end
 
 -- The chapter's host takes the box (unless the player picked a look).
-function M:SetHost(npc)
+function M:SetHost(npc, pose)
     if self.hostNpc == npc then return end
     self.hostNpc = npc
+    self.hostPose = pose
     if self.model and not settings().custom then self:Load() end
 end
 

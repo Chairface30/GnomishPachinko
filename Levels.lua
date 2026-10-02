@@ -155,6 +155,42 @@ function L:BalloonCount(n)
     if n <= 10 then return 0 end
     return 1 + floor(self:Difficulty(n) * 3.5)
 end
+-- Rails from chapter 2: a small half-pipe bowl or a little spiral, here
+-- and there, laid down before the pattern so the pattern fits round them.
+-- A ball that meets one from the inside rides it (a Super Slide).
+local function railBowl(add, rng, cx, cy, r, id)
+    -- the bottom half of a circle: falling in, the ball runs round and flies out the far side
+    brickCurve(add, function(t)
+        local a = pi * (0.08 + 0.84 * t)
+        return cx + r * cos(a), cy + r * sin(a) * 0.85
+    end, 10, id, rng, nil, { rail = id, railCx = cx, railCy = cy })
+end
+local function railSpiral(add, rng, cx, cy, r1, id)
+    local dir = (rng() < 0.5) and 1 or -1
+    local a0 = (dir > 0) and -0.15 or (pi + 0.15)
+    brickCurve(add, function(t)
+        local a = a0 - dir * t * 1.15 * 2 * pi
+        local r = r1 - (r1 - r1 * 0.32) * t
+        return cx + r * cos(a), cy + r * sin(a) * 0.9
+    end, 16, id, rng, nil, { rail = id, railCx = cx, railCy = cy })
+end
+function L:RailCount(n)
+    if n <= 10 then return 0 end
+    local r = (self:Seed(n) % 100) / 100
+    if r < 0.45 then return 0 end
+    return (n > 150 and r > 0.85) and 2 or 1
+end
+local function placeRails(rng, add, n, count)
+    for k = 1, count do
+        local kind = (rng() < 0.55) and "bowl" or "spiral"
+        local r = (kind == "bowl") and (60 + rng() * 30) or (70 + rng() * 35)
+        local cx = 140 + rng() * (W - 280)
+        local cy = 200 + rng() * 170
+        if kind == "bowl" then railBowl(add, rng, cx, cy, r, "rail" .. k)
+        else railSpiral(add, rng, cx, cy, r, "rail" .. k) end
+    end
+end
+
 local function placeBalloons(rng, add, n, count)
     local placed = 0
     for k = 1, count * 12 do
@@ -1141,6 +1177,7 @@ function L:Build(n, attempt, opts)
         g.build(rng, add, mover, exclude, d)
         gimmickNames[#gimmickNames + 1] = g.name
     end
+    if not opts.stage2 then placeRails(rng, add, n, self:RailCount(n)) end
     family.build(rng, add, d, dens)
     if not opts.stage2 then placeBalloons(rng, add, n, self:BalloonCount(n)) end
     return pegs, movers, gimmickNames, rng

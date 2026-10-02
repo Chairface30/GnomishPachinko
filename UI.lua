@@ -297,7 +297,7 @@ function UI:CreateFrame()
     ghost:Hide()
     self.guideBall = ghost
     self.guideDots = {}
-    for i = 1, 64 do
+    for i = 1, 110 do
         local d = field:CreateTexture(nil, "ARTWORK", nil, 1)
         d:SetSize(6, 6)
         ART:Set(d, "dot")
@@ -1394,7 +1394,7 @@ function UI:StartLevel(n, retry)
     self:StopFanfare()
     self:HideGuide()
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
-    if GP.Mascot.SetHost then GP.Mascot:SetHost(GP:HostFor(n).npc) end
+    if GP.Mascot.SetHost then GP.Mascot:SetHost(GP:HostFor(n).npc, GP:HostFor(n)) end
     self.startVoice = spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start")
     GP.Mascot:React("start")
     self:UpdateDisplay()
@@ -1623,7 +1623,7 @@ function UI:DrawGuide()
     local st = self.state
     local pts, hit, hx, hy
     local super = st.superGuide > 0
-    if super then pts = E:Simulate(st) else pts, hit, hx, hy = E:Guide(st) end
+    if super then pts = E:Simulate(st, nil, nil, E.GUIDE_BOUNCES[st.guideLevel or 1]) else pts, hit, hx, hy = E:Guide(st) end
     local last = pts[#pts]
     if hx then self.guideEnd = { x = hx, y = hy } elseif last then self.guideEnd = { x = last.x, y = last.y } end
     -- the ball drawn where it first meets a piece (walls do not count)
@@ -2197,7 +2197,8 @@ function UI:HandleEvents(now)
         elseif t == "bin" then
             GP:PlaySfx("bin.ogg")
             -- the last ball home: the music stops dead
-            if st.ballsLeft <= 0 and #st.balls <= 1 then self:StopFanfare(true) end
+            -- (events are handled after the step, when the landed ball is already gone)
+            if st.ballsLeft <= 0 and #st.balls == 0 then self:StopFanfare(true) end
             self:Popup(ev.x, E.FIELD_H - 44, "+" .. fmtBig(ev.points), 1, 0.9, 0.4)
         elseif t == "ready" then
             if st.ballsLeft == 2 then self:ShowBanner("|cffff9060 2 BALLS LEFT|r", "", 1.5); GP.Mascot:React("two_left")
@@ -2845,7 +2846,7 @@ function UI:UpdateCounters()
     end
     local status = ""
     if st.power == "guide" and st.superGuide > 0 then
-        status = "Super Guide: " .. st.superGuide .. " shot" .. (st.superGuide == 1 and "" or "s") .. " left"
+        status = ("Super Guide (%d bounces): %d shot%s left"):format(E.GUIDE_BOUNCES[st.guideLevel or 1], st.superGuide, st.superGuide == 1 and "" or "s")
     elseif st.power == "pyramid" and (st.pyramidShots > 0 or st.pyramidBounces > 0) then
         status = "Pyramid: this shot" .. (st.pyramidShots > 0 and (" and " .. st.pyramidShots .. " more") or "")
     end

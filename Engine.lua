@@ -189,7 +189,8 @@ E.LOOSE_RESTITUTION = 0.15
 E.LOOSE_DRAG        = 0.9       -- rolling drag: share of the tangent speed lost per second of contact
 E.LOOSE_SLEEP       = 10        -- slower than this ...
 E.LOOSE_SLEEP_SECS  = 0.25      -- ... for this long while touching something: at rest
-E.LOOSE_NUDGE       = { egg = 0.08, gem = 0.45 }  -- share of the ball's speed a hit passes on (a gem is light, an egg heavy)
+E.LOOSE_NUDGE       = { egg = 0.08, gem = 0.26 }  -- share of the ball's speed a hit passes on (a gem lighter than an egg)
+E.LOOSE_TIP         = 260       -- balanced on a single point, a piece tips off it this hard (pixels a second squared)
 -- A hatched egg's phoenix flies straight up off the board, lighting every
 -- piece in a column twice the egg's width.
 E.PHOENIX_SPEED     = 520
@@ -517,14 +518,19 @@ local collideBall  -- forward
 local looseMoving, loosePhysics  -- forward
 
 -- Super Guide: the real bounce path (pegs unchanged) for up to maxT seconds.
-function E:Simulate(state, maxT, every)
-    maxT, every = maxT or 2.5, every or 0.04
+-- Super Guide's two levels: the path through three bounces, and through
+-- six when it is earned again while still running.
+E.GUIDE_BOUNCES = { 3, 6 }
+
+function E:Simulate(state, maxT, every, maxBounces)
+    maxT, every = maxT or 4, every or 0.04
     local pts = {}
     local a = state.aim or 0
     local x, y = self:MuzzlePos(state)
     local ball = { x = x, y = y, vx = sin(a) * E.LAUNCH_SPEED, vy = cos(a) * E.LAUNCH_SPEED, slow = 0 }
     local t, nextSample = 0, every
     local dt = E.STEP
+    local bounces, lastBounce
     while t < maxT do
         ball.vy = ball.vy + E.GRAVITY * dt
         ball.x = ball.x + ball.vx * dt
@@ -532,15 +538,30 @@ function E:Simulate(state, maxT, every)
         if ball.x < E.BALL_R then ball.x = E.BALL_R; if ball.vx < 0 then ball.vx = -ball.vx * E.RESTITUTION end end
         if ball.x > W - E.BALL_R then ball.x = W - E.BALL_R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
         if ball.y < E.BALL_R then ball.y = E.BALL_R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
+        local ux, uy = ball.vx, ball.vy
         collideBall(state, ball, nil, false)
         if ball.y - E.BALL_R > H then break end
         t = t + dt
+        -- a bounce off a piece (not a wall): the velocity turned sharply
+        if maxBounces and (ux ~= ball.vx or uy ~= ball.vy) then
+            local before = sqrt(ux * ux + uy * uy)
+            local after = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
+            local cosT = (before > 0 and after > 0) and (ux * ball.vx + uy * ball.vy) / (before * after) or 1
+            if cosT < 0.97 and t - (lastBounce or -1) > 0.06 then
+                bounces = (bounces or 0) + 1
+                lastBounce = t
+                if bounces >= maxBounces then
+                    pts[#pts + 1] = { x = ball.x, y = ball.y }
+                    break
+                end
+            end
+        end
         if t >= nextSample then
             pts[#pts + 1] = { x = ball.x, y = ball.y }
             nextSample = nextSample + every
         end
     end
-    return pts
+    return pts, bounces or 0
 end
 
 function E:CanLaunch(state)
@@ -576,7 +597,10 @@ function E:Launch(state, events)
     state.shotGoals = {}
     state.shotStyles = {}
     state.bossHitThisShot = false
-    if state.superGuide > 0 then state.superGuide = state.superGuide - 1 end
+    if state.superGuide > 0 then
+        state.superGuide = state.superGuide - 1
+        if state.superGuide == 0 then state.guideLevel = nil end
+    end
     if state.pyramidShots > 0 then
         state.pyramidShots = state.pyramidShots - 1
         state.pyramidBounces = E.PYRAMID_BOUNCES
@@ -626,7 +650,9 @@ applyPower = function(state, p, ball, events)
             fire = ball.fire, spooky = ball.spooky,
         }
     elseif power == "guide" then
-        state.superGuide = state.superGuide + E.GUIDE_SHOTS      -- stacks
+        -- earned again while it runs: the longer guide, and more shots of it
+        state.guideLevel = (state.superGuide > 0) and 2 or math.max(1, state.guideLevel or 1)
+        state.superGuide = state.superGuide + E.GUIDE_SHOTS
     elseif power == "blast" then
         local r2 = E.BLAST_RADIUS * E.BLAST_RADIUS
         for _, q in ipairs(state.pegs) do
@@ -944,7 +970,7 @@ local function railStep(state, ball, events)
             local dx, dy = ball.x - q.x, ball.y - q.y
             local lx = dx * c + dy * s
             local ly = dx * nx + dy * ny            -- along the inner face's normal
-            if abs(lx) <= q.w / 2 + R * 0.6 and ly > -q.h and ly < q.h / 2 + R + 10 then
+            if abs(lx) <= q.w / 2 + R * 1.3 and ly > -q.h and ly < q.h / 2 + R + 14 then
                 local d = abs(ly - (q.h / 2 + R))
                 if not bestD or d < bestD then
                     best, bestD = q, d
@@ -954,14 +980,18 @@ local function railStep(state, ball, events)
             end
         end
     end
-    if not best then ball.rail = nil return end
-    ball.x, ball.y = bx, by
-    local vn = ball.vx * bnx + ball.vy * bny
-    ball.vx, ball.vy = ball.vx - vn * bnx, ball.vy - vn * bny
-    if ball.vx * ball.vx + ball.vy * ball.vy < E.RAIL_MIN_SPEED * E.RAIL_MIN_SPEED then
+    if not best then
+        ball.railLost, ball.railLostAt = ball.rail, state.time     -- remembered a moment, in case it catches the rail again
         ball.rail = nil
         return
     end
+    ball.x, ball.y = bx, by
+    local vn = ball.vx * bnx + ball.vy * bny
+    ball.vx, ball.vy = ball.vx - vn * bnx, ball.vy - vn * bny
+    -- the ride never slows: the ball keeps the speed it came onto the rail with
+    local sp = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
+    local keep = ball.railSpeed or sp
+    if sp > 0.001 then ball.vx, ball.vy = ball.vx / sp * keep, ball.vy / sp * keep end
     hitPeg(state, best, ball, events)
 end
 E.RailStep = railStep
@@ -980,6 +1010,11 @@ collideBall = function(state, ball, events, light)
                 end
                 if onto then
                     ball.rail = p.rail
+                    local now = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
+                    if ball.railLost == p.rail and ball.railSpeed and state.time - (ball.railLostAt or 0) < 0.4 then
+                        now = math.max(now, ball.railSpeed)     -- back on the same rail: the same speed
+                    end
+                    ball.railSpeed = math.max(E.RAIL_MIN_SPEED * 3, now)
                     ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
                     railStep(state, ball, events)
                 elseif ball.fire and light and not isSolid(p) and p.kind ~= "boss" and not p.loose then
@@ -1364,11 +1399,14 @@ loosePhysics = function(state, dt, events)
             if p.x < r then p.x = r; if p.vx < 0 then p.vx = -p.vx * E.LOOSE_RESTITUTION end end
             if p.x > W - r then p.x = W - r; if p.vx > 0 then p.vx = -p.vx * E.LOOSE_RESTITUTION end end
             local touching = false
+            local contacts, cNx, cNy, cQ = 0, 0, 0, nil
             for _, q in ipairs(state.pegs) do
-                if q ~= p and not q.gone and not (q.loose and (q.lit or q.gone)) then
+                if q ~= p and not q.gone and not q.lit then
                     local depth, nx, ny = pegContact(q, p.x, p.y, r)
                     if depth then
                         touching = true
+                        contacts = contacts + 1
+                        cNx, cNy, cQ = nx, ny, q
                         p.x, p.y = p.x + nx * depth, p.y + ny * depth
                         local vn = p.vx * nx + p.vy * ny
                         if vn < 0 then
@@ -1387,10 +1425,28 @@ loosePhysics = function(state, dt, events)
                     end
                 end
             end
+            -- balanced on a single point (the top of a peg, the corner of a
+            -- brick) a piece tips over: only a cradle, a ledge or a flat face holds it
+            local balanced = false
+            if contacts == 1 and cNy < -0.8 then
+                local flat = false
+                if cQ.shape == "brick" then
+                    local fnx, fny = -sin(cQ.angle or 0), cos(cQ.angle or 0)
+                    flat = abs(cNx * fnx + cNy * fny) > 0.985
+                end
+                if not flat then
+                    balanced = true
+                    if not p.tipDir then
+                        p.tipDir = (cNx > 0.01 and 1) or (cNx < -0.01 and -1) or ((state.rng() < 0.5) and -1 or 1)
+                    end
+                    p.vx = p.vx + p.tipDir * E.LOOSE_TIP * dt
+                end
+            end
             -- at rest only after staying slow for a moment: on a slope gravity
             -- keeps it rolling, in a cradle it settles
+            if not balanced then p.tipDir = nil end
             local speed = sqrt(p.vx * p.vx + p.vy * p.vy)
-            if touching and speed < E.LOOSE_SLEEP then p.slowT = (p.slowT or 0) + dt else p.slowT = 0 end
+            if touching and not balanced and speed < E.LOOSE_SLEEP then p.slowT = (p.slowT or 0) + dt else p.slowT = 0 end
             if p.slowT >= E.LOOSE_SLEEP_SECS then
                 p.vx, p.vy = 0, 0
                 p.resting = true
