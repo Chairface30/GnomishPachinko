@@ -16,7 +16,7 @@ local DEFAULTS = {
     cleared = {},          -- [level] = true
     best = {},             -- [level] = best score
     stars = {},            -- [level] = best stars (1-3)
-    items = { ring = 2, rainbow = 0, green = 1 },   -- power-ups and boosts earned
+    items = { ring = 2, rainbow = 0, green = 1, suction = 1 },   -- power-ups and boosts earned
     tips = {},             -- first-encounter tips already shown
     lastPower = nil,       -- the power picked on the level card
     current = 1,           -- level the window opens on
@@ -93,7 +93,10 @@ function GP:RecordResult(result)
         db.items.ring = (db.items.ring or 0) + 1
         rewards[#rewards + 1] = { item = "ring", n = 1 }
         if stars >= 3 then db.items.green = (db.items.green or 0) + 1; rewards[#rewards + 1] = { item = "green", n = 1 } end
-        if result.objective == "boss" or result.duel then db.items.rainbow = (db.items.rainbow or 0) + 2; rewards[#rewards + 1] = { item = "rainbow", n = 2 } end
+        if result.objective == "boss" or result.duel then
+            db.items.rainbow = (db.items.rainbow or 0) + 2; rewards[#rewards + 1] = { item = "rainbow", n = 2 }
+            db.items.suction = (db.items.suction or 0) + 1; rewards[#rewards + 1] = { item = "suction", n = 1 }
+        end
     end
     result.rewards = rewards
     return stars, self.Plays:Remaining()

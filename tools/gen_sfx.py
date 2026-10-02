@@ -85,6 +85,7 @@ EFFECTS = {
     # moments
     "start":    ("A short cheerful arcade level-start jingle, two bright rising notes.", 1.0, {"keep_tail": True}),
     "slowmo":   ("A dramatic slow-motion whoosh with a single heartbeat thump, short.", 0.9, {}),
+    "fever_music": ("A short exciting arcane fever music loop, bright synth arpeggios over driving drums and brass hits, building, about eight seconds.", 8.0, {"loop": True}),
     "fanfare":  ("A grand triumphant brass fanfare with timpani and a snare roll, celebratory, seamless loop.", 6.0, {"loop": True}),
     "fail":     ("A short sad trombone wah-wah, cartoon failure, brief.", 1.4, {"keep_tail": True}),
     "fever":    ("A triumphant bright sting with a shimmering rise, a goal completed, short.", 1.5, {"keep_tail": True}),

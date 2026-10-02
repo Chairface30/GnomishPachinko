@@ -267,27 +267,362 @@
    "how": "asset"
   },
   "field_bg_1": {
-   "assetId": "cmur6cwb20007d4lldygt9spd",
    "done": true,
-   "how": "asset"
+   "how": "derive"
+  },
+  "field_bg_10": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_11": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_12": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_13": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_14": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_15": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_16": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_17": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_18": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_19": {
+   "done": true,
+   "how": "derive"
   },
   "field_bg_2": {
-   "assetId": "cmurddv7j0007v5ps0pruy4er",
    "done": true,
-   "how": "asset"
+   "how": "derive"
+  },
+  "field_bg_20": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_21": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_22": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_23": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_24": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_25": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_26": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_27": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_28": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_29": {
+   "done": true,
+   "how": "derive"
   },
   "field_bg_3": {
-   "assetId": "cmurde7bp002vv5aegl0vg75v",
    "done": true,
-   "how": "asset"
+   "how": "derive"
+  },
+  "field_bg_30": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_31": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_32": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_33": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_34": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_35": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_36": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_37": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_38": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_39": {
+   "done": true,
+   "how": "derive"
   },
   "field_bg_4": {
-   "assetId": "cmurdelsx0002g2ectaajg65g",
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_40": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_5": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_6": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_7": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_8": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_bg_9": {
+   "done": true,
+   "how": "derive"
+  },
+  "field_boss_1": {
+   "assetId": "cmurgqzfk000114ibgg31o8hb",
    "done": true,
    "how": "asset"
   },
-  "field_bg_5": {
-   "assetId": "cmurfr4h8000mska5sl26nnf1",
+  "field_boss_10": {
+   "assetId": "cmurhauc90038nbkxkho09pwy",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_11": {
+   "assetId": "cmurhb8oh0008bzexrz0ism73",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_12": {
+   "assetId": "cmurhbnbb000auev693i3rowy",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_13": {
+   "assetId": "cmurhc39r000114ipt4daf1rs",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_14": {
+   "assetId": "cmurhcj030005spsnt5q26wux",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_15": {
+   "assetId": "cmurhcz0m0001k1jr2fxigcw5",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_16": {
+   "assetId": "cmurhdd8d000mk1jrx6c8ihvg",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_17": {
+   "assetId": "cmurhdrg4000110c5toitac2k",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_18": {
+   "assetId": "cmurhe8xw0001i7skmcayrebu",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_19": {
+   "assetId": "cmurher540001u3aujggn0j57",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_2": {
+   "assetId": "cmurh7dra00186hklp2hlxu1b",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_20": {
+   "assetId": "cmurhf594000xxhk5xrh9klxd",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_21": {
+   "assetId": "cmurhfk8v0005h0x8sc21a6kf",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_22": {
+   "assetId": "cmurhfygt001uh0x80ss88rxp",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_23": {
+   "assetId": "cmurhgdgd0001d418qz0yxb39",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_24": {
+   "assetId": "cmurhgrls0008d418aqfla4te",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_25": {
+   "assetId": "cmurhh6ot0001xltifcj8clga",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_26": {
+   "assetId": "cmurhhl470004htpqcwmuuc0y",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_27": {
+   "assetId": "cmurhi00s000112299n9u4k5r",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_28": {
+   "assetId": "cmurhiejq00019818zw63fh69",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_29": {
+   "assetId": "cmurhitay00089818v4hacmac",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_3": {
+   "assetId": "cmurh7scf000z12zelafepc2b",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_30": {
+   "assetId": "cmurhjnxp0006alxot0wal0k8",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_31": {
+   "assetId": "cmurhk2gl0001tfmh3tvxlt11",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_32": {
+   "assetId": "cmurhkgva0003tfmh29jek8ga",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_33": {
+   "assetId": "cmurhkvho00091evykwm6d2eb",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_34": {
+   "assetId": "cmurhlbj20001dqwwuh46rzmw",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_35": {
+   "assetId": "cmurhlr4c0001rs5n1irm6agx",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_36": {
+   "assetId": "cmurhm7ii0006dafwgxoognln",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_37": {
+   "assetId": "cmurhmlsc00025y2v2tooczlw",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_38": {
+   "assetId": "cmurhn0d500015ooxn9i7yqdc",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_39": {
+   "assetId": "cmurhnep5000g3wzh52r5d2nm",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_4": {
+   "assetId": "cmurh86gj001912zefnyqhvfd",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_40": {
+   "assetId": "cmurhnsc8001j3wzho1iytke0",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_5": {
+   "assetId": "cmurh8nkj0005149usm150can",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_6": {
+   "assetId": "cmurh92gp0001blzp1l3ccnqr",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_7": {
+   "assetId": "cmurh9hcu0009br43nj6vpxcx",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_8": {
+   "assetId": "cmurh9w1y0007mda2zjjcndqu",
+   "done": true,
+   "how": "asset"
+  },
+  "field_boss_9": {
+   "assetId": "cmurhacri0002bzexlilkhajg",
    "done": true,
    "how": "asset"
   },
@@ -403,202 +738,202 @@
    "how": "asset"
   },
   "map_bg_1": {
-   "assetId": "cmur6ci2x000110t3ahdhqye4",
+   "assetId": "cmurgqhku0001czf1vfa6tq6r",
    "done": true,
    "how": "asset"
   },
   "map_bg_10": {
-   "assetId": "cmurfeoh8000c13xbaf0irieo",
+   "assetId": "cmurguxua0005kpdtk0a0htax",
    "done": true,
    "how": "asset"
   },
   "map_bg_11": {
-   "assetId": "cmurff3jo0001pc84xmy9l586",
+   "assetId": "cmurgvbpa000lkpdt2lie4f9w",
    "done": true,
    "how": "asset"
   },
   "map_bg_12": {
-   "assetId": "cmurffg8u000bpc84es8kqmt8",
+   "assetId": "cmurgvq7w0001ldidk8bvwq2d",
    "done": true,
    "how": "asset"
   },
   "map_bg_13": {
-   "assetId": "cmurffuo300074ptmltjjp302",
+   "assetId": "cmurgw57w000ukpdthq0yx4kk",
    "done": true,
    "how": "asset"
   },
   "map_bg_14": {
-   "assetId": "cmurfg986000hkudrzm9rv79r",
+   "assetId": "cmurgwlzf000a3aotit404zld",
    "done": true,
    "how": "asset"
   },
   "map_bg_15": {
-   "assetId": "cmurfgomu00011454qnl82stj",
+   "assetId": "cmurgwy3r0003jxu07l2oagpu",
    "done": true,
    "how": "asset"
   },
   "map_bg_16": {
-   "assetId": "cmurfh32g0010hpdbf7477739",
+   "assetId": "cmurgxcrl000113evi67h2znm",
    "done": true,
    "how": "asset"
   },
   "map_bg_17": {
-   "assetId": "cmurfhh86001ehpdbi3b3sz4i",
+   "assetId": "cmurgxstv000hvztd3zgy4eec",
    "done": true,
    "how": "asset"
   },
   "map_bg_18": {
-   "assetId": "cmurfhufs000dfots7a7skpo5",
+   "assetId": "cmurgy6s50005mfbd3xlu3pnr",
    "done": true,
    "how": "asset"
   },
   "map_bg_19": {
-   "assetId": "cmurfibv9000aibd732ukfmgo",
+   "assetId": "cmurgykvq000ymfbdlgzo7bcy",
    "done": true,
    "how": "asset"
   },
   "map_bg_2": {
-   "assetId": "cmurdcp2e002mv5ae7qlpb5lw",
+   "assetId": "cmurgrpnf0001qy4pmla5zadn",
    "done": true,
    "how": "asset"
   },
   "map_bg_20": {
-   "assetId": "cmurfiqol0017nbkxzlztw1ff",
+   "assetId": "cmurgyyvm0013mfbdmy7vg3oh",
    "done": true,
    "how": "asset"
   },
   "map_bg_21": {
-   "assetId": "cmurfj7qj000b7aznduikyu4v",
+   "assetId": "cmurgzd600014vztdmxw2db6f",
    "done": true,
    "how": "asset"
   },
   "map_bg_22": {
-   "assetId": "cmurfjmgn000kj4bzzkc2qnre",
+   "assetId": "cmurgzoxq001bphm2acqdlwkp",
    "done": true,
    "how": "asset"
   },
   "map_bg_23": {
-   "assetId": "cmurfjy0y00098uomltpy9f1m",
+   "assetId": "cmurh03hn0001109c291qf1au",
    "done": true,
    "how": "asset"
   },
   "map_bg_24": {
-   "assetId": "cmurfk9ux000j8uom3rgtwwfw",
+   "assetId": "cmurh0ibz000112ikhxdlonwm",
    "done": true,
    "how": "asset"
   },
   "map_bg_25": {
-   "assetId": "cmurfknw8000u8uomnmhozy9r",
+   "assetId": "cmurh0z8d0005114ivoenrmgt",
    "done": true,
    "how": "asset"
   },
   "map_bg_26": {
-   "assetId": "cmurfl1xr000pbqdkmp86yb2v",
+   "assetId": "cmurh1dr40007114ia267pt3l",
    "done": true,
    "how": "asset"
   },
   "map_bg_27": {
-   "assetId": "cmurflim3001dbqdkl4ysnqvf",
+   "assetId": "cmurh1sln0005113woxy1sk17",
    "done": true,
    "how": "asset"
   },
   "map_bg_28": {
-   "assetId": "cmurflxpq00067viye1iz71yg",
+   "assetId": "cmurh27a40001nim0wwf961z5",
    "done": true,
    "how": "asset"
   },
   "map_bg_29": {
-   "assetId": "cmurfmbz3000aznct39unfm37",
+   "assetId": "cmurh2je60001njnls4f2nmeo",
    "done": true,
    "how": "asset"
   },
   "map_bg_3": {
-   "assetId": "cmurdd45k00057i7lv9ulhako",
+   "assetId": "cmurgs40j002dnbkx5vmp8gja",
    "done": true,
    "how": "asset"
   },
   "map_bg_30": {
-   "assetId": "cmurfmq9o0005t5r6efhhtv7p",
+   "assetId": "cmurh2xjg000bnjnli23ro0k1",
    "done": true,
    "how": "asset"
   },
   "map_bg_31": {
-   "assetId": "cmurfn4ub001dnbkxu8zx5tm4",
+   "assetId": "cmurh3c94000514fd7e5frry6",
    "done": true,
    "how": "asset"
   },
   "map_bg_32": {
-   "assetId": "cmurfnjgm000qpnrsmqpji9b4",
+   "assetId": "cmurh3q66000714fdbeuomh3y",
    "done": true,
    "how": "asset"
   },
   "map_bg_33": {
-   "assetId": "cmurfnxna0015o0n8bu18ijc0",
+   "assetId": "cmurh44j3000hizfdd5dqkgd7",
    "done": true,
    "how": "asset"
   },
   "map_bg_34": {
-   "assetId": "cmurfobs30005c19kejbaq2bk",
+   "assetId": "cmurh4jd90032nbkxl0sid5uq",
    "done": true,
    "how": "asset"
   },
   "map_bg_35": {
-   "assetId": "cmurfoq39000113y5ymmw88w2",
+   "assetId": "cmurh4xfx0009ppb6mmzih5ua",
    "done": true,
    "how": "asset"
   },
   "map_bg_36": {
-   "assetId": "cmurfp47n0001y7pcfrwao7hu",
+   "assetId": "cmurh5c32002j49ms9rfiwnz9",
    "done": true,
    "how": "asset"
   },
   "map_bg_37": {
-   "assetId": "cmurfpiv0000devfqjemjp78e",
+   "assetId": "cmurh5qsj002l49msvy8fee1f",
    "done": true,
    "how": "asset"
   },
   "map_bg_38": {
-   "assetId": "cmurfpuyl0001e4j54ncxciw7",
+   "assetId": "cmurh66ef000b13n60ayb15g9",
    "done": true,
    "how": "asset"
   },
   "map_bg_39": {
-   "assetId": "cmurfq8vl000ii2ti6mpshu3h",
+   "assetId": "cmurh6kj2000t6hkly29bywzp",
    "done": true,
    "how": "asset"
   },
   "map_bg_4": {
-   "assetId": "cmurddj3k000yp1obimab334k",
+   "assetId": "cmurgsils000727qddkz4uwew",
    "done": true,
    "how": "asset"
   },
   "map_bg_40": {
-   "assetId": "cmurfqpfi000128nqlnmg452f",
+   "assetId": "cmurh6yyb000y13n6gvgsmmgb",
    "done": true,
    "how": "asset"
   },
   "map_bg_5": {
-   "assetId": "cmurfcjpw0001h07cj10stjn9",
+   "assetId": "cmurgsxkb0002pmrgbqyymvx1",
    "done": true,
    "how": "asset"
   },
   "map_bg_6": {
-   "assetId": "cmurfd1gv0005hssec909bzk9",
+   "assetId": "cmurgtbj00006bxk6jc36ubno",
    "done": true,
    "how": "asset"
   },
   "map_bg_7": {
-   "assetId": "cmurfdgrd000bkvxdbcl1zobj",
+   "assetId": "cmurgtpwn002onbkx5bo2vld2",
    "done": true,
    "how": "asset"
   },
   "map_bg_8": {
-   "assetId": "cmurfdw4y000fb6alv076pnn3",
+   "assetId": "cmurgu4n9000domrni447tgch",
    "done": true,
    "how": "asset"
   },
   "map_bg_9": {
-   "assetId": "cmurfea000003220hs6qbqvmh",
+   "assetId": "cmurguity0001z4juyf8azib0",
    "done": true,
    "how": "asset"
   },

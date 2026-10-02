@@ -880,8 +880,13 @@ def make_all(slots, only, from_base):
     put("bucket", bucket_img(128, 128, (150, 82, 40), (220, 160, 90)))
     for i in range(1, 5):
         put("bucket_splash%d" % i, splash(128, 128, i - 1))
-    put("fever_bucket", bucket_img(128, 32, (45, 60, 110), (120, 150, 220)))
-    put("fever_bucket_lit", bucket_img(128, 32, (200, 150, 40), (255, 230, 140)))
+    tube = bucket_img(128, 64, (150, 100, 40), (230, 190, 110))
+    put("fever_tube", tube)
+    for letter in "gnome":
+        for lit in (False, True):
+            img = tint_img(tube, (1.3, 1.3, 1.1)) if lit else tube.copy()
+            text_on(img, letter.upper(), 0.6, (255, 240, 150, 255) if lit else (250, 200, 70, 255))
+            put("fever_tube_%s%s" % (letter, "_lit" if lit else ""), img)
 
     power_glyph = {
         "multiball": ((0.25, 0.5, 0.9), g_balls(2)), "guide": ((0.3, 0.7, 0.4), g_dots), "blast": ((0.9, 0.5, 0.15), g_burst),
@@ -890,7 +895,7 @@ def make_all(slots, only, from_base):
     }
     for pid, (col, gl) in power_glyph.items():
         put("power_" + pid, icon_disc(64, col, gl))
-    for iid, (col, gl) in {"ring": ((0.85, 0.4, 0.15), g_ring), "rainbow": ((0.5, 0.3, 0.7), g_rainbow), "green": ((0.25, 0.6, 0.3), g_plus)}.items():
+    for iid, (col, gl) in {"ring": ((0.85, 0.4, 0.15), g_ring), "rainbow": ((0.5, 0.3, 0.7), g_rainbow), "green": ((0.25, 0.6, 0.3), g_plus), "suction": ((0.6, 0.45, 0.2), g_ring)}.items():
         put("item_" + iid, icon_disc(64, col, gl))
     goal_glyph = {
         "orange": ((0.95, 0.42, 0.11), None), "egg": ((0.9, 0.85, 0.7), None), "gem": ((0.35, 0.95, 1.0), None),
@@ -943,6 +948,7 @@ def make_all(slots, only, from_base):
     for i in range(1, 5):
         put("spark%d" % i, sparkle(64, length=0.5 + 0.15 * i, thick=0.12 - 0.02 * i, core=0.22 - 0.03 * i))
     put("confetti", confetti_img(64))
+    put("phoenix", compose(soft_glow(128, (1, 0.5, 0.1), sigma=0.4), sparkle(128, (1, 0.75, 0.3), arms=3, length=0.9, thick=0.25, core=0.2)))
     put("firework", burst(128, spikes=18, inner=0.3))
     put("trail", trail_img(64, 16))
     put("glow_soft", soft_glow(128))

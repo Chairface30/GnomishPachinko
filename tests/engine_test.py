@@ -187,7 +187,7 @@ for n in range(1, 401):
     if n < 21 and spec.gimmick:
         problems.append((n, "gimmick too early"))
     expected_kind = ev(f"L:Objective({n})")
-    if spec.objective != expected_kind and not (expected_kind in ("eggs", "gems") and spec.objective == "classic"):
+    if spec.objective != expected_kind:
         problems.append((n, "objective", spec.objective, expected_kind))
     if spec.objective in ("eggs", "gems"):
         # every egg and gem is a big loose body with a two-brick cradle under it
@@ -664,7 +664,7 @@ info = ev("duel_flow_probe")()
 check("clearing stage one of a duel starts the duel instead of Fever, carrying the score", info.stageClear == 1 and info.fever == 0 and info.carried, str(dict(info)))
 check("stage two is a ten-orange board, five balls each, with a coin flip", info.oranges2 == 10 and info.balls == 5 and info.stage2 == 2 and info.coin in ("you", "rival"), str(dict(info)))
 check("the rival picks an aim within the launcher's arc", info.aimOk)
-check("a shot that lights no orange costs its shooter a quarter and the turn passes", info.penalty == 2500 and info.penaltySide == info.shooter and info.scoreAfter == 7500 and info.turnAfter is not None and info.turnAfter != info.shooter and info.ballsAfter == 4, str(dict(info)))
+check("a shot that lights no orange costs its shooter 500 and the turn passes", info.penalty == 500 and info.penaltySide == info.shooter and info.scoreAfter == 9500 and info.turnAfter is not None and info.turnAfter != info.shooter and info.ballsAfter == 4, str(dict(info)))
 check("the duel ends when both are out of balls and the higher duel score wins", info.over and info.result == info.expected, str(dict(info)))
 
 # no bucket: a ball dropped where the bucket sits falls straight out
@@ -868,7 +868,7 @@ for power in ("multiball", "guide", "blast", "fireball", "spooky", "pyramid", "l
     print(f"      {power}: green hit on {hits}/15 levels")
 check("multiball spawns a twin", any(i.maxBalls > 1 for i in seen.get("multiball", [])))
 check("super guide shows on the shots after a green", any(i.superGuideSeen for i in seen.get("guide", [])))
-check("space blast hits many neighbours quietly", any(i.blastHit >= 6 for i in seen.get("blast", [])), str([i.blastHit for i in seen.get("blast", [])]))
+check("space blast (an inch across) hits its neighbours quietly", any(i.blastHit >= 3 for i in seen.get("blast", [])), str([i.blastHit for i in seen.get("blast", [])]))
 check("spooky ball re-enters from the top", any(i.spooky > 0 for i in seen.get("spooky", [])))
 check("fireball levels get a power event", len(seen.get("fireball", [])) > 0)
 check("the pyramid bounces the ball back up", any(i.pyramid > 0 for i in seen.get("pyramid", [])), str([i.pyramid for i in seen.get("pyramid", [])]))
@@ -936,7 +936,7 @@ lua(r"""
 function score_free()
   local st = E:NewLevel(L:Build(1))
   local events = {}
-  st.score = 24990
+  st.score = E.FREE_BALL_SCORES[1] - 10
   local before = st.ballsLeft
   local p
   for _, q in ipairs(st.pegs) do if q.kind == "orange" and q.maxhp == 1 then p = q break end end
@@ -947,7 +947,7 @@ function score_free()
 end
 """)
 got, delta = ev("score_free")()
-check("crossing 25,000 points gives a free ball", got == 1 and delta == 1, f"{got} {delta}")
+check("crossing the first score mark gives a free ball", got == 1 and delta == 1, f"{got} {delta}")
 
 # purple hops to a blue peg each shot
 lua(r"""
@@ -1729,7 +1729,7 @@ function post_probe()
 end
 """)
 phase, balloons, on_floor, faster, right, up = ev("post_probe")()
-check("Fever rests four balloon bumpers on the floor between the cups", phase == "FEVER" and balloons == 4 and on_floor, f"{phase} {balloons} {on_floor}")
+check("Fever rests six balloon bumpers on the floor, one on every cup boundary and wall", phase == "FEVER" and balloons == 6 and on_floor, f"{phase} {balloons} {on_floor}")
 check("a balloon throws the ball off along the impact vector and adds energy", faster and right and up, f"{faster} {right} {up}")
 
 check("every chapter has its own map and board backdrop, the tenth level its boss arena",

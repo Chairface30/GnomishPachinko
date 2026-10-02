@@ -54,7 +54,7 @@ E.PEG_MARGIN  = 27
 E.PEG_GAP     = 40          -- centre distance round peg to round peg
 
 E.GRAVITY      = 1000
-E.LAUNCH_SPEED = 480
+E.LAUNCH_SPEED = 600
 E.RESTITUTION  = 0.70
 E.STEP         = 1 / 120
 E.MAX_AIM_DEG  = 82
@@ -62,10 +62,11 @@ E.STUCK_SPEED  = 35
 E.STUCK_SECS   = 1.5
 E.LIT_SECS     = 2.0        -- a lit piece vanishes this long after the hit
 E.HIT_COOLDOWN = 0.2        -- one ball cannot hit the same piece twice within this
+E.BOSS_COOLDOWN = 0.05      -- a boss counts every real strike, even three in a quick bank shot
 
-E.BUCKET_W     = 84
+E.BUCKET_W     = 64
 E.BUCKET_H     = 16
-E.BUCKET_SPEED = 130
+E.BUCKET_SPEED = 175
 E.FEVER_FIRST_GAP = 0.8    -- after the last piece lights, the leftover balls start firing this soon
 -- The last goal piece: when a ball closes in on it, time slows and the
 -- window zooms in on it (Peggle Blast's last-peg moment).
@@ -84,12 +85,12 @@ E.GNOME_BONUS   = 100000
 E.GNOME_BUCKET  = 25000
 E.BUCKET_DROP   = 10000     -- a gem that lands in the bucket, on top of counting
 E.STYLE_POINTS  = 5000      -- a trick shot: a Long Shot, a Super Slide
-E.LONG_SHOT     = 240       -- two orange pegs at least this far apart in one shot (half the board)
+E.LONG_SHOT     = 220       -- two orange pegs at least this far apart in one shot
 E.SLIDE_RATIO   = 0.42      -- a brick contact this grazing slides instead of bouncing
 E.SLIDE_RUN     = 6         -- bricks lit in one slide for the Super Slide award
 E.SLIDE_GAP     = 0.3       -- seconds between two slid bricks that still count as one slide
 E.FEVER_SHOT_GAP = 0.3     -- seconds between the leftover balls fired at the clear
-E.FREE_BALL_SCORES = { 25000, 75000, 125000 }
+E.FREE_BALL_SCORES = { 75000, 200000 }
 
 E.BALLS       = 10
 -- points for the hit that lights a piece (times the multiplier)
@@ -125,6 +126,9 @@ E.BUMPER_KICK   = 260
 E.BOSS_BOUNCE = 1.0
 E.BOSS_KICK   = 220
 E.BOSS_BAND   = { y0 = 590, y1 = 700, y = 640 }     -- in Levels' design space: below the pattern zone, above the bucket
+E.SCRAP_R        = 11        -- a boss's scrap block
+E.SCRAP_PER_SHOT = 2         -- thrown after a shot that hit it
+E.SCRAP_MAX      = 6         -- on the board at once
 E.GOLEM_SHIELD = 2
 E.GOLEM_EVERY  = 3
 
@@ -152,13 +156,18 @@ E.ITEMS = {
     ring    = { name = "Ring of Fire",    radius = 70,  blurb = "The next shot's first hit also hits every piece in a small ring." },
     rainbow = { name = "Rainbow Ball",    radius = 150, blurb = "The next shot's first hit also hits every piece in a wide ring." },
     green   = { name = "Extra Green Peg", blurb = "Start the level with one more green peg." },
+    suction = { name = "Suction Tube",    blurb = "For the next shot the bucket's tube draws a falling ball toward it." },
 }
+E.SUCTION_REACH = 230       -- the tube pulls on a ball this close above the floor
+E.SUCTION_PULL  = 700       -- sideways pull at its strongest, pixels a second squared
 
 -- What a level asks of you.
 E.OBJECTIVES = {
     classic = { name = "Classic", goalWord = "orange pegs", text = "Light every orange peg" },
     eggs    = { name = "Eggs",    goalWord = "eggs",        text = "Hatch every egg: three hits each" },
     gems    = { name = "Gems",    goalWord = "gems",        text = "Knock every gem loose and catch it in the bucket" },
+    mixed_eggs = { name = "Oranges and Eggs", goalWord = "goals", text = "Light the orange pegs and hatch the eggs" },
+    mixed_gems = { name = "Oranges and Gems", goalWord = "goals", text = "Light the orange pegs and drop the gems" },
     boss    = { name = "Boss",    goalWord = "boss health", text = "Beat the boss: hit it until its health is gone" },
     duel    = { name = "Duel",    goalWord = "orange pegs", text = "Light every orange peg while the boss takes its turns" },
     longshots = { name = "Long Shots", goalWord = "long shots", text = "Make Long Shots: light two orange pegs far apart in one shot" },
@@ -170,10 +179,15 @@ E.PHOENIX_POINTS = 5000     -- an egg saved in the bucket
 -- nudges them. A gem counts when it leaves the bottom of the board, an
 -- egg is lost there (the bucket saves either).
 E.LOOSE_GRAVITY     = 900
-E.LOOSE_RESTITUTION = 0.12
-E.LOOSE_FRICTION    = 0.55      -- share of the tangent speed kept per contact
-E.LOOSE_SLEEP       = 14        -- slower than this while touching something: at rest
-E.LOOSE_NUDGE       = { egg = 0.06, gem = 0.3 }   -- share of the ball's speed a hit passes on
+E.LOOSE_RESTITUTION = 0.15
+E.LOOSE_DRAG        = 0.9       -- rolling drag: share of the tangent speed lost per second of contact
+E.LOOSE_SLEEP       = 10        -- slower than this ...
+E.LOOSE_SLEEP_SECS  = 0.25      -- ... for this long while touching something: at rest
+E.LOOSE_NUDGE       = { egg = 0.08, gem = 0.45 }  -- share of the ball's speed a hit passes on (a gem is light, an egg heavy)
+-- A hatched egg's phoenix flies straight up off the board, lighting every
+-- piece in a column twice the egg's width.
+E.PHOENIX_SPEED     = 520
+E.PHOENIX_HALF      = 2 * 22    -- half the column's width (the egg is 44 across)
 E.LOOSE_BLAST_KICK  = 260       -- a Space Blast throws loose pieces away from it
 
 -- The duel: no piece to hit. Stage one is a board to clear; then the
@@ -183,7 +197,7 @@ E.LOOSE_BLAST_KICK  = 260       -- a Space Blast throws loose pieces away from i
 E.RIVAL = { id = "cogwhistle", name = "Cogwhistle Overspark",
     blurb = "Tinkmaster's older brother. Clear the board, then beat his score in a duel: five balls each, turn and turn about, and a shot that lights no orange costs a quarter of your score." }
 E.DUEL_BALLS   = 5
-E.DUEL_PENALTY = 0.25
+E.DUEL_PENALTY = 500         -- a shot that lights no orange costs this, the ball's own points stand
 E.DUEL_STAGE2_ORANGES = 10
 E.RIVAL_THINK  = 1.4        -- seconds the rival shows his aim before firing
 E.STYLE_TIERS  = { { run = 20, points = 25000, caption = "UNBELIEVABLE!" }, { run = 12, points = 12500, caption = "AWESOME!" }, { run = 6, points = 5000, caption = "NICE!" } }
@@ -527,6 +541,7 @@ function E:Launch(state, events)
         vx = sin(a) * E.LAUNCH_SPEED, vy = cos(a) * E.LAUNCH_SPEED,
         slow = 0,
         ring = state.armed and E.ITEMS[state.armed] and E.ITEMS[state.armed].radius or nil,
+        suction = state.armed == "suction" or nil,
         item = state.armed,
     }
     if state.armed then push(events, { type = "item_used", item = state.armed }) end
@@ -537,6 +552,7 @@ function E:Launch(state, events)
     state.combo = 0
     state.goalHitThisShot = 0
     state.shotHits = 0
+    state.shotBucket = false
     state.shotPegs = 0
     state.shotPoints = 0
     state.shotGoals = {}
@@ -566,9 +582,9 @@ push = function(events, ev)
     if events then events[#events + 1] = ev end
 end
 
-local function addScore(state, pts, events)
+local function addScore(state, pts, events, notDuel)
     local d = state.duel
-    if d and d.stage == 2 then
+    if d and d.stage == 2 and not notDuel then
         d.scores[d.turn] = d.scores[d.turn] + pts
         if d.turn ~= "you" then return end       -- the rival's points are his alone
     end
@@ -661,12 +677,39 @@ local function startFever(state, events)
     state.feverTotal = 0
     state.feverNext = state.time + E.FEVER_FIRST_GAP
     local binW = W / #E.FEVER_BINS
-    for i = 1, #E.FEVER_BINS - 1 do
+    for i = 0, #E.FEVER_BINS do
         state.pegs[#state.pegs + 1] = { shape = "peg", x = i * binW, y = E.FEVER_POST_Y, r = E.FEVER_BALLOON_R,
             kind = "bumper", post = true, balloon = true, bounce = E.BUMPER_BOUNCE }
     end
     push(events, { type = "fever" })
 end
+
+local function spawnPhoenix(state, x, y, events)
+    state.phoenixes = state.phoenixes or {}
+    state.phoenixes[#state.phoenixes + 1] = { x = x, y = y }
+    push(events, { type = "phoenix", x = x, y = y })
+end
+
+-- The phoenixes climb; every piece in a phoenix's column lights (a tough
+-- piece gives way at once). Solid pieces and loose ones are left alone.
+local function phoenixFlight(state, dt, events)
+    local list = state.phoenixes
+    if not list or #list == 0 then return end
+    for i = #list, 1, -1 do
+        local f = list[i]
+        f.y = f.y - E.PHOENIX_SPEED * dt
+        for _, q in ipairs(state.pegs) do
+            if not q.gone and not q.lit and not isSolid(q) and not q.loose
+                and abs(q.x - f.x) <= E.PHOENIX_HALF and q.y <= f.y + 10 and q.y >= f.y - 30 then
+                q.hp = 1
+                q.cooldown = nil
+                hitPeg(state, q, nil, events, true)
+            end
+        end
+        if f.y < -60 then table.remove(list, i) end
+    end
+end
+E.PhoenixFlight = phoenixFlight
 
 -- A push on a loose piece: it wakes and rolls.
 nudgeLoose = function(p, dvx, dvy)
@@ -727,7 +770,7 @@ hitPeg = function(state, p, ball, events, quiet)
         end
         if p.kind == "gem" then return false end
     end
-    p.cooldown = state.time + E.HIT_COOLDOWN
+    p.cooldown = state.time + ((p.kind == "boss") and E.BOSS_COOLDOWN or E.HIT_COOLDOWN)
     state.shotHits = state.shotHits + 1
     if p.kind == "boss" then state.bossHitThisShot = true end
     if (p.shield or 0) > 0 then
@@ -804,6 +847,7 @@ lightPeg = function(state, p, ball, events, quiet, at)
     end
 
     if p.kind == "green" then applyPower(state, p, ball, events) end
+    if p.kind == "egg" then spawnPhoenix(state, at and at.x or p.x, at and at.y or p.y, events) end
     if p.kind == "boss" then push(events, { type = "boss_down", x = p.x, y = p.y }) end
 
     if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER and state.duel and state.duel.stage == 1 then
@@ -1036,6 +1080,17 @@ local function integrateBall(state, ball, dt, events)
     if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.y < R then ball.y = R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
 
+    -- the suction tube draws a falling ball toward the bucket
+    if ball.suction and not state.noBucket and state.phase ~= E.PHASE.FEVER and ball.vy > 0 then
+        local above = H - ball.y
+        if above < E.SUCTION_REACH then
+            local dx = state.bucket.x - ball.x
+            local k = 1 - above / E.SUCTION_REACH
+            local pull = E.SUCTION_PULL * k
+            ball.vx = ball.vx + (dx > 0 and 1 or -1) * math.min(pull, abs(dx) * 12) * dt
+        end
+    end
+
     if state.phase == E.PHASE.FEVER then
         if ball.y + R >= H - 2 then
             local idx = floor(ball.x / (W / #E.FEVER_BINS)) + 1
@@ -1043,7 +1098,7 @@ local function integrateBall(state, ball, dt, events)
             local pts = state.gnomeBonus and E.GNOME_BUCKET or E.FEVER_BINS[idx]
             if not state.feverBin then state.feverBin = pts end
             state.feverTotal = (state.feverTotal or 0) + pts
-            addScore(state, pts, events)
+            addScore(state, pts, events, true)
             state.binsLit[idx] = true
             push(events, { type = "bin", index = idx, points = pts, x = ball.x })
             if not state.gnomeBonus then
@@ -1052,7 +1107,7 @@ local function integrateBall(state, ball, dt, events)
                 if all then
                     state.gnomeBonus = true
                     state.feverTotal = state.feverTotal + E.GNOME_BONUS
-                    addScore(state, E.GNOME_BONUS, events)
+                    addScore(state, E.GNOME_BONUS, events, true)
                     push(events, { type = "gnome_bonus", points = E.GNOME_BONUS })
                 end
             end
@@ -1061,6 +1116,7 @@ local function integrateBall(state, ball, dt, events)
     else
         if bucketCheck(state, ball, events) == 1 then
             state.ballsLeft = state.ballsLeft + 1
+            state.shotBucket = true
             push(events, { type = "bucket", x = ball.x })
             return false
         end
@@ -1145,7 +1201,7 @@ local function duelTurnOver(state, events)
     local d = state.duel
     if not d or d.stage ~= 2 then return false end
     if state.goalHitThisShot == 0 and state.shots > 0 then
-        local lost = floor(d.scores[d.turn] * E.DUEL_PENALTY)
+        local lost = math.min(E.DUEL_PENALTY, d.scores[d.turn])
         if lost > 0 then
             d.scores[d.turn] = d.scores[d.turn] - lost
             if d.turn == "you" then state.score = state.score - lost end
@@ -1216,18 +1272,18 @@ loosePhysics = function(state, dt, events)
             p.y = p.y + p.vy * dt
             if p.x < r then p.x = r; if p.vx < 0 then p.vx = -p.vx * E.LOOSE_RESTITUTION end end
             if p.x > W - r then p.x = W - r; if p.vx > 0 then p.vx = -p.vx * E.LOOSE_RESTITUTION end end
-            local touching, held = false, false
+            local touching = false
             for _, q in ipairs(state.pegs) do
                 if q ~= p and not q.gone and not (q.loose and (q.lit or q.gone)) then
                     local depth, nx, ny = pegContact(q, p.x, p.y, r)
                     if depth then
                         touching = true
-                        if ny < -0.2 then held = true end
                         p.x, p.y = p.x + nx * depth, p.y + ny * depth
                         local vn = p.vx * nx + p.vy * ny
                         if vn < 0 then
+                            -- a soft landing along the normal, a little rolling drag along the surface
                             local tx, ty = -ny, nx
-                            local vt = (p.vx * tx + p.vy * ty) * E.LOOSE_FRICTION
+                            local vt = (p.vx * tx + p.vy * ty) * math.max(0, 1 - E.LOOSE_DRAG * dt)
                             local vn2 = -vn * E.LOOSE_RESTITUTION
                             p.vx = vn2 * nx + vt * tx
                             p.vy = vn2 * ny + vt * ty
@@ -1240,8 +1296,11 @@ loosePhysics = function(state, dt, events)
                     end
                 end
             end
+            -- at rest only after staying slow for a moment: on a slope gravity
+            -- keeps it rolling, in a cradle it settles
             local speed = sqrt(p.vx * p.vx + p.vy * p.vy)
-            if held and speed < E.LOOSE_SLEEP then
+            if touching and speed < E.LOOSE_SLEEP then p.slowT = (p.slowT or 0) + dt else p.slowT = 0 end
+            if p.slowT >= E.LOOSE_SLEEP_SECS then
                 p.vx, p.vy = 0, 0
                 p.resting = true
                 p.settling = nil
@@ -1435,6 +1494,7 @@ local function substep(state, dt, events)
     if state.phase == E.PHASE.AIM then
         -- loose pieces settle into their cradles while the player aims
         if state.hasLoose then loosePhysics(state, dt, events) end
+        if state.eggLost then finishLevel(state, events) end
         return
     end
 
@@ -1445,6 +1505,13 @@ local function substep(state, dt, events)
         end
     end
     if state.hasLoose then loosePhysics(state, dt, events) end
+    phoenixFlight(state, dt, events)
+    if state.eggLost and state.phase ~= E.PHASE.FEVER then
+        state.balls = {}
+        state.lastSlow = false
+        finishLevel(state, events)
+        return
+    end
     updateLastPeg(state, dt, events)
 
     if state.phase == E.PHASE.FEVER then
@@ -1471,8 +1538,38 @@ local function substep(state, dt, events)
         return
     end
     -- the shot is over once the balls are gone and nothing is still rolling
-    if #state.balls == 0 and not looseMoving(state) then
+    -- (a piece that keeps jittering gets three seconds, then the shot ends anyway)
+    if #state.balls == 0 then state.looseWait = (state.looseWait or 0) + dt else state.looseWait = 0 end
+    local rolling = looseMoving(state) and state.looseWait < 3
+    if #state.balls == 0 and not rolling and not (state.phoenixes and #state.phoenixes > 0) then
+        state.looseWait = 0
         clearLitPegs(state, events)
+        -- every boss fights back: after a shot that hit it, it throws scrap,
+        -- solid blocks in the gap above it that the next shots must find a way round
+        local boss = state.boss
+        if boss and not boss.lit and not boss.gone and state.bossHitThisShot then
+            local made = 0
+            local count = 0
+            for _, p in ipairs(state.pegs) do if p.scrap and not p.gone then count = count + 1 end end
+            for _ = 1, 12 do
+                if made >= E.SCRAP_PER_SHOT or count + made >= E.SCRAP_MAX then break end
+                local x = 50 + state.rng() * (W - 100)
+                local y = E.PEG_BOTTOM + 16 + state.rng() * math.max(4, boss.y - E.BOSS_R - 40 - E.PEG_BOTTOM - 16)
+                local ok = true
+                for _, q in ipairs(state.pegs) do
+                    if not q.gone then
+                        local dx, dy = q.x - x, q.y - y
+                        local rr = (q.r or E.PEG_R) + E.SCRAP_R + 10
+                        if q.shape ~= "brick" and dx * dx + dy * dy < rr * rr then ok = false break end
+                    end
+                end
+                if ok then
+                    state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = y, r = E.SCRAP_R, kind = "block", scrap = true }
+                    made = made + 1
+                end
+            end
+            if made > 0 then push(events, { type = "boss_scrap", count = made, x = boss.x, y = boss.y }) end
+        end
         -- the Cog Yeti heals after a shot that never touched it
         local b = state.boss
         if b and not b.lit and b.ability == "yeti" and not state.bossHitThisShot and b.hp < b.maxhp then
@@ -1482,7 +1579,7 @@ local function substep(state, dt, events)
         if state.shotHits > 0 or state.shotPegs > 0 then
             local n = math.max(1, state.shotPegs)
             push(events, { type = "shot_summary", pegs = state.shotPegs, points = state.shotPoints, avg = floor(state.shotPoints / n) })
-        elseif state.shots > 0 then
+        elseif state.shots > 0 and not state.shotBucket then
             push(events, { type = "total_miss" })
         end
         local decided = duelTurnOver(state, events)

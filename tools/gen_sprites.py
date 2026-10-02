@@ -71,8 +71,14 @@ def pose(name, base, prompt):
     PLAN[name] = {"how": "pose", "base": base, "prompt": prompt}
 
 
-def asset(name, category, description, keep_bg=False):
-    PLAN[name] = {"how": "asset", "category": category, "description": description, "keep_bg": keep_bg}
+def asset(name, category, description, keep_bg=False, post=None):
+    PLAN[name] = {"how": "asset", "category": category, "description": description, "keep_bg": keep_bg, "post": post}
+
+
+def scene(name, description, post=None):
+    """A landscape: drawn as a full illustration (the "texture" category
+    makes seamless tiles instead) and cropped to its filled middle."""
+    asset(name, "character", "full scene illustration filling the whole frame, no border: " + description, keep_bg=True, post=post or "scene")
 
 
 def derive(name, source, op, **kw):
@@ -88,7 +94,7 @@ sheet("peg_blue", "peg_orange", "peg_green", "peg_purple",
       "peg_blue_lit", "peg_orange_lit", "peg_green_lit", "peg_purple_lit",
       "peg_blue_gone", "peg_orange_gone", "peg_green_gone",
       "spark1", "spark2", "plate", "callout_fever")
-asset("bucket", "prop", "gnomish brass catching bucket on little wheels with gears and rivets, open top, front view, " + STYLE)
+asset("bucket", "prop", "mouth of a gnomish brass vacuum tube, a flared funnel opening facing up on a short glass and brass pipe, rivets and a pressure gauge, front view, " + STYLE)
 asset("bucket_splash1", "effect", "burst of white sparks and little brass gear bits flying upward, catch effect, " + STYLE)
 # the sheet's button says START; the game writes its own labels, so the button is drawn blank
 asset("button_green", "prop", "wide rounded glossy green button with a dark green bevelled edge, blank, no text, four times as wide as tall, " + STYLE)
@@ -125,13 +131,16 @@ derive("launcher_flash", "spark1", "copy")
 derive("bucket_splash2", "bucket_splash1", "spread", amount=1.25)
 derive("bucket_splash3", "bucket_splash1", "spread", amount=1.5)
 derive("bucket_splash4", "bucket_splash1", "spread", amount=1.75, fade=0.6)
-asset("fever_bucket", "prop", "wide gnomish brass hopper cup with rivets and a small gear at each end, open top, front view, four times as wide as tall, " + STYLE)
-derive("fever_bucket_lit", "fever_bucket", "bright")
+asset("fever_tube", "prop", "wide flared mouth of a gnomish brass vacuum tube opening upward, glass ring and rivets, front view, twice as wide as tall, " + STYLE)
+for letter in "gnome":
+    derive("fever_tube_" + letter, "fever_tube", "letter", letter=letter.upper())
+    derive("fever_tube_%s_lit" % letter, "fever_tube", "letter", letter=letter.upper(), lit=True)
 for pid, look in (("multiball", "two chrome balls"), ("guide", "a dotted aiming arc"), ("blast", "an orange starburst explosion"),
                   ("fireball", "a flaming orange ball"), ("spooky", "a pale green ghost"), ("pyramid", "a golden trapezoid ramp"),
                   ("lightning", "a blue lightning bolt"), ("frenzy", "a winged chrome ball with sparkles")):
     asset("power_" + pid, "item", "round game power icon on a copper disc: %s, " % look + STYLE)
-for iid, look in (("ring", "an orange ring of fire"), ("rainbow", "a rainbow arc"), ("green", "a green orb with a plus sign")):
+for iid, look in (("ring", "an orange ring of fire"), ("rainbow", "a rainbow arc"), ("green", "a green orb with a plus sign"),
+                  ("suction", "a brass vacuum tube mouth drawing in swirling air")):
     asset("item_" + iid, "item", "round game power-up icon on a copper disc: %s, " % look + STYLE)
 for gid, look in (("orange", "an orange orb"), ("egg", "a cream egg"), ("gem", "a cyan gem"), ("boss", "a red mechanical face"),
                   ("duel", "a green orb and a red orb side by side"), ("longshot", "two orange orbs far apart joined by a line")):
@@ -193,12 +202,15 @@ BIOMES = [('Elwynn Forest', 'sunlit oak forest with meadows, a stream and a farm
           ('Silithus', 'orange desert with giant insect hives and sand'),
           ('Moonglade', 'serene moonlit glade with a still lake and soft lights')]
 for i, (zone, look) in enumerate(BIOMES, 1):
-    asset("map_bg_%d" % i, "texture", "tall painted fantasy landscape, %s, winding dirt path, soft, low contrast, portrait, level map backdrop" % look, keep_bg=True)
-    asset("field_bg_%d" % i, "texture", "tall very low contrast game board backdrop: %s at dusk, dark, no objects, portrait" % look, keep_bg=True)
-    asset("field_boss_%d" % i, "texture", "tall very low contrast boss arena backdrop: %s at night, ominous red glow, dark, no objects, portrait" % look, keep_bg=True)
+    # the map: the chapter's landscape; the board: the same landscape dimmed;
+    # the boss arena: the zone's boss lair at night, dimmed with a red cast
+    scene("map_bg_%d" % i, "%s, winding dirt path, painted fantasy landscape seen from above" % look)
+    derive("field_bg_%d" % i, "map_bg_%d" % i, "board")
+    scene("field_boss_%d" % i, "a boss lair in %s, at night, ominous red glow, painted fantasy landscape seen from above" % look, post="arena")
 asset("minimap", "item", "round purple glossy button with gold letters GP, " + STYLE)
 derive("spark3", "spark1", "spread", amount=1.3, fade=0.8)
 derive("spark4", "spark2", "spread", amount=1.4, fade=0.6)
+asset("phoenix", "character", "fiery phoenix bird flying straight up, wings spread wide, flames trailing below, seen from behind, " + STYLE)
 asset("confetti", "effect", "scattered colourful confetti bits mid-air, " + STYLE)
 asset("firework", "effect", "radial firework burst, white centre, golden rays, " + STYLE)
 tool("peg", "brick", "key", "boss", "ring", "rim", "crack", "dot", "star", "blast", "pyramid", "icon", "trail", "glow_soft")
@@ -405,6 +417,35 @@ def op_darken(img, amount=0.72):
     return ImageEnhance.Brightness(img).enhance(amount)
 
 
+def scene_crop(img, slot):
+    """The filled middle of a vignetted scene, at the slot's aspect."""
+    w, h = img.size
+    aspect = slot["w"] / slot["h"]
+    ch = int(h * 0.74)
+    cw = int(ch * aspect)
+    if cw > int(w * 0.74):
+        cw = int(w * 0.74)
+        ch = int(cw / aspect)
+    x0, y0 = (w - cw) // 2, int(h * 0.12)
+    return img.crop((x0, y0, x0 + cw, y0 + ch)).convert("RGBA")
+
+
+def op_board(img, red=False):
+    """A landscape made into a board backdrop: dimmed, desaturated and
+    softened so the pegs read on top; a red cast for a boss arena."""
+    from PIL import ImageFilter
+    out = ImageEnhance.Color(img.convert("RGB")).enhance(0.55)
+    out = ImageEnhance.Brightness(out).enhance(0.32)
+    out = out.filter(ImageFilter.GaussianBlur(1.2))
+    if red:
+        r, g, b = out.split()
+        r = r.point(lambda v: min(255, int(v * 1.5 + 8)))
+        g = g.point(lambda v: int(v * 0.8))
+        b = b.point(lambda v: int(v * 0.8))
+        out = Image.merge("RGB", (r, g, b))
+    return out.convert("RGBA")
+
+
 def op_bright(img, amount=1.45):
     """Lit: brighter and warmer, toward white-gold."""
     out = ImageEnhance.Brightness(img).enhance(amount)
@@ -417,8 +458,30 @@ def op_bright(img, amount=1.45):
     return out
 
 
-OPS = {"copy": lambda i: i, "silver": op_silver, "gold": op_gold, "grey": op_grey, "hue": op_hue, "rainbow": op_rainbow,
-       "spread": op_spread, "darken": op_darken, "bright": op_bright}
+def op_letter(img, letter="G", lit=False):
+    from PIL import ImageDraw, ImageFont, ImageFilter
+    out = op_bright(img, 1.35) if lit else img.copy()
+    w, h = out.size
+    try:
+        font = ImageFont.truetype("C:/Windows/Fonts/impact.ttf", int(h * 0.62))
+    except OSError:
+        font = ImageFont.load_default()
+    layer = Image.new("RGBA", out.size, (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+    box = d.textbbox((0, 0), letter, font=font)
+    tx = (w - (box[2] - box[0])) / 2 - box[0]
+    ty = (h - (box[3] - box[1])) / 2 - box[1] + h * 0.04
+    fill = (255, 245, 170, 255) if lit else (250, 205, 70, 255)
+    d.text((tx, ty), letter, font=font, fill=fill, stroke_width=max(2, h // 20), stroke_fill=(70, 35, 10, 255))
+    if lit:
+        glow = layer.filter(ImageFilter.GaussianBlur(h * 0.08))
+        out.alpha_composite(glow)
+    out.alpha_composite(layer)
+    return out
+
+
+OPS = {"letter": op_letter, "copy": lambda i: i, "silver": op_silver, "gold": op_gold, "grey": op_grey, "hue": op_hue, "rainbow": op_rainbow,
+       "spread": op_spread, "darken": op_darken, "bright": op_bright, "board": op_board}
 
 
 # ---------------------------------------------------------------- the run
@@ -521,6 +584,10 @@ def main():
                     img = download(url)
                     if not p["keep_bg"]:
                         img = crop_content(strip_background(img))
+                    if p.get("post") in ("scene", "arena"):
+                        img = scene_crop(img, slots[n])
+                    if p.get("post") == "arena":
+                        img = op_board(img, red=True)
                     save_slot(img, slots[n], stretch=p["keep_bg"])
                     print(f"  refit  {n}")
                 except Exception as e:
@@ -565,6 +632,10 @@ def main():
                 img = download(url)
                 if not p["keep_bg"]:
                     img = crop_content(strip_background(img))
+                if p.get("post") in ("scene", "arena"):
+                    img = scene_crop(img, slots[n])
+                if p.get("post") == "arena":
+                    img = op_board(img, red=True)
                 save_slot(img, slots[n], stretch=p["keep_bg"])
                 entry["done"] = True
                 rec["slots"][n] = entry

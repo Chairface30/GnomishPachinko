@@ -39,7 +39,7 @@ ART.PIECE_STATES = { "", "_lit", "_gone" }
 ART.BALL_KINDS = { "ball", "ball_fire", "ball_electric", "ball_rainbow", "ball_wing", "ball_spooky" }
 ART.BOSS_IDS = { "drake", "golem", "spider", "boar", "yeti" }
 ART.POWER_IDS = { "multiball", "guide", "blast", "fireball", "spooky", "pyramid", "lightning", "frenzy" }
-ART.ITEM_IDS = { "ring", "rainbow", "green" }
+ART.ITEM_IDS = { "ring", "rainbow", "green", "suction" }
 ART.GOAL_IDS = { "orange", "egg", "gem", "boss", "duel", "longshot" }
 ART.BUTTON_SKINS = { "green", "orange", "grey" }
 
@@ -122,8 +122,11 @@ slot("launcher_hub",    64, 64, { note = "the pivot plate at the top centre" })
 slot("launcher_flash",  64, 64, { tint = true, note = "the muzzle flash on launch" })
 slot("bucket",          128, 128, { note = "the free-ball bucket (a nest, a pot, whatever the world wants); its rim at the top third" })
 for i = 1, 4 do slot("bucket_splash" .. i, 128, 128, { note = "a catch: splash frame " .. i .. " of 4, drawn over the bucket" }) end
-slot("fever_bucket",     128, 32, { note = "one Fever cup; the game writes the letter and value on it" })
-slot("fever_bucket_lit", 128, 32, { note = "a Fever cup already scored" })
+slot("fever_tube",       128, 64, { source = true, note = "the mouth of a brass vacuum tube, opening up: the source the five lettered tubes are drawn from" })
+for _, letter in ipairs({ "g", "n", "o", "m", "e" }) do
+    slot("fever_tube_" .. letter,          128, 64, { note = "the " .. letter:upper() .. " Fever tube, its letter on it" })
+    slot("fever_tube_" .. letter .. "_lit", 128, 64, { note = "the " .. letter:upper() .. " Fever tube, scored: lit up" })
+end
 slot("fever_balloon",    64, 64,  { fill = 0.8, note = "the inflated balloon bumper resting between two Fever cups; it squashes when hit" })
 
 section("Icons")
@@ -157,6 +160,7 @@ slot("minimap", 64, 64, { note = "the minimap button" })
 section("Effects")
 for i = 1, 4 do slot("spark" .. i, 64, 64, { tint = true, note = "sparkle burst frame " .. i .. " of 4" }) end
 slot("confetti",  64, 64,   { note = "a few bits of confetti" })
+slot("phoenix",   128, 128, { note = "the phoenix a hatched egg releases, wings spread, flying straight up" })
 slot("firework",  128, 128, { tint = true, note = "a burst for the GNOME bonus" })
 slot("trail",     64, 16,   { note = "one segment of the ball's rainbow ribbon" })
 slot("glow_soft", 128, 128, { tint = true, note = "a soft radial glow: the last-peg zoom, the boss's hit flash" })
@@ -209,7 +213,8 @@ function ART:Boss(id) return self.SLOTS["boss_" .. tostring(id)] and ("boss_" ..
 function ART:Power(id) return self.SLOTS["power_" .. tostring(id)] and ("power_" .. id) or "power_multiball" end
 function ART:Item(id) return self.SLOTS["item_" .. tostring(id)] and ("item_" .. id) or "item_ring" end
 function ART:Goal(objective)
-    local map = { classic = "orange", eggs = "egg", gems = "gem", boss = "boss", duel = "duel", longshots = "longshot" }
+    local map = { classic = "orange", eggs = "egg", gems = "gem", boss = "boss", duel = "duel", longshots = "longshot",
+        mixed_eggs = "egg", mixed_gems = "gem" }
     return "goal_" .. (map[objective] or "orange")
 end
 function ART:Chapter(level)

@@ -24,7 +24,8 @@ local WHITE = ART.WHITE
 local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 84, 110, 16, 240, 270   -- EDGE: content keeps this far from the window's edge, past the riveted band and the brass corners
 local PAD = EDGE
 local PORTRAIT = 2 * (E.LAUNCH_R - 12)      -- the host's box: the launcher slides round its rim
-local FANFARE_SECS = 6.0     -- length of Sounds/fanfare.ogg; it loops while Fever lasts
+local BARREL_W, BARREL_L = 38, 76           -- the bore is half the barrel's width: room for the ball
+local FANFARE_SECS = 8.0     -- length of Sounds/fever_music.ogg; it loops while Fever lasts and stops when the last ball lands
 local FX_POOL = 48           -- sparkle, confetti and glow textures in flight at once
 local TRAIL_LEN = 14         -- segments of the ball's ribbon
 local FLASH_SECS = 0.12      -- the muzzle flash
@@ -154,7 +155,6 @@ local function ballSlot(ball, st, now, electricUntil)
     if ball.item == "rainbow" then return "ball_rainbow" end
     if (ball.spooky or 0) > 0 then return "ball_spooky" end
     if electricUntil and now < electricUntil then return "ball_electric" end
-    if st.phase == E.PHASE.FEVER then return "ball_wing" end
     return "ball"
 end
 
@@ -171,6 +171,14 @@ function UI:ObjectiveText(st)
     local o = st.objective
     if o == "eggs" then return ("Hatch all %d eggs (two hits each). An egg that falls off the board is the level lost"):format(st.goalTotal) end
     if o == "gems" then return ("Knock all %d gems loose and drop them off the bottom"):format(st.goalTotal) end
+    if o == "mixed_eggs" or o == "mixed_gems" then
+        local oranges, specials = 0, 0
+        for _, p in ipairs(st.pegs) do
+            if p.goal then if p.kind == "orange" then oranges = oranges + 1 else specials = specials + 1 end end
+        end
+        if o == "mixed_eggs" then return ("Light all %d orange pegs and hatch all %d eggs"):format(oranges, specials) end
+        return ("Light all %d orange pegs and drop all %d gems"):format(oranges, specials)
+    end
     if o == "longshots" then return ("Make %d Long Shots: two orange pegs far apart in one shot"):format(st.goalTotal) end
     local text
     if o == "boss" and st.boss then text = ("Beat the %s (%d health)"):format(st.boss.bossName or "boss", st.boss.maxhp)
@@ -181,15 +189,16 @@ function UI:ObjectiveText(st)
     return text
 end
 
-local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to drop", boss = "Boss health", duel = "Orange pegs left", longshots = "Long Shots left" }
+local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to drop", boss = "Boss health", duel = "Orange pegs left", longshots = "Long Shots left",
+    mixed_eggs = "Goals left", mixed_gems = "Goals left" }
 
 -- First-encounter tips, shown once each on the level card, in Tinkmaster's voice.
 local TIPS = {
     { key = "start",     when = function(st) return st.level == 1 end, text = "Tinkmaster: \"Point with the mouse, click to shoot. Light every orange peg and the board is yours!\"" },
     { key = "bricks",    when = function(st) for _, p in ipairs(st.pegs) do if p.shape == "brick" then return true end end end, text = "Tinkmaster: \"Bricks are pegs too! Catch the inside of a curve and the ball rides it, lighting the lot.\"" },
     { key = "boss",      when = function(st) return st.objective == "boss" end, text = "Tinkmaster: \"A boss! It slides along the bottom under the pegs. Get the ball down there and keep hitting it.\"" },
-    { key = "eggs",      when = function(st) return st.objective == "eggs" end, text = "Tinkmaster: \"Eggs! Two hits to hatch. Handle with care: knock away the nest under one and it falls. Catch it in the bucket, or lose the level.\"" },
-    { key = "gems",      when = function(st) return st.objective == "gems" end, text = "Tinkmaster: \"Gems! Knock them loose and drop them off the bottom. One in the bucket is a Bucket Drop bonus.\"" },
+    { key = "eggs",      when = function(st) return st.objective == "eggs" or st.objective == "mixed_eggs" end, text = "Tinkmaster: \"Eggs! Two hits to hatch. Handle with care: knock away the nest under one and it falls. Catch it in the bucket, or lose the level.\"" },
+    { key = "gems",      when = function(st) return st.objective == "gems" or st.objective == "mixed_gems" end, text = "Tinkmaster: \"Gems! Knock them loose and drop them off the bottom. One in the bucket is a Bucket Drop bonus.\"" },
     { key = "duel",      when = function(st) return st.objective == "duel" end, text = "Tinkmaster: \"My brother Cogwhistle again. Clear the board, then it's a duel: five balls each, and hit an orange every shot or he docks your score.\"" },
     { key = "longshots", when = function(st) return st.objective == "longshots" end, text = "Tinkmaster: \"Long Shots! Light two orange pegs far apart in one shot. Bounce it off the far wall and watch.\"" },
     { key = "tough",     when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, text = "Tinkmaster: \"Steel-rimmed pieces take two hits, gold-rimmed three. They crack first.\"" },
@@ -393,24 +402,32 @@ function UI:CreateFrame()
     -- the balloons between the Fever cups (the engine adds them as bumpers);
     -- each squashes for a moment when a ball strikes it
     self.postTex = {}
-    for i = 1, #E.FEVER_BINS - 1 do
+    for i = 0, #E.FEVER_BINS do
         local t = field:CreateTexture(nil, "OVERLAY", nil, 2)
         ART:SetPiece(t, "fever_balloon", E.FEVER_BALLOON_R * 2)
         t.x, t.y = i * FW / #E.FEVER_BINS, E.FEVER_POST_Y
         t:SetPoint("CENTER", field, "TOPLEFT", t.x, -t.y)
         t:Hide()
-        self.postTex[i] = t
+        self.postTex[#self.postTex + 1] = t
     end
     self.bins = {}
     local binW = FW / #E.FEVER_BINS
     for i, pts in ipairs(E.FEVER_BINS) do
         local bin = CreateFrame("Frame", nil, field)
-        bin:SetSize(binW - 2, 28)
-        bin:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", (i - 1) * binW + 1, 2)
-        bin.skin = ART:NewSkin(bin, "fever_bucket", "BACKGROUND", 0)
-        bin.label = bin:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        bin.label:SetPoint("CENTER")
-        bin.label:SetText(("|cffffd700%s|r  %s"):format(E.FEVER_LETTERS[i] or "", fmtBig(pts)))
+        bin:SetSize(binW - 2 * E.FEVER_BALLOON_R, 40)
+        bin:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", (i - 1) * binW + E.FEVER_BALLOON_R, 0)
+        bin.letter = (E.FEVER_LETTERS[i] or "g"):lower()
+        bin.tube = bin:CreateTexture(nil, "BACKGROUND")
+        bin.tube:SetAllPoints(bin)
+        ART:Set(bin.tube, "fever_tube_" .. bin.letter)
+        -- the points it pays, under the board
+        bin.label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        bin.label:SetPoint("TOP", field, "BOTTOMLEFT", (i - 0.5) * binW, -4)
+        bin.label:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
+        bin.label:SetText("|cffffd700" .. fmtBig(pts) .. "|r")
+        bin.label:Hide()
+        bin:SetScript("OnShow", function(self) self.label:Show() end)
+        bin:SetScript("OnHide", function(self) self.label:Hide() end)
         bin:Hide()
         self.bins[i] = bin
     end
@@ -447,7 +464,7 @@ function UI:CreateFrame()
     self.bannerSub = sub
     -- power-up slots: armed for the next shot
     self.itemSlots = {}
-    for i, id in ipairs({ "ring", "rainbow" }) do
+    for i, id in ipairs({ "ring", "rainbow", "suction" }) do
         local b = makeButton(frame, LEFT_W, 30, "")
         b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", EDGE, EDGE + (i - 1) * 36)
         b.item = id
@@ -468,15 +485,17 @@ function UI:CreateFrame()
         self.itemSlots[i] = b
     end
 
-    -- the duel's two score boxes
-    self.duelYou = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.duelYou:SetPoint("TOPLEFT", field, "TOPLEFT", 10, -8)
-    self.duelYou:SetJustifyH("LEFT")
+    -- the duel's two score boxes, in the left column (the balls column gives way to them)
+    self.duelYou = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.duelYou:SetPoint("TOP", frame, "TOPLEFT", EDGE + LEFT_W / 2, -(TOP_H + 4))
+    self.duelYou:SetWidth(LEFT_W)
+    self.duelYou:SetJustifyH("CENTER")
     self.duelYou:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
     self.duelYou:Hide()
-    self.duelRival = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.duelRival:SetPoint("TOPRIGHT", field, "TOPRIGHT", -98, -8)
-    self.duelRival:SetJustifyH("RIGHT")
+    self.duelRival = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.duelRival:SetPoint("TOP", self.duelYou, "BOTTOM", 0, -18)
+    self.duelRival:SetWidth(LEFT_W)
+    self.duelRival:SetJustifyH("CENTER")
     self.duelRival:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
     self.duelRival:Hide()
 
@@ -502,7 +521,7 @@ function UI:CreateFrame()
     -- ===== side panel =====
     local side = CreateFrame("Frame", nil, frame)
     side:SetSize(SIDE_W, FH)
-    side:SetPoint("TOPLEFT", view, "TOPRIGHT", PAD, 0)
+    side:SetPoint("TOPLEFT", view, "TOPRIGHT", GAP, 0)
     self.side = side
 
     local function label(text, y, template)
@@ -643,7 +662,7 @@ function UI:CreateFrame()
     self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 60)
     self.playsText:SetWidth(SIDE_W)
     self.playsText:SetHeight(30)
-    self.playsText:SetJustifyH("LEFT")
+    self.playsText:SetJustifyH("CENTER")
     self.playsText:SetJustifyV("TOP")
     self.buyBtn = makeButton(side, SIDE_W, 24, "Buy " .. GP.Plays.PLAYS_PER_LOT .. " plays (" .. GP.Plays:PriceText(1) .. ")")
     self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 30)
@@ -671,19 +690,32 @@ function UI:CreateFrame()
     boxBg:SetPoint("CENTER")
     ART:Set(boxBg, "dot", 0.03, 0.04, 0.14)   -- a dark disc behind the host
     self.portraitBox = box
-    if GP.Mascot then GP.Mascot:Create(box, box, PORTRAIT - 16, PORTRAIT - 16) end
+    -- the host at full size, clipped at the ring's inner bottom edge so his
+    -- feet never show below it (the ring's band covers the cut)
+    local clip = CreateFrame("Frame", nil, box)
+    local innerR = math.floor(PORTRAIT / 2 * 0.8)
+    clip:SetPoint("TOPLEFT", box, "TOPLEFT", 0, 0)
+    clip:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
+    clip:SetHeight(PORTRAIT / 2 + innerR)
+    if clip.SetClipsChildren then pcall(clip.SetClipsChildren, clip, true) end
+    self.portraitClip = clip
+    if GP.Mascot then GP.Mascot:Create(clip, box, PORTRAIT - 16, PORTRAIT - 16) end
     local ringFrame = CreateFrame("Frame", nil, frame)
     ringFrame:SetSize(PORTRAIT, PORTRAIT)
     ringFrame:SetPoint("CENTER", box, "CENTER", 0, 0)
-    ringFrame:SetFrameLevel(box:GetFrameLevel() + 5)
+    ringFrame:SetFrameLevel(box:GetFrameLevel() + 8)
     local ring = ringFrame:CreateTexture(nil, "ARTWORK")
     ring:SetAllPoints(ringFrame)
     ART:Set(ring, "portrait_frame")
     self.portraitRing = ring
     self.portraitRingFrame = ringFrame
     -- the cannon slides round the box's rim, pointing the way the ball goes
-    local barrel = ringFrame:CreateTexture(nil, "OVERLAY", nil, 2)
-    barrel:SetSize(20, 40)
+    local barrelFrame = CreateFrame("Frame", nil, frame)
+    barrelFrame:SetAllPoints(field)
+    barrelFrame:SetFrameLevel(box:GetFrameLevel() + 6)     -- over the host (box + 4), under the ring (box + 8)
+    self.barrelFrame = barrelFrame
+    local barrel = barrelFrame:CreateTexture(nil, "ARTWORK")
+    barrel:SetSize(BARREL_W, BARREL_L)
     ART:Set(barrel, "launcher_barrel")
     self.barrel = barrel
     local flash = ringFrame:CreateTexture(nil, "OVERLAY", nil, 5)
@@ -1093,7 +1125,7 @@ end
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
 function UI:SetBoardChrome(shown)
     local function set(obj) if obj then if shown then obj:Show() else obj:Hide() end end end
-    set(self.portraitBox); set(self.portraitRingFrame)
+    set(self.portraitBox); set(self.portraitRingFrame); set(self.barrelFrame)
     for _, b in ipairs(self.ballStrip or {}) do if shown then b:Show() else b:Hide() end end
     if not shown then self.ballStripMore:SetText("") end
     for _, b in ipairs(self.itemSlots or {}) do set(b) end
@@ -1315,7 +1347,7 @@ function UI:StartLevel(n, retry)
     self:LayoutPegs()
     for i, bin in ipairs(self.bins) do
         bin:Hide()
-        bin.label:SetText(("|cffffd700%s|r  %s"):format(E.FEVER_LETTERS[i] or "", fmtBig(E.FEVER_BINS[i])))
+        bin.label:SetText("|cffffd700" .. fmtBig(E.FEVER_BINS[i]) .. "|r")
     end
     for _, s in ipairs(self.bannerStars) do s:Hide() end
     self.bucket:Show()
@@ -1327,7 +1359,7 @@ function UI:StartLevel(n, retry)
     ART:Set(self.fieldBg, ART:FieldBackdrop(n))
     for _, bin in ipairs(self.bins) do
         bin.litShown = false
-        ART:SetSkin(bin.skin, "fever_bucket")
+        ART:Set(bin.tube, "fever_tube_" .. bin.letter)
     end
     for _, t in ipairs(self.postTex) do t:Hide() end
     self.splashAt, self.flashAt, self.electricUntil, self.calloutUntil = nil, nil, nil, nil
@@ -1404,8 +1436,8 @@ function UI:UpdateDuelHud()
     local yb = (d.turn == "you") and st.ballsLeft or d.balls.you
     local rb = (d.turn == "rival") and st.ballsLeft or d.balls.rival
     local function balls(n) return string.rep("o", math.max(0, n)) end
-    self.duelYou:SetText(("%sYOU  %s  %s|r"):format(d.turn == "you" and "|cff88ff88" or "|cffcccccc", fmtBig(d.scores.you), balls(yb)))
-    self.duelRival:SetText(("%s%s  %s  %s|r"):format(d.turn == "rival" and "|cffff8080" or "|cffcccccc", d.name:upper(), fmtBig(d.scores.rival), balls(rb)))
+    self.duelYou:SetText(("%sYOU\n%s\n%s|r"):format(d.turn == "you" and "|cff88ff88" or "|cffcccccc", fmtBig(d.scores.you), balls(yb)))
+    self.duelRival:SetText(("%s%s\n%s\n%s|r"):format(d.turn == "rival" and "|cffff8080" or "|cffcccccc", d.name:upper(), fmtBig(d.scores.rival), balls(rb)))
     self.duelYou:Show()
     self.duelRival:Show()
 end
@@ -1454,11 +1486,11 @@ local function placeAt(tex, field, x, y)
     tex:SetPoint("CENTER", field, "TOPLEFT", x, -y)
 end
 
-function UI:LayoutPegs()
+function UI:LayoutPegs(midLevel)
     local st = self.state
     local field = self.field
     self.pegIndex = {}
-    if not self.introAt or GetTime() - self.introAt > 2 then self.introAt = GetTime() end
+    if not midLevel and (not self.introAt or GetTime() - self.introAt > 2) then self.introAt = GetTime() end
     for i, p in ipairs(st.pegs) do
         local t = self.pegTex[i]
         if t then t.sweepAt = nil end
@@ -1632,11 +1664,7 @@ function UI:AimAtCursor(dt)
     if fx < -120 or fx > E.FIELD_W + 120 or fy < -60 or fy > E.FIELD_H + 120 then return end
     local target = E:AimAngle(fx, fy)
     if not target then return end
-    if not dt then st.aim = target return end
-    local diff = target - (st.aim or 0)
-    local step = E.AIM_SWING * dt
-    if diff > step then diff = step elseif diff < -step then diff = -step end
-    st.aim = (st.aim or 0) + diff
+    st.aim = target
 end
 
 function UI:ShowBanner(text, subText, secs)
@@ -1651,6 +1679,12 @@ function UI:Popup(x, y, text, r, g, b)
         if not cand:IsShown() then p = cand break end
     end
     if not p then p = self.popups[1] end
+    -- never under the host's box
+    local boxR = E.LAUNCH_R + 20
+    local dx, dy = x - E.FIELD_W / 2, y - E.LAUNCH_CY
+    if dx * dx + dy * dy < boxR * boxR then
+        y = E.LAUNCH_CY + math.sqrt(math.max(0, boxR * boxR - dx * dx)) + 4
+    end
     placeAt(p, self.field, x, y)
     p:SetText(text)
     p:SetTextColor(r or 1, g or 1, b or 1)
@@ -1802,13 +1836,13 @@ end
 -- The clearing fanfare: starts when the last goal piece lights, loops
 -- while the leftover balls fly, stops when the level is over.
 function UI:StartFanfare(now)
-    local _, handle = GP:PlaySfx("fanfare.ogg")
+    local _, handle = GP:PlaySfx("fever_music.ogg")
     self.fanfareHandle = handle
     self.fanfareAt = now
 end
 
-function UI:StopFanfare()
-    if self.fanfareHandle and type(StopSound) == "function" then pcall(StopSound, self.fanfareHandle, 600) end
+function UI:StopFanfare(instant)
+    if self.fanfareHandle and type(StopSound) == "function" then pcall(StopSound, self.fanfareHandle, instant and 0 or 600) end
     self.fanfareHandle = nil
     self.fanfareAt = nil
 end
@@ -1912,6 +1946,10 @@ function UI:HandleEvents(now)
         elseif t == "boss_hop" then
             GP:PlaySfx("hop.ogg")
             self:Popup(ev.x, ev.y - 30, "!", 1, 1, 0.5)
+        elseif t == "boss_scrap" then
+            self:LayoutPegs(true)
+            GP:PlaySfx("clink.ogg")
+            self:Popup(ev.x, ev.y - 40, "SCRAP!", 1, 0.6, 0.3)
         elseif t == "boss_heal" then
             GP:PlaySfx("heal.ogg")
             self:Popup(ev.x, ev.y - 30, "+1", 1, 0.4, 0.4)
@@ -1933,6 +1971,9 @@ function UI:HandleEvents(now)
                 self:ShowBanner("|cff88ff88HE MISSED!|r", ("%s loses %s"):format(st.duel.name, fmtBig(ev.lost)), 1.8)
             end
             self:UpdateDuelHud()
+        elseif t == "phoenix" then
+            GP:PlaySfx("hatch.ogg")
+            self:Sparks(ev.x, ev.y, { 1, 0.6, 0.2 }, 8, 28)
         elseif t == "gem_free" then
             GP:PlaySfx("gem_free.ogg")
             self:Sparks(ev.x, ev.y, COLORS.gem.glow, 4, 22)
@@ -2083,6 +2124,8 @@ function UI:HandleEvents(now)
             self:Popup(ev.x, 30, "BOO", 0.7, 1, 0.7)
         elseif t == "bin" then
             GP:PlaySfx("bin.ogg")
+            -- the last ball home: the music stops dead
+            if st.ballsLeft <= 0 and #st.balls <= 1 then self:StopFanfare(true) end
             self:Popup(ev.x, E.FIELD_H - 44, "+" .. fmtBig(ev.points), 1, 0.9, 0.4)
         elseif t == "ready" then
             if st.ballsLeft == 2 then self:ShowBanner("|cffff9060 2 BALLS LEFT|r", "", 1.5); GP.Mascot:React("two_left")
@@ -2317,7 +2360,9 @@ function UI:Render(now)
 
     local a = st.aim or 0
     local cx, cy = E.FIELD_W / 2, E.LAUNCH_CY
-    placeAt(self.barrel, field, cx + math.sin(a) * (E.LAUNCH_R - 16), cy + math.cos(a) * (E.LAUNCH_R - 16))
+    -- the barrel's mouth sits just past the muzzle point, its breech under the ring
+    local mid = E.LAUNCH_R + 14 - BARREL_L / 2
+    placeAt(self.barrel, field, cx + math.sin(a) * mid, cy + math.cos(a) * mid)
     if self.barrel.SetRotation then self.barrel:SetRotation(a) end
     -- the muzzle flash
     if self.flashAt then
@@ -2492,14 +2537,54 @@ function UI:Render(now)
         self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
     end
 
+    self.ballAura = self.ballAura or {}
     for i, tex in ipairs(self.ballTex) do
         local ball = st.balls[i]
+        local aura = self.ballAura[i]
+        if not aura then
+            aura = field:CreateTexture(nil, "OVERLAY", nil, 1)
+            ART:Set(aura, "ring")
+            aura:SetSize(E.BALL_R * 5, E.BALL_R * 5)
+            self.ballAura[i] = aura
+        end
         if ball then
             placeAt(tex, field, ball.x, ball.y)
             ART:Set(tex, ballSlot(ball, st, now, self.electricUntil))
             tex:Show()
+            if st.phase == E.PHASE.FEVER then
+                local h = (now * 0.8 + i * 0.17) % 1
+                local r, g, b = math.abs(h * 6 - 3) - 1, 2 - math.abs(h * 6 - 2), 2 - math.abs(h * 6 - 4)
+                aura:SetVertexColor(math.max(0, math.min(1, r)), math.max(0, math.min(1, g)), math.max(0, math.min(1, b)), 0.95)
+                placeAt(aura, field, ball.x, ball.y)
+                aura:Show()
+            else
+                aura:Hide()
+            end
         else
             tex:Hide()
+            aura:Hide()
+        end
+    end
+    -- the phoenixes climbing out of hatched eggs
+    self.phoenixTex = self.phoenixTex or {}
+    local fl = st.phoenixes or {}
+    for i = 1, math.max(#fl, #self.phoenixTex) do
+        local t = self.phoenixTex[i]
+        local f = fl[i]
+        if f and not t then
+            t = field:CreateTexture(nil, "OVERLAY", nil, 6)
+            ART:Set(t, "phoenix")
+            t:SetSize(E.PHOENIX_HALF * 2 + 16, E.PHOENIX_HALF * 2 + 16)
+            self.phoenixTex[i] = t
+        end
+        if t then
+            if f then
+                placeAt(t, field, f.x, f.y)
+                t:SetAlpha(0.85 + 0.15 * math.sin(now * 20))
+                t:Show()
+            else
+                t:Hide()
+            end
         end
     end
     -- the ribbon: in Fever, and behind a Rainbow Ball
@@ -2528,7 +2613,7 @@ function UI:Render(now)
             local lit = st.binsLit[i] and true or false
             if bin.litShown ~= lit then
                 bin.litShown = lit
-                ART:SetSkin(bin.skin, lit and "fever_bucket_lit" or "fever_bucket")
+                ART:Set(bin.tube, "fever_tube_" .. bin.letter .. (lit and "_lit" or ""))
             end
         end
     end

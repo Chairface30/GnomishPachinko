@@ -536,15 +536,15 @@ STARTERS[7] = { name = "First Bricks", build = function(rng, add)
     row(add, 470, 4, CX - 150, CX + 150)
 end }
 
-STARTERS[8] = { name = "Zig", build = function(rng, add)
-    for k = 0, 7 do
-        local f = k / 7
-        add(peg(L_X0 + 20 + f * (L_X1 - L_X0 - 40), 220 + f * 50))
-    end
-    for k = 0, 7 do
-        local f = k / 7
-        add(peg(L_X0 + 20 + f * (L_X1 - L_X0 - 40), 360 + (1 - f) * 50))
-    end
+STARTERS[8] = { name = "Super Slide", build = function(rng, add)
+    -- a spiral of bricks: catch its outside edge and the ball rides it in
+    local turns, r0, r1 = 1.6, 50, 175
+    brickCurve(add, function(t)
+        local a = -pi / 2 + t * turns * 2 * pi
+        local r = r1 - (r1 - r0) * t
+        return CX + r * cos(a), 330 + r * sin(a) * 0.9
+    end, 30, "spiral", rng)
+    row(add, 520, 4, CX - 150, CX + 150)
 end }
 
 STARTERS[9] = { name = "Columns", build = function(rng, add)
@@ -829,6 +829,10 @@ function L:Objective(n)
         local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
         return (chapter % 2 == 0) and "duel" or "boss"
     end
+    if last == 2 and n >= 141 then
+        local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
+        return (chapter % 2 == 0) and "mixed_gems" or "mixed_eggs"
+    end
     if last == 5 and n >= 11 then return "eggs" end
     if last == 7 and n >= 31 then return "eggs" end
     if last == 6 and n >= 66 then return "longshots" end
@@ -866,7 +870,7 @@ function L:ToughOrangesFrom() return 61 end
 
 -- Every level has a name for its card.
 local STARTER_NAMES = { "Howdy, Gnome!", "Two by Two", "A Little Sparkle", "Shelf Life", "The Big V", "Ring Around",
-    "Brick by Brick", "Zig and Zag", "Standing Tall", "Clockwork Trouble" }
+    "Brick by Brick", "Round and Round", "Standing Tall", "Clockwork Trouble" }
 function L:Title(n, objective, family, bossName, duelName)
     if n <= 10 then return STARTER_NAMES[n] or ("Level " .. n) end
     local place = self:ChapterName(floor((n - 1) / self.PER_CHAPTER) + 1)
@@ -884,7 +888,8 @@ function L:NoBucket(n)
     if n < 41 then return false end
     local last = n % 10
     if last ~= 4 and last ~= 9 then return false end
-    return self:Objective(n) ~= "gems"
+    local o = self:Objective(n)
+    return o ~= "gems" and o ~= "mixed_gems"
 end
 
 -- The duel on an even chapter's tenth level: always the rival.
@@ -896,7 +901,7 @@ end
 function L:BossFor(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local def = E.BOSSES[((chapter - 1) % #E.BOSSES) + 1]
-    return def, 5 + floor(chapter / 6)
+    return def, 8 + floor(chapter * 0.6)
 end
 
 -- Star marks come from the level itself: what its pieces are worth at a
@@ -926,6 +931,7 @@ function L:ParFor(spec)
     local hard = 0.5 * math.min(1, goal / 30) + 0.5 * (coloured > 0 and tough / coloured or 0)
     if spec.objective == "eggs" then hard = hard + 0.1
     elseif spec.objective == "gems" then hard = hard + 0.2
+    elseif spec.objective == "mixed_eggs" or spec.objective == "mixed_gems" then hard = hard + 0.25
     elseif spec.objective == "boss" then hard = hard + 0.15
     elseif spec.objective == "duel" then hard = hard + 0.15
     elseif spec.objective == "longshots" then hard = hard + 0.15 end
@@ -1080,7 +1086,7 @@ function L:Build(n, attempt, opts)
         b.bossName = bossDef.name
         if add(b, "boss") then
             local amp = (bossDef.id == "spider") and 40 or (W / 2 - 90)
-            mover({ kind = "slide", pegs = { b }, amp = amp, speed = bossDef.speed, phase = 0 })
+            mover({ kind = "slide", pegs = { b }, amp = amp, speed = bossDef.speed * 1.35, phase = 0 })
         end
     end
 
@@ -1138,6 +1144,7 @@ function L:Build(n, attempt, opts)
         for _, b in ipairs(pair) do b.group = group end
         return pair
     end
+    local gridTried = false
     local function convert(kind, count, r, spread, lowest)
         spread, lowest = spread or 90, lowest or 420
         local cands = {}
@@ -1159,6 +1166,10 @@ function L:Build(n, attempt, opts)
         for i = #cands, 2, -1 do
             local j = rng(1, i)
             cands[i], cands[j] = cands[j], cands[i]
+        end
+        if kind == "egg" then
+            -- low first: a hatching phoenix flies up through the pattern
+            table.sort(cands, function(a, b) return floor(a.y / 60) > floor(b.y / 60) end)
         end
         local chosen = {}
         for _, p in ipairs(cands) do
@@ -1186,7 +1197,22 @@ function L:Build(n, attempt, opts)
         end
         if #chosen < math.min(count, 3) then
             if spread > 70 then return convert(kind, count, r, 70, 470) end
-            return 0        -- too few spots for the big pieces: the level stays classic
+            if not gridTried then
+                -- room made on a grid: virtual spots join the pattern, and whatever
+                -- they or their cradles overlap is cleared below
+                gridTried = true
+                local x0, x1 = E.PEG_MARGIN + r + 24, E.FIELD_W - E.PEG_MARGIN - r - 24
+                local y0, y1 = E.PEG_TOP + r, E.PEG_BOTTOM - r - 24
+                for gy = y0, y1, 64 do
+                    for gx = x0, x1, 72 do
+                        pegs[#pegs + 1] = { shape = "peg", x = gx, y = gy, mapped = true, virtual = true }
+                    end
+                end
+                local got = convert(kind, count, r, 70, 470)
+                for i = #pegs, 1, -1 do if pegs[i].virtual and not pegs[i].special then table.remove(pegs, i) end end
+                return got
+            end
+            return 0
         end
         local cradles = {}
         for _, p in ipairs(chosen) do
@@ -1226,6 +1252,10 @@ function L:Build(n, attempt, opts)
         goal = convert("egg", self:SpecialCount(n), E.EGG_R)
     elseif objective == "gems" then
         goal = convert("gem", self:SpecialCount(n), E.GEM_R)
+    elseif objective == "mixed_eggs" then
+        goal = convert("egg", 2 + floor(d * 2), E.EGG_R)
+    elseif objective == "mixed_gems" then
+        goal = convert("gem", 2 + floor(d * 2), E.GEM_R)
     elseif objective == "boss" then
         for _, p in ipairs(pegs) do if p.kind == "boss" then goal = 1 end end
     end
@@ -1238,12 +1268,14 @@ function L:Build(n, attempt, opts)
     if objective == "longshots" then
         goal = 2 + floor(d * 2)
     end
-    if objective == "classic" or objective == "duel" or objective == "longshots" then
+    local mixed = objective == "mixed_eggs" or objective == "mixed_gems"
+    if objective == "classic" or objective == "duel" or objective == "longshots" or mixed then
         orange = opts.stage2 and E.DUEL_STAGE2_ORANGES or self:Counts(n)
+        if mixed then orange = floor(orange / 2) end
         -- patterns keep at least a quarter of their pieces (and two) blue
         local floorBlue = math.max(2, floor(#order * 0.25))
         if orange > #order - floorBlue then orange = #order - floorBlue end
-        if objective ~= "longshots" then goal = orange end
+        if mixed then goal = goal + orange elseif objective ~= "longshots" then goal = orange end
     end
     for i = #order, 2, -1 do
         local j = rng(1, i)
