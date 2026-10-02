@@ -1862,6 +1862,9 @@ GnomishPachinkoDB.mascot.bossView = nil
 UI:StartLevel(10, true)
 UI.tuner.boss.x:GetScript("OnValueChanged")(UI.tuner.boss.x, 12)
 UI.tuner.boss.view:GetScript("OnValueChanged")(UI.tuner.boss.view, 0.5)
+UI.tuner.boss.yaw:GetScript("OnValueChanged")(UI.tuner.boss.yaw, 1.3)
+UI:RefreshTuner()
+__yawSaved = UI:BossView("drake").yaw == 1.3 and UI.bossViewCache.yaw == 1.3
 local v = UI:BossView("drake")
 __bossViewOk = v.x == 12 and v.view == 0.5 and v.pitch == UI.BOSS_VIEW.pitch and UI.bossViewCache.x == 12
   and UI:BossView("golem").x == 0
@@ -1875,6 +1878,7 @@ GnomishPachinkoDB.mascot.bossView = nil
 """)
 check("the boss sliders save view angle, distance, turn, tilt, x and y per boss", ev("__bossViewOk"))
 check("the platform can be hidden for one boss", ev("__platHidden"))
+check("the boss turn slider saves its value", ev("__yawSaved"))
 check("the boss arrows show the next boss's model to set it", ev("__nextBoss") == "golem")
 check("the zoom slider resizes the host's model frame (the client undoes SetModelScale)", abs(ev("__zoomW") - 1.4) < 0.01, str(ev("__zoomW")))
 

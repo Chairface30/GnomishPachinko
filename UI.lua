@@ -1998,12 +1998,16 @@ function UI:PoseBossModel()
     pcall(function()
         if m.SetCamera then m:SetCamera(0) end
         m:SetPosition(0, 0, 0)
-        m:SetFacing(v.yaw)
+        m:SetFacing(0)
     end)
     if m.SetPitch then pcall(m.SetPitch, m, v.pitch) end
-    -- a bird's-eye view: the camera swings up over the model; without the
-    -- custom-camera calls the model itself is tilted as far instead
-    if not self:BossCamera(v) and m.SetPitch then pcall(m.SetPitch, m, v.pitch + v.view) end
+    -- a bird's-eye view: the camera swings up over the model and round it
+    -- (the turn); without the custom-camera calls the model itself is
+    -- tilted and turned instead
+    if not self:BossCamera(v) then
+        if m.SetPitch then pcall(m.SetPitch, m, v.pitch + v.view) end
+        pcall(m.SetFacing, m, v.yaw)
+    end
     self.bossAnim = nil
 end
 
@@ -2022,6 +2026,10 @@ function UI:BossCamera(v)
         local hl = math.sqrt(dx * dx + dy * dy)
         local hx, hy = 1, 0
         if hl > 0.0001 then hx, hy = dx / hl, dy / hl end
+        -- the turn: the camera goes round the model's vertical axis (the
+        -- client's own camera turns with the model, so SetFacing shows nothing)
+        local cy, sy = math.cos(v.yaw), math.sin(v.yaw)
+        hx, hy = hx * cy - hy * sy, hx * sy + hy * cy
         local el = math.min(v.view, 1.55)
         m:SetCameraPosition(tx + hx * R * math.cos(el), ty + hy * R * math.cos(el), tz + R * math.sin(el))
         m:SetCameraTarget(tx, ty, tz)
