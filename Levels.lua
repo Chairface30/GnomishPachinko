@@ -1093,11 +1093,8 @@ function L:Build(n, attempt, opts)
     local family = (n <= 10) and STARTERS[n] or FAMILIES[((n + chapter) % #FAMILIES) + 1]
     local dens = self:Density(n)
     if opts.stage2 then
-        family = FAMILIES[((n + chapter + 3 + attempt) % #FAMILIES) + 1]
+        family = FAMILIES[((n + chapter + 3) % #FAMILIES) + 1]
         dens = math.min(dens, 0.6)
-    elseif attempt >= 2 and n > 10 then
-        -- the second retry and after: another picture altogether
-        family = FAMILIES[((n + chapter + attempt) % #FAMILIES) + 1]
     end
     local bossDef, bossHp
     if objective == "boss" then bossDef, bossHp = self:BossFor(n) end
@@ -1190,8 +1187,8 @@ function L:Build(n, attempt, opts)
     -- introduces it: a debut always shows
     local debut = (n % 10 == 1) and n >= 21 and (chapter - 2) <= #self.GIMMICK_ORDER
     if static < self:MinPieces(n) and #gimmickNames > 0 and not debut then pegs, movers, gimmickNames, rng = assemble(false) end
-    -- from here the colours: their own stream, so a retry deals them again
-    rng = E.NewRng(seed * 31 + attempt * 101 + 7)
+    -- the eggs' and gems' spots belong to the layout: the level's own stream
+    rng = E.NewRng(seed * 31 + 7)
 
     -- Eggs and gems are loose bodies, much bigger than pegs, each sitting
     -- in a cradle of ordinary bricks built under it: a flat two-brick
@@ -1344,6 +1341,9 @@ function L:Build(n, attempt, opts)
     end
     if goal == 0 and objective ~= "classic" and objective ~= "duel" and objective ~= "longshots" then objective = "classic" end
 
+    -- from here the colours: their own stream, so a retry deals the orange
+    -- (and green and purple) pegs again on the very same layout
+    rng = E.NewRng(seed * 31 + attempt * 101 + 7)
     -- colours go to everything but the solid and special pieces
     local order = {}
     for i, p in ipairs(pegs) do if not E.IsSolid(p) and not p.special then order[#order + 1] = i end end

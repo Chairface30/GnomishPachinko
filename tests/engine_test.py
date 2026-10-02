@@ -1361,7 +1361,22 @@ end
 """)
 n, goal, goals, phase = ev("longshot_level_probe")()
 check(f"a Long Shot level (level {n}) is finished by its long shots", goal >= 2 and goals == goal and phase == "FEVER", f"goal {goal} got {goals} {phase}")
-check("the second retry draws a different picture", ev("L:Build(11, 2).layout") != ev("L:Build(11, 0).layout") and ev("L:Build(11, 1).layout") == ev("L:Build(11, 0).layout"))
+lua(r"""
+function same_layout(n, a)
+  local x, y = L:Build(n, 0), L:Build(n, a)
+  if #x.pegs ~= #y.pegs or x.layout ~= y.layout then return false, 0 end
+  local moved, recoloured = 0, 0
+  for i, p in ipairs(x.pegs) do
+    local q = y.pegs[i]
+    if math.abs(p.x - q.x) > 0.01 or math.abs(p.y - q.y) > 0.01 or p.shape ~= q.shape then moved = moved + 1 end
+    if p.kind ~= q.kind then recoloured = recoloured + 1 end
+  end
+  return moved == 0, recoloured
+end
+""")
+same = all(ev("same_layout")(n, a)[0] for n in (5, 11, 15, 23, 47, 150, 212, 399) for a in (1, 2, 5))
+recol = sum(ev("same_layout")(n, 3)[1] for n in (11, 47, 150))
+check("a retry keeps every piece in place (eggs and gems too) and only deals the colours again", same and recol > 0, f"{same} {recol}")
 
 # the GNOME bonus: all five buckets lit pays 100,000 and the buckets become 25,000
 lua(r"""
