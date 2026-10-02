@@ -411,7 +411,7 @@ function UI:CreateFrame()
     -- loaded (and for good if the client has no such model).
     local plat = field:CreateTexture(nil, "ARTWORK", nil, 0)
     ART:Set(plat, "boss_platform")
-    plat:SetSize(E.BOSS_R * 3.4, E.BOSS_R * 1.3)
+    plat:SetSize(E.BOSS_R * 3, E.BOSS_R * 3)
     plat:Hide()
     self.bossPlatform = plat
     local bm = CreateFrame("PlayerModel", nil, field)
@@ -756,6 +756,7 @@ function UI:CreateFrame()
     self:CreatePlaysPanel()
     self:CreateCard()
     if GP.Dialog then GP.Dialog:Create(frame, view, field:GetFrameLevel() + 30) end
+    self:CreateMascotTuner(frame)
     -- the host's box: a round frame centred over the field's top edge, the model inside it
     local box = CreateFrame("Frame", nil, frame)
     box:SetSize(PORTRAIT, PORTRAIT)
@@ -1220,6 +1221,130 @@ function UI:PyramidPuff(x, y, size, dur, now)
     pick:Show()
 end
 
+-- TEMPORARY: a panel left of the window to set each host's height (z) and
+-- zoom (scale) by eye. Values save to GnomishPachinkoDB.mascot.tune[hostId];
+-- once set they are copied into GP.HOSTS and this panel is removed.
+function UI:CreateMascotTuner(frame)
+    local panel = CreateFrame("Frame", nil, frame)
+    panel:SetSize(230, 246)
+    panel:SetPoint("TOPRIGHT", frame, "TOPLEFT", -8, -40)
+    local bg = panel:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetTexture(WHITE)
+    bg:SetVertexColor(0.05, 0.06, 0.1, 0.92)
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", panel, "TOP", 0, -8)
+    title:SetText("Host tuning (temporary)")
+    local name = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    name:SetPoint("TOP", panel, "TOP", 0, -30)
+    name:SetWidth(150)
+    panel.name = name
+    local prev = makeButton(panel, 26, 22, "<")
+    prev:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -26)
+    prev:SetScript("OnClick", function() UI:TuneHost(-1) end)
+    local nxt = makeButton(panel, 26, 22, ">")
+    nxt:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -26)
+    nxt:SetScript("OnClick", function() UI:TuneHost(1) end)
+
+    local function slider(key, label, lo, hi, y)
+        local sname = "GnomishPachinkoTune" .. key
+        local sl = CreateFrame("Slider", sname, panel, "OptionsSliderTemplate")
+        sl:SetPoint("TOP", panel, "TOP", 0, y)
+        sl:SetWidth(190)
+        sl:SetMinMaxValues(lo, hi)
+        sl:SetValueStep(0.01)
+        if sl.SetObeyStepOnDrag then sl:SetObeyStepOnDrag(true) end
+        local low, high, text = _G[sname .. "Low"], _G[sname .. "High"], _G[sname .. "Text"]
+        if low and low.SetText then low:SetText(tostring(lo)) end
+        if high and high.SetText then high:SetText(tostring(hi)) end
+        sl.label, sl.textFs, sl.key = label, text, key
+        sl:SetScript("OnValueChanged", function(self, v)
+            if UI.tuneLoading then return end
+            UI:SetTune(self.key, math.floor(v * 100 + 0.5) / 100)
+        end)
+        return sl
+    end
+    panel.z = slider("z", "Height (z)", -1, 1, -72)
+    panel.scale = slider("scale", "Zoom (scale)", 0.3, 2.5, -122)
+    panel.pitch = slider("pitch", "Boss tilt (all bosses)", -3.14, 3.14, -172)
+    panel.pitch:SetScript("OnValueChanged", function(_, v)
+        if UI.tuneLoading then return end
+        local db = GP:GetDB()
+        db.mascot = db.mascot or {}
+        db.mascot.bossPitch = math.floor(v * 100 + 0.5) / 100
+        UI:PoseBossModel()
+        UI:RefreshTuner()
+    end)
+    local reset = makeButton(panel, 100, 22, "Reset host")
+    reset:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 8, 8)
+    reset:SetScript("OnClick", function() UI:SetTune(nil) end)
+    local back = makeButton(panel, 100, 22, "Level's host")
+    back:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -8, 8)
+    back:SetScript("OnClick", function() UI:TuneHost(0, true) end)
+    self.tuner = panel
+end
+
+function UI:TuneHostDef()
+    return GP.HOSTS[self.tuneIndex or 1]
+end
+
+-- Step the host being tuned (dir -1/1), or go back to the level's own host.
+function UI:TuneHost(dir, levelHost)
+    local n = #GP.HOSTS
+    if levelHost or not self.tuneIndex then
+        local h = GP:HostFor((self.state and self.state.level) or GP:GetDB().current or 1)
+        for i, x in ipairs(GP.HOSTS) do if x == h then self.tuneIndex = i end end
+    end
+    if not levelHost and dir ~= 0 then self.tuneIndex = ((self.tuneIndex or 1) - 1 + dir) % n + 1 end
+    local h = self:TuneHostDef()
+    if GP.Mascot.SetHost then GP.Mascot:SetHost(h.npc, h) end
+    GP.Mascot:Pose()
+    self:RefreshTuner()
+end
+
+-- The current values: the saved tune, else the host's built-in pose.
+function UI:TuneValues(h)
+    local m = GP:GetDB().mascot or {}
+    local t = m.tune and m.tune[h.id] or {}
+    return t.z or h.z or 0, t.scale or h.scale or 1
+end
+
+function UI:SetTune(key, v)
+    local h = self:TuneHostDef()
+    if not h then return end
+    local db = GP:GetDB()
+    db.mascot = db.mascot or {}
+    db.mascot.tune = db.mascot.tune or {}
+    if key == nil then
+        db.mascot.tune[h.id] = nil
+    else
+        local t = db.mascot.tune[h.id] or {}
+        local z, scale = self:TuneValues(h)
+        t.z, t.scale = z, scale
+        t[key] = v
+        db.mascot.tune[h.id] = t
+    end
+    GP.Mascot:Pose()
+    self:RefreshTuner()
+end
+
+function UI:RefreshTuner()
+    local p = self.tuner
+    if not p then return end
+    local h = self:TuneHostDef()
+    if not h then return end
+    local z, scale = self:TuneValues(h)
+    p.name:SetText(h.name)
+    self.tuneLoading = true
+    p.z:SetValue(z)
+    p.scale:SetValue(scale)
+    p.pitch:SetValue(self:BossPitch())
+    self.tuneLoading = false
+    if p.pitch.textFs then p.pitch.textFs:SetText(("Boss tilt: %.2f (on a boss level)"):format(self:BossPitch())) end
+    if p.z.textFs then p.z.textFs:SetText(("Height (z): %.2f"):format(z)) end
+    if p.scale.textFs then p.scale.textFs:SetText(("Zoom (scale): %.2f"):format(scale)) end
+end
+
 -- The board's chrome: the host's box, the balls-left strip, the special-ball
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
 function UI:SetBoardChrome(shown)
@@ -1494,6 +1619,7 @@ function UI:StartLevel(n, retry)
     self:HideGuide()
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
     if GP.Mascot.SetHost then GP.Mascot:SetHost(GP:HostFor(n).npc, GP:HostFor(n)) end
+    if self.tuner then self:TuneHost(0, true) end
     self.startVoice = spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start")
     GP.Mascot:React("start")
     self:UpdateDisplay()
@@ -1727,7 +1853,8 @@ function UI:LoadBossModel(ability)
     local m = self.bossModel
     local sp = GP.Dialog and GP.Dialog.SPEAKERS and GP.Dialog.SPEAKERS[ability]
     self.bossModelFor = ability
-    self.bossModelNpc = sp and sp.npc
+    local list = sp and (sp.models or { sp.npc }) or {}
+    self.bossModelNpc = list[1]
     self.bossModelReady = false
     self.bossAnim = nil
     if m.ClearModel then pcall(m.ClearModel, m) end
@@ -1736,15 +1863,22 @@ function UI:LoadBossModel(ability)
     m:Show()
     self.bossLoadToken = (self.bossLoadToken or 0) + 1
     local token = self.bossLoadToken
-    local function try(left)
+    -- each candidate gets a couple of seconds to load, then the next
+    local function try(idx, left)
         if token ~= self.bossLoadToken then return end
-        pcall(m.SetCreature, m, self.bossModelNpc)
+        local npc = list[idx]
+        if not npc then return end
+        self.bossModelNpc = npc
+        pcall(m.SetCreature, m, npc)
         self:PoseBossModel()
-        if not self:BossModelLoaded() and left > 0 and C_Timer and C_Timer.After then
-            C_Timer.After(0.25, function() try(left - 1) end)
+        if self:BossModelLoaded() or not (C_Timer and C_Timer.After) then return end
+        if left > 0 then
+            C_Timer.After(0.25, function() try(idx, left - 1) end)
+        else
+            C_Timer.After(0.05, function() try(idx + 1, 8) end)
         end
     end
-    try(12)
+    try(1, 8)
 end
 
 function UI:BossModelLoaded()
@@ -1754,13 +1888,23 @@ function UI:BossModelLoaded()
     return ok and id ~= nil
 end
 
+-- The board is seen from above, so the boss is too: the model is pitched
+-- over toward the camera by BOSS_PITCH radians (TEMPORARY: the tuning
+-- panel's tilt slider overrides it until the value is hardcoded).
+UI.BOSS_PITCH = 1.2
+function UI:BossPitch()
+    local m = GP:GetDB().mascot
+    return (m and m.bossPitch) or self.BOSS_PITCH
+end
+
 function UI:PoseBossModel()
     local m = self.bossModel
     pcall(function()
         if m.SetCamera then m:SetCamera(0) end
         m:SetPosition(0, 0, 0)
-        m:SetFacing(0.5)
+        m:SetFacing(0)
     end)
+    if m.SetPitch then pcall(m.SetPitch, m, self:BossPitch()) end
     self.bossAnim = nil
 end
 
@@ -2768,9 +2912,9 @@ function UI:Render(now)
                     if self.bossModelNpc then
                         if not self.bossModelReady and self:BossModelLoaded() then self.bossModelReady = true end
                         self.bossPlatform:ClearAllPoints()
-                        self.bossPlatform:SetPoint("CENTER", field, "TOPLEFT", p.x, -(p.y + E.BOSS_R * 0.75))
+                        self.bossPlatform:SetPoint("CENTER", field, "TOPLEFT", p.x, -p.y)
                         self.bossModel:ClearAllPoints()
-                        self.bossModel:SetPoint("BOTTOM", field, "TOPLEFT", p.x, -(p.y + E.BOSS_R * 0.8))
+                        self.bossModel:SetPoint("CENTER", field, "TOPLEFT", p.x, -p.y)
                         if p.lit then
                             if self.bossAnim ~= "death" and self.bossAnim ~= "dead" then
                                 self:BossAnim("death")
@@ -2882,7 +3026,7 @@ function UI:Render(now)
     -- the boss's bar follows it
     local b = st.boss
     if b and not b.gone then
-        local y = b.y - (self.bossModelReady and (E.BOSS_R * 2.6 + 8) or (E.BOSS_R + 12))
+        local y = b.y - (self.bossModelReady and (E.BOSS_R * 1.6 + 8) or (E.BOSS_R + 12))
         placeAt(self.bossBg, field, b.x, y)
         self.bossFill:ClearAllPoints()
         self.bossFill:SetPoint("LEFT", self.bossBg, "LEFT", 1, 0)

@@ -819,6 +819,32 @@ def web_img(size, fill=0.7):
 
 
 def platform_img(w, h):
+    """A round hover platform seen from straight above."""
+    bw, bh = w * SS, h * SS
+    from PIL import ImageFilter
+    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    glow = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    ImageDraw.Draw(glow).ellipse([bw * 0.02, bh * 0.02, bw * 0.98, bh * 0.98], fill=(90, 170, 255, 150))
+    img = Image.alpha_composite(img, glow.filter(ImageFilter.GaussianBlur(SS * 3)))
+    d = ImageDraw.Draw(img)
+    d.ellipse([bw * 0.08, bh * 0.08, bw * 0.92, bh * 0.92], fill=(205, 160, 70, 255))     # brass rim
+    d.ellipse([bw * 0.15, bh * 0.15, bw * 0.85, bh * 0.85], fill=(118, 126, 138, 255))    # steel deck
+    d.ellipse([bw * 0.3, bh * 0.3, bw * 0.7, bh * 0.7], outline=(160, 168, 180, 255), width=SS * 2)
+    for k in range(4):
+        a = k * math.pi / 4
+        d.line([(bw / 2 + math.cos(a) * bw * 0.2, bh / 2 + math.sin(a) * bh * 0.2),
+                (bw / 2 + math.cos(a) * bw * 0.34, bh / 2 + math.sin(a) * bh * 0.34)], fill=(95, 102, 114, 255), width=SS * 2)
+        d.line([(bw / 2 - math.cos(a) * bw * 0.2, bh / 2 - math.sin(a) * bh * 0.2),
+                (bw / 2 - math.cos(a) * bw * 0.34, bh / 2 - math.sin(a) * bh * 0.34)], fill=(95, 102, 114, 255), width=SS * 2)
+    for k in range(12):
+        a = k * 2 * math.pi / 12
+        x, y = bw / 2 + math.cos(a) * bw * 0.385, bh / 2 + math.sin(a) * bh * 0.385
+        r = SS * 2.2
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(250, 220, 140, 255))
+    return img
+
+
+def platform_img_side(w, h):
     bw, bh = w * SS, h * SS
     img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
     glow = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
@@ -950,7 +976,7 @@ def make_all(slots, only, from_base):
         put("pyramid_crumble%d" % i, step_pyramid_img(512, 128, i))
     put("pyramid_dust", dust_img(128))
     put("web", web_img(64))
-    put("boss_platform", platform_img(128, 64))
+    put("boss_platform", platform_img(128, 128))
     put("icon", addon_icon())
 
     for c, (body, hi) in COLORS.items():

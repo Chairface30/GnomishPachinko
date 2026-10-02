@@ -21,11 +21,13 @@ D.SPEAKERS = {
     razzle = { name = "Razzle Sprysprocket",     npc = 1269, voice = "mumble" },
     bink   = { name = "Bink",                    npc = 5144, voice = "mumble" },
     cog    = { name = "Cogwhistle Overspark", npc = 7800, voice = "mumble" },
-    drake  = { name = "Tin Drake",            npc = 6235, voice = "grumble" },
-    golem  = { name = "Bolt Golem",           npc = 6229, voice = "grumble" },
-    spider = { name = "Gyro Spider",          npc = 6225, voice = "grumble" },   -- Mechano-Tank, the gnomish spider mech
-    boar   = { name = "Mechano-Boar",         npc = 6228, voice = "grumble" },
-    yeti   = { name = "Cog Yeti",             npc = 7079, voice = "grumble" },
+    -- the bosses: `models` are creature ids tried in turn for the board
+    -- (the first the client has wins); `npc` is the first, for the dialog box
+    drake  = { name = "Tin Drake",    npc = 8615, models = { 8615, 12473, 2678 }, voice = "grumble" },   -- Mithril, Arcanite, Mechanical Dragonling
+    golem  = { name = "Bolt Golem",   npc = 6229, models = { 6229 }, voice = "grumble" },               -- Crowd Pummeler 9-60
+    spider = { name = "Gyro Spider",  npc = 6235, models = { 6235, 6225 }, voice = "grumble" },         -- Electrocutioner 6000, Mechano-Tank
+    boar   = { name = "Mechano-Boar", npc = 4422, models = { 4422 }, voice = "grumble" },               -- Agathelos the Raging, the armored boar
+    yeti   = { name = "Cog Yeti",     npc = 7458, models = { 7458, 7457 }, voice = "grumble" },         -- Ice Thistle yetis
 }
 D.MUMBLES = 6       -- Sounds/mumble1..6.ogg and grumble1..6.ogg
 

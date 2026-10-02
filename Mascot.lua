@@ -89,7 +89,10 @@ function M:Pose()
     local model, s = self.model, settings()
     if not model then return end
     local h = (not s.custom) and self.hostPose or {}
-    local z = s.z or h.z or 0
+    -- TEMPORARY: the tuning panel's per-host values, read back and
+    -- hardcoded into GP.HOSTS once the user has set them
+    local tune = (not s.custom) and s.tune and h.id and s.tune[h.id] or {}
+    local z = tune.z or s.z or h.z or 0
     if self.anchor then
         model:ClearAllPoints()
         model:SetPoint("CENTER", self.anchor, "CENTER", 0, z * model:GetHeight())
@@ -98,7 +101,7 @@ function M:Pose()
         if model.SetCamera then model:SetCamera(0) end
         model:SetPosition(0, 0, 0)
         model:SetFacing(s.facing or 0.35)
-        if model.SetModelScale then model:SetModelScale(s.scale or h.scale or 1) end
+        if model.SetModelScale then model:SetModelScale(tune.scale or s.scale or h.scale or 1) end
     end)
 end
 

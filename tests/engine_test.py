@@ -196,7 +196,7 @@ for n in range(1, 401):
         # every egg and gem is a big loose body with a two-brick cradle under it
         loose = [p for p in spec.pegs.values() if p.kind in ("egg", "gem")]
         cradles = [p for p in spec.pegs.values() if p.cradle]
-        if not all(p.loose and p.r >= 20 for p in loose) or len(cradles) != 2 * len(loose):
+        if not all(p.loose and p.r >= 20 for p in loose) or len(cradles) < 2 * len(loose):
             problems.append((n, "loose pieces without cradles", len(loose), len(cradles)))
     if spec.objective == "classic":
         coloured = counts["total"] - counts["block"] - counts["bumper"] - counts["key"]
@@ -1825,7 +1825,21 @@ UI:StartLevel(11, true)
 __bmGone = not UI.bossModel:IsShown() and not UI.bossPlatform:IsShown()
 """)
 check("a boss level shows the boss's creature model on its platform; other levels do not",
-      ev("__bmShown") and ev("__bmNpc") == 6235 and ev("__bmGone"), f'{ev("__bmShown")} {ev("__bmNpc")} {ev("__bmGone")}')
+      ev("__bmShown") and ev("__bmNpc") == 8615 and ev("__bmGone"), f'{ev("__bmShown")} {ev("__bmNpc")} {ev("__bmGone")}')
+
+# TEMPORARY: the host tuning panel saves height and zoom per host
+lua(r"""
+UI:StartLevel(1, true)
+UI:TuneHost(1)
+__tuneId = UI:TuneHostDef().id
+UI:SetTune("z", -0.25); UI:SetTune("scale", 1.4)
+local t = GnomishPachinkoDB.mascot.tune[__tuneId]
+__tuneOk = t and t.z == -0.25 and t.scale == 1.4
+UI:SetTune(nil)
+__tuneReset = GnomishPachinkoDB.mascot.tune[__tuneId] == nil
+""")
+check("the tuning panel saves a host's height and zoom, and resets them",
+      ev("__tuneId") == "mekka" and ev("__tuneOk") and ev("__tuneReset"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
@@ -2135,6 +2149,18 @@ function feel_probe()
     end
   end
   out.railKeeps = first ~= nil and minRatio > 0.98
+  -- the same shot with the rail already lit: no ride, no speed
+  st = E:NewLevel(L:Build(8))
+  for _, p in ipairs(st.pegs) do if p.rail then p.lit = true; p.hitAt = 0 end end
+  st.aim = -24 * math.pi / 180
+  E:Launch(st, events)
+  out.litRides = false
+  for _ = 1, 200 do
+    E:Step(st, 1 / 120, events)
+    local b = st.balls[1]
+    if not b then break end
+    if b.rail then out.litRides = true end
+  end
   -- a gem dropped dead centre on a lone peg does not balance there
   st = E:NewLevel(L:Build(1))
   st.pegs = { { shape = "peg", x = 245, y = 300 - E.GEM_R - E.PEG_R - 1, r = E.GEM_R, kind = "gem", goal = true, special = true, loose = true },
@@ -2165,6 +2191,7 @@ end
 """)
 r = ev("feel_probe")()
 check("a Super Slide keeps its speed for the whole ride", r["railKeeps"])
+check("a lit Super Slide brick is no rail: the ball does not ride it", not r["litRides"])
 check("a gem cannot balance on the point of a peg", r["gemTips"])
 check("an egg falls the moment its cradle is lit, not when the bricks fade", r["eggFalls"])
 check("small rails (bowls and spirals) turn up across the levels", 120 < r["withRails"] < 330, str(r["withRails"]))

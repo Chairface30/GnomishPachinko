@@ -1216,10 +1216,24 @@ function L:Build(n, attempt, opts)
             local w = r + 12
             pair = { cradleBrick(body, 0, w, -w / 2), cradleBrick(body, 0, w, w / 2) }
         else
-            local w = r + 18
-            pair = { cradleBrick(body, 0.5, w, -w * 0.3), cradleBrick(body, -0.5, w, w * 0.3) }
+            -- an egg's cradle, picked from where it sits (so a level's layout
+            -- never changes): a V, a shallow V, a flat ledge, or a cup
+            local style = (floor(body.x) * 7 + floor(body.y) * 13) % 4
+            if style == 0 then
+                local w = r + 18
+                pair = { cradleBrick(body, 0.5, w, -w * 0.3), cradleBrick(body, -0.5, w, w * 0.3) }
+            elseif style == 1 then
+                local w = r + 22
+                pair = { cradleBrick(body, 0.28, w, -w * 0.38), cradleBrick(body, -0.28, w, w * 0.38) }
+            elseif style == 2 then
+                local w = r + 12
+                pair = { cradleBrick(body, 0, w, -w / 2), cradleBrick(body, 0, w, w / 2) }
+            else
+                local w = r + 6
+                pair = { cradleBrick(body, 0, w, 0), cradleBrick(body, 1.0, w, 0), cradleBrick(body, -1.0, w, 0) }
+            end
         end
-        -- the two bricks touch end to end, like a brick chain
+        -- the bricks touch end to end, like a brick chain
         local group = ("cradle%d_%d"):format(floor(body.x), floor(body.y))
         for _, b in ipairs(pair) do b.group = group end
         return pair

@@ -908,8 +908,8 @@ end
 local function expireLitPegs(state, events)
     local n = 0
     for _, p in ipairs(state.pegs) do
-        -- a rail stays whole until the shot ends, so a ball can ride it again
-        if p.lit and not p.gone and not p.rail and state.time - (p.hitAt or state.time) >= E.LIT_SECS then
+        -- every lit piece, Super Slide rail bricks included
+        if p.lit and not p.gone and state.time - (p.hitAt or state.time) >= E.LIT_SECS then
             p.gone = true
             p.goneAt = state.time
             n = n + 1
@@ -964,7 +964,9 @@ local function railStep(state, ball, events)
     local R = E.BALL_R
     local best, bestD, bx, by, bnx, bny
     for _, q in ipairs(state.pegs) do
-        if q.rail == ball.rail and not q.gone then
+        -- a brick lit before this ride is no rail any more; the ones this
+        -- ride has lit carry it on
+        if q.rail == ball.rail and not q.gone and (not q.lit or q.rideId == ball.rideId) then
             local c, s, nx, ny = brickFrame(q)
             local dx, dy = ball.x - q.x, ball.y - q.y
             local lx = dx * c + dy * s
@@ -991,6 +993,7 @@ local function railStep(state, ball, events)
     local sp = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
     local keep = ball.railSpeed or sp
     if sp > 0.001 then ball.vx, ball.vy = ball.vx / sp * keep, ball.vy / sp * keep end
+    if not best.lit then best.rideId = ball.rideId end
     hitPeg(state, best, ball, events)
 end
 E.RailStep = railStep
@@ -1016,13 +1019,15 @@ collideBall = function(state, ball, events, light)
             end
             if depth then
                 local onto = false
-                if p.rail and light and not ball.fire and p.railCx then
+                if p.rail and light and not ball.fire and p.railCx and not p.lit then
                     -- from the centre side, the ball takes the rail instead of bouncing
                     local _, _, fnx, fny = brickFrame(p)
                     if (ball.x - p.x) * fnx + (ball.y - p.y) * fny > 0 then onto = true end
                 end
                 if onto then
                     ball.rail = p.rail
+                    state.rideSeq = (state.rideSeq or 0) + 1
+                    ball.rideId = state.rideSeq
                     local now = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
                     if ball.railLost == p.rail and ball.railSpeed and state.time - (ball.railLostAt or 0) < 0.4 then
                         now = math.max(now, ball.railSpeed)     -- back on the same rail: the same speed
