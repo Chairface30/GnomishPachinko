@@ -1792,6 +1792,30 @@ for n in (15, 23, 10, 20):
     ok, obj, phase = ev("ui_run_level")(n)
     check(f"the window runs level {n} ({obj}) without errors", ok and phase in ("AIM", "FLIGHT", "FEVER", "OVER"), f"{ok} {phase}")
 
+# Fever's balloons are drawn once, by their own pictures: no leftover piece
+# texture from a bigger board shows up as a stray balloon
+lua(r"""
+UI:StartLevel(30, true)
+local big = #UI.pegTex
+UI:StartLevel(1, true)
+local st = UI.state
+for _, p in ipairs(st.pegs) do if p.goal then p.lit = true; p.gone = true end end
+st.goalLeft = 0
+st.phase = E.PHASE.FEVER
+local events = {}
+for i = 0, #E.FEVER_BINS do
+  st.pegs[#st.pegs + 1] = { shape = "peg", x = i * 80, y = E.FEVER_POST_Y, r = E.FEVER_BALLOON_R, kind = "bumper", post = true, balloon = true }
+end
+__advance(0.2)
+__stray = 0
+for i, p in ipairs(st.pegs) do
+  local t = UI.pegTex[i]
+  if p.post and t and t.disc:IsShown() then __stray = __stray + 1 end
+end
+__bigBoard = big > #st.pegs - 7
+""")
+check("no stray balloon pictures in Fever: the balloons are drawn only by the Fever art", ev("__stray") == 0, str(ev("__stray")))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

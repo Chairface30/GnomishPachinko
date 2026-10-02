@@ -1679,6 +1679,11 @@ function UI:LayoutPegs(midLevel)
         t.hpShown = nil
         t.sweepSparked = nil
         self.pegIndex[p] = i
+        -- the Fever balloons have pictures of their own (postTex)
+        if p.post then
+            t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide()
+            t.shown = "post"
+        end
     end
     for i = #st.pegs + 1, #self.pegTex do
         local t = self.pegTex[i]
@@ -2623,7 +2628,14 @@ function UI:Render(now)
     local intro = self.introAt and (now - self.introAt) or 99
     for i, p in ipairs(st.pegs) do
         local t = self.pegTex[i]
-        if t then
+        if p.post then
+            -- a Fever balloon (drawn by postTex): any texture left at this
+            -- index from a bigger board stays hidden
+            if t and t.shown ~= "post" then
+                t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide()
+                t.shown = "post"
+            end
+        elseif t then
             if t.sweepAt then
                 -- the win sweep
                 local a = 1 - (now - t.sweepAt) / 0.35
@@ -2664,7 +2676,7 @@ function UI:Render(now)
                 if p.kind == "bumper" then
                     if t.shown ~= "base" then
                         local c = COLORS.bumper
-                        ART:Set(t.disc, "bumper")
+                        ART:Set(t.disc, pieceSlot(p, ""))
                         t.ring:SetVertexColor(c.glow[1], c.glow[2], c.glow[3], 1)
                         t.kind = p.kind
                         t.shown = "base"
