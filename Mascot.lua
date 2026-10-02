@@ -93,15 +93,19 @@ function M:Pose()
     -- hardcoded into GP.HOSTS once the user has set them
     local tune = (not s.custom) and s.tune and h.id and s.tune[h.id] or {}
     local z = tune.z or s.z or h.z or 0
-    if self.anchor then
+    local scale = tune.scale or s.scale or h.scale or 1
+    -- the zoom is the frame's size too: the client refits the model to its
+    -- frame on load and on every camera change, undoing SetModelScale
+    if self.anchor and self.baseW then
+        model:SetSize(self.baseW * scale, self.baseH * scale)
         model:ClearAllPoints()
-        model:SetPoint("CENTER", self.anchor, "CENTER", 0, z * model:GetHeight())
+        model:SetPoint("CENTER", self.anchor, "CENTER", 0, z * self.baseH)
     end
     pcall(function()
         if model.SetCamera then model:SetCamera(0) end
         model:SetPosition(0, 0, 0)
         model:SetFacing(s.facing or 0.35)
-        if model.SetModelScale then model:SetModelScale(tune.scale or s.scale or h.scale or 1) end
+        if model.SetModelScale then model:SetModelScale(1) end
     end)
 end
 
@@ -150,6 +154,7 @@ function M:Create(parent, anchor, w, h)
     if self.model or not parent then return end
     local model = CreateFrame("PlayerModel", "GnomishPachinkoMascot", parent)
     model:SetSize(w or self.SIZE.w, h or self.SIZE.h)
+    self.baseW, self.baseH = w, h
     if w then
         self.anchor = anchor or parent
         model:SetPoint("CENTER", self.anchor, "CENTER", 0, 0)

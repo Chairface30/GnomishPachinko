@@ -1845,16 +1845,19 @@ check("a boss level shows the boss's creature model on its platform; other level
 # TEMPORARY: the host tuning panel saves height and zoom per host
 lua(r"""
 UI:StartLevel(1, true)
+GnomishPachinkoDB.mascot.custom = nil
 UI:TuneHost(1)
 __tuneId = UI:TuneHostDef().id
 UI:SetTune("z", -0.25); UI:SetTune("scale", 1.4)
 local t = GnomishPachinkoDB.mascot.tune[__tuneId]
 __tuneOk = t and t.z == -0.25 and t.scale == 1.4
+__zoomW = GP.Mascot.model:GetWidth() / GP.Mascot.baseW
 UI:SetTune(nil)
 __tuneReset = GnomishPachinkoDB.mascot.tune[__tuneId] == nil
 """)
 check("the tuning panel saves a host's height and zoom, and resets them",
       ev("__tuneId") == "mekka" and ev("__tuneOk") and ev("__tuneReset"))
+check("the zoom slider resizes the host's model frame (the client undoes SetModelScale)", abs(ev("__zoomW") - 1.4) < 0.01, str(ev("__zoomW")))
 
 # a power is announced by the host it belongs to, whoever hosts the level
 lua(r"""
