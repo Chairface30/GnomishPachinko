@@ -103,6 +103,7 @@ local function new(name)
   return o
 end
 function Obj:CreateTexture() return new() end
+function Obj:CreateLine() return new() end
 function Obj:CreateFontString() return new() end
 function CreateFrame(kind, name, parent)
   local f = new(name)
@@ -1790,6 +1791,21 @@ end
 for n in (15, 23, 10, 20):
     ok, obj, phase = ev("ui_run_level")(n)
     check(f"the window runs level {n} ({obj}) without errors", ok and phase in ("AIM", "FLIGHT", "FEVER", "OVER"), f"{ok} {phase}")
+
+# Chain Lightning draws a bolt that grows link by link, then is gone
+lua(r"""
+UI:StartLevel(25, true)
+local path = { { x = 100, y = 200 }, { x = 160, y = 230 }, { x = 220, y = 210 }, { x = 280, y = 260 } }
+UI:ShowBolt(path, GetTime())
+local function shown() local n = 0 for _, l in ipairs(UI.boltLines) do if l.core:IsShown() then n = n + 1 end end return n end
+__advance(0.04); __bolt1 = shown()
+__advance(0.25); __bolt2 = shown()
+__advance(1.0); __bolt3 = shown()
+__hostName = UI.hostText:GetText()
+""")
+check("the lightning bolt grows link by link and then disappears",
+      0 < ev("__bolt1") < ev("__bolt2") and ev("__bolt3") == 0, f'{ev("__bolt1")} {ev("__bolt2")} {ev("__bolt3")}')
+check("the right column names the level's host above the power", "Razzle" in (ev("__hostName") or ""), str(ev("__hostName")))
 
 # the pieces wear the per-colour, per-state art; loose pieces are drawn big
 lua(r"""

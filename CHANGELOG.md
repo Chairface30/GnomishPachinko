@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Chain Lightning is a real bolt.** A jagged, flickering line with a blue glow leaps from the green peg to each piece in turn, flashing on each one, then fades.
+- The right column names the level's host above the Power line.
+- The Golden Gear shop is a two-by-two grid, so it no longer runs into the level buttons.
+
 - **The Pyramid is a step pyramid as wide as the board,** so no ball drops past it while it stands. A strike even at its foot throws the ball up to the middle of the board. It covers the bucket, which is parked and hidden under it. Both sides throw the ball up and back toward the wall on that side. It lasts five strikes over any number of shots, crumbles a little at each one, and turns to dust on the last.
 - **Each boss fights its own way.** Steel scrap is now only the Tin Drake's. The Gyro Spider spins two webs after every shot, anywhere in the open. A ball that touches a web is caught, and the web and the ball are both gone. A fireball burns webs away.
 - The Gyro Spider uses the Mechano-Tank spider mech model.

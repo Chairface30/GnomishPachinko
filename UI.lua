@@ -307,12 +307,28 @@ function UI:CreateFrame()
         self.guideDots[i] = d
     end
 
-    -- lightning bolts
+    -- Chain Lightning: a jagged bolt that leaps piece to piece, a bright
+    -- core over a blue glow, flickering, with a flash on each piece it meets
+    self.boltLines = {}
+    if field.CreateLine then
+        for i = 1, 72 do
+            local glow = field:CreateLine(nil, "OVERLAY", nil, 3)
+            glow:SetThickness(7)
+            glow:SetColorTexture(0.45, 0.7, 1, 0.5)
+            if glow.SetBlendMode then glow:SetBlendMode("ADD") end
+            local core = field:CreateLine(nil, "OVERLAY", nil, 4)
+            core:SetThickness(2.5)
+            core:SetColorTexture(0.92, 0.97, 1, 1)
+            glow:Hide(); core:Hide()
+            self.boltLines[i] = { glow = glow, core = core }
+        end
+    end
     self.boltDots = {}
-    for i = 1, 40 do
-        local d = field:CreateTexture(nil, "OVERLAY", nil, 3)
-        d:SetSize(8, 8)
-        ART:Set(d, "dot", 0.8, 0.9, 1)
+    for i = 1, 12 do
+        local d = field:CreateTexture(nil, "OVERLAY", nil, 5)
+        d:SetSize(20, 20)
+        ART:Set(d, "dot", 0.75, 0.9, 1)
+        if d.SetBlendMode then d:SetBlendMode("ADD") end
         d:Hide()
         self.boltDots[i] = d
     end
@@ -600,37 +616,40 @@ function UI:CreateFrame()
     self.objectiveText:SetHeight(26)
     self.objectiveText:SetTextColor(0.9, 0.9, 1)
 
-    self.powerIcon = icon(0, -110, 18, "power_multiball")
-    local powerLabel = label("|cff88ff88Power|r", -112, "GameFontNormal")
+    self.hostText = label("", -110, "GameFontNormal")
+    self.hostText:SetWidth(SIDE_W)
+    self.hostText:SetJustifyH("LEFT")
+    self.powerIcon = icon(0, -126, 18, "power_multiball")
+    local powerLabel = label("|cff88ff88Power|r", -128, "GameFontNormal")
     powerLabel:ClearAllPoints()
-    powerLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -112)
-    self.powerText = value(-112, "GameFontHighlight")
-    self.powerBlurb = label("", -128)
+    powerLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -128)
+    self.powerText = value(-128, "GameFontHighlight")
+    self.powerBlurb = label("", -144)
     self.powerBlurb:SetWidth(SIDE_W)
     self.powerBlurb:SetJustifyH("LEFT")
     self.powerBlurb:SetJustifyV("TOP")
     self.powerBlurb:SetHeight(26)
     self.powerBlurb:SetTextColor(0.7, 0.7, 0.8)
-    self.powerStatus = label("", -154)
+    self.powerStatus = label("", -170)
     self.powerStatus:SetTextColor(0.6, 1, 0.6)
 
-    label("Balls", -172, "GameFontNormal")
-    self.ballsText = value(-172, "GameFontHighlightLarge")
-    self.goalIcon = icon(0, -194, 18, "goal_orange")
-    self.goalLabel = label("Orange pegs left", -196, "GameFontNormal")
+    label("Balls", -188, "GameFontNormal")
+    self.ballsText = value(-188, "GameFontHighlightLarge")
+    self.goalIcon = icon(0, -210, 18, "goal_orange")
+    self.goalLabel = label("Orange pegs left", -212, "GameFontNormal")
     self.goalLabel:ClearAllPoints()
-    self.goalLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -196)
-    self.goalText = value(-196, "GameFontHighlightLarge")
-    label("Score", -220, "GameFontNormal")
-    self.scoreText = value(-220, "GameFontHighlight")
-    label("Multiplier", -238)
-    self.multText = value(-238, "GameFontHighlightSmall")
-    label("Combo (this shot / best)", -274)
-    self.comboText = value(-274, "GameFontHighlightSmall")
-    label("Best on this level", -290)
-    self.bestText = value(-290, "GameFontHighlightSmall")
-    label("Next free ball at", -306)
-    self.freeBallText = value(-306, "GameFontHighlightSmall")
+    self.goalLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -212)
+    self.goalText = value(-212, "GameFontHighlightLarge")
+    label("Score", -236, "GameFontNormal")
+    self.scoreText = value(-236, "GameFontHighlight")
+    label("Multiplier", -254)
+    self.multText = value(-254, "GameFontHighlightSmall")
+    label("Combo (this shot / best)", -290)
+    self.comboText = value(-290, "GameFontHighlightSmall")
+    label("Best on this level", -306)
+    self.bestText = value(-306, "GameFontHighlightSmall")
+    label("Next free ball at", -322)
+    self.freeBallText = value(-322, "GameFontHighlightSmall")
     local function bar(y, r, g, b)
         local f = CreateFrame("StatusBar", nil, side)
         f:SetSize(SIDE_W, 5)
@@ -645,11 +664,11 @@ function UI:CreateFrame()
         bg:SetVertexColor(0.1, 0.1, 0.14, 0.9)
         return f
     end
-    self.freeBallBar = bar(-320, 0.4, 0.7, 1)
+    self.freeBallBar = bar(-336, 0.4, 0.7, 1)
     -- the multiplier: a horizontal trough with a rainbow bar clipped by progress
     local trough = CreateFrame("Frame", nil, side)
     trough:SetSize(SIDE_W, 16)
-    trough:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -254)
+    trough:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -270)
     local gauge = { skin = ART:NewSkin(side, "gauge", "ARTWORK", 0, trough), fill = side:CreateTexture(nil, "ARTWORK", nil, 2), w = SIDE_W - 8 }
     gauge.fill:SetPoint("LEFT", trough, "LEFT", 4, 0)
     gauge.fill:SetSize(gauge.w, 10)
@@ -661,14 +680,14 @@ function UI:CreateFrame()
     end
     gauge:SetValue(0)
     self.multBar = gauge
-    label("Stars on this level", -330)
+    label("Stars on this level", -346)
     self.sideStars = makeStars(side, 12, 2)
-    for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -330) end
-    self.starNeedText = label("", -346)
+    for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -346) end
+    self.starNeedText = label("", -362)
     self.starNeedText:SetWidth(SIDE_W)
     self.starNeedText:SetJustifyH("LEFT")
     self.starNeedText:SetTextColor(0.65, 0.65, 0.78)
-    divider(-366)
+    divider(-382)
 
     self.nextBtn = makeButton(side, SIDE_W, 32, "NEXT LEVEL")
     self.nextBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 182)
@@ -693,14 +712,17 @@ function UI:CreateFrame()
     self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 30)
     self.buyBtn:SetScript("OnClick", function() UI:BuyGears() end)
     -- the Golden Gear shop
-    self.gearsText = label("", -380, "GameFontNormal")
+    self.gearsText = label("", -396, "GameFontNormal")
     self.gearsText:SetWidth(SIDE_W)
     self.gearsText:SetJustifyH("CENTER")
     self.shopBtns = {}
     for i, what in ipairs(GP.Plays.SHOP_ORDER) do
         local offer = GP.Plays.SHOP[what]
-        local b = makeButton(side, SIDE_W, 24, ("%s - %d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s"))
-        b:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -400 - (i - 1) * 27)
+        local half = (SIDE_W - 4) / 2
+        local b = makeButton(side, half, 32, ("%s\n%d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s"))
+        b.text:SetWidth(half - 8)
+        b.text:SetWordWrap(true)
+        b:SetPoint("TOPLEFT", side, "TOPLEFT", ((i - 1) % 2) * (half + 4), -416 - math.floor((i - 1) / 2) * 35)
         b.what = what
         b:SetScript("OnClick", function(self) UI:ShopBuy(self.what) end)
         self.shopBtns[i] = b
@@ -1438,7 +1460,7 @@ function UI:StartLevel(n, retry)
     for _, d in ipairs(self.pyramidPuffs) do d.untilT = nil; d:Hide() end
     self.blastTex:Hide()
     self.blastRing:Hide()
-    for _, d in ipairs(self.boltDots) do d:Hide() end
+    self:HideBolt()
     if self.state.noBucket then self.bucket:Hide() end
     ART:Set(self.fieldBg, ART:FieldBackdrop(n))
     for _, bin in ipairs(self.bins) do
@@ -1988,25 +2010,87 @@ function UI:UpdateFanfare(now)
 end
 
 -- A lightning bolt: dots along the path for a moment.
+UI.BOLT_HOP, UI.BOLT_HOLD, UI.BOLT_FADE, UI.BOLT_FLICKER = 0.07, 0.3, 0.3, 0.045
+
+-- The bolt grows link by link from the green peg, each link a zigzag whose
+-- kinks are re-thrown every BOLT_FLICKER seconds, then fades.
 function UI:ShowBolt(path, now)
+    if not path or #path < 2 then return end
+    self:HideBolt()
+    self.bolt = { path = path, start = now, flick = 0, offs = {} }
+end
+
+function UI:HideBolt()
+    self.bolt = nil
+    for _, l in ipairs(self.boltLines) do l.glow:Hide(); l.core:Hide() end
+    for _, d in ipairs(self.boltDots) do d:Hide() end
+end
+
+function UI:DrawBolt(now)
+    local b = self.bolt
+    if not b then return end
+    local path, field = b.path, self.field
+    local links = #path - 1
+    local t = now - b.start
+    local grown = links * self.BOLT_HOP
+    local over = grown + self.BOLT_HOLD
+    if t >= over + self.BOLT_FADE then return self:HideBolt() end
+    local alpha = (t > over) and (1 - (t - over) / self.BOLT_FADE) or 1
+    if now >= b.flick then
+        b.flick = now + self.BOLT_FLICKER
+        b.offs = {}
+    end
     local k = 0
-    for i = 2, #path do
-        local a, b = path[i - 1], path[i]
-        local len = math.sqrt((b.x - a.x) ^ 2 + (b.y - a.y) ^ 2)
-        local n = math.max(2, math.floor(len / 12))
-        for s = 0, n do
-            k = k + 1
-            local d = self.boltDots[k]
-            if not d then break end
-            local f = s / n
-            local jitter = (s > 0 and s < n) and ((math.random() - 0.5) * 8) or 0
-            placeAt(d, self.field, a.x + (b.x - a.x) * f + jitter, a.y + (b.y - a.y) * f + jitter)
-            d:SetAlpha(1)
-            d:Show()
+    for i = 1, links do
+        local f = (t - (i - 1) * self.BOLT_HOP) / self.BOLT_HOP
+        if f <= 0 then break end
+        if f > 1 then f = 1 end
+        local a, c = path[i], path[i + 1]
+        local dx, dy = c.x - a.x, c.y - a.y
+        local len = math.sqrt(dx * dx + dy * dy)
+        if len > 0.5 then
+            local n = math.max(3, math.min(8, math.floor(len / 14)))
+            local px, py = -dy / len, dx / len
+            local amp = math.min(10, len * 0.12)
+            local offs = b.offs[i]
+            if not offs then
+                offs = {}
+                for s = 1, n - 1 do offs[s] = (math.random() - 0.5) * 2 * amp end
+                b.offs[i] = offs
+            end
+            local x0, y0 = a.x, a.y
+            local last = math.max(1, math.ceil(n * f))
+            for s = 1, last do
+                local g = math.min(s / n, f)
+                local o = (s < n and g < f) and (offs[s] or 0) or 0
+                local x1, y1 = a.x + dx * g + px * o, a.y + dy * g + py * o
+                k = k + 1
+                local l = self.boltLines[k]
+                if l then
+                    for _, line in ipairs({ l.glow, l.core }) do
+                        line:SetStartPoint("TOPLEFT", field, x0, -y0)
+                        line:SetEndPoint("TOPLEFT", field, x1, -y1)
+                        line:SetAlpha(alpha)
+                        line:Show()
+                    end
+                end
+                x0, y0 = x1, y1
+            end
+        end
+        -- a flash on each piece the bolt has reached
+        local d = self.boltDots[i]
+        if d then
+            local age = t - i * self.BOLT_HOP
+            if f >= 1 and age >= 0 then
+                local s = 26 - math.min(10, age * 40)
+                d:SetSize(s, s)
+                placeAt(d, field, c.x, c.y)
+                d:SetAlpha(alpha * (0.6 + 0.4 * math.random()))
+                d:Show()
+            end
         end
     end
-    for i = k + 1, #self.boltDots do self.boltDots[i]:Hide() end
-    self.boltUntil = now + 0.5
+    for i = k + 1, #self.boltLines do self.boltLines[i].glow:Hide(); self.boltLines[i].core:Hide() end
 end
 
 function UI:ShowBlast(x, y, now, radius)
@@ -2827,15 +2911,7 @@ function UI:Render(now)
         end
     end
 
-    if self.boltUntil then
-        if now >= self.boltUntil then
-            self.boltUntil = nil
-            for _, d in ipairs(self.boltDots) do d:Hide() end
-        else
-            local f = (self.boltUntil - now) / 0.5
-            for _, d in ipairs(self.boltDots) do if d:IsShown() then d:SetAlpha(f) end end
-        end
-    end
+    if self.bolt then self:DrawBolt(now) end
 
     if self.blastAt then
         local age = now - self.blastAt
@@ -2973,6 +3049,8 @@ function UI:UpdateDisplay()
     self.chapterText:SetText("|cffaaddff" .. (st.title or st.name or "") .. "|r")
         local name, blurb = powerName(st.power)
         self.powerText:SetText("|cff88ff88" .. name .. "|r")
+        local host = GP:HostFor(st.level)
+        self.hostText:SetText("|cffffd700" .. ((host and host.name) or "Tinkmaster Overspark") .. "|r")
         self.powerBlurb:SetText(blurb)
         ART:Set(self.powerIcon, ART:Power(st.power))
         self.bestText:SetText(fmtBig(db.best[st.level] or 0))
