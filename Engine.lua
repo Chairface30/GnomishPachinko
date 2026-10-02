@@ -4,7 +4,9 @@
     draws whatever this produces and tests/engine_test.py drives it headless.
 
     Field pixels, origin top-left, y grows DOWNWARD (the UI anchors every
-    texture TOPLEFT at (x, -y)).
+    texture TOPLEFT at (x, -y)). The field is a portrait column, 490 by
+    700, the proportions of Peggle Blast's board: the pegs sit in its
+    upper two thirds and the ball has a long fall to the bucket.
 
     Pieces: round pegs and BRICKS (rotated rectangles). Both share the peg
     record: { shape, x, y, kind, hp, maxhp, lit, gone } with w/h/angle on
@@ -31,7 +33,7 @@ local GP = GnomishPachinko
 GP.Engine = GP.Engine or {}
 local E = GP.Engine
 
-E.FIELD_W, E.FIELD_H = 600, 600
+E.FIELD_W, E.FIELD_H = 490, 700
 E.BALL_R      = 7
 E.PEG_R       = 9
 E.EGG_R       = 13
@@ -39,10 +41,10 @@ E.GEM_R       = 10
 E.BOSS_R      = 26
 E.BRICK_W     = 30
 E.BRICK_H     = 11
-E.LAUNCHER_Y  = 26
-E.PEG_TOP     = 120
-E.PEG_BOTTOM  = 500
-E.PEG_MARGIN  = 34
+E.LAUNCHER_Y  = 30
+E.PEG_TOP     = 150         -- the pattern zone, in field pixels (Levels maps its 600-wide design space into it)
+E.PEG_BOTTOM  = 480
+E.PEG_MARGIN  = 27
 E.PEG_GAP     = 40          -- centre distance round peg to round peg
 
 E.GRAVITY      = 1000
@@ -95,7 +97,7 @@ E.CHAIN_REACH = 120
 E.PYRAMID_SHOTS   = 3       -- the shot that earns it and two more
 E.PYRAMID_BOUNCES = 4       -- per shot
 E.PYRAMID_KICK    = 380     -- the ball leaves it at least this fast, upward
-E.PYRAMID_W       = 510
+E.PYRAMID_W       = E.FIELD_W - 90
 E.PYRAMID_H       = 14
 E.PYRAMID_Y       = E.FIELD_H - E.BUCKET_H - 6 - 40
 
@@ -116,7 +118,7 @@ E.BUMPER_KICK   = 260
 -- bumper so the ball comes back up for more.
 E.BOSS_BOUNCE = 1.0
 E.BOSS_KICK   = 220
-E.BOSS_BAND   = { y0 = 416, y1 = 500, y = 458 }
+E.BOSS_BAND   = { y0 = 590, y1 = 700, y = 640 }     -- in Levels' design space: below the pattern zone, above the bucket
 E.GOLEM_SHIELD = 2
 E.GOLEM_EVERY  = 3
 

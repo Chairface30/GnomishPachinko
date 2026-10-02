@@ -333,7 +333,7 @@ function UI:CreateFrame()
     self.duelYou:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
     self.duelYou:Hide()
     self.duelRival = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.duelRival:SetPoint("TOPRIGHT", field, "TOPRIGHT", -124, -8)
+    self.duelRival:SetPoint("TOPRIGHT", field, "TOPRIGHT", -98, -8)
     self.duelRival:SetJustifyH("RIGHT")
     self.duelRival:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
     self.duelRival:Hide()
@@ -685,7 +685,7 @@ end
 local NODE_PATH = {}
 for i = 1, 10 do
     local t = (i - 1) / 9
-    NODE_PATH[i] = { x = 300 + 200 * math.sin((i - 1) * 1.05 + 2.4), y = 520 - t * 400 }
+    NODE_PATH[i] = { x = E.FIELD_W / 2 + (E.FIELD_W / 2 - 70) * math.sin((i - 1) * 1.05 + 2.4), y = (E.FIELD_H - 90) - t * (E.FIELD_H - 220) }
 end
 
 function UI:CreateLevelSelect()
@@ -927,7 +927,7 @@ function UI:CreatePlaysPanel()
     self.playsPanel = panel
 
     panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
-    panel.title:SetPoint("TOP", 0, -150)
+    panel.title:SetPoint("TOP", 0, -190)
     panel.title:SetFont("Fonts\\FRIZQT__.TTF", 28, "OUTLINE")
     panel.title:SetText("|cffff6060OUT OF PLAYS|r")
     panel.text = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")

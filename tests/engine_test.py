@@ -150,8 +150,9 @@ function level_report(n)
     if p.goal then counts.goal = counts.goal + 1 end
     local rp = E.PegRadius(p)
     if not L:Reachable(p) then bad = bad + 1 end
+    local bottom = (p.kind == "boss") and (E.FIELD_H - 60) or E.PEG_BOTTOM
     if p.x - rp < E.PEG_MARGIN - 6.01 or p.x + rp > E.FIELD_W - E.PEG_MARGIN + 6.01
-       or p.y - rp < E.PEG_TOP - 0.01 or p.y + rp > E.PEG_BOTTOM + 0.01 then bad = bad + 1 end
+       or p.y - rp < E.PEG_TOP - 0.01 or p.y + rp > bottom + 0.01 then bad = bad + 1 end
     for j = i + 1, #spec.pegs do
       local q = spec.pegs[j]
       if not (p.group and p.group == q.group) and not p.moving and not q.moving then
@@ -783,7 +784,8 @@ mult = ev("E.ScoreMultiplier")
 Eng = ev("E")
 check("the multiplier climbs with the share of the goal done", [mult(Eng, n, 25) for n in (0, 4, 5, 9, 10, 14, 15, 19, 20, 25)] == [1, 1, 2, 2, 3, 3, 5, 5, 10, 10])
 check("the ladder scales to a 15-orange level", [mult(Eng, n, 15) for n in (2, 3, 6, 9, 12)] == [1, 2, 3, 5, 10])
-check("the high corners hold no pieces", ev("L:ReachFloor(40)") > 180 and ev("L:ReachFloor(300)") < 60, f"{ev('L:ReachFloor(40)'):.0f} {ev('L:ReachFloor(300)'):.0f}")
+check("the high corners hold no pieces", ev("L:ReachFloor(20)") > 120 and ev("L:ReachFloor(245)") < 60, f"{ev('L:ReachFloor(20)'):.0f} {ev('L:ReachFloor(245)'):.0f}")
+check("the field has Peggle Blast's portrait proportions", abs(ev("E.FIELD_W / E.FIELD_H") - 0.7) < 0.01)
 check("the bucket returns balls", buckets > 0)
 
 # the bucket's rim: a glancing ball bounces off with a rim event
@@ -1038,7 +1040,7 @@ check("a ball passing 40 px beside the last peg never triggers the slow-mo", slo
 lua(r"""
 function shot_end_probe()
   local spec = L:Build(1)
-  spec.pegs = { { shape = "peg", x = 300, y = 300, kind = "blue" }, { shape = "peg", x = 100, y = 450, kind = "orange", goal = true } }
+  spec.pegs = { { shape = "peg", x = E.FIELD_W / 2, y = 300, kind = "blue" }, { shape = "peg", x = 60, y = 450, kind = "orange", goal = true } }
   spec.goal = 1
   local st = E:NewLevel(spec)
   local events = {}
@@ -1073,14 +1075,14 @@ check("a shot that hits a peg ends with a summary, one that hits nothing is a To
 lua(r"""
 function long_shot_probe()
   local spec = L:Build(1)
-  spec.pegs = { { shape = "peg", x = 100, y = 300, kind = "orange", goal = true }, { shape = "peg", x = 500, y = 300, kind = "orange", goal = true }, { shape = "peg", x = 300, y = 450, kind = "orange", goal = true } }
+  spec.pegs = { { shape = "peg", x = 60, y = 300, kind = "orange", goal = true }, { shape = "peg", x = 430, y = 300, kind = "orange", goal = true }, { shape = "peg", x = 245, y = 450, kind = "orange", goal = true } }
   spec.goal = 3
   local st = E:NewLevel(spec)
   local events = {}
   st.phase = E.PHASE.FLIGHT
-  st.balls[1] = { x = 100, y = 300 - 16, vx = 0, vy = 0, slow = 0 }
+  st.balls[1] = { x = 60, y = 300 - 16, vx = 0, vy = 0, slow = 0 }
   E:Step(st, 1 / 60, events)
-  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = 500, 300 - 16, 0, 0
+  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = 430, 300 - 16, 0, 0
   E:Step(st, 1 / 60, events)
   local styles = {}
   for _, e in ipairs(events) do if e.type == "style" then styles[#styles + 1] = e.name end end

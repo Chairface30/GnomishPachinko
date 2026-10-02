@@ -18,7 +18,17 @@ local L = GP.Levels
 L.COUNT = 1000
 L.PER_CHAPTER = 10
 
-local W = E.FIELD_W
+-- The pictures are drawn in a 600-wide DESIGN space (pegs from y 120 to
+-- 500) and mapped into the field as pieces are added: scaled by SX and
+-- shifted down by OY, so the patterns keep their shapes on the portrait
+-- field and sit in its upper two thirds.
+local DW = 600
+local W = DW
+local SX = E.FIELD_W / DW
+local OY = 60
+local function mapX(x) return x * SX end
+local function mapY(y) return OY + y * SX end
+L.DesignW, L.ScaleX, L.OffsetY = DW, SX, OY
 local sin, cos, floor, sqrt, pi = math.sin, math.cos, math.floor, math.sqrt, math.pi
 
 L.CHAPTERS = {
@@ -50,18 +60,19 @@ local reachFloor
 
 local function buildReach()
     reachFloor = {}
-    local cols = floor(W / 4) + 1
+    local FW = E.FIELD_W
+    local cols = floor(FW / 4) + 1
     for c = 0, cols do reachFloor[c] = math.huge end
     for deg = -E.MAX_AIM_DEG, E.MAX_AIM_DEG do
         local a = deg * pi / 180
-        local x, y = W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+        local x, y = FW / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
         local vx, vy = sin(a) * E.LAUNCH_SPEED, cos(a) * E.LAUNCH_SPEED
         local dt = E.STEP
         for _ = 1, 600 do
             vy = vy + E.GRAVITY * dt
             x, y = x + vx * dt, y + vy * dt
             if x < E.BALL_R then x = E.BALL_R; vx = -vx * E.RESTITUTION end
-            if x > W - E.BALL_R then x = W - E.BALL_R; vx = -vx * E.RESTITUTION end
+            if x > FW - E.BALL_R then x = FW - E.BALL_R; vx = -vx * E.RESTITUTION end
             if y > E.FIELD_H then break end
             local c = floor(x / 4)
             if y < reachFloor[c] then reachFloor[c] = y end
@@ -1016,8 +1027,16 @@ function L:Build(n, attempt, opts)
     local rng = E.NewRng(seed)
     local pegs = {}
     local movers, excludes = {}, {}
-    local function mover(mv) movers[#movers + 1] = mv end
-    local function exclude(rect, group) rect.group = group; excludes[#excludes + 1] = rect end
+    local function mover(mv)
+        if mv.cx then mv.cx, mv.cy = mapX(mv.cx), mapY(mv.cy) end
+        if mv.kind == "slide" or mv.kind == "lift" then mv.amp = mv.amp * SX end
+        movers[#movers + 1] = mv
+    end
+    local function exclude(rect, group)
+        rect.group = group
+        rect.x0, rect.x1, rect.y0, rect.y1 = mapX(rect.x0), mapX(rect.x1), mapY(rect.y0), mapY(rect.y1)
+        excludes[#excludes + 1] = rect
+    end
     local function clearOf(p, group)
         local need = -0.5          -- touching is allowed
         for _, q in ipairs(pegs) do
@@ -1028,9 +1047,17 @@ function L:Build(n, attempt, opts)
         return true
     end
     local function add(p, group)
+        -- design space into the field
+        if not p.mapped then
+            p.x, p.y = mapX(p.x), mapY(p.y)
+            if p.bx then p.bx, p.by = mapX(p.bx), mapY(p.by) end
+            if p.shape == "brick" then p.w = p.w * SX end
+            p.mapped = true
+        end
         local rp = E.PegRadius(p)
-        if p.x - rp < E.PEG_MARGIN - 6 or p.x + rp > W - E.PEG_MARGIN + 6 then return false end
-        if p.y - rp < E.PEG_TOP or p.y + rp > E.PEG_BOTTOM then return false end
+        if p.x - rp < E.PEG_MARGIN - 6 or p.x + rp > E.FIELD_W - E.PEG_MARGIN + 6 then return false end
+        if p.kind ~= "boss" and (p.y - rp < E.PEG_TOP or p.y + rp > E.PEG_BOTTOM) then return false end
+        if p.kind == "boss" and p.y + rp > E.FIELD_H - 60 then return false end
         if not L:Reachable(p) then return false end
         for _, r in ipairs(excludes) do
             if r.group ~= group and p.x > r.x0 and p.x < r.x1 and p.y > r.y0 and p.y < r.y1 then return false end
@@ -1073,7 +1100,10 @@ function L:Build(n, attempt, opts)
     local pegs, movers, gimmickNames, rng = assemble(true)
     local static = 0
     for _, p in ipairs(pegs) do if not p.moving and not E.IsSolid(p) then static = static + 1 end end
-    if static < self:MinPieces(n) and #gimmickNames > 0 then pegs, movers, gimmickNames, rng = assemble(false) end
+    -- a gimmick that guts the pattern is dropped, except on the level that
+    -- introduces it: a debut always shows
+    local debut = (n % 10 == 1) and n >= 21 and (chapter - 2) <= #self.GIMMICK_ORDER
+    if static < self:MinPieces(n) and #gimmickNames > 0 and not debut then pegs, movers, gimmickNames, rng = assemble(false) end
     -- from here the colours: their own stream, so a retry deals them again
     rng = E.NewRng(seed * 31 + attempt * 101 + 7)
 
@@ -1087,8 +1117,8 @@ function L:Build(n, attempt, opts)
         local cands = {}
         for _, p in ipairs(pegs) do
             if p.shape == "peg" and not p.moving and not E.IsSolid(p) and not p.goal
-                and (kind ~= "gem" or p.y < lowest)
-                and p.x - r >= E.PEG_MARGIN - 6 and p.x + r <= W - E.PEG_MARGIN + 6
+                and (kind ~= "gem" or p.y < mapY(lowest))
+                and p.x - r >= E.PEG_MARGIN - 6 and p.x + r <= E.FIELD_W - E.PEG_MARGIN + 6
                 and p.y - r >= E.PEG_TOP and p.y + r <= E.PEG_BOTTOM then
                 -- the bigger piece must not run into a moving one (those stay)
                 local probe = { shape = "peg", x = p.x, y = p.y, r = r }

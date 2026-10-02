@@ -20,7 +20,7 @@ GP.Mascot = GP.Mascot or {}
 local M = GP.Mascot
 
 M.DEFAULT_NPC = 7406            -- Tinkmaster Overspark
-M.SIZE = { w = 110, h = 140 }
+M.SIZE = { w = 90, h = 112 }
 
 -- The game's animation ids used here.
 M.ANIM = {

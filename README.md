@@ -6,6 +6,8 @@ Open it with `/pachinko` (or `/gp`).
 
 ## How it plays
 
+The board is a portrait column, 490 by 700, with the pegs in its upper two thirds and a long fall to the bucket.
+
 Point the launcher with the mouse and click the field to shoot. You have ten balls a level. Every peg or brick the ball touches lights up and vanishes two seconds later. Finish the level's objective to clear it and unlock the next one.
 
 - **Blue** pegs and bricks are points.
