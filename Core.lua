@@ -137,6 +137,18 @@ end
 
 -- Wipes levels, stars and best scores. The day's plays live in the vault
 -- and are not touched.
+-- For testing: the owner's characters can open every level on the map.
+function GP:UnlockAll()
+    if not (self.Plays and self.Plays:IsOwner()) then
+        self:Print("Unlock all is for the owner's characters only.")
+        return false
+    end
+    self:GetDB().unlocked = self.Levels.COUNT
+    self:Print(("All %d levels unlocked for testing."):format(self.Levels.COUNT))
+    if self.UI and self.UI.levelPanel and self.UI.levelPanel:IsShown() then self.UI:LevelPage(self.UI.levelPage) end
+    return true
+end
+
 function GP:ResetProgress()
     GnomishPachinkoDB = nil
     self.db = nil
@@ -188,10 +200,12 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         if not ok then GP:Print(err) end
     elseif msg == "reset" then
         GP:ResetProgress()
+    elseif msg == "unlockall" then
+        GP:UnlockAll()
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
-            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress.")
+            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing).")
     end
 end
 

@@ -436,6 +436,15 @@ function UI:CreateFrame()
     local sub = field:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     sub:SetPoint("TOP", banner, "BOTTOM", 0, -6)
     sub:SetWidth(FW - 60)
+    sub:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+    -- a dark plate behind the line under the ribbon, so it reads on any backdrop
+    local subBg = field:CreateTexture(nil, "OVERLAY", nil, 0)
+    subBg:SetPoint("TOPLEFT", sub, "TOPLEFT", -12, 6)
+    subBg:SetPoint("BOTTOMRIGHT", sub, "BOTTOMRIGHT", 12, -6)
+    subBg:SetTexture(WHITE)
+    subBg:SetVertexColor(0, 0, 0, 0.7)
+    subBg:Hide()
+    self.bannerSubBg = subBg
     self.bannerSub = sub
     -- power-up slots: armed for the next shot
     self.itemSlots = {}
@@ -1070,6 +1079,11 @@ function UI:CreateLevelSelect()
             GP:Print("Reset progress: click the button again within six seconds to wipe every level, star and best score. The day's plays are kept.")
         end
     end)
+    -- the owner's characters can open every level for testing
+    panel.unlock = makeButton(panel, 150, 24, "Unlock all (testing)")
+    panel.unlock:SetPoint("BOTTOM", 0, 40)
+    panel.unlock:SetScript("OnClick", function() GP:UnlockAll() end)
+    panel.unlock:Hide()
     panel.reset:SetScript("OnLeave", function(self)
         if GameTooltip then GameTooltip:Hide() end
         if self:IsEnabled() then hoverButton(self, false) end
@@ -1124,6 +1138,12 @@ function UI:LevelPage(page)
     styleButton(panel.next10, page < pages, 0.3, 0.3, 0.45)
     styleButton(panel.back, true, 0.35, 0.3, 0.45)
     styleButton(panel.reset, true, 0.45, 0.2, 0.2)
+    if GP.Plays:IsOwner() then
+        styleButton(panel.unlock, true, 0.2, 0.5, 0.25)
+        panel.unlock:Show()
+    else
+        panel.unlock:Hide()
+    end
     if panel.reset.armedUntil and GetTime() >= panel.reset.armedUntil then
         panel.reset.armedUntil = nil
         panel.reset.text:SetText("Reset progress")
@@ -2168,6 +2188,8 @@ function UI:OnUpdate(dt)
     -- the ribbon sits behind any banner text (not behind a drawn callout)
     local bannerText = self.banner:GetText()
     if bannerText and bannerText ~= "" and not self.calloutUntil then self.bannerRibbon:Show() else self.bannerRibbon:Hide() end
+    local subText = self.bannerSub:GetText()
+    if subText and subText ~= "" then self.bannerSubBg:Show() else self.bannerSubBg:Hide() end
     self:UpdateFx(now, dt)
     if self.playsPanel and self.playsPanel:IsShown() then
         if now - (self.playsTick or 0) > 1 then
