@@ -1,6 +1,6 @@
 --[[
     Gnomish Pachinko - Levels.lua
-    1000 levels generated from their number alone. Level n gets a seed,
+    400 levels generated from their number alone. Level n gets a seed,
     a chapter (ten levels each, named after a place in Azeroth), a layout
     family, an objective (classic oranges, eggs, gems or a boss), counts
     and tough pieces that climb with n, and the chapter's power.
@@ -15,7 +15,7 @@ local E = GP.Engine
 GP.Levels = GP.Levels or {}
 local L = GP.Levels
 
-L.COUNT = 1000
+L.COUNT = 400
 L.PER_CHAPTER = 10
 
 -- The pictures are drawn in a 600-wide DESIGN space (pegs from y 120 to
@@ -32,23 +32,14 @@ L.DesignW, L.ScaleX, L.OffsetY = DW, SX, OY
 local sin, cos, floor, sqrt, pi = math.sin, math.cos, math.floor, math.sqrt, math.pi
 
 L.CHAPTERS = {
+    -- forty chapters, every one a place from the original Azeroth
     "Elwynn Forest", "Durotar", "Dun Morogh", "Mulgore", "Teldrassil", "Tirisfal Glades",
     "Westfall", "Loch Modan", "Darkshore", "Silverpine Forest", "The Barrens", "Redridge Mountains",
     "Stonetalon Mountains", "Ashenvale", "Duskwood", "Wetlands", "Hillsbrad Foothills", "Thousand Needles",
     "Alterac Mountains", "Arathi Highlands", "Desolace", "Stranglethorn Vale", "Dustwallow Marsh", "Badlands",
     "Swamp of Sorrows", "Feralas", "The Hinterlands", "Tanaris", "Searing Gorge", "Azshara",
     "Blasted Lands", "Un'Goro Crater", "Felwood", "Burning Steppes", "Western Plaguelands", "Eastern Plaguelands",
-    "Winterspring", "Deadwind Pass", "Silithus", "Moonglade", "Hellfire Peninsula", "Zangarmarsh",
-    "Terokkar Forest", "Nagrand", "Blade's Edge Mountains", "Netherstorm", "Shadowmoon Valley", "Isle of Quel'Danas",
-    "Eversong Woods", "Ghostlands", "Azuremyst Isle", "Bloodmyst Isle", "The Deadmines", "Wailing Caverns",
-    "Shadowfang Keep", "Blackfathom Deeps", "The Stockade", "Gnomeregan", "Razorfen Kraul", "Scarlet Monastery",
-    "Uldaman", "Zul'Farrak", "Maraudon", "The Sunken Temple", "Blackrock Depths", "Lower Blackrock Spire",
-    "Upper Blackrock Spire", "Dire Maul", "Stratholme", "Scholomance", "Molten Core", "Onyxia's Lair",
-    "Blackwing Lair", "Zul'Gurub", "Ruins of Ahn'Qiraj", "Temple of Ahn'Qiraj", "Naxxramas", "Hellfire Ramparts",
-    "The Blood Furnace", "The Shattered Halls", "The Slave Pens", "The Underbog", "The Steamvault", "Mana-Tombs",
-    "Auchenai Crypts", "Sethekk Halls", "Shadow Labyrinth", "The Mechanar", "The Botanica", "The Arcatraz",
-    "Old Hillsbrad", "The Black Morass", "Magtheridon's Lair", "Gruul's Lair", "Karazhan", "Serpentshrine Cavern",
-    "Tempest Keep", "Mount Hyjal", "Black Temple", "Sunwell Plateau",
+    "Winterspring", "Deadwind Pass", "Silithus", "Moonglade",
 }
 
 -- ---------------------------------------------------------------------
@@ -846,11 +837,11 @@ function L:Objective(n)
 end
 
 -- Oranges climb with the level: 3 on level 1, 8 by the end of chapter 1,
--- 15 by level 40, 30 by level 1000. Piece counts come from the pattern.
+-- 15 by level 40, 30 by the last level. Piece counts come from the pattern.
 function L:Counts(n)
     if n <= 10 then return 3 + floor((n - 1) * 0.6) end
     if n <= 40 then return 8 + floor((n - 10) * 7 / 30 + 0.5) end
-    return floor(15 + 15 * (n - 40) / 960 + 0.5)
+    return floor(15 + 15 * (n - 40) / (self.COUNT - 40) + 0.5)
 end
 
 -- Eggs or gems on a level: 3 -> 6.
@@ -1113,24 +1104,54 @@ function L:Build(n, attempt, opts)
     -- from here the colours: their own stream, so a retry deals them again
     rng = E.NewRng(seed * 31 + attempt * 101 + 7)
 
-    -- Eggs and gems take the place of pattern pegs: round, still, well
-    -- apart from each other, and (gems) high enough to fall through
-    -- something. Anything the bigger piece would overlap is removed.
-    -- Two passes: well spread out first, then closer together and lower
-    -- down if the pattern has too few round pegs for that.
+    -- Eggs and gems are loose bodies, much bigger than pegs, each sitting
+    -- in a cradle of ordinary bricks built under it: a flat two-brick
+    -- ledge for a gem (knock either brick out and it rolls off) and a V
+    -- of two bricks for an egg (lose either side and the egg drops). The
+    -- body takes the place of a pattern peg, well apart from the others
+    -- and (gems) high enough to fall through something; anything it or
+    -- its cradle would overlap is removed. Two passes: well spread out
+    -- first, then closer together if the pattern has too few spots.
+    local CRADLE_REACH = 46     -- how far a cradle's bricks can stick out from the body's centre
+    -- a brick whose top face touches the body: `angle` along its length,
+    -- `s` shifts the touch point along it (negative toward its start)
+    local function cradleBrick(body, angle, w, s)
+        local h = E.BRICK_H
+        local c, sn = cos(angle), sin(angle)
+        local nx, ny = sn, -c                 -- the face normal pointing at the body
+        local d = body.r + h / 2 + 0.5
+        return { shape = "brick", x = body.x - nx * d + c * s, y = body.y - ny * d + sn * s,
+            angle = angle, w = w, h = h, mapped = true, cradle = true }
+    end
+    local function cradleFor(body, kind)
+        local r = body.r
+        local pair
+        if kind == "gem" then
+            local w = r + 12
+            pair = { cradleBrick(body, 0, w, -w / 2), cradleBrick(body, 0, w, w / 2) }
+        else
+            local w = r + 18
+            pair = { cradleBrick(body, 0.5, w, -w * 0.3), cradleBrick(body, -0.5, w, w * 0.3) }
+        end
+        -- the two bricks touch end to end, like a brick chain
+        local group = ("cradle%d_%d"):format(floor(body.x), floor(body.y))
+        for _, b in ipairs(pair) do b.group = group end
+        return pair
+    end
     local function convert(kind, count, r, spread, lowest)
-        spread, lowest = spread or 70, lowest or 420
+        spread, lowest = spread or 90, lowest or 420
         local cands = {}
         for _, p in ipairs(pegs) do
-            if p.shape == "peg" and not p.moving and not E.IsSolid(p) and not p.goal
+            if p.shape == "peg" and not p.moving and not E.IsSolid(p) and not p.goal and not p.special
                 and (kind ~= "gem" or p.y < mapY(lowest))
-                and p.x - r >= E.PEG_MARGIN - 6 and p.x + r <= E.FIELD_W - E.PEG_MARGIN + 6
-                and p.y - r >= E.PEG_TOP and p.y + r <= E.PEG_BOTTOM then
-                -- the bigger piece must not run into a moving one (those stay)
-                local probe = { shape = "peg", x = p.x, y = p.y, r = r }
+                and p.x - r - 24 >= E.PEG_MARGIN - 6 and p.x + r + 24 <= E.FIELD_W - E.PEG_MARGIN + 6
+                and p.y - r >= E.PEG_TOP and p.y + r + 24 <= E.PEG_BOTTOM then
+                -- the body and its cradle must not run into a moving piece, a
+                -- key or a cage (those stay)
+                local probe = { shape = "peg", x = p.x, y = p.y, r = r + CRADLE_REACH }
                 local clear = true
                 for _, q in ipairs(pegs) do
-                    if q.moving and surfaceDist(probe, q) < -0.5 then clear = false break end
+                    if (q.moving or q.special or q.lock or q.unlocks) and q ~= p and surfaceDist(probe, q) < -0.5 then clear = false break end
                 end
                 if clear then cands[#cands + 1] = p end
             end
@@ -1147,49 +1168,55 @@ function L:Build(n, attempt, opts)
                 local dx, dy = p.x - q.x, p.y - q.y
                 if dx * dx + dy * dy < spread * spread then ok = false break end
             end
-            if ok then chosen[#chosen + 1] = p end
+            if ok then
+                -- and its cradle must keep clear of the cradles already placed
+                local mine = cradleFor({ x = p.x, y = p.y, r = r }, kind)
+                for _, q in ipairs(chosen) do
+                    for _, a in ipairs(q.cradlePlan) do
+                        for _, b in ipairs(mine) do
+                            if surfaceDist(a, b) < 1 then ok = false end
+                        end
+                    end
+                end
+                if ok then
+                    p.cradlePlan = mine
+                    chosen[#chosen + 1] = p
+                end
+            end
         end
-        if #chosen < math.min(count, 3) and spread > 50 then
-            return convert(kind, count, r, 50, 470)
+        if #chosen < math.min(count, 3) then
+            if spread > 70 then return convert(kind, count, r, 70, 470) end
+            return 0        -- too few spots for the big pieces: the level stays classic
         end
+        local cradles = {}
         for _, p in ipairs(chosen) do
             p.kind = kind
             p.goal = true
             p.r = r
             p.special = true
-            if kind == "egg" then p.hp = (n >= 300) and 3 or 2 end
+            p.loose = true
+            p.hp = (kind == "egg") and ((n >= 300) and 3 or 2) or 1
+            for _, b in ipairs(p.cradlePlan or cradleFor(p, kind)) do cradles[#cradles + 1] = b end
+            p.cradlePlan = nil
         end
         if #chosen > 0 then
+            -- clear the ground: whatever the body or its cradle overlaps goes
             for i = #pegs, 1, -1 do
                 local q = pegs[i]
                 if not q.special and not q.moving then
+                    local hit = false
                     for _, p in ipairs(chosen) do
-                        if surfaceDist(p, q) < -0.5 then table.remove(pegs, i) break end
+                        if surfaceDist(p, q) < -0.5 then hit = true break end
                     end
+                    if not hit then
+                        for _, b in ipairs(cradles) do
+                            if surfaceDist(b, q) < -0.5 then hit = true break end
+                        end
+                    end
+                    if hit then table.remove(pegs, i) end
                 end
             end
-        end
-        -- an egg sits in a nest: two pegs under it hold it up, and when they
-        -- go the egg falls. An egg nothing could be put under is wedged in
-        -- place instead.
-        if kind == "egg" then
-            for _, p in ipairs(chosen) do
-                local held = 0
-                for _, q in ipairs(pegs) do
-                    if q ~= p and not q.special and math.abs(q.x - p.x) <= E.NEST_DX and q.y - p.y >= E.NEST_DY0 and q.y - p.y <= E.NEST_DY1 then held = held + 1 end
-                end
-                for _, off in ipairs({ -20, 20 }) do
-                    if held >= 2 then break end
-                    local q = { shape = "peg", x = p.x + off, y = p.y + 30, nest = true, mapped = true }
-                    local rp = E.PEG_R
-                    local ok = q.x - rp >= E.PEG_MARGIN - 6 and q.x + rp <= E.FIELD_W - E.PEG_MARGIN + 6 and q.y + rp <= E.PEG_BOTTOM
-                    if ok then
-                        for _, o in ipairs(pegs) do if surfaceDist(q, o) < -0.5 then ok = false break end end
-                    end
-                    if ok then pegs[#pegs + 1] = q; held = held + 1 end
-                end
-                p.nested = held > 0
-            end
+            for _, b in ipairs(cradles) do pegs[#pegs + 1] = b end
         end
         return #chosen
     end

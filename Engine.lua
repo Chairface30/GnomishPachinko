@@ -36,8 +36,8 @@ local E = GP.Engine
 E.FIELD_W, E.FIELD_H = 490, 700
 E.BALL_R      = 7
 E.PEG_R       = 9
-E.EGG_R       = 13
-E.GEM_R       = 10
+E.EGG_R       = 22          -- eggs and gems are loose bodies, much bigger than pegs
+E.GEM_R       = 20
 E.BOSS_R      = 26
 E.BRICK_W     = 30
 E.BRICK_H     = 11
@@ -90,7 +90,7 @@ E.BALLS       = 10
 E.PEG_POINTS  = { blue = 25, orange = 250, green = 25, purple = 1000, egg = 500, gem = 1000, boss = 5000 }
 -- points for a hit that only cracks a tough piece, an egg or the boss
 E.CHIP_POINTS = { blue = 10, orange = 50, green = 10, purple = 10, egg = 100, boss = 500 }
-E.BLAST_RADIUS = 140
+E.BLAST_RADIUS = 45         -- about an inch on screen
 E.GUIDE_SHOTS = 3
 E.CHAIN_LINKS = 6           -- Chain Lightning: pieces after the green one
 E.CHAIN_REACH = 120
@@ -159,7 +159,16 @@ E.OBJECTIVES = {
 }
 E.PLAY_ON_BALLS = 3         -- a continue after running out of balls
 E.PHOENIX_POINTS = 5000     -- an egg saved in the bucket
-E.NEST_DX, E.NEST_DY0, E.NEST_DY1 = 28, 8, 46   -- a piece this close under an egg holds it up
+-- Loose pieces (eggs and gems) are bodies: gravity pulls them, the bricks
+-- of their cradle hold them up, and they roll when a ball or a blast
+-- nudges them. A gem counts when it leaves the bottom of the board, an
+-- egg is lost there (the bucket saves either).
+E.LOOSE_GRAVITY     = 900
+E.LOOSE_RESTITUTION = 0.12
+E.LOOSE_FRICTION    = 0.55      -- share of the tangent speed kept per contact
+E.LOOSE_SLEEP       = 14        -- slower than this while touching something: at rest
+E.LOOSE_NUDGE       = { egg = 0.06, gem = 0.3 }   -- share of the ball's speed a hit passes on
+E.LOOSE_BLAST_KICK  = 260       -- a Space Blast throws loose pieces away from it
 
 -- The duel: no piece to hit. Stage one is a board to clear; then the
 -- rival steps up and the two of you shoot turn and turn about on one
@@ -313,7 +322,6 @@ function E:NewLevel(spec)
             turn = "you", balls = { you = 0, rival = 0 }, scores = { you = 0, rival = 0 } } or nil,
         power = spec.power,
         balls = {},
-        gems = {},
         ballsLeft = spec.balls or E.BALLS,
         ballsFired = 0,
         shots = 0,
@@ -343,7 +351,10 @@ function E:NewLevel(spec)
         p.lit, p.gone, p.freed, p.collected = false, false, false, false
         p.cooldown, p.shield = nil, 0
         if p.kind == "boss" then state.boss = p end
-        if p.kind == "egg" and p.nested then state.hasNests = true end
+        if p.loose then
+            state.hasLoose = true
+            p.vx, p.vy, p.resting, p.settling = 0, 0, false, true
+        end
     end
     for _, mv in ipairs(state.movers) do
         for _, p in ipairs(mv.pegs) do p.mover = mv end
@@ -359,6 +370,8 @@ end
 function E:UpdateMovers(state)
     local t = state.time
     for _, mv in ipairs(state.movers) do
+        -- where each piece was, so a loose piece resting on it is carried
+        for _, p in ipairs(mv.pegs) do p.px, p.py = p.x, p.y end
         if mv.kind == "slide" or mv.kind == "lift" then
             local off = mv.amp * sin(mv.speed * t + (mv.phase or 0))
             for _, p in ipairs(mv.pegs) do
@@ -461,6 +474,7 @@ function E:Guide(state, maxT, every)
 end
 
 local collideBall  -- forward
+local looseMoving, loosePhysics  -- forward
 
 -- Super Guide: the real bounce path (pegs unchanged) for up to maxT seconds.
 function E:Simulate(state, maxT, every)
@@ -559,7 +573,7 @@ local function addScore(state, pts, events)
     end
 end
 
-local hitPeg, lightPeg, applyPower, freeGem, bossReact
+local hitPeg, lightPeg, applyPower, nudgeLoose, bossReact
 
 applyPower = function(state, p, ball, events)
     local power = state.power
@@ -575,7 +589,18 @@ applyPower = function(state, p, ball, events)
         for _, q in ipairs(state.pegs) do
             if not q.lit and not q.gone and q ~= p then
                 local dx, dy = q.x - p.x, q.y - p.y
-                if dx * dx + dy * dy <= r2 then hitPeg(state, q, nil, events, true) end
+                local d2 = dx * dx + dy * dy
+                if q.loose then
+                    -- loose pieces are thrown away from the blast
+                    local reach = E.BLAST_RADIUS + (q.r or E.PEG_R)
+                    if d2 <= reach * reach then
+                        local d = sqrt(d2)
+                        if d < 1 then dx, dy, d = 0, -1, 1 end
+                        nudgeLoose(q, dx / d * E.LOOSE_BLAST_KICK, dy / d * E.LOOSE_BLAST_KICK)
+                    end
+                elseif d2 <= r2 then
+                    hitPeg(state, q, nil, events, true)
+                end
             end
         end
     elseif power == "fireball" and ball then
@@ -613,40 +638,11 @@ applyPower = function(state, p, ball, events)
     push(events, { type = "power", power = power, x = p.x, y = p.y })
 end
 
--- A gem knocked loose falls as a body of its own until the bucket catches
--- it or it drains (and comes back to its nest for the next shot).
-freeGem = function(state, p, ball, events)
-    p.freed = true
-    p.gone = true
-    p.goneAt = nil
-    state.gems[#state.gems + 1] = {
-        x = p.x, y = p.y, vx = ball and ball.vx * 0.25 or 0, vy = 0, slow = 0, home = p, kind = "gem",
-    }
-    push(events, { type = "gem_free", x = p.x, y = p.y })
-end
-
--- Is anything still holding this egg up?
-local function eggSupported(state, egg)
-    for _, q in ipairs(state.pegs) do
-        if q ~= egg and not q.gone then
-            local dx, dy = abs(q.x - egg.x), q.y - egg.y
-            if dx <= E.NEST_DX and dy >= E.NEST_DY0 and dy <= E.NEST_DY1 then return true end
-        end
-    end
-    return false
-end
-
--- Eggs whose nests have gone start to fall. Called whenever pieces vanish.
-local function dropLooseEggs(state, events)
-    for _, p in ipairs(state.pegs) do
-        if p.kind == "egg" and p.nested and not p.lit and not p.gone and not eggSupported(state, p) then
-            p.freed = true
-            p.gone = true
-            p.goneAt = nil
-            state.gems[#state.gems + 1] = { x = p.x, y = p.y, vx = 0, vy = 0, slow = 0, home = p, kind = "egg" }
-            push(events, { type = "egg_fall", x = p.x, y = p.y })
-        end
-    end
+-- A push on a loose piece: it wakes and rolls.
+nudgeLoose = function(p, dvx, dvy)
+    p.vx = (p.vx or 0) + dvx
+    p.vy = (p.vy or 0) + dvy
+    p.resting = false
 end
 
 -- What a boss does when it takes a point of damage.
@@ -692,12 +688,17 @@ end
 hitPeg = function(state, p, ball, events, quiet)
     if p.lit or p.gone or isSolid(p) then return false end
     if p.cooldown and state.time < p.cooldown then return false end
+    if p.loose then
+        -- the ball shoves a loose piece; a gem is never lit by a hit, only
+        -- by leaving the board. An egg takes the hit as well.
+        if ball then
+            local k = E.LOOSE_NUDGE[p.kind] or 0.2
+            nudgeLoose(p, ball.vx * k, ball.vy * k)
+        end
+        if p.kind == "gem" then return false end
+    end
     p.cooldown = state.time + E.HIT_COOLDOWN
     state.shotHits = state.shotHits + 1
-    if p.kind == "gem" then
-        freeGem(state, p, ball, events)
-        return true
-    end
     if p.kind == "boss" then state.bossHitThisShot = true end
     if (p.shield or 0) > 0 then
         p.shield = p.shield - 1
@@ -808,10 +809,7 @@ local function expireLitPegs(state, events)
             n = n + 1
         end
     end
-    if n > 0 then
-        push(events, { type = "clear", count = n })
-        if state.hasNests then dropLooseEggs(state, events) end
-    end
+    if n > 0 then push(events, { type = "clear", count = n }) end
 end
 
 local function clearLitPegs(state, events)
@@ -823,10 +821,7 @@ local function clearLitPegs(state, events)
             n = n + 1
         end
     end
-    if n > 0 then
-        push(events, { type = "clear", count = n })
-        if state.hasNests then dropLooseEggs(state, events) end
-    end
+    if n > 0 then push(events, { type = "clear", count = n }) end
     return n
 end
 
@@ -850,7 +845,7 @@ collideBall = function(state, ball, events, light)
         if not p.gone then
             local depth, nx, ny = pegContact(p, ball.x, ball.y, R)
             if depth then
-                if ball.fire and light and not isSolid(p) and p.kind ~= "boss" then
+                if ball.fire and light and not isSolid(p) and p.kind ~= "boss" and not p.loose then
                     -- a fireball burns through: hit it, keep flying
                     hitPeg(state, p, ball, events)
                 else
@@ -874,6 +869,12 @@ collideBall = function(state, ball, events, light)
                             if out < kick then
                                 ball.vx = ball.vx + (kick - out) * nx
                                 ball.vy = ball.vy + (kick - out) * ny
+                            end
+                            -- a little sideways throw, so a ball dropped dead
+                            -- straight onto a bumper cannot bounce in place
+                            -- between it and the roof for ever
+                            if p.kind == "bumper" and abs(ball.vx) < 30 and state.rng then
+                                ball.vx = ball.vx + (state.rng() < 0.5 and -1 or 1) * (30 + state.rng() * 50)
                             end
                             if light and p.kind == "bumper" then push(events, { type = "bumper", peg = p, x = p.x, y = p.y }) end
                         elseif light then
@@ -978,9 +979,9 @@ local function finishLevel(state, events)
 end
 
 -- Bucket test shared by balls and gems: 1 = caught, 2 = rim bounce, nil = clear.
-local function bucketCheck(state, body, events)
+local function bucketCheck(state, body, events, radius)
     if state.noBucket then return nil end
-    local R = E.BALL_R
+    local R = radius or E.BALL_R
     local b = state.bucket
     local top = bucketTop()
     if body.vy > 0 and body.y + R >= top and body.y - R <= top + E.BUCKET_H then
@@ -1141,81 +1142,119 @@ local function duelTurnOver(state, events)
     return false
 end
 
--- A gem back in its nest, ready for the next shot.
-local function gemHome(state, p, events)
-    p.freed = false
-    p.gone = false
-    p.cooldown = nil
-    push(events, { type = "gem_home", x = p.x, y = p.y })
+-- Is any loose piece still on the move?
+looseMoving = function(state)
+    for _, p in ipairs(state.pegs) do
+        if p.loose and not p.gone and not p.lit and not p.resting then return true end
+    end
+    return false
 end
+E.LooseMoving = looseMoving
 
--- An egg that stops rolling settles where it is and is a piece again.
-local function settleEgg(state, g, events)
-    local p = g.home
-    p.x, p.y = g.x, g.y
-    p.freed = false
-    p.gone = false
-    p.cooldown = nil
-    push(events, { type = "egg_settle", x = p.x, y = p.y })
-end
-
-local function integrateGem(state, g, dt, events)
-    g.vy = g.vy + E.GRAVITY * dt
-    g.x = g.x + g.vx * dt
-    g.y = g.y + g.vy * dt
-    local R = E.BALL_R
-    if g.x < R then g.x = R; if g.vx < 0 then g.vx = -g.vx * E.RESTITUTION end end
-    if g.x > W - R then g.x = W - R; if g.vx > 0 then g.vx = -g.vx * E.RESTITUTION end end
-    collideBall(state, g, nil, false)
-    if g.kind == "egg" then
-        if bucketCheck(state, g, events) == 1 then
-            -- saved: it hatches in the bucket
-            local p = g.home
+-- One loose piece leaves the board: a gem counts, an egg is lost; the
+-- bucket saves either.
+local function looseOut(state, p, events, caught)
+    local y = caught and (bucketTop() - 10) or (H - 24)
+    if p.kind == "egg" then
+        if caught then
             p.hp = 1
-            lightPeg(state, p, nil, events, true, { x = g.x, y = bucketTop() - 10 })
+            lightPeg(state, p, nil, events, true, { x = p.x, y = y })
             addScore(state, E.PHOENIX_POINTS, events)
-            push(events, { type = "egg_saved", x = g.x, y = bucketTop() - 10, bonus = E.PHOENIX_POINTS })
-            return false
-        end
-        if g.y - R > H then
-            -- an egg off the bottom is the level lost
-            g.home.lost = true
+            push(events, { type = "egg_saved", x = p.x, y = y, bonus = E.PHOENIX_POINTS })
+        else
+            p.lost = true
             state.eggLost = true
-            push(events, { type = "egg_lost", x = g.x })
-            return false
+            push(events, { type = "egg_lost", x = p.x })
         end
-        local speed = sqrt(g.vx * g.vx + g.vy * g.vy)
-        if speed < E.STUCK_SPEED then g.slow = g.slow + dt else g.slow = 0 end
-        if g.slow > 0.8 then
-            settleEgg(state, g, events)
-            return false
+    else
+        p.collected = true
+        lightPeg(state, p, nil, events, true, { x = p.x, y = y })
+        if caught then
+            addScore(state, E.BUCKET_DROP, events)
+            push(events, { type = "gem_caught", x = p.x, y = y, bonus = E.BUCKET_DROP })
+        else
+            push(events, { type = "gem_dropped", x = p.x, y = y })
         end
-        return true
     end
-    if bucketCheck(state, g, events) == 1 then
-        -- a Bucket Drop: counts, and pays a bonus on top
-        local p = g.home
-        p.collected = true
-        lightPeg(state, p, nil, events, true, { x = g.x, y = bucketTop() - 10 })
-        addScore(state, E.BUCKET_DROP, events)
-        push(events, { type = "gem_caught", x = g.x, y = bucketTop() - 10, bonus = E.BUCKET_DROP })
-        return false
+    p.gone = true
+    p.goneAt = state.time
+    p.resting = true
+end
+
+-- The loose pieces: gravity, contact with everything else on the board
+-- (a soft, draggy landing), walls, the bucket and the bottom edge. A piece
+-- at rest on something stays put until whatever holds it is gone.
+loosePhysics = function(state, dt, events)
+    for _, p in ipairs(state.pegs) do
+        if p.loose and not p.gone and not p.lit then
+            local r = p.r or E.PEG_R
+            local wasResting = p.resting
+            p.vy = (p.vy or 0) + E.LOOSE_GRAVITY * dt
+            p.x = p.x + (p.vx or 0) * dt
+            p.y = p.y + p.vy * dt
+            if p.x < r then p.x = r; if p.vx < 0 then p.vx = -p.vx * E.LOOSE_RESTITUTION end end
+            if p.x > W - r then p.x = W - r; if p.vx > 0 then p.vx = -p.vx * E.LOOSE_RESTITUTION end end
+            local touching, held = false, false
+            for _, q in ipairs(state.pegs) do
+                if q ~= p and not q.gone and not (q.loose and (q.lit or q.gone)) then
+                    local depth, nx, ny = pegContact(q, p.x, p.y, r)
+                    if depth then
+                        touching = true
+                        if ny < -0.2 then held = true end
+                        p.x, p.y = p.x + nx * depth, p.y + ny * depth
+                        local vn = p.vx * nx + p.vy * ny
+                        if vn < 0 then
+                            local tx, ty = -ny, nx
+                            local vt = (p.vx * tx + p.vy * ty) * E.LOOSE_FRICTION
+                            local vn2 = -vn * E.LOOSE_RESTITUTION
+                            p.vx = vn2 * nx + vt * tx
+                            p.vy = vn2 * ny + vt * ty
+                        end
+                        -- a moving piece carries what rests on it
+                        if q.moving and q.px then
+                            p.x = p.x + (q.x - q.px)
+                            p.y = p.y + (q.y - q.py)
+                        end
+                    end
+                end
+            end
+            local speed = sqrt(p.vx * p.vx + p.vy * p.vy)
+            if held and speed < E.LOOSE_SLEEP then
+                p.vx, p.vy = 0, 0
+                p.resting = true
+                p.settling = nil
+            else
+                p.resting = false
+            end
+            if p.resting then
+                p.fellAt = nil
+            else
+                if wasResting then p.fellAt, p.fallX, p.fallY = state.time, p.x, p.y end
+                if p.fellAt and not p.settling then
+                    -- a few pixels on from where it rested: it is really falling
+                    local dx, dy = p.x - p.fallX, p.y - p.fallY
+                    if dx * dx + dy * dy > 16 then
+                        p.fellAt = nil
+                        push(events, { type = (p.kind == "egg") and "egg_fall" or "gem_free", x = p.x, y = p.y })
+                        if state.goalLeft == 1 and state.phase == E.PHASE.FLIGHT then
+                            state.looseSlow = p
+                            local again = state.lastCueShot == state.shots
+                            state.lastCueShot = state.shots
+                            push(events, { type = "last_peg", x = p.x, y = p.y, again = again })
+                        end
+                    end
+                end
+            end
+            if not p.resting then
+                local caught = bucketCheck(state, p, events, r)
+                if caught == 1 then
+                    looseOut(state, p, events, true)
+                elseif p.y - r > H then
+                    looseOut(state, p, events, false)
+                end
+            end
+        end
     end
-    if g.y - R > H then
-        -- off the bottom: that is the goal
-        local p = g.home
-        p.collected = true
-        lightPeg(state, p, nil, events, true, { x = g.x, y = H - 24 })
-        push(events, { type = "gem_dropped", x = g.x, y = H - 24 })
-        return false
-    end
-    local speed = sqrt(g.vx * g.vx + g.vy * g.vy)
-    if speed < E.STUCK_SPEED then g.slow = g.slow + dt else g.slow = 0 end
-    if g.slow > E.STUCK_SECS then
-        gemHome(state, g.home, events)
-        return false
-    end
-    return true
 end
 
 -- The goal pieces still to hit and how many hits they need between them.
@@ -1231,7 +1270,8 @@ local function goalHitsLeft(state, out)
         return hits
     end
     for _, p in ipairs(state.pegs) do
-        if p.goal and not p.lit and not p.gone then
+        -- gems are not hit, they fall: the look-ahead has nothing to see
+        if p.goal and not p.lit and not p.gone and p.kind ~= "gem" then
             hits = hits + (p.hp or 1)
             out[#out + 1] = p
         end
@@ -1275,7 +1315,20 @@ end
 local function updateLastPeg(state, dt, events)
     if state.phase ~= E.PHASE.FLIGHT then
         state.lastSlow = false
+        state.looseSlow = nil
         return
+    end
+    -- the last gem (or egg) on its way down: the moment is its fall
+    local ls = state.looseSlow
+    if ls then
+        if ls.gone or ls.lit or ls.resting then
+            state.looseSlow = nil
+            state.lastSlow = false
+        else
+            state.lastSlow = true
+            state.lastPeg = ls
+            return
+        end
     end
     local goals = {}
     local need = goalHitsLeft(state, goals)
@@ -1356,7 +1409,12 @@ local function substep(state, dt, events)
     if #state.movers > 0 then E:UpdateMovers(state) end
     expireLitPegs(state, events)
     if state.phase ~= E.PHASE.FEVER then moveBucket(state, dt) end
-    if state.phase == E.PHASE.AIM or state.phase == E.PHASE.OVER then return end
+    if state.phase == E.PHASE.OVER then return end
+    if state.phase == E.PHASE.AIM then
+        -- loose pieces settle into their cradles while the player aims
+        if state.hasLoose then loosePhysics(state, dt, events) end
+        return
+    end
 
     for i = #state.balls, 1, -1 do
         local ball = state.balls[i]
@@ -1364,11 +1422,7 @@ local function substep(state, dt, events)
             table.remove(state.balls, i)
         end
     end
-    for i = #state.gems, 1, -1 do
-        if not integrateGem(state, state.gems[i], dt, events) then
-            table.remove(state.gems, i)
-        end
-    end
+    if state.hasLoose then loosePhysics(state, dt, events) end
     updateLastPeg(state, dt, events)
 
     if state.phase == E.PHASE.FEVER then
@@ -1390,17 +1444,13 @@ local function substep(state, dt, events)
 
     if state.eggLost then
         state.balls = {}
-        state.gems = {}
         state.lastSlow = false
         finishLevel(state, events)
         return
     end
-    if #state.balls == 0 and #state.gems == 0 then
+    -- the shot is over once the balls are gone and nothing is still rolling
+    if #state.balls == 0 and not looseMoving(state) then
         clearLitPegs(state, events)
-        -- gems that were knocked loose and missed go back to their nests
-        for _, p in ipairs(state.pegs) do
-            if p.kind == "gem" and p.freed and not p.collected then gemHome(state, p, events) end
-        end
         -- the Cog Yeti heals after a shot that never touched it
         local b = state.boss
         if b and not b.lit and b.ability == "yeti" and not state.bossHitThisShot and b.hp < b.maxhp then

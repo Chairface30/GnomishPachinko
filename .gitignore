@@ -2,3 +2,5 @@
 .claude/
 __pycache__/
 *.pyc
+tools/_upload_*.png
+*_boxes.png

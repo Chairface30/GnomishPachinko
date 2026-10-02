@@ -9,7 +9,6 @@ local GP = GnomishPachinko
 GP.Minimap = GP.Minimap or {}
 local M = GP.Minimap
 
-local TEX = "Interface\\AddOns\\GnomishPachinko\\Textures\\"
 local atan2 = math.atan2 or math.atan
 
 local function settings()
@@ -52,24 +51,17 @@ function M:Create()
     btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
     btn:RegisterForDrag("LeftButton")
 
-    local disc = btn:CreateTexture(nil, "BACKGROUND")
-    disc:SetSize(26, 26)
-    disc:SetPoint("CENTER")
-    disc:SetTexture(TEX .. "peg")
-    disc:SetVertexColor(0.36, 0.20, 0.52, 1)
-    btn.disc = disc
+    -- the drawn icon (Textures/minimap.tga) inside a ring that lights on hover
+    local icon = btn:CreateTexture(nil, "BACKGROUND")
+    icon:SetSize(28, 28)
+    icon:SetPoint("CENTER")
+    GP.Art:Set(icon, "minimap")
+    btn.icon = icon
     local ring = btn:CreateTexture(nil, "BORDER")
     ring:SetSize(33, 33)
     ring:SetPoint("CENTER")
-    ring:SetTexture(TEX .. "rim")
-    ring:SetVertexColor(0.85, 0.70, 1.00, 1)
+    GP.Art:Set(ring, "rim", 0.85, 0.70, 1.00)
     btn.ring = ring
-    local label = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    label:SetPoint("CENTER", 0, 0)
-    label:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE")
-    label:SetText("GP")
-    label:SetTextColor(1, 0.85, 0.2)
-    btn.label = label
 
     btn:SetScript("OnClick", function(_, button)
         if button == "RightButton" then

@@ -9,15 +9,22 @@
 local GP = GnomishPachinko
 local E = GP.Engine
 local L = GP.Levels
+local ART = GP.Art
 GP.UI = GP.UI or {}
 local UI = GP.UI
 
-local TEX = "Interface\\AddOns\\GnomishPachinko\\Textures\\"
-local WHITE = "Interface\\Buttons\\WHITE8x8"
+-- Every picture comes from Art.lua's slots (ART:Set); WHITE is the one
+-- plain fill left, for bars and the field's border.
+local WHITE = ART.WHITE
 
 local PAD, SIDE_W, TOP_H = 16, 200, 44
 local FANFARE_SECS = 6.0     -- length of Sounds/fanfare.ogg; it loops while Fever lasts
+local FX_POOL = 48           -- sparkle, confetti and glow textures in flight at once
+local TRAIL_LEN = 14         -- segments of the ball's ribbon
+local FLASH_SECS = 0.12      -- the muzzle flash
+local SPLASH_SECS = 0.4      -- the bucket's catch splash (four frames)
 
+-- Glow and popup colours per piece kind (the pieces themselves are full-colour art).
 local COLORS = {
     blue   = { base = { 0.30, 0.58, 1.00 }, lit = { 0.78, 0.92, 1.00 }, glow = { 0.55, 0.80, 1.00 } },
     orange = { base = { 1.00, 0.50, 0.08 }, lit = { 1.00, 0.90, 0.50 }, glow = { 1.00, 0.70, 0.25 } },
@@ -33,13 +40,10 @@ local COLORS = {
     block  = { base = { 0.42, 0.42, 0.48 }, lit = { 0.42, 0.42, 0.48 }, glow = { 0.42, 0.42, 0.48 } },
     bumper = { base = { 1.00, 0.35, 0.60 }, lit = { 1.00, 0.35, 0.60 }, glow = { 1.00, 0.70, 0.85 } },
 }
-local BOSS_TINT = {
-    drake = { 0.75, 0.80, 0.90 }, golem = { 0.95, 0.80, 0.30 }, spider = { 0.60, 0.90, 0.45 },
-    boar = { 0.90, 0.45, 0.35 }, yeti = { 0.70, 0.85, 1.00 },
-}
 local RIM = { 0.78, 0.80, 0.86 }
 local RIM_HEAVY = { 1.00, 0.84, 0.35 }
-local BIN_COLORS = { [1000] = { 0.25, 0.45, 0.85 }, [10000] = { 0.95, 0.55, 0.15 }, [25000] = { 1.00, 0.85, 0.20 } }
+-- the peg colour a kind is painted in (the per-colour art set)
+local COLOR_OF = { blue = "blue", orange = "orange", green = "green", purple = "purple" }
 
 local function fmtBig(n)
     if BreakUpLargeNumbers then return BreakUpLargeNumbers(n) end
@@ -51,28 +55,59 @@ local function powerName(id)
     return id or "", ""
 end
 
+-- Buttons wear a skin (button_green / orange / grey, pressed variants);
+-- the old colour the caller asks for picks the skin. A node skin
+-- (map_node...) is one stretched picture instead.
+local function hoverButton(btn, on)
+    if not btn.skin then return end
+    if on then ART:TintSkin(btn.skin, 1, 0.95, 0.75, 1) else ART:TintSkin(btn.skin, 1, 1, 1, btn.enabledAlpha or 1) end
+end
+
 local function styleButton(btn, enabled, r, g, b)
+    btn.skinColor = btn.nodeSkin or ("button_" .. ART:ButtonSkin(r, g, b))
     if enabled then
-        btn:SetBackdropColor(r, g, b, 0.9)
-        btn:SetBackdropBorderColor(1, 1, 1, 0.9)
+        btn.enabledAlpha = 1
+        ART:SetSkin(btn.skin, btn.skinColor)
+        ART:TintSkin(btn.skin, 1, 1, 1, 1)
         btn:Enable()
     else
-        btn:SetBackdropColor(r * 0.35, g * 0.35, b * 0.35, 0.8)
-        btn:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.8)
+        btn.enabledAlpha = 0.55
+        ART:SetSkin(btn.skin, btn.nodeSkin or "button_grey")
+        ART:TintSkin(btn.skin, 0.8, 0.8, 0.8, 0.55)
         btn:Disable()
     end
 end
 
-local function makeButton(parent, w, h, text)
-    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+local function makeButton(parent, w, h, text, nodeSkin)
+    local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(w, h)
-    btn:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+    btn.nodeSkin = nodeSkin
+    btn.skin = ART:NewSkin(btn, nodeSkin or "button_grey", "BACKGROUND", 0)
     btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     btn.text:SetPoint("CENTER")
     btn.text:SetText(text)
-    btn:SetScript("OnEnter", function(self) if self:IsEnabled() then self:SetBackdropBorderColor(1, 0.9, 0.4, 1) end end)
-    btn:SetScript("OnLeave", function(self) if self:IsEnabled() then self:SetBackdropBorderColor(1, 1, 1, 0.9) end end)
+    btn:SetScript("OnEnter", function(self) if self:IsEnabled() then hoverButton(self, true) end end)
+    btn:SetScript("OnLeave", function(self) if self:IsEnabled() then hoverButton(self, false) end end)
+    btn:SetScript("OnMouseDown", function(self)
+        if self:IsEnabled() and not self.nodeSkin and ART.SLOTS[self.skinColor .. "_down"] then ART:SetSkin(self.skin, self.skinColor .. "_down") end
+    end)
+    btn:SetScript("OnMouseUp", function(self)
+        if self:IsEnabled() and not self.nodeSkin then ART:SetSkin(self.skin, self.skinColor or "button_grey") end
+    end)
     return btn
+end
+
+-- An icon on the left of a button, with the text pushed right of it.
+local function buttonIcon(btn, slot, size)
+    local icon = btn:CreateTexture(nil, "ARTWORK")
+    icon:SetSize(size, size)
+    icon:SetPoint("LEFT", btn, "LEFT", 6, 0)
+    ART:Set(icon, slot)
+    btn.icon = icon
+    btn.text:ClearAllPoints()
+    btn.text:SetPoint("LEFT", icon, "RIGHT", 4, 0)
+    btn.text:SetPoint("RIGHT", btn, "RIGHT", -4, 0)
+    return icon
 end
 
 local function makeStars(parent, size, gap, layer)
@@ -80,10 +115,41 @@ local function makeStars(parent, size, gap, layer)
     for i = 1, 3 do
         local s = parent:CreateTexture(nil, layer or "OVERLAY")
         s:SetSize(size, size)
-        s:SetTexture(TEX .. "star")
+        ART:Set(s, "star", 1, 0.85, 0.2)
         stars[i] = s
     end
     return stars
+end
+
+-- The picture a piece wears right now: by kind, colour and state
+-- ("", "_lit" or "_gone").
+local function pieceSlot(p, state)
+    local k = p.kind
+    if k == "boss" then return ART:Boss(p.ability) end
+    if k == "egg" then
+        if state ~= "" then return "egg_hatched" end
+        return ((p.hp or 1) < (p.maxhp or 1)) and "egg_cracked" or "egg"
+    end
+    if k == "gem" then return "gem" end
+    if k == "key" then return p.silver and "key_silver" or "key_gold" end
+    if k == "bumper" then return "bumper" end
+    if k == "block" then
+        if p.lock then return p.silver and "cage_silver" or "cage_gold" end
+        return (p.shape == "brick") and "rail" or "block"
+    end
+    local color = COLOR_OF[k] or "blue"
+    if p.shape == "brick" then return ART:Brick(color, state) end
+    return ART:Peg(color, state)
+end
+
+-- The ball's picture: fire, rainbow, spooky, electric, winged in Fever.
+local function ballSlot(ball, st, now, electricUntil)
+    if ball.fire or ball.item == "ring" then return "ball_fire" end
+    if ball.item == "rainbow" then return "ball_rainbow" end
+    if (ball.spooky or 0) > 0 then return "ball_spooky" end
+    if electricUntil and now < electricUntil then return "ball_electric" end
+    if st.phase == E.PHASE.FEVER then return "ball_wing" end
+    return "ball"
 end
 
 local function setStars(stars, earned, bright)
@@ -138,7 +204,7 @@ function UI:CreateFrame()
     local FRAME_W = PAD + FW + PAD + SIDE_W + PAD
     local FRAME_H = TOP_H + FH + PAD
 
-    local frame = CreateFrame("Frame", "GnomishPachinkoFrame", UIParent, "BackdropTemplate")
+    local frame = CreateFrame("Frame", "GnomishPachinkoFrame", UIParent)
     frame:SetSize(FRAME_W, FRAME_H)
     frame:SetPoint("CENTER")
     frame:SetMovable(true)
@@ -148,10 +214,7 @@ function UI:CreateFrame()
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
     frame:SetClampedToScreen(true)
     frame:SetFrameStrata("HIGH")
-    frame:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2,
-        insets = { left = 2, right = 2, top = 2, bottom = 2 } })
-    frame:SetBackdropColor(0.08, 0.05, 0.16, 0.97)
-    frame:SetBackdropBorderColor(0.75, 0.55, 0.95, 1)
+    frame.skin = ART:NewSkin(frame, "frame_bg", "BACKGROUND", -8)
     frame:Hide()
     self.frame = frame
     if UISpecialFrames then tinsert(UISpecialFrames, "GnomishPachinkoFrame") end
@@ -179,6 +242,11 @@ function UI:CreateFrame()
     field:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
     field:SetBackdropColor(0.03, 0.04, 0.14, 1)
     field:SetBackdropBorderColor(0.45, 0.35, 0.70, 1)
+    -- the world's backdrop behind the pegs (StartLevel picks it)
+    local fieldBg = field:CreateTexture(nil, "BACKGROUND", nil, 0)
+    fieldBg:SetAllPoints(field)
+    ART:Set(fieldBg, "field_bg_1")
+    self.fieldBg = fieldBg
     field:EnableMouse(true)
     field:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" then UI:OnFieldClick() end
@@ -200,21 +268,24 @@ function UI:CreateFrame()
     end
 
     local barrel = field:CreateTexture(nil, "ARTWORK", nil, 2)
-    barrel:SetSize(12, 30)
-    barrel:SetTexture(WHITE)
-    barrel:SetVertexColor(0.70, 0.72, 0.80, 1)
+    barrel:SetSize(16, 32)
+    ART:Set(barrel, "launcher_barrel")
     self.barrel = barrel
     local hub = field:CreateTexture(nil, "ARTWORK", nil, 3)
     hub:SetSize(26, 26)
-    hub:SetTexture(TEX .. "peg")
-    hub:SetVertexColor(0.55, 0.58, 0.68, 1)
+    ART:Set(hub, "launcher_hub")
     hub:SetPoint("CENTER", field, "TOPLEFT", FW / 2, -E.LAUNCHER_Y)
+    local flash = field:CreateTexture(nil, "OVERLAY", nil, 5)
+    flash:SetSize(34, 34)
+    ART:Set(flash, "launcher_flash", 1, 0.9, 0.6)
+    flash:Hide()
+    self.flashTex = flash
 
     self.guideDots = {}
     for i = 1, 64 do
         local d = field:CreateTexture(nil, "ARTWORK", nil, 1)
         d:SetSize(6, 6)
-        d:SetTexture(TEX .. "dot")
+        ART:Set(d, "dot")
         d:Hide()
         self.guideDots[i] = d
     end
@@ -224,27 +295,24 @@ function UI:CreateFrame()
     for i = 1, 40 do
         local d = field:CreateTexture(nil, "OVERLAY", nil, 3)
         d:SetSize(8, 8)
-        d:SetTexture(TEX .. "dot")
-        d:SetVertexColor(0.8, 0.9, 1, 1)
+        ART:Set(d, "dot", 0.8, 0.9, 1)
         d:Hide()
         self.boltDots[i] = d
     end
 
     -- the Space Blast burst
     local blast = field:CreateTexture(nil, "OVERLAY", nil, 4)
-    blast:SetTexture(TEX .. "blast")
-    blast:SetVertexColor(1, 0.75, 0.3, 1)
+    ART:Set(blast, "blast", 1, 0.75, 0.3)
     blast:Hide()
     self.blastTex = blast
     local blastRing = field:CreateTexture(nil, "OVERLAY", nil, 4)
-    blastRing:SetTexture(TEX .. "ring")
-    blastRing:SetVertexColor(1, 0.95, 0.7, 1)
+    ART:Set(blastRing, "ring", 1, 0.95, 0.7)
     blastRing:Hide()
     self.blastRing = blastRing
 
     -- the Pyramid bar
     local pyr = field:CreateTexture(nil, "ARTWORK", nil, 3)
-    pyr:SetTexture(TEX .. "pyramid")
+    ART:Set(pyr, "pyramid")
     pyr:SetSize(E.PYRAMID_W + 20, 40)
     pyr:SetPoint("CENTER", field, "TOPLEFT", FW / 2, -(E.PYRAMID_Y + 6))
     pyr:Hide()
@@ -255,22 +323,47 @@ function UI:CreateFrame()
     self.ballTex = {}
     for i = 1, 8 do
         local b = field:CreateTexture(nil, "OVERLAY", nil, 2)
-        b:SetSize(E.BALL_R * 2 + 2, E.BALL_R * 2 + 2)
-        b:SetTexture(TEX .. "ball")
+        ART:SetPiece(b, "ball", E.BALL_R * 2 + 2)
         b:Hide()
         self.ballTex[i] = b
     end
 
-    -- gems knocked loose and falling
-    self.gemTex = {}
-    for i = 1, 8 do
-        local g = field:CreateTexture(nil, "OVERLAY", nil, 2)
-        g:SetSize(E.GEM_R * 2 + 4, E.GEM_R * 2 + 4)
-        g:SetTexture(TEX .. "gem")
-        g:SetVertexColor(COLORS.gem.base[1], COLORS.gem.base[2], COLORS.gem.base[3], 1)
-        g:Hide()
-        self.gemTex[i] = g
+    -- the ball's ribbon in Fever and with the Rainbow Ball
+    self.trail = {}
+    for i = 1, TRAIL_LEN do
+        local t = field:CreateTexture(nil, "OVERLAY", nil, 1)
+        ART:Set(t, "trail")
+        t:Hide()
+        self.trail[i] = t
     end
+    self.trailPts = {}
+
+    -- sparkles, confetti, fireworks and glows
+    self.fx = {}
+    for i = 1, FX_POOL do
+        local t = field:CreateTexture(nil, "OVERLAY", nil, 7)
+        t:Hide()
+        self.fx[i] = t
+    end
+    -- the soft glow on the last goal piece while time slows
+    local lastGlow = field:CreateTexture(nil, "ARTWORK", nil, 0)
+    ART:Set(lastGlow, "glow_soft", 1, 0.95, 0.7)
+    lastGlow:Hide()
+    self.lastGlow = lastGlow
+
+    -- balls left: a strip of little balls along the top edge
+    self.ballStrip = {}
+    for i = 1, 10 do
+        local b = field:CreateTexture(nil, "OVERLAY", nil, 2)
+        b:SetSize(11, 11)
+        ART:Set(b, "ball_small")
+        b:SetPoint("TOPLEFT", field, "TOPLEFT", 8 + (i - 1) * 13, -6)
+        b:Hide()
+        self.ballStrip[i] = b
+    end
+    self.ballStripMore = field:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    self.ballStripMore:SetPoint("LEFT", self.ballStrip[10], "RIGHT", 3, 0)
+    self.ballStripMore:SetText("")
 
     -- the boss's health bar and name
     local bossBg = field:CreateTexture(nil, "OVERLAY", nil, 5)
@@ -291,20 +384,23 @@ function UI:CreateFrame()
     self.bossName = bossName
 
     local bucket = field:CreateTexture(nil, "OVERLAY", nil, 1)
-    bucket:SetSize(E.BUCKET_W + 8, (E.BUCKET_W + 8) / 4)
-    bucket:SetTexture(TEX .. "bucket")
+    bucket:SetSize(E.BUCKET_W + 8, (E.BUCKET_W + 8) / 2)
+    ART:Set(bucket, "bucket")
     self.bucket = bucket
+    -- the catch: four splash frames over the bucket
+    local splash = field:CreateTexture(nil, "OVERLAY", nil, 3)
+    splash:SetSize(E.BUCKET_W + 8, (E.BUCKET_W + 8) / 2)
+    ART:Set(splash, "bucket_splash1", 0.8, 0.9, 1)
+    splash:Hide()
+    self.splashTex = splash
 
     self.bins = {}
     local binW = FW / #E.FEVER_BINS
     for i, pts in ipairs(E.FEVER_BINS) do
-        local bin = CreateFrame("Frame", nil, field, "BackdropTemplate")
+        local bin = CreateFrame("Frame", nil, field)
         bin:SetSize(binW - 2, 28)
         bin:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", (i - 1) * binW + 1, 2)
-        bin:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
-        local c = BIN_COLORS[pts] or BIN_COLORS[10000]
-        bin:SetBackdropColor(c[1], c[2], c[3], 0.35)
-        bin:SetBackdropBorderColor(c[1], c[2], c[3], 0.9)
+        bin.skin = ART:NewSkin(bin, "fever_bucket", "BACKGROUND", 0)
         bin.label = bin:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         bin.label:SetPoint("CENTER")
         bin.label:SetText(("|cffffd700%s|r  %s"):format(E.FEVER_LETTERS[i] or "", fmtBig(pts)))
@@ -312,6 +408,19 @@ function UI:CreateFrame()
         self.bins[i] = bin
     end
 
+    -- the big callouts: a ribbon behind the text, or a drawn callout
+    local ribbon = field:CreateTexture(nil, "OVERLAY", nil, 0)
+    ribbon:SetSize(FW - 20, 52)
+    ribbon:SetPoint("CENTER", field, "CENTER", 0, 40)
+    ART:Set(ribbon, "banner")
+    ribbon:Hide()
+    self.bannerRibbon = ribbon
+    local callout = field:CreateTexture(nil, "OVERLAY", nil, 1)
+    callout:SetSize(FW - 40, (FW - 40) / 4)
+    callout:SetPoint("CENTER", field, "CENTER", 0, 40)
+    ART:Set(callout, "callout_fever")
+    callout:Hide()
+    self.calloutTex = callout
     local banner = field:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     banner:SetPoint("CENTER", field, "CENTER", 0, 40)
     banner:SetFont("Fonts\\FRIZQT__.TTF", 26, "OUTLINE")
@@ -323,10 +432,11 @@ function UI:CreateFrame()
     -- power-up slots: armed for the next shot
     self.itemSlots = {}
     for i, id in ipairs({ "ring", "rainbow" }) do
-        local b = makeButton(field, 86, 24, "")
+        local b = makeButton(field, 86, 26, "")
         b:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", 8 + (i - 1) * 92, 36)
         b:SetFrameLevel(field:GetFrameLevel() + 4)
         b.item = id
+        buttonIcon(b, ART:Item(id), 20)
         b:SetScript("OnClick", function(self) UI:ToggleItem(self.item) end)
         b:SetScript("OnEnter", function(self)
             if not GameTooltip then return end
@@ -338,7 +448,7 @@ function UI:CreateFrame()
         end)
         b:SetScript("OnLeave", function(self)
             if GameTooltip then GameTooltip:Hide() end
-            if self:IsEnabled() then self:SetBackdropBorderColor(1, 1, 1, 0.9) end
+            if self:IsEnabled() then hoverButton(self, false) end
         end)
         self.itemSlots[i] = b
     end
@@ -399,6 +509,21 @@ function UI:CreateFrame()
         div:SetTexture(WHITE)
         div:SetVertexColor(0.5, 0.4, 0.7, 0.6)
     end
+    -- an inset plate behind a readout row (its pieces live on the side
+    -- panel itself, under the text)
+    local function plate(y, h)
+        local anchor = CreateFrame("Frame", nil, side)
+        anchor:SetSize(SIDE_W + 8, h)
+        anchor:SetPoint("TOPLEFT", side, "TOPLEFT", -4, y)
+        return ART:NewSkin(side, "plate", "BACKGROUND", 0, anchor)
+    end
+    local function icon(x, y, size, slot)
+        local t = side:CreateTexture(nil, "ARTWORK")
+        t:SetSize(size, size)
+        t:SetPoint("TOPLEFT", side, "TOPLEFT", x, y)
+        ART:Set(t, slot)
+        return t
+    end
 
     self.levelText = label("", 0, "GameFontNormalLarge")
     self.levelText:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
@@ -418,7 +543,10 @@ function UI:CreateFrame()
     self.objectiveText:SetHeight(26)
     self.objectiveText:SetTextColor(0.9, 0.9, 1)
 
-    label("|cff88ff88Power|r", -112, "GameFontNormal")
+    self.powerIcon = icon(0, -110, 18, "power_multiball")
+    local powerLabel = label("|cff88ff88Power|r", -112, "GameFontNormal")
+    powerLabel:ClearAllPoints()
+    powerLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -112)
     self.powerText = value(-112, "GameFontHighlight")
     self.powerBlurb = label("", -128)
     self.powerBlurb:SetWidth(SIDE_W)
@@ -429,9 +557,15 @@ function UI:CreateFrame()
     self.powerStatus = label("", -154)
     self.powerStatus:SetTextColor(0.6, 1, 0.6)
 
+    plate(-168, 24)
+    plate(-192, 24)
+    plate(-216, 22)
     label("Balls", -172, "GameFontNormal")
     self.ballsText = value(-172, "GameFontHighlightLarge")
+    self.goalIcon = icon(0, -194, 18, "goal_orange")
     self.goalLabel = label("Orange pegs left", -196, "GameFontNormal")
+    self.goalLabel:ClearAllPoints()
+    self.goalLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -196)
     self.goalText = value(-196, "GameFontHighlightLarge")
     label("Score", -220, "GameFontNormal")
     self.scoreText = value(-220, "GameFontHighlight")
@@ -458,7 +592,21 @@ function UI:CreateFrame()
         return f
     end
     self.freeBallBar = bar(-298, 0.4, 0.7, 1)
-    self.multBar = bar(-250, 1, 0.8, 0.2)
+    -- the multiplier gauge: a semicircle whose rainbow fill is clipped by progress
+    local gauge = { back = side:CreateTexture(nil, "ARTWORK", nil, 1), fill = side:CreateTexture(nil, "ARTWORK", nil, 2) }
+    gauge.back:SetSize(56, 28)
+    gauge.back:SetPoint("TOPRIGHT", side, "TOPRIGHT", -34, -230)
+    ART:Set(gauge.back, "gauge")
+    gauge.fill:SetPoint("TOPLEFT", gauge.back, "TOPLEFT", 0, 0)
+    gauge.fill:SetSize(56, 28)
+    ART:Set(gauge.fill, "gauge_fill")
+    function gauge:SetValue(f)
+        f = math.max(0.01, math.min(1, f or 0))
+        self.fill:SetTexCoord(0, f, 0, 1)
+        self.fill:SetWidth(56 * f)
+    end
+    gauge:SetValue(0)
+    self.multBar = gauge
     label("Stars on this level", -302)
     self.sideStars = makeStars(side, 12, 2)
     for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -302) end
@@ -521,13 +669,11 @@ end
 
 function UI:CreateCard()
     local FW, FH = E.FIELD_W, E.FIELD_H
-    local card = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
+    local card = CreateFrame("Frame", nil, self.frame)
     card:SetSize(360, 300)
     card:SetPoint("CENTER", self.view, "CENTER", 0, 10)
     card:SetFrameLevel(self.field:GetFrameLevel() + 6)
-    card:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
-    card:SetBackdropColor(0.08, 0.05, 0.16, 0.97)
-    card:SetBackdropBorderColor(1, 0.85, 0.3, 1)
+    card.skin = ART:NewSkin(card, "card", "BACKGROUND", 0)
     card:EnableMouse(true)
     card:Hide()
     self.card = card
@@ -564,11 +710,16 @@ function UI:CreateCard()
     card.powerText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.powerText:SetPoint("TOP", card.line3, "BOTTOM", 0, -12)
     card.powerText:SetWidth(230)
+    card.powerIcon = card:CreateTexture(nil, "ARTWORK")
+    card.powerIcon:SetSize(22, 22)
+    card.powerIcon:SetPoint("RIGHT", card.powerText, "LEFT", 6, 0)
+    ART:Set(card.powerIcon, "power_multiball")
     card.powerPrev:SetScript("OnClick", function() UI:CyclePower(-1) end)
     card.powerNext:SetScript("OnClick", function() UI:CyclePower(1) end)
     -- the Extra Green Peg boost
     card.boost = makeButton(card, 200, 22, "")
     card.boost:SetPoint("TOP", card.powerText, "BOTTOM", 0, -8)
+    buttonIcon(card.boost, "item_green", 16)
     card.boost:SetScript("OnClick", function() UI:ToggleGreenBoost() end)
     card.main = makeButton(card, 150, 32, "PLAY")
     card.main:SetPoint("BOTTOM", 0, 48)
@@ -613,13 +764,14 @@ function UI:ShowStartCard()
     card.main.text:SetText("PLAY")
     card.main:SetScript("OnClick", function() UI:PlayFromCard() end)
     styleButton(card.main, true, 0.2, 0.55, 0.25)
+    card.main:Show()         -- the result card may have hidden it
     card.left.text:SetText("Map")
     card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect() end)
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right:Hide()
     self.greenBoost = false
     self:RefreshCardChoices()
-    card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.boost:Show()
+    card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.powerIcon:Show(); card.boost:Show()
     self.cardSheet:Show()
     card:Show()
 end
@@ -628,6 +780,7 @@ function UI:RefreshCardChoices()
     local st, card = self.state, self.card
     local name, blurb = powerName(st.power)
     card.powerText:SetText(("Power: |cff88ff88%s|r"):format(name))
+    ART:Set(card.powerIcon, ART:Power(st.power))
     local many = #GP:UnlockedPowers() > 1
     styleButton(card.powerPrev, many, 0.3, 0.3, 0.45)
     styleButton(card.powerNext, many, 0.3, 0.3, 0.45)
@@ -714,7 +867,7 @@ function UI:ShowResultCard(result, stars)
     card.right:SetScript("OnClick", function() UI:SettlePendingFail(); UI:HideCard(); UI:StartLevel(st.level, true) end)
     styleButton(card.right, GP.Plays:Remaining() >= (self.pendingFail and 2 or 1), 0.45, 0.3, 0.2)
     card.right:Show()
-    card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
+    card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide(); card.powerIcon:Hide()
     if result.rewards and #result.rewards > 0 then
         local parts = {}
         for _, r in ipairs(result.rewards) do parts[#parts + 1] = ("+%d %s"):format(r.n, E.ITEMS[r.item].name) end
@@ -740,13 +893,15 @@ end
 
 function UI:CreateLevelSelect()
     local FW, FH = E.FIELD_W, E.FIELD_H
-    local panel = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
+    local panel = CreateFrame("Frame", nil, self.frame)
     panel:SetSize(FW, FH)
     panel:SetPoint("TOPLEFT", self.view, "TOPLEFT", 0, 0)
     panel:SetFrameLevel(self.field:GetFrameLevel() + 10)
-    panel:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
-    panel:SetBackdropColor(0.05, 0.04, 0.12, 0.98)
-    panel:SetBackdropBorderColor(0.75, 0.55, 0.95, 1)
+    panel.skin = ART:NewSkin(panel, "frame_bg", "BACKGROUND", -8)
+    panel.mapBg = panel:CreateTexture(nil, "BACKGROUND", nil, -7)
+    panel.mapBg:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -12)
+    panel.mapBg:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -12, 12)
+    ART:Set(panel.mapBg, "map_bg_1")
     panel:EnableMouse(true)
     panel:Hide()
     self.levelPanel = panel
@@ -776,8 +931,7 @@ function UI:CreateLevelSelect()
     for i = 1, 9 * 7 do
         local d = panel:CreateTexture(nil, "ARTWORK")
         d:SetSize(5, 5)
-        d:SetTexture(TEX .. "dot")
-        d:SetVertexColor(0.6, 0.5, 0.8, 0.6)
+        ART:Set(d, "dot", 0.6, 0.5, 0.8, 0.6)
         local seg, k = math.floor((i - 1) / 7) + 1, ((i - 1) % 7 + 1) / 8
         local a, b = NODE_PATH[seg], NODE_PATH[seg + 1]
         d:SetPoint("CENTER", panel, "TOPLEFT", a.x + (b.x - a.x) * k, -(a.y + (b.y - a.y) * k))
@@ -787,7 +941,7 @@ function UI:CreateLevelSelect()
     panel.nodes = {}
     for i = 1, 10 do
         local size = (i == 10) and 58 or 44
-        local c = makeButton(panel, size, size, "")
+        local c = makeButton(panel, size, size, "", (i == 10) and "map_node_boss" or "map_node")
         c:SetPoint("CENTER", panel, "TOPLEFT", NODE_PATH[i].x, -NODE_PATH[i].y)
         c.text:ClearAllPoints()
         c.text:SetPoint("CENTER", 0, 3)
@@ -797,15 +951,15 @@ function UI:CreateLevelSelect()
         c.best:SetFont("Fonts\\FRIZQT__.TTF", 8, "")
         c.stars = makeStars(c, 10, 1)
         for k, st in ipairs(c.stars) do st:SetPoint("TOP", c, "BOTTOM", (k - 2) * 12, 2) end
+        -- the objective's icon in the corner
         c.kindMark = c:CreateTexture(nil, "OVERLAY")
-        c.kindMark:SetSize(7, 7)
-        c.kindMark:SetTexture(TEX .. "dot")
-        c.kindMark:SetPoint("TOPRIGHT", -3, -3)
-        c.bossMark = c:CreateTexture(nil, "BACKGROUND")
+        c.kindMark:SetSize(14, 14)
+        ART:Set(c.kindMark, "goal_orange")
+        c.kindMark:SetPoint("TOPRIGHT", 0, 0)
+        c.bossMark = c:CreateTexture(nil, "BACKGROUND", nil, -1)
         c.bossMark:SetSize(size + 14, size + 14)
         c.bossMark:SetPoint("CENTER")
-        c.bossMark:SetTexture(TEX .. "rim")
-        c.bossMark:SetVertexColor(1, 0.3, 0.3, 0.9)
+        ART:Set(c.bossMark, "rim", 1, 0.3, 0.3, 0.9)
         if i ~= 10 then c.bossMark:Hide() end
         c:SetScript("OnClick", function(self)
             if self.level and GP:IsUnlocked(self.level) then
@@ -838,11 +992,11 @@ function UI:CreateLevelSelect()
             local db = GP:GetDB()
             if db.best[self.level] then GameTooltip:AddLine("Best " .. fmtBig(db.best[self.level]), 1, 0.85, 0.2) end
             GameTooltip:Show()
-            self:SetBackdropBorderColor(1, 0.9, 0.4, 1)
+            hoverButton(self, true)
         end)
         c:SetScript("OnLeave", function(self)
             if GameTooltip then GameTooltip:Hide() end
-            if self:IsEnabled() then self:SetBackdropBorderColor(1, 1, 1, 0.9) end
+            if self:IsEnabled() then hoverButton(self, false) end
         end)
         panel.nodes[i] = c
     end
@@ -867,12 +1021,12 @@ function UI:CreateLevelSelect()
     end)
     panel.reset:SetScript("OnLeave", function(self)
         if GameTooltip then GameTooltip:Hide() end
-        if self:IsEnabled() then self:SetBackdropBorderColor(1, 1, 1, 0.9) end
+        if self:IsEnabled() then hoverButton(self, false) end
     end)
     panel.legend = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     panel.legend:SetPoint("BOTTOMLEFT", 14, 14)
-    panel.legend:SetText("|cff66ff66green|r cleared   |cffffd700gold|r open   |cff777777gray|r locked\n" ..
-        "dot: |cffff8800orange|r classic  |cfffff0c0cream|r eggs  |cff60f0ffcyan|r gems  |cffff4040red|r boss")
+    panel.legend:SetText("|cff66ff66green|r cleared   |cffffd700brown|r open   |cff777777gray|r locked\n" ..
+        "the corner icon is the level's goal: oranges, eggs, gems, a boss, a duel, Long Shots")
     panel.legend:SetJustifyH("LEFT")
     panel.total = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     panel.total:SetPoint("BOTTOMRIGHT", -14, 14)
@@ -891,11 +1045,6 @@ function UI:HideLevelSelect()
     if self.levelPanel then self.levelPanel:Hide() end
 end
 
-local KIND_DOT = {
-    classic = { 1, 0.5, 0.08 }, eggs = { 1, 0.94, 0.75 }, gems = { 0.38, 0.94, 1 }, boss = { 1, 0.25, 0.25 },
-    duel = { 1, 0.25, 0.25 }, longshots = { 1, 0.85, 0.2 },
-}
-
 -- page = chapter
 function UI:LevelPage(page)
     local pages = math.ceil(L.COUNT / L.PER_CHAPTER)
@@ -903,6 +1052,7 @@ function UI:LevelPage(page)
     self.levelPage = page
     local panel = self.levelPanel
     local first = (page - 1) * L.PER_CHAPTER
+    ART:Set(panel.mapBg, ART:MapBackdrop(page))
     panel.title:SetText(("|cffffd700Chapter %d  -  %s|r"):format(page, L:ChapterName(page)))
     panel.subtitle:SetText(("Levels %d - %d"):format(first + 1, math.min(L.COUNT, first + L.PER_CHAPTER)))
     styleButton(panel.prev, page > 1, 0.3, 0.3, 0.45)
@@ -928,25 +1078,24 @@ function UI:LevelPage(page)
             local best = db.best[n]
             c.best:SetText(best and (best >= 1000 and (math.floor(best / 1000) .. "k") or tostring(best)) or "")
             setStars(c.stars, db.stars[n] or 0)
-            local kd = KIND_DOT[L:Objective(n)] or KIND_DOT.classic
-            c.kindMark:SetVertexColor(kd[1], kd[2], kd[3], 1)
+            ART:Set(c.kindMark, ART:Goal(L:Objective(n)))
+            local boss = (i == 10)
             if db.cleared[n] then
-                c:SetBackdropColor(0.1, 0.4, 0.15, 0.95)
-                c:SetBackdropBorderColor(0.4, 1, 0.5, 1)
-                c.text:SetTextColor(0.7, 1, 0.7)
+                ART:SetSkin(c.skin, "map_node_done")
+                c.text:SetTextColor(0.85, 1, 0.85)
                 c:Enable()
             elseif GP:IsUnlocked(n) then
-                c:SetBackdropColor(0.45, 0.35, 0.1, 0.95)
-                c:SetBackdropBorderColor(1, 0.85, 0.2, 1)
-                c.text:SetTextColor(1, 0.9, 0.5)
+                ART:SetSkin(c.skin, boss and "map_node_boss" or "map_node")
+                c.text:SetTextColor(1, 0.95, 0.7)
                 c:Enable()
             else
-                c:SetBackdropColor(0.12, 0.12, 0.15, 0.95)
-                c:SetBackdropBorderColor(0.3, 0.3, 0.35, 1)
-                c.text:SetTextColor(0.45, 0.45, 0.5)
+                ART:SetSkin(c.skin, "map_node_locked")
+                c.text:SetTextColor(0.55, 0.55, 0.6)
                 c:Disable()
             end
-            if n == current then c:SetBackdropBorderColor(1, 1, 1, 1) end
+            c.enabledAlpha = 1
+            ART:TintSkin(c.skin, 1, 1, 1, c:IsEnabled() and 1 or 0.7)
+            if n == current then ART:TintSkin(c.skin, 1, 1, 0.8, 1) end
         end
     end
     local pathOn = 0
@@ -965,13 +1114,12 @@ end
 
 function UI:CreatePlaysPanel()
     local FW, FH = E.FIELD_W, E.FIELD_H
-    local panel = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
+    local panel = CreateFrame("Frame", nil, self.frame)
     panel:SetSize(FW, FH)
     panel:SetPoint("TOPLEFT", self.view, "TOPLEFT", 0, 0)
     panel:SetFrameLevel(self.field:GetFrameLevel() + 8)
-    panel:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 2 })
-    panel:SetBackdropColor(0.08, 0.03, 0.06, 0.96)
-    panel:SetBackdropBorderColor(1, 0.4, 0.4, 1)
+    panel.skin = ART:NewSkin(panel, "frame_bg", "BACKGROUND", -8)
+    ART:TintSkin(panel.skin, 1, 0.75, 0.75, 1)
     panel:EnableMouse(true)
     panel:Hide()
     self.playsPanel = panel
@@ -1092,8 +1240,15 @@ function UI:StartLevel(n, retry)
     self.blastTex:Hide()
     self.blastRing:Hide()
     for _, d in ipairs(self.boltDots) do d:Hide() end
-    for _, g in ipairs(self.gemTex) do g:Hide() end
     if self.state.noBucket then self.bucket:Hide() end
+    ART:Set(self.fieldBg, ART:FieldBackdrop(n))
+    for _, bin in ipairs(self.bins) do
+        bin.litShown = false
+        ART:SetSkin(bin.skin, "fever_bucket")
+    end
+    self.splashAt, self.flashAt, self.electricUntil, self.calloutUntil = nil, nil, nil, nil
+    self.splashTex:Hide(); self.flashTex:Hide(); self.calloutTex:Hide(); self.lastGlow:Hide()
+    self:ClearFx()
     self:StopFanfare()
     self:HideGuide()
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
@@ -1120,6 +1275,7 @@ function UI:OnFieldClick()
     self:AimAtCursor()
     if E:Launch(st, self.events) then
         self:HideGuide()
+        self.flashAt = GetTime()
         GP:PlaySfx("launch.ogg")
         GP.Mascot:React("launch")
         self:UpdateDisplay()
@@ -1145,7 +1301,7 @@ function UI:UpdateItemSlots()
     for _, b in ipairs(self.itemSlots or {}) do
         local n = GP:ItemCount(b.item)
         local armed = st and st.armed == b.item
-        b.text:SetText(("%s %d%s"):format(b.item == "ring" and "Ring" or "Rainbow", n, armed and " |cff88ff88ARMED|r" or ""))
+        b.text:SetText(("x%d%s"):format(n, armed and " |cff88ff88ARMED|r" or ""))
         styleButton(b, (n > 0 or armed) and st ~= nil, armed and 0.2 or 0.35, armed and 0.5 or 0.3, 0.25)
     end
 end
@@ -1227,15 +1383,17 @@ function UI:LayoutPegs()
             t.rim = field:CreateTexture(nil, "ARTWORK", nil, 0)
             t.disc = field:CreateTexture(nil, "ARTWORK", nil, 1)
             t.crack = field:CreateTexture(nil, "ARTWORK", nil, 2)
-            t.crack:SetTexture(TEX .. "crack")
+            ART:Set(t.crack, "crack")
             self.pegTex[i] = t
         end
+        local base = pieceSlot(p, "")
+        ART:Set(t.disc, base)
+        t.slotState = ""
         if p.shape == "brick" then
-            t.disc:SetTexture(TEX .. "brick")
-            t.disc:SetSize(p.w, p.h)
-            t.ring:SetTexture(TEX .. "brick")
+            t.disc:SetSize(ART:Size(base, p.w, p.h))
+            ART:Set(t.ring, "brick", 1, 1, 1)
             t.ring:SetSize(p.w + 12, p.h + 12)
-            t.rim:SetTexture(TEX .. "brick")
+            ART:Set(t.rim, "brick", 1, 1, 1)
             t.rim:SetSize(p.w + 5, p.h + 5)
             t.crack:SetSize(p.w, p.h)
             if t.disc.SetRotation then
@@ -1246,14 +1404,10 @@ function UI:LayoutPegs()
             end
         else
             local r = p.r or E.PEG_R
-            local tex = "peg"
-            if p.kind == "egg" then tex = "egg" elseif p.kind == "gem" then tex = "gem" elseif p.kind == "boss" then tex = "boss"
-            elseif p.kind == "key" then tex = "key" end
-            t.disc:SetTexture(TEX .. tex)
-            t.disc:SetSize(r * 2 + 2, r * 2 + 2)
-            t.ring:SetTexture(TEX .. "ring")
+            t.disc:SetSize(ART:Size(base, r * 2 + 2))
+            ART:Set(t.ring, "ring", 1, 1, 1)
             t.ring:SetSize(r * 2 + 18, r * 2 + 18)
-            t.rim:SetTexture(TEX .. "rim")
+            ART:Set(t.rim, "rim", 1, 1, 1)
             t.rim:SetSize(r * 2 + 8, r * 2 + 8)
             t.crack:SetSize(r * 2 + 2, r * 2 + 2)
             if t.disc.SetRotation then
@@ -1263,6 +1417,7 @@ function UI:LayoutPegs()
                 t.crack:SetRotation(0)
             end
         end
+        t.x0 = p.x      -- a loose piece rolls: its turn comes from how far it has moved
         for _, tex in ipairs({ t.disc, t.ring, t.rim, t.crack }) do placeAt(tex, field, p.x, p.y) end
         -- the boss sits behind the pegs, everything else in front of it
         if t.disc.SetDrawLayer then
@@ -1288,6 +1443,8 @@ function UI:LayoutPegs()
         t.kind = nil
         t.flashUntil = nil
         t.crackHp = nil
+        t.hpShown = nil
+        t.sweepSparked = nil
         self.pegIndex[p] = i
     end
     for i = #st.pegs + 1, #self.pegTex do
@@ -1416,6 +1573,131 @@ function UI:Popup(x, y, text, r, g, b)
     p.born = GetTime()
     p.x, p.y = x, y
     p:Show()
+end
+
+-- ---------------------------------------------------------------------
+-- Effects: a pool of textures for sparkles, confetti, fireworks and
+-- glows; the ball's ribbon; the callout graphic.
+
+-- spec: slot or frames (a list of slots played over the life), x, y,
+-- size, life, r/g/b tint, vx/vy, grav, grow (size multiplier at the end),
+-- spin (radians a second), fade (alpha to zero over the life)
+function UI:Spawn(spec)
+    local tex
+    for _, cand in ipairs(self.fx) do
+        if not cand:IsShown() then tex = cand break end
+    end
+    if not tex then return end
+    tex.spec = spec
+    tex.born = GetTime()
+    tex.x, tex.y = spec.x, spec.y
+    tex.vx, tex.vy = spec.vx or 0, spec.vy or 0
+    tex.frame = nil
+    local first = spec.frames and spec.frames[1] or spec.slot
+    ART:Set(tex, first, spec.r or 1, spec.g or 1, spec.b or 1, 1)
+    tex:SetSize(spec.size, spec.size)
+    tex:SetAlpha(1)
+    if tex.SetRotation then tex:SetRotation(0) end
+    placeAt(tex, self.field, spec.x, spec.y)
+    tex:Show()
+end
+
+function UI:ClearFx()
+    for _, t in ipairs(self.fx or {}) do t:Hide() end
+    for _, t in ipairs(self.trail or {}) do t:Hide() end
+    self.trailPts = {}
+end
+
+function UI:UpdateFx(now, dt)
+    for _, t in ipairs(self.fx) do
+        if t:IsShown() then
+            local s = t.spec
+            local age = now - t.born
+            if age >= s.life then
+                t:Hide()
+            else
+                local f = age / s.life
+                if s.frames then
+                    local idx = math.min(#s.frames, math.floor(f * #s.frames) + 1)
+                    if t.frame ~= idx then
+                        t.frame = idx
+                        ART:Set(t, s.frames[idx], s.r or 1, s.g or 1, s.b or 1, 1)
+                    end
+                end
+                if s.grav then t.vy = t.vy + s.grav * dt end
+                t.x, t.y = t.x + t.vx * dt, t.y + t.vy * dt
+                local size = s.size * (1 + ((s.grow or 1) - 1) * f)
+                t:SetSize(size, size)
+                if s.fade then t:SetAlpha(1 - f) end
+                if s.spin and t.SetRotation then t:SetRotation(s.spin * age) end
+                placeAt(t, self.field, t.x, t.y)
+            end
+        end
+    end
+end
+
+-- A sparkle burst at a point, in a colour.
+function UI:Sparks(x, y, c, n, size)
+    c = c or { 1, 1, 1 }
+    for k = 1, n or 3 do
+        local a = math.random() * math.pi * 2
+        local sp = 30 + math.random() * 60
+        self:Spawn({ frames = ART:Frames("spark", 4), x = x, y = y, size = size or 18, life = 0.3 + math.random() * 0.15,
+            r = c[1], g = c[2], b = c[3], vx = math.cos(a) * sp, vy = math.sin(a) * sp, grow = 1.6, fade = true })
+    end
+end
+
+-- Confetti and fireworks: the GNOME bonus and a three-star clear.
+function UI:Celebrate(x, y)
+    x, y = x or E.FIELD_W / 2, y or E.FIELD_H / 3
+    for _ = 1, 3 do
+        local hx, hy = x + (math.random() - 0.5) * 200, y + (math.random() - 0.5) * 120
+        self:Spawn({ slot = "firework", x = hx, y = hy, size = 30, life = 0.7, grow = 5,
+            r = 0.6 + math.random() * 0.4, g = 0.6 + math.random() * 0.4, b = 0.6 + math.random() * 0.4, fade = true })
+    end
+    for _ = 1, 14 do
+        self:Spawn({ slot = "confetti", x = x + (math.random() - 0.5) * 160, y = y, size = 22 + math.random() * 14, life = 1.3 + math.random() * 0.5,
+            vx = (math.random() - 0.5) * 220, vy = -180 - math.random() * 160, grav = 420, spin = (math.random() - 0.5) * 8, fade = true })
+    end
+end
+
+-- The ribbon behind the first ball: a segment between each pair of
+-- recent positions, fading toward the tail.
+function UI:UpdateTrail(ball, now)
+    local pts = self.trailPts
+    if not ball then
+        if #pts > 0 then
+            for _, t in ipairs(self.trail) do t:Hide() end
+            self.trailPts = {}
+        end
+        return
+    end
+    local last = pts[#pts]
+    if not last or (math.abs(last.x - ball.x) + math.abs(last.y - ball.y)) > 4 then
+        pts[#pts + 1] = { x = ball.x, y = ball.y }
+        if #pts > TRAIL_LEN + 1 then table.remove(pts, 1) end
+    end
+    for i, t in ipairs(self.trail) do
+        local a, b = pts[#pts - i], pts[#pts - i + 1]
+        if a and b then
+            local dx, dy = b.x - a.x, b.y - a.y
+            local len = math.sqrt(dx * dx + dy * dy)
+            t:SetSize(math.max(4, len + 2), 10)
+            if t.SetRotation then t:SetRotation(-(math.atan2 and math.atan2(dy, dx) or math.atan(dy, dx))) end
+            t:SetAlpha(0.9 * (1 - (i - 1) / TRAIL_LEN))
+            placeAt(t, self.field, (a.x + b.x) / 2, (a.y + b.y) / 2)
+            t:Show()
+        else
+            t:Hide()
+        end
+    end
+end
+
+-- A drawn callout (FEVER!) over the banner text for a moment.
+function UI:ShowCallout(slot, secs)
+    ART:Set(self.calloutTex, slot)
+    self.calloutTex:Show()
+    self.calloutUntil = GetTime() + (secs or 2)
 end
 
 function UI:UpdatePopups(now)
@@ -1563,9 +1845,11 @@ function UI:HandleEvents(now)
             self:UpdateDuelHud()
         elseif t == "gem_free" then
             GP:PlaySfx("gem_free.ogg")
+            self:Sparks(ev.x, ev.y, COLORS.gem.glow, 4, 22)
         elseif t == "gem_caught" then
             self:ShowBanner("|cff88ffffBUCKET DROP!|r", "+" .. fmtBig(ev.bonus or 0), 1.6)
             self:Popup(ev.x, ev.y - 10, "GEM!", 0.6, 1, 1)
+            self.splashAt = now
             GP:PlaySfx("gem.ogg")
             GP:PlaySfx("bucket.ogg")
             GP:PlayVoice("gem")
@@ -1573,11 +1857,11 @@ function UI:HandleEvents(now)
             self:ShowBanner("|cffff9060THE EGG!|r", "Catch it in the bucket!", 1.5)
             GP:PlaySfx("crack.ogg")
             GP.Mascot:React("two_left")
-        elseif t == "egg_settle" then
-            self:LayoutPegs()
         elseif t == "egg_saved" then
             self:ShowBanner("|cffffd700PHOENIX HATCH!|r", "+" .. fmtBig(ev.bonus), 2)
             self:Popup(ev.x, ev.y - 10, "SAVED!", 1, 0.95, 0.6)
+            self.splashAt = now
+            self:Sparks(ev.x, ev.y, COLORS.egg.glow, 6, 24)
             GP:PlaySfx("hatch.ogg")
             GP:PlayVoice("hatched")
             GP.Mascot:React("hatched")
@@ -1603,6 +1887,7 @@ function UI:HandleEvents(now)
             GP:PlaySfx("unlock.ogg")
         elseif t == "style" then
             self:ShowBanner(("|cff88ff88+%s STYLE POINTS|r"):format(fmtBig(ev.points)), ev.name, 1.8)
+            self:Sparks(ev.x, ev.y, { 1, 0.9, 0.4 }, 6, 26)
             GP:PlaySfx("combo.ogg")
             GP:PlayVoice("style")
         elseif t == "shot_summary" then
@@ -1616,6 +1901,7 @@ function UI:HandleEvents(now)
             GP:PlayVoice("total_miss")
         elseif t == "gnome_bonus" then
             self:ShowBanner("|cffffd700G-N-O-M-E BONUS!|r", "+" .. fmtBig(ev.points) .. "  -  every bucket is worth " .. fmtBig(E.GNOME_BUCKET) .. " now", 3)
+            self:Celebrate()
             GP:PlaySfx("combo.ogg")
             GP:PlayVoice("gnome_bonus")
             for _, bin in ipairs(self.bins) do bin.label:SetText("|cffffd700" .. fmtBig(E.GNOME_BUCKET) .. "|r") end
@@ -1638,11 +1924,14 @@ function UI:HandleEvents(now)
             if st.phase ~= E.PHASE.FEVER then GP:PlaySfx("lost.ogg") end
         elseif t == "zap" then
             self:ShowBolt(ev.path, now)
+            self.electricUntil = now + 1.2
             GP:PlaySfx("zap.ogg")
         elseif t == "peg" then
             -- every piece lit in a shot rings one note higher
             if not ev.quiet then GP:PlaySfx("note" .. math.min(16, ev.combo or 1) .. ".ogg") end
             local k = ev.peg.kind
+            local glow = (COLORS[k] or COLORS.blue).glow
+            self:Sparks(ev.x, ev.y, glow, (k == "orange" or k == "green" or k == "purple") and 4 or 2)
             if k == "orange" then
                 self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 1, 0.8, 0.3)
             elseif k == "purple" then
@@ -1678,7 +1967,8 @@ function UI:HandleEvents(now)
                 GP:PlaySfx("power_" .. ev.power .. ".ogg")
             end
         elseif t == "fever" then
-            self:ShowBanner("|cffffd700FEVER!|r", "The goal is done - the rest of your balls go for the bins", 3)
+            self:ShowBanner("", "The goal is done - the rest of your balls go for the bins", 3)
+            self:ShowCallout("callout_fever", 3)
             GP:PlaySfx("fever.ogg")
             self:StartFanfare(now)
             GP:PlayVoice("fever")
@@ -1686,6 +1976,7 @@ function UI:HandleEvents(now)
             for _, bin in ipairs(self.bins) do bin:Show() end
         elseif t == "bucket" then
             self:ShowBanner("|cff88ccffFREE BALL!|r", "", 1.5)
+            self.splashAt = now
             GP:PlaySfx("bucket.ogg")
             self:Popup(ev.x, E.BucketTop() - 16, "FREE BALL", 0.6, 0.85, 1)
             GP:PlayVoice("free_ball")
@@ -1694,6 +1985,7 @@ function UI:HandleEvents(now)
             GP:PlaySfx("free_ball.ogg")
             GP:PlayVoice("free_ball")
         elseif t == "fever_shot" then
+            self.flashAt = now
             GP:PlaySfx("launch.ogg")
         elseif t == "spooky" then
             GP:PlaySfx("spooky.ogg")
@@ -1768,10 +2060,11 @@ function UI:OnLevelOver(result)
             ("%d of 3 stars  -  Score %s  (bins %s)%s"):format(stars, fmtBig(result.score), fmtBig(result.feverTotal or 0), extra), 0)
         setStars(self.bannerStars, stars)
         for _, s in ipairs(self.bannerStars) do s:Show() end
+        if stars >= 3 then self:Celebrate() end
         GP:PlaySfx("clear.ogg")
         GP:PlayVoice(result.duel and "duel_won" or (stars >= 3 and "three_stars" or "level_cleared"))
         if result.level == L.COUNT then
-            self:ShowBanner("|cffffd700ALL 1000 LEVELS CLEARED!|r", "Score " .. fmtBig(result.score) .. ". You conquered Azeroth.", 0)
+            self:ShowBanner(("|cffffd700ALL %d LEVELS CLEARED!|r"):format(L.COUNT), "Score " .. fmtBig(result.score) .. ". You conquered Azeroth.", 0)
         end
     else
         local goalWord = (E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic).goalWord
@@ -1801,6 +2094,14 @@ function UI:OnUpdate(dt)
         self.banner:SetText("")
         self.bannerSub:SetText("")
     end
+    if self.calloutUntil and now >= self.calloutUntil then
+        self.calloutUntil = nil
+        self.calloutTex:Hide()
+    end
+    -- the ribbon sits behind any banner text (not behind a drawn callout)
+    local bannerText = self.banner:GetText()
+    if bannerText and bannerText ~= "" and not self.calloutUntil then self.bannerRibbon:Show() else self.bannerRibbon:Hide() end
+    self:UpdateFx(now, dt)
     if self.playsPanel and self.playsPanel:IsShown() then
         if now - (self.playsTick or 0) > 1 then
             self.playsTick = now
@@ -1837,6 +2138,7 @@ function UI:OnUpdate(dt)
             self.rivalShotAt = nil
             if E:Launch(st, self.events) then
                 self:HideGuide()
+                self.flashAt = now
                 GP:PlaySfx("launch.ogg")
             end
         end
@@ -1924,6 +2226,18 @@ function UI:Render(now)
     local half = 15
     placeAt(self.barrel, field, E.FIELD_W / 2 + math.sin(a) * half, E.LAUNCHER_Y + math.cos(a) * half)
     if self.barrel.SetRotation then self.barrel:SetRotation(a) end
+    -- the muzzle flash
+    if self.flashAt then
+        if now - self.flashAt > FLASH_SECS then
+            self.flashAt = nil
+            self.flashTex:Hide()
+        else
+            placeAt(self.flashTex, field, E.FIELD_W / 2 + math.sin(a) * (half + 18), E.LAUNCHER_Y + math.cos(a) * (half + 18))
+            if self.flashTex.SetRotation then self.flashTex:SetRotation(a) end
+            self.flashTex:SetAlpha(1 - (now - self.flashAt) / FLASH_SECS)
+            self.flashTex:Show()
+        end
+    end
 
     local pulse = 0.55 + 0.35 * math.sin(now * 9)
     local intro = self.introAt and (now - self.introAt) or 99
@@ -1936,26 +2250,32 @@ function UI:Render(now)
                 if a <= 0 then
                     if t.shown ~= "gone" then t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); t.shown = "gone" end
                 elseif now >= t.sweepAt then
+                    if not t.sweepSparked then
+                        t.sweepSparked = true
+                        self:Sparks(p.x, p.y, { 1, 0.9, 0.5 }, 2, 16)
+                    end
                     t.disc:SetAlpha(a); t.rim:SetAlpha(a); t.ring:SetAlpha(a); t.ring:Show()
                 end
             elseif p.gone then
                 local age = p.goneAt and (st.time - p.goneAt) or 1
-                local alpha = p.freed and 0 or (1 - age / 0.35)
+                local alpha = 1 - age / 0.35
                 if alpha <= 0 then
                     if t.shown ~= "gone" then
                         t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide()
                         t.shown = "gone"
                     end
                 else
+                    if t.shown ~= "fading" then
+                        ART:Set(t.disc, pieceSlot(p, "_gone"))
+                        t.shown = "fading"
+                    end
                     t.disc:SetAlpha(alpha)
                     t.ring:SetAlpha(alpha * 0.8)
                     t.rim:SetAlpha(alpha)
                     t.crack:SetAlpha(alpha)
-                    t.shown = "fading"
                 end
             else
                 if t.shown == "gone" then
-                    -- a gem back in its nest
                     t.disc:SetAlpha(1)
                     t.disc:Show()
                     t.shown = nil
@@ -1964,17 +2284,22 @@ function UI:Render(now)
                 if p.kind == "bumper" then
                     if t.shown ~= "base" then
                         local c = COLORS.bumper
-                        t.disc:SetVertexColor(c.base[1], c.base[2], c.base[3], 1)
+                        ART:Set(t.disc, "bumper")
                         t.ring:SetVertexColor(c.glow[1], c.glow[2], c.glow[3], 1)
                         t.kind = p.kind
                         t.shown = "base"
                     end
                     if flashing then t.ring:SetAlpha(1); t.ring:Show() else t.ring:Hide() end
                 elseif p.kind == "boss" then
-                    local tint = BOSS_TINT[p.ability] or { 1, 1, 1 }
-                    if flashing then t.disc:SetVertexColor(1, 1, 1, 1)
-                    elseif p.lit then t.disc:SetVertexColor(0.4, 0.4, 0.4, 1)
-                    else t.disc:SetVertexColor(tint[1], tint[2], tint[3], 1) end
+                    ART:Set(t.disc, ART:Boss(p.ability))
+                    if p.lit then t.disc:SetVertexColor(0.4, 0.4, 0.4, 1) else t.disc:SetVertexColor(1, 1, 1, 1) end
+                    if flashing and not t.flashed then
+                        -- a hit flash: a soft glow over the face
+                        t.flashed = true
+                        self:Spawn({ slot = "glow_soft", x = p.x, y = p.y, size = (p.r or E.BOSS_R) * 3.2, life = 0.25, r = 1, g = 0.7, b = 0.6, fade = true })
+                    elseif not flashing then
+                        t.flashed = nil
+                    end
                     if (p.shield or 0) > 0 then
                         t.rim:SetVertexColor(0.5, 0.8, 1, 1)
                         t.rim:SetAlpha(0.6 + 0.4 * pulse)
@@ -1988,7 +2313,7 @@ function UI:Render(now)
                 elseif p.lit then
                     local c = COLORS[p.kind] or COLORS.blue
                     if t.shown ~= "lit" then
-                        t.disc:SetVertexColor(c.lit[1], c.lit[2], c.lit[3], 1)
+                        ART:Set(t.disc, pieceSlot(p, "_lit"))
                         t.ring:SetVertexColor(c.glow[1], c.glow[2], c.glow[3], 1)
                         t.ring:Show()
                         t.crack:Hide()
@@ -1996,18 +2321,15 @@ function UI:Render(now)
                     end
                     t.ring:SetAlpha(pulse)
                 else
-                    -- unlit: the purple peg hops around, so re-tint when the kind changes
-                    if t.kind ~= p.kind or t.shown ~= "base" then
-                        local c = COLORS[p.kind] or COLORS.blue
-                        if p.lock then c = p.silver and COLORS.silver or COLORS.cage end
-                        if p.kind == "key" and p.silver then c = COLORS.silverkey end
-                        t.disc:SetVertexColor(c.base[1], c.base[2], c.base[3], 1)
+                    -- unlit: the purple peg hops around and an egg cracks, so
+                    -- the picture follows the kind and the hits left; a hit
+                    -- flash shows the lit picture for a moment
+                    local want = flashing and "flash" or "base"
+                    if t.kind ~= p.kind or t.shown ~= want or t.hpShown ~= p.hp then
+                        ART:Set(t.disc, pieceSlot(p, flashing and "_lit" or ""))
                         t.kind = p.kind
-                        t.shown = "base"
-                    end
-                    if flashing then
-                        t.disc:SetVertexColor(1, 1, 1, 1)
-                        t.kind = nil      -- re-tint once the flash ends
+                        t.shown = want
+                        t.hpShown = p.hp
                     end
                 end
                 -- cracks on a damaged piece
@@ -2034,8 +2356,8 @@ function UI:Render(now)
                 t.introDirty = nil
                 if not p.gone then t.disc:SetAlpha(1); t.rim:SetAlpha(1) end
             end
-            -- gimmick pieces move: follow them
-            if p.moving and not p.gone then
+            -- gimmick pieces move and loose pieces roll: follow them
+            if (p.moving or p.loose) and not p.gone then
                 placeAt(t.disc, field, p.x, p.y)
                 placeAt(t.ring, field, p.x, p.y)
                 placeAt(t.rim, field, p.x, p.y)
@@ -2045,9 +2367,22 @@ function UI:Render(now)
                     t.ring:SetRotation(-p.angle)
                     t.rim:SetRotation(-p.angle)
                     t.crack:SetRotation(-p.angle)
+                elseif p.loose and t.disc.SetRotation then
+                    -- it turns as far as it has rolled
+                    t.disc:SetRotation(-(p.x - (t.x0 or p.x)) / (p.r or E.PEG_R))
                 end
             end
         end
+    end
+
+    -- the glow on the last goal piece while time slows
+    if st.lastSlow and st.lastPeg and not st.lastPeg.gone then
+        self.lastGlow:SetSize(90 + 20 * pulse, 90 + 20 * pulse)
+        self.lastGlow:SetAlpha(0.5 + 0.3 * pulse)
+        placeAt(self.lastGlow, field, st.lastPeg.x, st.lastPeg.y)
+        self.lastGlow:Show()
+    elseif self.lastGlow:IsShown() then
+        self.lastGlow:Hide()
     end
 
     -- the boss's bar follows it
@@ -2068,35 +2403,24 @@ function UI:Render(now)
         local ball = st.balls[i]
         if ball then
             placeAt(tex, field, ball.x, ball.y)
-            if ball.fire then tex:SetVertexColor(1, 0.55, 0.2, 1)
-            elseif (ball.spooky or 0) > 0 then tex:SetVertexColor(0.7, 1, 0.75, 1)
-            else tex:SetVertexColor(0.92, 0.94, 1.0, 1) end
+            ART:Set(tex, ballSlot(ball, st, now, self.electricUntil))
             tex:Show()
         else
             tex:Hide()
         end
     end
+    -- the ribbon: in Fever, and behind a Rainbow Ball
+    local lead = st.balls[1]
+    self:UpdateTrail((lead and (st.phase == E.PHASE.FEVER or lead.item == "rainbow")) and lead or nil, now)
 
-    for i, tex in ipairs(self.gemTex) do
-        local g = st.gems[i]
-        if g then
-            placeAt(tex, field, g.x, g.y)
-            if tex.bodyKind ~= g.kind then
-                tex.bodyKind = g.kind
-                if g.kind == "egg" then
-                    tex:SetTexture(TEX .. "egg")
-                    tex:SetSize(E.EGG_R * 2 + 2, E.EGG_R * 2 + 2)
-                    tex:SetVertexColor(COLORS.egg.base[1], COLORS.egg.base[2], COLORS.egg.base[3], 1)
-                else
-                    tex:SetTexture(TEX .. "gem")
-                    tex:SetSize(E.GEM_R * 2 + 4, E.GEM_R * 2 + 4)
-                    tex:SetVertexColor(COLORS.gem.base[1], COLORS.gem.base[2], COLORS.gem.base[3], 1)
-                end
+    -- the Fever cups light as they score
+    if st.phase == E.PHASE.FEVER then
+        for i, bin in ipairs(self.bins) do
+            local lit = st.binsLit[i] and true or false
+            if bin.litShown ~= lit then
+                bin.litShown = lit
+                ART:SetSkin(bin.skin, lit and "fever_bucket_lit" or "fever_bucket")
             end
-            if tex.SetRotation then tex:SetRotation(g.kind == "egg" and (g.vx * 0.01) or st.time * 3) end
-            tex:Show()
-        else
-            tex:Hide()
         end
     end
 
@@ -2141,6 +2465,20 @@ function UI:Render(now)
         self.bucket:ClearAllPoints()
         self.bucket:SetPoint("TOP", field, "TOPLEFT", st.bucket.x, -(E.BucketTop() - 4))
     end
+    -- the catch splash plays its four frames over the bucket
+    if self.splashAt then
+        local age = now - self.splashAt
+        if age > SPLASH_SECS or st.noBucket then
+            self.splashAt = nil
+            self.splashTex:Hide()
+        else
+            local idx = math.min(4, math.floor(age / SPLASH_SECS * 4) + 1)
+            ART:Set(self.splashTex, "bucket_splash" .. idx, 0.8, 0.9, 1)
+            self.splashTex:ClearAllPoints()
+            self.splashTex:SetPoint("BOTTOM", self.bucket, "TOP", 0, -8)
+            self.splashTex:Show()
+        end
+    end
 end
 
 -- ---------------------------------------------------------------------
@@ -2150,6 +2488,13 @@ function UI:UpdateCounters()
     local st = self.state
     if not st then return end
     self.ballsText:SetText(tostring(st.ballsLeft + #st.balls))
+    -- the strip of little balls still to fire (hidden during a duel's turns)
+    local strip = (st.duel and st.duel.stage == 2) and 0 or st.ballsLeft
+    for i, b in ipairs(self.ballStrip) do
+        if i <= strip then b:Show() else b:Hide() end
+    end
+    self.ballStripMore:SetText(strip > 10 and ("+" .. (strip - 10)) or "")
+    ART:Set(self.goalIcon, ART:Goal(st.objective))
     if st.boss then
         self.goalText:SetText(math.max(0, st.boss.hp) .. " / " .. st.boss.maxhp)
     else
@@ -2202,6 +2547,7 @@ function UI:UpdateDisplay()
         local name, blurb = powerName(st.power)
         self.powerText:SetText("|cff88ff88" .. name .. "|r")
         self.powerBlurb:SetText(blurb)
+        ART:Set(self.powerIcon, ART:Power(st.power))
         self.bestText:SetText(fmtBig(db.best[st.level] or 0))
         self:UpdateCounters()
         local over = st.phase == E.PHASE.OVER

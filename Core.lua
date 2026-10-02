@@ -1,7 +1,7 @@
 --[[
     Gnomish Pachinko - Core.lua
     Namespace, saved progress and the slash commands. No gold is ever won:
-    this is a game of 1000 levels to clear. Losing a level costs one of
+    this is a game of 400 levels to clear. Losing a level costs one of
     the day's plays (Plays.lua); extra plays can be bought by mail.
 ]]
 

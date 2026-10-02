@@ -1,0 +1,22 @@
+{
+  "_about": "The first sprite sheet: four peg colours in three states, the nest bucket with and without its splash, two sparkles, a START button, a plate, a counter plate and the ARCANE FEVER callout. Numbers are the sheet's sprites in reading order (python tools/cut_sheet.py sheet.png --list shows them); check them against the _boxes.png the tool writes before cutting.",
+  "1": "peg_blue",
+  "2": "peg_orange",
+  "3": "peg_green",
+  "4": "peg_purple",
+  "5": "peg_blue_lit",
+  "6": "peg_orange_lit",
+  "7": "peg_green_lit",
+  "8": "peg_purple_lit",
+  "9": "peg_blue_gone",
+  "10": "peg_orange_gone",
+  "11": "peg_green_gone",
+  "12": "bucket",
+  "13": "bucket_splash1",
+  "14": "spark1",
+  "15": "spark2",
+  "16": "button_green",
+  "17": "plate",
+  "18": "_counter plate with a leaf: no slot yet",
+  "19": "callout_fever"
+}

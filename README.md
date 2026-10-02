@@ -1,6 +1,6 @@
 # Gnomish Pachinko
 
-A peg-shooting puzzle game for World of Warcraft (WoW Forever). No gold is ever won: 1000 generated levels of pegs, bricks, eggs, gems and bosses to clear, one chapter of ten levels for every place in Azeroth and Outland.
+A peg-shooting puzzle game for World of Warcraft (WoW Forever). No gold is ever won: 400 generated levels of pegs, bricks, eggs, gems and bosses to clear, one chapter of ten levels for each of forty places of the original Azeroth.
 
 Open it with `/pachinko` (or `/gp`).
 
@@ -11,7 +11,7 @@ The board is a portrait column, 490 by 700, with the pegs in its upper two third
 Point the launcher with the mouse and click the field to shoot. You have ten balls a level. Every peg or brick the ball touches lights up and vanishes two seconds later. Finish the level's objective to clear it and unlock the next one.
 
 - **Blue** pegs and bricks are points.
-- **Orange** pegs are the goal of a classic level: 15 of them on level 1, 30 by level 1000.
+- **Orange** pegs are the goal of a classic level: 3 of them on level 1, 30 by level 400.
 - **Purple** is one bonus peg worth 1,000. It hops to a new spot every shot.
 - **Green** pegs fire the chapter's power.
 - **Steel-rimmed** pieces are tough: they crack on the first hit and light on the second. **Gold-rimmed** ones take three. They start in chapter 4, and from chapter 7 orange pegs can be tough too.
@@ -25,16 +25,16 @@ Point the launcher with the mouse and click the field to shoot. You have ten bal
 Every level is one of four kinds, marked by a coloured dot on the level select:
 
 - **Classic**: light every orange peg.
-- **Eggs** (levels ending 5 from chapter 2, and 7 from chapter 4): hatch every egg, two hits each. Eggs sit in nests: clear the pegs under one and it falls. Catch it in the bucket and it hatches with a bonus; let it fall off the board and the level is lost.
+- **Eggs** (levels ending 5 from chapter 2, and 7 from chapter 4): hatch every egg, two hits each. Eggs are big loose bodies resting in a cradle of two bricks: knock a cradle brick out and the egg rolls and falls. Catch it in the bucket and it hatches with a bonus; let it fall off the board and the level is lost. Preserve the bricks.
 - **Long Shots** (levels ending 6 from chapter 7): make two or three Long Shots, two orange pegs far apart in one shot.
-- **Gems** (levels ending 3 and 8 from chapter 3): knock every gem loose and drop it off the bottom; one in the bucket is a Bucket Drop bonus.
+- **Gems** (levels ending 3 and 8 from chapter 3): each gem is a big loose body on a two-brick ledge. Hitting it only nudges it: knock the ledge out and gravity does the rest. Off the bottom it counts; in the bucket it is a Bucket Drop bonus.
 - **Boss** (every tenth level in odd chapters): a big mechanical boss slides back and forth along the bottom, under the pegs, so the ball has to come down through the pattern or thread a gap to reach it. Hit it until its health is gone.
 - **Duel** (every tenth level in even chapters): clear the board, then Cogwhistle Overspark, Tinkmaster's older brother, challenges you on a fresh shared board: a coin flip, five balls each, turn and turn about, highest score wins. A shot that lights no orange costs a quarter of your duel score.
 - **No bucket** on some levels from chapter 5 (ending 4 and 9, never a gem level): the only free balls are the score marks. Five bosses take turns, each with a trick: the Tin Drake speeds up as it weakens, the Bolt Golem raises a two-hit shield every third shot, the Gyro Spider jumps when hit, the Mechano-Boar charges and turns around when hit, the Cog Yeti heals after any shot that misses it.
 
 ### Powers, power-ups and boosts
 
-Powers unlock one per chapter and the level card lets you pick any you have: Multiball, Super Guide (the full bounce path for three shots), Space Blast (a huge explosion that hits everything near the green peg), Fireball, Spooky Ball, Pyramid (a ramp across the bottom that bounces the ball back up, for three shots), Chain Lightning (a bolt that leaps from the green peg through six more pieces) and Free Ball Frenzy (three extra balls and 5,000 points).
+Powers unlock one per chapter and the level card lets you pick any you have: Multiball, Super Guide (the full bounce path for three shots), Space Blast (a burst about an inch across that hits everything near the green peg and throws loose eggs and gems), Fireball, Spooky Ball, Pyramid (a ramp across the bottom that bounces the ball back up, for three shots), Chain Lightning (a bolt that leaps from the green peg through six more pieces) and Free Ball Frenzy (three extra balls and 5,000 points).
 
 Two power-ups can be armed for a shot from the slots at the field's bottom-left: Ring of Fire (the first hit also hits everything in a small ring) and Rainbow Ball (a wide ring). The level card offers one boost, Extra Green Peg. They are earned, never bought: a Ring of Fire for every clear, an Extra Green Peg for three stars, two Rainbow Balls for a boss or a duel won.
 
@@ -71,8 +71,8 @@ Fifteen layout families (Brickwork, Rainbow, Diamonds, Rings, Zigzag, Brick Arcs
 
 ## Art and audio
 
-`ASSETS.md` lists every texture, sound effect and announcer line the game wants, with sizes, formats and ElevenLabs prompts. Everything ships as a generated placeholder or a silent hook until the real file is dropped in under the same name.
+Every picture is a named slot in `Art.lua` with a generated placeholder in `Textures/`; a finished sprite dropped in under the slot's name is used with no code change. `ASSETS.md` lists them all with sizes and rules. `tools/cut_sheet.py` slices a transparent sprite sheet into the slots from a small JSON map (`tools/sheets/`). The audio is all generated with ElevenLabs.
 
 ## Development
 
-Pure Lua, no build step. `tests/engine_test.py` (needs `pip install lupa`) builds all 1000 levels, plays scripted ones through the engine, checks the plays vault, and drives the window headless. `tools/make_textures.py` (needs Pillow) regenerates the textures, including the placeholder art for eggs, gems, bosses, cracks, rims, stars, the pyramid and the blast; `tools/make_notes.py` (needs numpy and soundfile) synthesizes the combo notes and the placeholder effects.
+Pure Lua, no build step. `tests/engine_test.py` (needs `pip install lupa`) builds all 400 levels, plays scripted ones through the engine, checks the plays vault, drives the window headless and checks `Textures/` against `Art.lua`. `tools/make_textures.py` (needs Pillow and lupa) regenerates a placeholder for every art slot (`--from-base` derives the coloured sets from a painted white peg, brick, key or boss; `--sheet out.png` writes a contact sheet); `tools/make_notes.py` (needs numpy and soundfile) synthesizes the combo notes and the placeholder effects.
