@@ -48,9 +48,16 @@ Every cleared level earns one to three stars by score. The marks come from the l
 
 Losing a level (running out of balls) spends one of the day's plays, and out of balls on an ordinary level you can Play On with three more balls for a play. You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back, and five more plays for the day can be bought for 10g: mail the gold to Chairface Chippendale with "pachinko plays purchase" as the subject, or press **Buy plays** at a mailbox and the mail fills itself in. The count is kept in an encrypted record mirrored to several places outside the addon folder, so reinstalling the addon does not reset it, and an edited copy locks the day.
 
-## Tinkmaster Overspark
+## The hosts
 
-Tinkmaster Overspark, the gnome engineer of Tinker Town, hosts the game: his voice is the announcer and his 3D model stands in the field's top corner, acting out the match with the game's own animations. `/pachinko mascot` hides or shows him; `mascot target` swaps in any creature you target; `mascot scale`, `face`, `z` and `play <animation>` tune him.
+Four gnomes take the chapters in turn, each a 3D model from the game standing in the round box over the board, acting out the match, with a voice and lines of their own. Each brings two powers, and the level card lets you pick either while they host:
+
+- **Tinkmaster Overspark** (chapters 1, 5, 9...): Multiball and Super Guide.
+- **High Tinker Mekkatorque** (2, 6, 10...): Space Blast and Chain Lightning.
+- **Razzle Sprysprocket** (3, 7, 11...): Pyramid and Free Ball Frenzy.
+- **Bink** (4, 8, 12...): Fireball and Spooky Ball.
+
+Each introduces themselves the first time they host, and the host explains every new mechanic the first time it turns up. The bosses and Tinkmaster's brother Cogwhistle introduce themselves too. Every line is spoken, one voice at a time. `/pachinko mascot` hides or shows the host; `mascot target` swaps in any creature you target (until `mascot reset`); `mascot scale`, `face`, `z` and `play <animation>` tune the model.
 
 ## Layouts and gimmicks
 

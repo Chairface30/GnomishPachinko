@@ -1217,7 +1217,12 @@ check("rewards: a clear earns a Ring of Fire, three stars an Extra Green Peg, a 
       (lambda before, after: after["ring"] == before["ring"] + 1 and after["green"] == before["green"] + 1 and after["rainbow"] == before["rainbow"] + 2)(
           dict(ev("(function() GP:GetDB() return GnomishPachinkoDB.items end)()")),
           (lua("GP:RecordResult({ level = 10, cleared = true, score = 999999999, objective = 'boss', goals = 1, goalTotal = 1 })"), dict(ev("GnomishPachinkoDB.items")))[1]))
-check("powers unlock one per chapter reached", list(ev("GP:UnlockedPowers()").values()) == ["multiball", "guide"], str(list(ev("GP:UnlockedPowers()").values())))
+hosts = [ev(f"GP:HostFor({n}).id") for n in (1, 11, 21, 31, 41)]
+check("four gnome hosts take the chapters in turn", hosts == ["tink", "mekka", "razzle", "bink", "tink"], str(hosts))
+check("the level card offers the host's two powers",
+      list(ev("GP:UnlockedPowers(1)").values()) == ["multiball", "guide"] and list(ev("GP:UnlockedPowers(15)").values()) == ["blast", "lightning"]
+      and list(ev("GP:UnlockedPowers(25)").values()) == ["pyramid", "frenzy"] and list(ev("GP:UnlockedPowers(35)").values()) == ["fireball", "spooky"])
+check("every level's power is one of its host's", all(ev(f"L:Build({n}).power") in list(ev(f"GP:UnlockedPowers({n})").values()) for n in range(1, 401, 7)))
 lua("GnomishPachinkoDB.unlocked = math.min(GnomishPachinkoDB.unlocked, 2); GnomishPachinkoDB.cleared[10] = nil; GnomishPachinkoDB.stars[10] = nil; GnomishPachinkoDB.best[10] = nil")
 
 # gates and chained locks build
@@ -1849,6 +1854,23 @@ GP:ToggleUnlimited()
 """)
 check("arming the Suction Tube starts the tube sucking, disarming it unfired stops it",
       ev("__suckArmed") == "bucket_suck" and ev("__suckDisarmed") == "bucket", f"{ev('__suckArmed')} {ev('__suckDisarmed')}")
+
+# one voice at a time: a new announcer line cuts the last, and none plays over the dialog
+lua("""
+GP.Dialog:Finish()
+__stopped = {}
+GP:PlayVoice("combo"); __h1 = GP.voiceHandle
+GP:PlayVoice("fever")
+__cutFirst = false
+for _, e in ipairs(__stopped) do if e[1] == __h1 and e[2] == 0 then __cutFirst = true end end
+GP.Dialog.panel:Show()
+__n = #__played_files
+GP:PlayVoice("combo")
+__quietUnderDialog = (#__played_files == __n)
+GP.Dialog.panel:Hide()
+""")
+check("a new announcer line cuts the last one off, and none plays while a dialog is up", ev("__cutFirst") and ev("__quietUnderDialog"), f"{ev('__cutFirst')} {ev('__quietUnderDialog')} {ev('__h1')} {ev('GnomishPachinkoDB.sound')} {ev('GnomishPachinkoDB.voice')}")
+check("the host's lines come from the host's own voice folder", ev("(function() UI.state.level = 15; __n = #__played_files; GP:PlayVoice('fever'); return __played_files[#__played_files] end)()").find("Voice\\mekka\\fever") >= 0)
 
 # this round's rules
 lua(r"""

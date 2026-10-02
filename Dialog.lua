@@ -16,7 +16,10 @@ local D = GP.Dialog
 
 -- Who speaks: a name, the creature whose model stands in, and the voice.
 D.SPEAKERS = {
-    tink   = { name = "Tinkmaster Overspark", npc = 7406, voice = "mumble" },
+    tink   = { name = "Tinkmaster Overspark",    npc = 7406, voice = "mumble" },
+    mekka  = { name = "High Tinker Mekkatorque", npc = 7937, voice = "mumble" },
+    razzle = { name = "Razzle Sprysprocket",     npc = 1269, voice = "mumble" },
+    bink   = { name = "Bink",                    npc = 5144, voice = "mumble" },
     cog    = { name = "Cogwhistle Overspark", npc = 7800, voice = "mumble" },
     drake  = { name = "Tin Drake",            npc = 6235, voice = "grumble" },
     golem  = { name = "Bolt Golem",           npc = 6229, voice = "grumble" },
@@ -31,74 +34,87 @@ D.SCRIPTS = {
     { key = "intro", when = function(st) return st.level == 1 end, lines = {
         { "tink", "Well hello there! Tinkmaster Overspark, chief engineer of Tinker Town, at your service." },
         { "tink", "This is my finest invention: the Gnomish Pachinko! Point with the mouse, click to shoot." },
-        { "tink", "Light every orange peg and the board is yours. Ten balls a level. Off you go!" },
+        { "tink", "Light every orange peg and the board is yours. Ten balls a level." },
+        { "tink", "Hit a green peg and you get my power: Multiball, or my Super Guide. Pick one on the level card. Off you go!" },
+    } },
+    { key = "host_mekka", when = function(st) return GP:HostFor(st.level).id == "mekka" end, lines = {
+        { "mekka", "High Tinker Mekkatorque, at your service. Tinkmaster tells me you're rather good at this." },
+        { "mekka", "While I host, the green pegs give you my inventions: Space Blast, or Chain Lightning. Choose wisely!" },
+    } },
+    { key = "host_razzle", when = function(st) return GP:HostFor(st.level).id == "razzle" end, lines = {
+        { "razzle", "Razzle Sprysprocket here! I've got the fun toys this chapter." },
+        { "razzle", "My Pyramid bounces your ball back up from the bottom, and Free Ball Frenzy hands you three extra balls. Have at it!" },
+    } },
+    { key = "host_bink", when = function(st) return GP:HostFor(st.level).id == "bink" end, lines = {
+        { "bink", "Hello hello! Bink, apprentice extraordinaire. It's my turn to run the machine!" },
+        { "bink", "My powers are a little magical: a Fireball that burns straight through pegs, and a Spooky Ball that comes back from the bottom." },
     } },
     { key = "bricks", when = function(st) for _, p in ipairs(st.pegs) do if p.shape == "brick" and not p.cradle then return true end end end, lines = {
-        { "tink", "Bricks! They light up just like pegs, and they make lovely ramps." },
+        { "host", "Bricks! They light up just like pegs, and they make lovely ramps." },
     } },
     { key = "slide", when = function(st) return st.level == 8 end, lines = {
-        { "tink", "Now this is a beauty: a spiral of bricks." },
-        { "tink", "Graze its outside edge and the ball sticks to the rail and rides it all the way in. That's a Super Slide!" },
-        { "tink", "Aim for the edge, not the middle. Go on, clear the whole spiral in one shot." },
+        { "host", "Now this is a beauty: a spiral of bricks." },
+        { "host", "Graze its outside edge and the ball sticks to the rail and rides it all the way in. That's a Super Slide!" },
+        { "host", "Aim for the edge, not the middle. Go on, clear the whole spiral in one shot." },
     } },
     { key = "items", when = function(st) return st.level == 2 end, lines = {
-        { "tink", "See the buttons to the left of the board? Those are my special balls." },
-        { "tink", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot." },
+        { "host", "See the buttons to the left of the board? Those are my special balls." },
+        { "host", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot." },
     } },
     { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end, lines = {
-        { "tink", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
-        { "tink", "Use them for a ricochet, or curse them when they're in the way." },
+        { "host", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
+        { "host", "Use them for a ricochet, or curse them when they're in the way." },
     } },
     { key = "tough", when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, lines = {
-        { "tink", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
+        { "host", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
     } },
     { key = "eggs", when = function(st) return st.objective == "eggs" or st.objective == "mixed_eggs" end, lines = {
-        { "tink", "Phoenix eggs! Two hits hatch one, and the phoenix bursts straight up through everything above it." },
-        { "tink", "But mind the bricks holding them. Knock a cradle away and the egg falls. Catch it in the bucket, or the level is lost!" },
+        { "host", "Phoenix eggs! Two hits hatch one, and the phoenix bursts straight up through everything above it." },
+        { "host", "But mind the bricks holding them. Knock a cradle away and the egg falls. Catch it in the bucket, or the level is lost!" },
     } },
     { key = "gems", when = function(st) return st.objective == "gems" or st.objective == "mixed_gems" end, lines = {
-        { "tink", "Gems on ledges. Hitting a gem only shoves it: knock out the bricks under it and let it drop off the bottom." },
-        { "tink", "One that lands in the bucket is a Bucket Drop bonus!" },
+        { "host", "Gems on ledges. Hitting a gem only shoves it: knock out the bricks under it and let it drop off the bottom." },
+        { "host", "One that lands in the bucket is a Bucket Drop bonus!" },
     } },
     { key = "mixed", when = function(st) return st.objective == "mixed_eggs" or st.objective == "mixed_gems" end, lines = {
-        { "tink", "Two jobs at once from here on: the orange pegs and the eggs or gems. Both, or no clear!" },
+        { "host", "Two jobs at once from here on: the orange pegs and the eggs or gems. Both, or no clear!" },
     } },
     { key = "keys", when = function(st) for _, p in ipairs(st.pegs) do if p.kind == "key" then return true end end end, lines = {
-        { "tink", "A key! Light it and its cage falls away. Sometimes the key is locked behind another cage." },
+        { "host", "A key! Light it and its cage falls away. Sometimes the key is locked behind another cage." },
     } },
     { key = "longshots", when = function(st) return st.objective == "longshots" end, lines = {
-        { "tink", "Long Shots! Light two orange pegs far apart in one shot. Bank it off a wall and let it fly across." },
+        { "host", "Long Shots! Light two orange pegs far apart in one shot. Bank it off a wall and let it fly across." },
     } },
     { key = "nobucket", when = function(st) return st.noBucket end, lines = {
-        { "tink", "No bucket on this one. The only free balls are the score marks, so make every ball count." },
+        { "host", "No bucket on this one. The only free balls are the score marks, so make every ball count." },
     } },
     { key = "gimmick", when = function(st) return st.gimmick ~= nil end, lines = {
-        { "tink", "Moving parts! Time your shot, or use them to bank the ball where you want it." },
+        { "host", "Moving parts! Time your shot, or use them to bank the ball where you want it." },
     } },
     -- the adversaries, the first time each one turns up
     { key = "boss_drake", when = function(st) return st.boss and st.boss.ability == "drake" end, lines = {
         { "drake", "Intruder. Tin Drake online. Speed increases as damage accumulates." },
-        { "tink", "A rogue drake from the workshop! Get the ball down past the pegs and keep hitting it." },
+        { "host", "A rogue drake from the workshop! Get the ball down past the pegs and keep hitting it." },
     } },
     { key = "boss_golem", when = function(st) return st.boss and st.boss.ability == "golem" end, lines = {
         { "golem", "BOLT GOLEM. SHIELD CYCLE ARMED." },
-        { "tink", "It raises a shield every third shot. Two hits break it. And watch for the scrap it throws!" },
+        { "host", "It raises a shield every third shot. Two hits break it. And watch for the scrap it throws!" },
     } },
     { key = "boss_spider", when = function(st) return st.boss and st.boss.ability == "spider" end, lines = {
         { "spider", "Skitter skitter. You will never pin the Gyro Spider down." },
-        { "tink", "It jumps when you hit it. Keep the ball low and keep it busy." },
+        { "host", "It jumps when you hit it. Keep the ball low and keep it busy." },
     } },
     { key = "boss_boar", when = function(st) return st.boss and st.boss.ability == "boar" end, lines = {
         { "boar", "SNORT. CHARGE. SNORT." },
-        { "tink", "The Mechano-Boar turns tail every time it's hit. Learn its charge and lead your shots." },
+        { "host", "The Mechano-Boar turns tail every time it's hit. Learn its charge and lead your shots." },
     } },
     { key = "boss_yeti", when = function(st) return st.boss and st.boss.ability == "yeti" end, lines = {
         { "yeti", "Cog Yeti repairs. Cog Yeti always repairs." },
-        { "tink", "Miss it and it heals. Every shot has to count!" },
+        { "host", "Miss it and it heals. Every shot has to count!" },
     } },
     { key = "duel", when = function(st) return st.objective == "duel" end, lines = {
-        { "cog", "Brother. Still playing with your little pegs, I see." },
-        { "tink", "Cogwhistle! Clear this board first, friend, then he'll want a duel. Five balls each." },
+        { "cog", "Well, well. My brother's little peg machine. Still playing, I see." },
+        { "host", "Cogwhistle Overspark, Tinkmaster's brother! Clear this board first, friend, then he'll want a duel. Five balls each." },
         { "cog", "And every shot that lights no orange costs you five hundred. Do try to keep up." },
     } },
 }
@@ -138,6 +154,20 @@ function D:Create(parent, anchor, frameLevel)
     portrait:SetSize(110, 120)
     portrait:SetPoint("LEFT", panel, "LEFT", 26, -4)
     self.model = portrait
+    -- the speaker keeps talking for as long as the box is open: the talk
+    -- animation is restarted whenever it ends (and every few seconds, in
+    -- case the client does not report the end)
+    D.TALK_ANIM = 60
+    portrait:SetScript("OnAnimFinished", function(m)
+        if panel:IsShown() then pcall(m.SetAnimation, m, D.TALK_ANIM) end
+    end)
+    panel:SetScript("OnUpdate", function(_, elapsed)
+        D.talkClock = (D.talkClock or 0) + elapsed
+        if D.talkClock >= 2.5 then
+            D.talkClock = 0
+            pcall(portrait.SetAnimation, portrait, D.TALK_ANIM)
+        end
+    end)
 
     panel.name = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     panel.name:SetPoint("TOPLEFT", panel, "TOPLEFT", 146, -30)
@@ -178,7 +208,12 @@ function D:Play(list, done)
     for _, sc in ipairs(list) do
         db()[sc.key] = true
         for n, line in ipairs(sc.lines) do
-            self.queue[#self.queue + 1] = { line[1], line[2], clip = sc.key .. "_" .. n }
+            local who, clip = line[1], sc.key .. "_" .. n
+            if who == "host" then
+                who = GP:Host().id
+                clip = clip .. "_" .. who
+            end
+            self.queue[#self.queue + 1] = { who, line[2], clip = clip }
         end
     end
     self.done = done
@@ -199,8 +234,10 @@ function D:Show(line)
         pcall(self.model.SetFacing, self.model, 0.4)
         if self.model.SetCamera then pcall(self.model.SetCamera, self.model, 0) end
     end
-    if self.model.SetAnimation then pcall(self.model.SetAnimation, self.model, 60) end   -- talk
+    if self.model.SetAnimation then pcall(self.model.SetAnimation, self.model, self.TALK_ANIM or 60) end   -- talk
+    self.talkClock = 0
     self:StopVoice()
+    GP:StopVoice()
     local willPlay, handle = self:PlayLine(line.clip)
     if not willPlay then
         willPlay, handle = GP:PlaySfx(sp.voice .. math.random(self.MUMBLES) .. ".ogg")

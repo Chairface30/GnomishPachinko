@@ -4,6 +4,161 @@
     "text": "[gloating] Ha! That one's mine now.",
     "voice": "wo6udizrrtpIxWGp2qJk"
   },
+  "bink/ball_stolen": {
+    "at": "2026-10-02 18:16",
+    "text": "[gloating] Ha! That one's mine now.",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/boss_down": {
+    "at": "2026-10-02 18:17",
+    "text": "[triumphant shout] Boss down!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/boss_shield": {
+    "at": "2026-10-02 18:17",
+    "text": "[warning] Shields up!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/boss_start": {
+    "at": "2026-10-02 18:16",
+    "text": "[dramatic] Boss fight! Watch yourself!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/boss_turn": {
+    "at": "2026-10-02 18:16",
+    "text": "[mechanical, taunting] My move!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/combo": {
+    "at": "2026-10-02 18:17",
+    "text": "[excited] Combo!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/combo_huge": {
+    "at": "2026-10-02 18:17",
+    "text": "[astonished, shouting] Unbelievable combo!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/duel_lost": {
+    "at": "2026-10-02 18:16",
+    "text": "[sighing] Cogwhistle wins this one. Try again when you're ready.",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/duel_start": {
+    "at": "2026-10-02 18:16",
+    "text": "[sly] A duel! Make every shot count.",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/duel_won": {
+    "at": "2026-10-02 18:16",
+    "text": "[triumphant, laughing] You beat Cogwhistle! He'll never live it down!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/fever": {
+    "at": "2026-10-02 18:16",
+    "text": "[shouting, thrilled] Fever!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/free_ball": {
+    "at": "2026-10-02 18:16",
+    "text": "[cheerful] Free ball!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/gem": {
+    "at": "2026-10-02 18:17",
+    "text": "[pleased] Gem!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/gnome_bonus": {
+    "at": "2026-10-02 18:17",
+    "text": "[ecstatic, shouting] GNOME BONUS!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/hatched": {
+    "at": "2026-10-02 18:17",
+    "text": "[delighted] It hatched!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/last_one": {
+    "at": "2026-10-02 18:17",
+    "text": "[hushed, tense] Last one...",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/level_cleared": {
+    "at": "2026-10-02 18:16",
+    "text": "[triumphant] Level cleared!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/level_start": {
+    "at": "2026-10-02 18:16",
+    "text": "[excited] Here we go!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/out_of_balls": {
+    "at": "2026-10-02 18:17",
+    "text": "[disappointed sigh] Awww... out of balls.",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/out_of_plays": {
+    "at": "2026-10-02 18:17",
+    "text": "[gentle, apologetic] That's all your plays for today, friend.",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_blast": {
+    "at": "2026-10-02 18:17",
+    "text": "[shouting] Space Blast!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_fireball": {
+    "at": "2026-10-02 18:17",
+    "text": "[fierce] Fireball!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_frenzy": {
+    "at": "2026-10-02 18:17",
+    "text": "[gleeful] Free Ball Frenzy!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_guide": {
+    "at": "2026-10-02 18:17",
+    "text": "[confident] Super Guide!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_lightning": {
+    "at": "2026-10-02 18:17",
+    "text": "[electric, excited] Chain Lightning!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_multiball": {
+    "at": "2026-10-02 18:17",
+    "text": "[excited] Multiball!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_pyramid": {
+    "at": "2026-10-02 18:17",
+    "text": "[grand] Pyramid!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/power_spooky": {
+    "at": "2026-10-02 18:17",
+    "text": "[spooky, playful] Spooky Ball!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/style": {
+    "at": "2026-10-02 18:17",
+    "text": "[impressed] Now that's style!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/three_stars": {
+    "at": "2026-10-02 18:16",
+    "text": "[ecstatic] Three stars! Magnificent!",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
+  "bink/total_miss": {
+    "at": "2026-10-02 18:17",
+    "text": "[deflated] Total miss.",
+    "voice": "Jessica - Playful, Bright, Warm"
+  },
   "boss_down": {
     "at": "2026-10-01 17:38",
     "text": "[triumphant shout] Boss down!",
@@ -89,6 +244,161 @@
     "text": "[excited] Here we go!",
     "voice": "wo6udizrrtpIxWGp2qJk"
   },
+  "mekka/ball_stolen": {
+    "at": "2026-10-02 18:15",
+    "text": "[gloating] Ha! That one's mine now.",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/boss_down": {
+    "at": "2026-10-02 18:15",
+    "text": "[triumphant shout] Boss down!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/boss_shield": {
+    "at": "2026-10-02 18:15",
+    "text": "[warning] Shields up!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/boss_start": {
+    "at": "2026-10-02 18:15",
+    "text": "[dramatic] Boss fight! Watch yourself!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/boss_turn": {
+    "at": "2026-10-02 18:15",
+    "text": "[mechanical, taunting] My move!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/combo": {
+    "at": "2026-10-02 18:15",
+    "text": "[excited] Combo!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/combo_huge": {
+    "at": "2026-10-02 18:15",
+    "text": "[astonished, shouting] Unbelievable combo!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/duel_lost": {
+    "at": "2026-10-02 18:15",
+    "text": "[sighing] Cogwhistle wins this one. Try again when you're ready.",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/duel_start": {
+    "at": "2026-10-02 18:15",
+    "text": "[sly] A duel! Make every shot count.",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/duel_won": {
+    "at": "2026-10-02 18:15",
+    "text": "[triumphant, laughing] You beat Cogwhistle! He'll never live it down!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/fever": {
+    "at": "2026-10-02 18:15",
+    "text": "[shouting, thrilled] Fever!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/free_ball": {
+    "at": "2026-10-02 18:15",
+    "text": "[cheerful] Free ball!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/gem": {
+    "at": "2026-10-02 18:15",
+    "text": "[pleased] Gem!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/gnome_bonus": {
+    "at": "2026-10-02 18:15",
+    "text": "[ecstatic, shouting] GNOME BONUS!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/hatched": {
+    "at": "2026-10-02 18:15",
+    "text": "[delighted] It hatched!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/last_one": {
+    "at": "2026-10-02 18:15",
+    "text": "[hushed, tense] Last one...",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/level_cleared": {
+    "at": "2026-10-02 18:15",
+    "text": "[triumphant] Level cleared!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/level_start": {
+    "at": "2026-10-02 18:15",
+    "text": "[excited] Here we go!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/out_of_balls": {
+    "at": "2026-10-02 18:15",
+    "text": "[disappointed sigh] Awww... out of balls.",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/out_of_plays": {
+    "at": "2026-10-02 18:15",
+    "text": "[gentle, apologetic] That's all your plays for today, friend.",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_blast": {
+    "at": "2026-10-02 18:16",
+    "text": "[shouting] Space Blast!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_fireball": {
+    "at": "2026-10-02 18:16",
+    "text": "[fierce] Fireball!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_frenzy": {
+    "at": "2026-10-02 18:16",
+    "text": "[gleeful] Free Ball Frenzy!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_guide": {
+    "at": "2026-10-02 18:16",
+    "text": "[confident] Super Guide!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_lightning": {
+    "at": "2026-10-02 18:16",
+    "text": "[electric, excited] Chain Lightning!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_multiball": {
+    "at": "2026-10-02 18:15",
+    "text": "[excited] Multiball!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_pyramid": {
+    "at": "2026-10-02 18:16",
+    "text": "[grand] Pyramid!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/power_spooky": {
+    "at": "2026-10-02 18:16",
+    "text": "[spooky, playful] Spooky Ball!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/style": {
+    "at": "2026-10-02 18:15",
+    "text": "[impressed] Now that's style!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/three_stars": {
+    "at": "2026-10-02 18:15",
+    "text": "[ecstatic] Three stars! Magnificent!",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
+  "mekka/total_miss": {
+    "at": "2026-10-02 18:15",
+    "text": "[deflated] Total miss.",
+    "voice": "George - Warm, Captivating Storyteller"
+  },
   "out_of_balls": {
     "at": "2026-10-01 17:38",
     "text": "[disappointed sigh] Awww... out of balls.",
@@ -138,6 +448,161 @@
     "at": "2026-10-01 17:38",
     "text": "[spooky, playful] Spooky Ball!",
     "voice": "wo6udizrrtpIxWGp2qJk"
+  },
+  "razzle/ball_stolen": {
+    "at": "2026-10-02 18:16",
+    "text": "[gloating] Ha! That one's mine now.",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/boss_down": {
+    "at": "2026-10-02 18:16",
+    "text": "[triumphant shout] Boss down!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/boss_shield": {
+    "at": "2026-10-02 18:16",
+    "text": "[warning] Shields up!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/boss_start": {
+    "at": "2026-10-02 18:16",
+    "text": "[dramatic] Boss fight! Watch yourself!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/boss_turn": {
+    "at": "2026-10-02 18:16",
+    "text": "[mechanical, taunting] My move!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/combo": {
+    "at": "2026-10-02 18:16",
+    "text": "[excited] Combo!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/combo_huge": {
+    "at": "2026-10-02 18:16",
+    "text": "[astonished, shouting] Unbelievable combo!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/duel_lost": {
+    "at": "2026-10-02 18:16",
+    "text": "[sighing] Cogwhistle wins this one. Try again when you're ready.",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/duel_start": {
+    "at": "2026-10-02 18:16",
+    "text": "[sly] A duel! Make every shot count.",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/duel_won": {
+    "at": "2026-10-02 18:16",
+    "text": "[triumphant, laughing] You beat Cogwhistle! He'll never live it down!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/fever": {
+    "at": "2026-10-02 18:16",
+    "text": "[shouting, thrilled] Fever!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/free_ball": {
+    "at": "2026-10-02 18:16",
+    "text": "[cheerful] Free ball!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/gem": {
+    "at": "2026-10-02 18:16",
+    "text": "[pleased] Gem!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/gnome_bonus": {
+    "at": "2026-10-02 18:16",
+    "text": "[ecstatic, shouting] GNOME BONUS!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/hatched": {
+    "at": "2026-10-02 18:16",
+    "text": "[delighted] It hatched!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/last_one": {
+    "at": "2026-10-02 18:16",
+    "text": "[hushed, tense] Last one...",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/level_cleared": {
+    "at": "2026-10-02 18:16",
+    "text": "[triumphant] Level cleared!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/level_start": {
+    "at": "2026-10-02 18:16",
+    "text": "[excited] Here we go!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/out_of_balls": {
+    "at": "2026-10-02 18:16",
+    "text": "[disappointed sigh] Awww... out of balls.",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/out_of_plays": {
+    "at": "2026-10-02 18:16",
+    "text": "[gentle, apologetic] That's all your plays for today, friend.",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_blast": {
+    "at": "2026-10-02 18:16",
+    "text": "[shouting] Space Blast!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_fireball": {
+    "at": "2026-10-02 18:16",
+    "text": "[fierce] Fireball!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_frenzy": {
+    "at": "2026-10-02 18:16",
+    "text": "[gleeful] Free Ball Frenzy!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_guide": {
+    "at": "2026-10-02 18:16",
+    "text": "[confident] Super Guide!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_lightning": {
+    "at": "2026-10-02 18:16",
+    "text": "[electric, excited] Chain Lightning!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_multiball": {
+    "at": "2026-10-02 18:16",
+    "text": "[excited] Multiball!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_pyramid": {
+    "at": "2026-10-02 18:16",
+    "text": "[grand] Pyramid!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/power_spooky": {
+    "at": "2026-10-02 18:16",
+    "text": "[spooky, playful] Spooky Ball!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/style": {
+    "at": "2026-10-02 18:16",
+    "text": "[impressed] Now that's style!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/three_stars": {
+    "at": "2026-10-02 18:16",
+    "text": "[ecstatic] Three stars! Magnificent!",
+    "voice": "Liam - Energetic, Social Media Creator"
+  },
+  "razzle/total_miss": {
+    "at": "2026-10-02 18:16",
+    "text": "[deflated] Total miss.",
+    "voice": "Liam - Energetic, Social Media Creator"
   },
   "style": {
     "at": "2026-10-01 19:32",

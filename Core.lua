@@ -61,8 +61,18 @@ end
 function GP:PlayVoice(name)
     local db = self.db or self:GetDB()
     if db.sound == false or db.voice == false then return end
-    local ok, played = pcall(PlaySoundFile, "Interface\\AddOns\\GnomishPachinko\\Sounds\\Voice\\" .. name .. ".ogg", "Dialog")
+    if self.Dialog and self.Dialog:IsShown() then return end
+    self:StopVoice()
+    local dir = self:Host().voiceDir or ""
+    local ok, played, handle = pcall(PlaySoundFile, "Interface\\AddOns\\GnomishPachinko\\Sounds\\Voice\\" .. dir .. name .. ".ogg", "Dialog")
+    if ok and played then self.voiceHandle = handle end
     return ok and played
+end
+
+-- Cuts the announcer's current line off.
+function GP:StopVoice()
+    if self.voiceHandle and type(StopSound) == "function" then pcall(StopSound, self.voiceHandle, 0) end
+    self.voiceHandle = nil
 end
 
 -- Progress -------------------------------------------------------------
@@ -137,13 +147,31 @@ function GP:SpendItem(item)
 end
 
 -- The powers unlocked so far: one per chapter reached.
-function GP:UnlockedPowers()
-    local db = self:GetDB()
-    local chapter = math.floor(((db.unlocked or 1) - 1) / self.Levels.PER_CHAPTER) + 1
-    local n = math.min(#self.Engine.POWERS, chapter)
-    local list = {}
-    for i = 1, n do list[i] = self.Engine.POWERS[i].id end
-    return list
+-- The four hosts take the chapters in turn. Each is a gnome with a model
+-- from the game, a voice of their own (Sounds/Voice/<voiceDir>) and two
+-- powers, the ones on offer while they host.
+GP.HOSTS = {
+    { id = "tink",   name = "Tinkmaster Overspark",    npc = 7406, voiceDir = "",        powers = { "multiball", "guide" } },
+    { id = "mekka",  name = "High Tinker Mekkatorque", npc = 7937, voiceDir = "mekka\\",  powers = { "blast", "lightning" } },
+    { id = "razzle", name = "Razzle Sprysprocket",     npc = 1269, voiceDir = "razzle\\", powers = { "pyramid", "frenzy" } },
+    { id = "bink",   name = "Bink",                    npc = 5144, voiceDir = "bink\\",   powers = { "fireball", "spooky" } },
+}
+
+function GP:HostFor(level)
+    local chapter = math.floor(((level or 1) - 1) / 10) + 1
+    return self.HOSTS[((chapter - 1) % #self.HOSTS) + 1]
+end
+
+-- The host on duty: the level being played, or the one the window opens on.
+function GP:Host()
+    local st = self.UI and self.UI.state
+    return self:HostFor(st and st.level or self:GetDB().current or 1)
+end
+
+-- The powers on offer on a level: its host's two.
+function GP:UnlockedPowers(level)
+    local h = level and self:HostFor(level) or self:Host()
+    return { h.powers[1], h.powers[2] }
 end
 
 function GP:ClearedCount()

@@ -826,9 +826,11 @@ function L:ChapterName(chapter)
     return self.CHAPTERS[((chapter - 1) % #self.CHAPTERS) + 1]
 end
 
+-- The chapter's host's powers, the first or the second by turns (the
+-- level card lets the player pick either).
 function L:PowerFor(chapter)
-    local n = #E.POWERS
-    return E.POWERS[((chapter - 1) % n) + 1].id
+    local h = GP:HostFor((chapter - 1) * 10 + 1)
+    return h.powers[(math.floor((chapter - 1) / #GP.HOSTS) % 2) + 1]
 end
 
 function L:Difficulty(n)

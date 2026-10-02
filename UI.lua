@@ -25,6 +25,7 @@ local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 84, 110, 16, 240, 270   -- EDGE: conten
 local PAD = EDGE
 local PORTRAIT = 2 * (E.LAUNCH_R - 12)      -- the host's box: the launcher slides round its rim
 local BARREL_W, BARREL_L = 38, 76           -- the bore is half the barrel's width: room for the ball
+local TUBE_LIP = 4                           -- the Fever tubes' front lip, this far below their tops (the flare's rim in the art)
 local FANFARE_SECS = 8.0     -- length of Sounds/fever_music.ogg; it loops while Fever lasts and stops when the last ball lands
 local FX_POOL = 48           -- sparkle, confetti and glow textures in flight at once
 local TRAIL_LEN = 14         -- segments of the ball's ribbon
@@ -844,8 +845,8 @@ end
 function UI:RefreshCardChoices()
     local st, card = self.state, self.card
     local name, blurb = powerName(st.power)
-    card.powerText:SetText(("Power: |cff88ff88%s|r"):format(name))
-    local many = #GP:UnlockedPowers() > 1
+    card.powerText:SetText(("%s's power: |cff88ff88%s|r"):format(GP:HostFor(st.level).name:match("(%S+)$") or "", name))
+    local many = #GP:UnlockedPowers(st.level) > 1
     styleButton(card.powerPrev, many, 0.3, 0.3, 0.45)
     styleButton(card.powerNext, many, 0.3, 0.3, 0.45)
     local n = GP:ItemCount("green")
@@ -855,7 +856,7 @@ end
 
 function UI:CyclePower(dir)
     local st = self.state
-    local list = GP:UnlockedPowers()
+    local list = GP:UnlockedPowers(st.level)
     if #list < 2 then return end
     local idx = 1
     for i, id in ipairs(list) do if id == st.power then idx = i end end
@@ -1345,7 +1346,7 @@ function UI:StartLevel(n, retry)
     local spec = L:Build(n, self.attempts[n])
     local last = GP:GetDB().lastPower
     if last then
-        for _, id in ipairs(GP:UnlockedPowers()) do if id == last then spec.power = last end end
+        for _, id in ipairs(GP:UnlockedPowers(n)) do if id == last then spec.power = last end end
     end
     self.state = E:NewLevel(spec)
     if self.card then self:HideCard() end
@@ -1379,14 +1380,17 @@ function UI:StartLevel(n, retry)
     self:StopFanfare()
     self:HideGuide()
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
-    GP:PlayVoice(spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start"))
+    if GP.Mascot.SetHost then GP.Mascot:SetHost(GP:HostFor(n).npc) end
+    self.startVoice = spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start")
     GP.Mascot:React("start")
     self:UpdateDisplay()
     local talk = GP.Dialog and GP.Dialog:For(self.state) or {}
+    local voice = self.startVoice
     if #talk > 0 then
         self.cardSheet:Show()
-        GP.Dialog:Play(talk, function() UI:ShowStartCard() end)
+        GP.Dialog:Play(talk, function() UI:ShowStartCard() end)      -- the talk was the welcome: no start line after it
     else
+        GP:PlayVoice(voice)
         self:ShowStartCard()
     end
     return true
@@ -2612,10 +2616,32 @@ function UI:Render(now)
             self.ballAura[i] = aura
         end
         if ball then
-            placeAt(tex, field, ball.x, ball.y)
             ART:Set(tex, ballSlot(ball, st, now, self.electricUntil))
-            tex:Show()
-            if st.phase == E.PHASE.FEVER then
+            local size = ART:Size("ball", E.BALL_R * 2 + 2)
+            local top = ball.y - size / 2
+            -- in Fever a ball going into a tube is cut off at the tube's front lip
+            local lip = E.FIELD_H - E.FEVER_TUBE_H + TUBE_LIP
+            if st.phase == E.PHASE.FEVER and top + size > lip then
+                local shown = lip - top
+                if shown <= 0 then
+                    tex:Hide()
+                else
+                    tex:SetSize(size, shown)
+                    tex:SetTexCoord(0, 1, 0, shown / size)
+                    tex:ClearAllPoints()
+                    tex:SetPoint("TOP", field, "TOPLEFT", ball.x, -top)
+                    tex:Show()
+                end
+            else
+                if tex.cropped ~= false then
+                    tex:SetSize(size, size)
+                    tex:SetTexCoord(0, 1, 0, 1)
+                end
+                placeAt(tex, field, ball.x, ball.y)
+                tex:Show()
+            end
+            tex.cropped = st.phase == E.PHASE.FEVER and top + size > lip
+            if st.phase == E.PHASE.FEVER and ball.y < lip then
                 local h = (now * 0.8 + i * 0.17) % 1
                 local r, g, b = math.abs(h * 6 - 3) - 1, 2 - math.abs(h * 6 - 2), 2 - math.abs(h * 6 - 4)
                 aura:SetVertexColor(math.max(0, math.min(1, r)), math.max(0, math.min(1, g)), math.max(0, math.min(1, b)), 0.95)

@@ -58,7 +58,6 @@ M.REACTIONS = {
 local function settings()
     local db = GP:GetDB()
     db.mascot = db.mascot or {}
-    if db.mascot.npc == nil and db.mascot.display == nil then db.mascot.npc = M.DEFAULT_NPC end
     return db.mascot
 end
 
@@ -70,9 +69,12 @@ end
 function M:Candidates()
     local s = settings()
     local list = {}
-    if s.display then list[#list + 1] = { label = "display " .. s.display, fn = function(m) m:SetDisplayInfo(s.display) end } end
-    if s.npc then list[#list + 1] = { label = "npc " .. s.npc, fn = function(m) m:SetCreature(s.npc) end } end
-    if s.npc ~= M.DEFAULT_NPC then list[#list + 1] = { label = "npc " .. M.DEFAULT_NPC, fn = function(m) m:SetCreature(M.DEFAULT_NPC) end } end
+    -- a look the player chose with /pachinko mascot wins; otherwise the chapter's host
+    if s.custom and s.display then list[#list + 1] = { label = "display " .. s.display, fn = function(m) m:SetDisplayInfo(s.display) end } end
+    if s.custom and s.npc then list[#list + 1] = { label = "npc " .. s.npc, fn = function(m) m:SetCreature(s.npc) end } end
+    local host = self.hostNpc or M.DEFAULT_NPC
+    list[#list + 1] = { label = "host " .. host, fn = function(m) m:SetCreature(host) end }
+    if host ~= M.DEFAULT_NPC then list[#list + 1] = { label = "npc " .. M.DEFAULT_NPC, fn = function(m) m:SetCreature(M.DEFAULT_NPC) end } end
     list[#list + 1] = { label = "player", fn = function(m) m:SetUnit("player") end }
     return list
 end
@@ -142,6 +144,13 @@ function M:Create(parent, anchor, w, h)
     return model
 end
 
+-- The chapter's host takes the box (unless the player picked a look).
+function M:SetHost(npc)
+    if self.hostNpc == npc then return end
+    self.hostNpc = npc
+    if self.model and not settings().custom then self:Load() end
+end
+
 function M:Play(name)
     local model = self.model
     if not model then return end
@@ -201,15 +210,15 @@ function M:Command(args)
             GP:Print("Target a creature first; its id becomes the mascot.")
             return
         end
-        s.npc, s.display = tonumber(npc), nil
+        s.npc, s.display, s.custom = tonumber(npc), nil, true
         self:Load()
         GP:Print(("Mascot set to creature %s."):format(npc))
     elseif args:match("^id%s+%d+") then
-        s.display, s.npc = tonumber(args:match("%d+")), nil
+        s.display, s.npc, s.custom = tonumber(args:match("%d+")), nil, true
         self:Load()
         GP:Print(("Mascot set to display id %d."):format(s.display))
     elseif args:match("^npc%s+%d+") then
-        s.npc, s.display = tonumber(args:match("%d+")), nil
+        s.npc, s.display, s.custom = tonumber(args:match("%d+")), nil, true
         self:Load()
         GP:Print(("Mascot set to creature %d."):format(s.npc))
     elseif args:match("^scale%s+[%d%.]+") then
@@ -231,7 +240,7 @@ function M:Command(args)
         settings()
         self:Load()
         if self.model then self.model:Show() end
-        GP:Print("Mascot back to Tinkmaster Overspark.")
+        GP:Print("Mascot back to the chapter's host.")
     elseif args:match("^play%s+%a+") then
         local name = args:match("^play%s+(%a+)")
         if self.ANIM[name] then self:Play(name) else GP:Print("Unknown animation. Try: " .. table.concat((function() local t = {} for k in pairs(self.ANIM) do t[#t + 1] = k end table.sort(t) return t end)(), ", ")) end

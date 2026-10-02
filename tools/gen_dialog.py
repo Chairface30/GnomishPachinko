@@ -32,6 +32,9 @@ DONE_FILE = os.path.join(HERE, "dialog_voiced.json")
 # speaker -> (ElevenLabs voice id, v4 delivery tag, machine?)
 CAST = {
     "tink":   ("wo6udizrrtpIxWGp2qJk", "[excited, cheerful gnome inventor]", False),   # Northern Terry, the announcer
+    "mekka":  ("JBFqnCBsd6RMkjVDRZzb", "[warm, proud, dignified gnome leader]", False),  # George
+    "razzle": ("TX3LPaxmHKxFdv7VOQHJ", "[energetic, mischievous young gnome]", False),  # Liam
+    "bink":   ("cgSgspJ2msm6clMCkdW9", "[bright, playful gnome apprentice]", False),    # Jessica
     "cog":    ("N2lVS1w4EtoT3dr4eOWO", "[smug, condescending older brother]", False),  # Callum
     "drake":  ("onwK4e9ZLuTAKqWW03F9", "[cold, flat, mechanical]", True),              # Daniel
     "golem":  ("pNInz6obpgDQGcFmaJgB", "[booming, robotic, shouting]", True),          # Adam
@@ -46,12 +49,19 @@ def scripts():
     import lupa
     rt = lupa.LuaRuntime(unpack_returned_tuples=True)
     rt.execute("GnomishPachinko = {}")
+    rt.execute("GnomishPachinko.HOSTS = { {id='tink'}, {id='mekka'}, {id='razzle'}, {id='bink'} }")
     rt.execute(open(os.path.join(ROOT, "Dialog.lua"), encoding="utf-8").read())
     D = rt.eval("GnomishPachinko.Dialog")
     out = []
+    hosts = [h.id for h in rt.eval("GnomishPachinko.HOSTS or {}").values()] or ["tink", "mekka", "razzle", "bink"]
     for sc in D.SCRIPTS.values():
         for i, line in enumerate(sc.lines.values(), 1):
-            out.append((f"{sc.key}_{i}", line[1], line[2]))
+            if line[1] == "host":
+                # a narrator line: voiced once for every host
+                for h in hosts:
+                    out.append((f"{sc.key}_{i}_{h}", h, line[2]))
+            else:
+                out.append((f"{sc.key}_{i}", line[1], line[2]))
     return out
 
 
@@ -78,7 +88,7 @@ def main():
     done = json.load(open(DONE_FILE, encoding="utf-8")) if os.path.exists(DONE_FILE) else {}
     todo = []
     for name, speaker, text in lines:
-        if want and name.rsplit("_", 1)[0] not in want:
+        if want and not any(name == w or name.startswith(w + "_") for w in want):
             continue
         if not args.force and done.get(name) == text and os.path.exists(os.path.join(OUT, name + ".ogg")):
             continue

@@ -87,6 +87,19 @@ LINES = {
 }
 
 
+# The other hosts: each says the same lines in their own voice, into
+# Sounds/Voice/<host>/. Lines about "my brother" are Tinkmaster's own.
+HOST_VOICES = {
+    "mekka":  "JBFqnCBsd6RMkjVDRZzb",   # George
+    "razzle": "TX3LPaxmHKxFdv7VOQHJ",   # Liam
+    "bink":   "cgSgspJ2msm6clMCkdW9",   # Jessica
+}
+HOST_LINES = {
+    "duel_won":  "[triumphant, laughing] You beat Cogwhistle! He'll never live it down!",
+    "duel_lost": "[sighing] Cogwhistle wins this one. Try again when you're ready.",
+}
+
+
 def api_get(path, key):
     req = urllib.request.Request(API + path, headers={"xi-api-key": key})
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -196,7 +209,16 @@ def main():
     ap.add_argument("--only", help="comma-separated line names")
     ap.add_argument("--voice", help="voice name or id (never Trixie's)")
     ap.add_argument("--list-voices", action="store_true")
+    ap.add_argument("--host", choices=sorted(HOST_VOICES), help="voice the lines for another host into Sounds/Voice/<host>/")
     args = ap.parse_args()
+    global OUT
+    lines = dict(LINES)
+    prefix = ""
+    if args.host:
+        OUT = os.path.join(OUT, args.host)
+        lines.update(HOST_LINES)
+        prefix = args.host + "/"
+        args.voice = HOST_VOICES[args.host]
 
     key = os.environ.get("ELEVENLABS_API_KEY")
     if args.list_voices:
@@ -209,7 +231,7 @@ def main():
 
     done = load_done()
     only = set(x.strip() for x in args.only.split(",")) if args.only else None
-    todo = [(n, t) for n, t in LINES.items() if (only is None or n in only) and (args.force or n not in done)]
+    todo = [(n, t) for n, t in lines.items() if (only is None or n in only) and (args.force or prefix + n not in done)]
     chars = sum(len(t) for _, t in todo)
     print(f"Output: {OUT}")
     print(f"{len(todo)} line(s), {chars} characters, model {MODEL_ID}" + ("" if args.go else "  (dry run: add --go to generate)"))
@@ -229,7 +251,7 @@ def main():
         path = os.path.join(OUT, n + ".ogg")
         sf.write(path, data, RATE, format="OGG", subtype="VORBIS")
         print(f"      wrote {os.path.basename(path)} {len(data) / RATE:.2f}s")
-        done[n] = {"text": t, "voice": voice["name"], "at": time.strftime("%Y-%m-%d %H:%M")}
+        done[prefix + n] = {"text": t, "voice": voice["name"], "at": time.strftime("%Y-%m-%d %H:%M")}
         with open(DONE_FILE, "w", encoding="utf-8") as f:
             json.dump(done, f, indent=2, sort_keys=True)
         time.sleep(0.4)
