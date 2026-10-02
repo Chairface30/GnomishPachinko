@@ -218,6 +218,13 @@ class AutoSprite:
                     pass
         return {"text": "\n".join(texts)}
 
+    def rest_get(self, path):
+        """The REST API (x-api-key): pose jobs (cf_...) are only visible here."""
+        req = urllib.request.Request("https://www.autosprite.io/api/v1" + path)
+        req.add_header("x-api-key", self.key)
+        with urllib.request.urlopen(req, timeout=60) as r:
+            return json.loads(r.read().decode("utf-8", "replace"))
+
     def upload(self, path):
         info = self.call("request_upload_url", fileName=os.path.basename(path), contentType="image/png")
         url, key = info["uploadUrl"], info["uploadKey"]
@@ -484,6 +491,10 @@ def main():
         for n in todo("pose"):
             p = PLAN[n]
             base = p["base"]
+            if rec["slots"].get(n, {}).get("jobId") and not args.force:
+                jobs[n] = rec["slots"][n]["jobId"]
+                print(f"  pose   {n}: resuming {jobs[n]}")
+                continue
             try:
                 char = rec["characters"].get(base)
                 if not char:
@@ -512,15 +523,16 @@ def main():
                 print(f"  pose   {n}: FAILED {e}")
         pending = dict(jobs)
         rounds = 0
-        while pending and rounds < 30:
-            time.sleep(35)
+        while pending and rounds < 60:
+            if rounds > 0:
+                time.sleep(10)
             rounds += 1
             for n, jid in list(pending.items()):
                 try:
-                    st = api.call("get_job_status", jobId=jid)
-                    status = st.get("status") or st.get("job", {}).get("status")
+                    st = api.rest_get("/jobs/" + jid)
+                    status = st.get("status")
                     if status == "succeeded":
-                        url = st.get("resultUrl") or st.get("job", {}).get("resultUrl") or st.get("imageUrl")
+                        url = st.get("resultUrl")
                         img = crop_content(strip_background(download(url)))
                         base = PLAN[n]["base"]
                         save_slot(img, slots[n], scales.get(base))
