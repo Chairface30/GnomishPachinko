@@ -78,7 +78,7 @@ E.GNOME_BONUS   = 100000
 E.GNOME_BUCKET  = 25000
 E.BUCKET_DROP   = 10000     -- a gem that lands in the bucket, on top of counting
 E.STYLE_POINTS  = 5000      -- a trick shot: a Long Shot, a Super Slide
-E.LONG_SHOT     = 300       -- two goal pieces at least this far apart in one shot
+E.LONG_SHOT     = 240       -- two orange pegs at least this far apart in one shot (half the board)
 E.SLIDE_RATIO   = 0.42      -- a brick contact this grazing slides instead of bouncing
 E.SLIDE_RUN     = 6         -- bricks lit in one slide for the Super Slide award
 E.SLIDE_GAP     = 0.3       -- seconds between two slid bricks that still count as one slide
@@ -155,7 +155,11 @@ E.OBJECTIVES = {
     gems    = { name = "Gems",    goalWord = "gems",        text = "Knock every gem loose and catch it in the bucket" },
     boss    = { name = "Boss",    goalWord = "boss health", text = "Beat the boss: hit it until its health is gone" },
     duel    = { name = "Duel",    goalWord = "orange pegs", text = "Light every orange peg while the boss takes its turns" },
+    longshots = { name = "Long Shots", goalWord = "long shots", text = "Make Long Shots: light two orange pegs far apart in one shot" },
 }
+E.PLAY_ON_BALLS = 3         -- a continue after running out of balls
+E.PHOENIX_POINTS = 5000     -- an egg saved in the bucket
+E.NEST_DX, E.NEST_DY0, E.NEST_DY1 = 28, 8, 46   -- a piece this close under an egg holds it up
 
 -- The duel: no piece to hit. Stage one is a board to clear; then the
 -- rival steps up and the two of you shoot turn and turn about on one
@@ -339,6 +343,7 @@ function E:NewLevel(spec)
         p.lit, p.gone, p.freed, p.collected = false, false, false, false
         p.cooldown, p.shield = nil, 0
         if p.kind == "boss" then state.boss = p end
+        if p.kind == "egg" and p.nested then state.hasNests = true end
     end
     for _, mv in ipairs(state.movers) do
         for _, p in ipairs(mv.pegs) do p.mover = mv end
@@ -615,9 +620,33 @@ freeGem = function(state, p, ball, events)
     p.gone = true
     p.goneAt = nil
     state.gems[#state.gems + 1] = {
-        x = p.x, y = p.y, vx = ball and ball.vx * 0.25 or 0, vy = 0, slow = 0, home = p,
+        x = p.x, y = p.y, vx = ball and ball.vx * 0.25 or 0, vy = 0, slow = 0, home = p, kind = "gem",
     }
     push(events, { type = "gem_free", x = p.x, y = p.y })
+end
+
+-- Is anything still holding this egg up?
+local function eggSupported(state, egg)
+    for _, q in ipairs(state.pegs) do
+        if q ~= egg and not q.gone then
+            local dx, dy = abs(q.x - egg.x), q.y - egg.y
+            if dx <= E.NEST_DX and dy >= E.NEST_DY0 and dy <= E.NEST_DY1 then return true end
+        end
+    end
+    return false
+end
+
+-- Eggs whose nests have gone start to fall. Called whenever pieces vanish.
+local function dropLooseEggs(state, events)
+    for _, p in ipairs(state.pegs) do
+        if p.kind == "egg" and p.nested and not p.lit and not p.gone and not eggSupported(state, p) then
+            p.freed = true
+            p.gone = true
+            p.goneAt = nil
+            state.gems[#state.gems + 1] = { x = p.x, y = p.y, vx = 0, vy = 0, slow = 0, home = p, kind = "egg" }
+            push(events, { type = "egg_fall", x = p.x, y = p.y })
+        end
+    end
 end
 
 -- What a boss does when it takes a point of damage.
@@ -700,10 +729,29 @@ lightPeg = function(state, p, ball, events, quiet, at)
         state.goalHit = state.goalHit + 1
         state.goalLeft = state.goalLeft - 1
         state.goalHitThisShot = state.goalHitThisShot + 1
-        -- a Long Shot: this goal piece and an earlier one of the shot, far apart
+    end
+    -- a Long Shot: this orange and an earlier one of the shot, far apart
+    if p.kind == "orange" then
         for _, g in ipairs(state.shotGoals) do
             local dx, dy = g.x - p.x, g.y - p.y
-            if dx * dx + dy * dy >= E.LONG_SHOT * E.LONG_SHOT then style(state, "LONG SHOT", events, p.x, p.y) break end
+            if dx * dx + dy * dy >= E.LONG_SHOT * E.LONG_SHOT then
+                local before = state.shotStyles["LONG SHOT" .. E.STYLE_POINTS]
+                style(state, "LONG SHOT", events, p.x, p.y)
+                if not before and state.objective == "longshots" and state.goalLeft > 0 then
+                    state.goalHit = state.goalHit + 1
+                    state.goalLeft = state.goalLeft - 1
+                    state.goalHitThisShot = state.goalHitThisShot + 1
+                    push(events, { type = "longshot_goal", left = state.goalLeft })
+                    if state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then
+                        state.phase = E.PHASE.FEVER
+                        state.lastSlow = false
+                        state.feverTotal = 0
+                        state.feverNext = state.time + E.FEVER_FIRST_GAP
+                        push(events, { type = "fever" })
+                    end
+                end
+                break
+            end
         end
         state.shotGoals[#state.shotGoals + 1] = { x = p.x, y = p.y }
     end
@@ -760,7 +808,10 @@ local function expireLitPegs(state, events)
             n = n + 1
         end
     end
-    if n > 0 then push(events, { type = "clear", count = n }) end
+    if n > 0 then
+        push(events, { type = "clear", count = n })
+        if state.hasNests then dropLooseEggs(state, events) end
+    end
 end
 
 local function clearLitPegs(state, events)
@@ -772,7 +823,10 @@ local function clearLitPegs(state, events)
             n = n + 1
         end
     end
-    if n > 0 then push(events, { type = "clear", count = n }) end
+    if n > 0 then
+        push(events, { type = "clear", count = n })
+        if state.hasNests then dropLooseEggs(state, events) end
+    end
     return n
 end
 
@@ -847,6 +901,18 @@ collideBall = function(state, ball, events, light)
     end
 end
 
+-- Play On: after running out of balls, three more and the level carries on.
+-- Not in a duel's second stage, and not after a lost egg.
+function E:PlayOn(state)
+    if state.phase ~= E.PHASE.OVER or not state.result or state.result.cleared then return false end
+    if state.eggLost or (state.duel and state.duel.stage == 2) then return false end
+    state.result = nil
+    state.ballsLeft = state.ballsLeft + E.PLAY_ON_BALLS
+    state.phase = E.PHASE.AIM
+    self:MovePurple(state)
+    return true
+end
+
 -- A pre-level Extra Green Peg: one unlit plain blue peg turns green.
 function E:AddGreen(state)
     local pool = {}
@@ -892,7 +958,9 @@ local function finishLevel(state, events)
     local d = state.duel
     if d and d.stage == 2 then cleared = d.scores.you > d.scores.rival end
     if d and d.stage == 1 then cleared = false end
+    if state.eggLost then cleared = false end
     state.result = {
+        eggLost = state.eggLost or nil,
         duel = d and d.stage == 2 and { you = d.scores.you, rival = d.scores.rival, name = d.name } or nil,
         cleared = cleared,
         score = state.score,
@@ -1081,6 +1149,16 @@ local function gemHome(state, p, events)
     push(events, { type = "gem_home", x = p.x, y = p.y })
 end
 
+-- An egg that stops rolling settles where it is and is a piece again.
+local function settleEgg(state, g, events)
+    local p = g.home
+    p.x, p.y = g.x, g.y
+    p.freed = false
+    p.gone = false
+    p.cooldown = nil
+    push(events, { type = "egg_settle", x = p.x, y = p.y })
+end
+
 local function integrateGem(state, g, dt, events)
     g.vy = g.vy + E.GRAVITY * dt
     g.x = g.x + g.vx * dt
@@ -1089,6 +1167,31 @@ local function integrateGem(state, g, dt, events)
     if g.x < R then g.x = R; if g.vx < 0 then g.vx = -g.vx * E.RESTITUTION end end
     if g.x > W - R then g.x = W - R; if g.vx > 0 then g.vx = -g.vx * E.RESTITUTION end end
     collideBall(state, g, nil, false)
+    if g.kind == "egg" then
+        if bucketCheck(state, g, events) == 1 then
+            -- saved: it hatches in the bucket
+            local p = g.home
+            p.hp = 1
+            lightPeg(state, p, nil, events, true, { x = g.x, y = bucketTop() - 10 })
+            addScore(state, E.PHOENIX_POINTS, events)
+            push(events, { type = "egg_saved", x = g.x, y = bucketTop() - 10, bonus = E.PHOENIX_POINTS })
+            return false
+        end
+        if g.y - R > H then
+            -- an egg off the bottom is the level lost
+            g.home.lost = true
+            state.eggLost = true
+            push(events, { type = "egg_lost", x = g.x })
+            return false
+        end
+        local speed = sqrt(g.vx * g.vx + g.vy * g.vy)
+        if speed < E.STUCK_SPEED then g.slow = g.slow + dt else g.slow = 0 end
+        if g.slow > 0.8 then
+            settleEgg(state, g, events)
+            return false
+        end
+        return true
+    end
     if bucketCheck(state, g, events) == 1 then
         -- a Bucket Drop: counts, and pays a bonus on top
         local p = g.home
@@ -1285,6 +1388,13 @@ local function substep(state, dt, events)
         return
     end
 
+    if state.eggLost then
+        state.balls = {}
+        state.gems = {}
+        state.lastSlow = false
+        finishLevel(state, events)
+        return
+    end
     if #state.balls == 0 and #state.gems == 0 then
         clearLitPegs(state, events)
         -- gems that were knocked loose and missed go back to their nests

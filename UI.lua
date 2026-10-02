@@ -97,8 +97,9 @@ end
 function UI:ObjectiveText(st)
     if not st then return "" end
     local o = st.objective
-    if o == "eggs" then return ("Hatch all %d eggs (three hits each)"):format(st.goalTotal) end
-    if o == "gems" then return ("Catch all %d gems in the bucket"):format(st.goalTotal) end
+    if o == "eggs" then return ("Hatch all %d eggs (two hits each). An egg that falls off the board is the level lost"):format(st.goalTotal) end
+    if o == "gems" then return ("Knock all %d gems loose and drop them off the bottom"):format(st.goalTotal) end
+    if o == "longshots" then return ("Make %d Long Shots: two orange pegs far apart in one shot"):format(st.goalTotal) end
     local text
     if o == "boss" and st.boss then text = ("Beat the %s (%d health)"):format(st.boss.bossName or "boss", st.boss.maxhp)
     elseif o == "duel" and st.duel and st.duel.stage == 2 then text = ("Duel with %s: five balls each, turn and turn about, highest score wins. A shot that lights no orange costs a quarter of your score"):format(st.duel.name)
@@ -108,7 +109,23 @@ function UI:ObjectiveText(st)
     return text
 end
 
-local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to catch", boss = "Boss health", duel = "Orange pegs left" }
+local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to drop", boss = "Boss health", duel = "Orange pegs left", longshots = "Long Shots left" }
+
+-- First-encounter tips, shown once each on the level card, in Tinkmaster's voice.
+local TIPS = {
+    { key = "start",     when = function(st) return st.level == 1 end, text = "Tinkmaster: \"Point with the mouse, click to shoot. Light every orange peg and the board is yours!\"" },
+    { key = "bricks",    when = function(st) for _, p in ipairs(st.pegs) do if p.shape == "brick" then return true end end end, text = "Tinkmaster: \"Bricks are pegs too! Catch the inside of a curve and the ball rides it, lighting the lot.\"" },
+    { key = "boss",      when = function(st) return st.objective == "boss" end, text = "Tinkmaster: \"A boss! It slides along the bottom under the pegs. Get the ball down there and keep hitting it.\"" },
+    { key = "eggs",      when = function(st) return st.objective == "eggs" end, text = "Tinkmaster: \"Eggs! Two hits to hatch. Handle with care: knock away the nest under one and it falls. Catch it in the bucket, or lose the level.\"" },
+    { key = "gems",      when = function(st) return st.objective == "gems" end, text = "Tinkmaster: \"Gems! Knock them loose and drop them off the bottom. One in the bucket is a Bucket Drop bonus.\"" },
+    { key = "duel",      when = function(st) return st.objective == "duel" end, text = "Tinkmaster: \"My brother Cogwhistle again. Clear the board, then it's a duel: five balls each, and hit an orange every shot or he docks your score.\"" },
+    { key = "longshots", when = function(st) return st.objective == "longshots" end, text = "Tinkmaster: \"Long Shots! Light two orange pegs far apart in one shot. Bounce it off the far wall and watch.\"" },
+    { key = "tough",     when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, text = "Tinkmaster: \"Steel-rimmed pieces take two hits, gold-rimmed three. They crack first.\"" },
+    { key = "nobucket",  when = function(st) return st.noBucket end, text = "Tinkmaster: \"No bucket on this one. The only free balls are the score marks, so make every ball count.\"" },
+    { key = "keys",      when = function(st) for _, p in ipairs(st.pegs) do if p.kind == "key" then return true end end end, text = "Tinkmaster: \"A key! Light it and its cage falls away. Sometimes the key is behind another lock.\"" },
+    { key = "items",     when = function(st) return st.level == 2 end, text = "Tinkmaster: \"Two slots at the bottom-left: Ring of Fire and Rainbow Ball. Click one to arm it for your next shot. You earn more by clearing levels.\"" },
+    { key = "gimmick",   when = function(st) return st.gimmick ~= nil end, text = "Tinkmaster: \"Moving parts! Time your shot with the pieces, or use them to bank the ball where you want it.\"" },
+}
 
 
 function UI:Initialize()
@@ -426,6 +443,22 @@ function UI:CreateFrame()
     self.bestText = value(-270, "GameFontHighlightSmall")
     label("Next free ball at", -286)
     self.freeBallText = value(-286, "GameFontHighlightSmall")
+    local function bar(y, r, g, b)
+        local f = CreateFrame("StatusBar", nil, side)
+        f:SetSize(SIDE_W, 5)
+        f:SetPoint("TOPLEFT", side, "TOPLEFT", 0, y)
+        f:SetStatusBarTexture(WHITE)
+        f:SetStatusBarColor(r, g, b, 0.9)
+        f:SetMinMaxValues(0, 1)
+        f:SetValue(0)
+        local bg = f:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints()
+        bg:SetTexture(WHITE)
+        bg:SetVertexColor(0.1, 0.1, 0.14, 0.9)
+        return f
+    end
+    self.freeBallBar = bar(-298, 0.4, 0.7, 1)
+    self.multBar = bar(-250, 1, 0.8, 0.2)
     label("Stars on this level", -302)
     self.sideStars = makeStars(side, 12, 2)
     for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -302) end
@@ -565,6 +598,17 @@ function UI:ShowStartCard()
     if st.duel then extra[#extra + 1] = st.duel.blurb end
     local best = GP:GetDB().best[st.level]
     if best then extra[#extra + 1] = "Best " .. fmtBig(best) end
+    -- the first tip that applies and has not been shown
+    local db = GP:GetDB()
+    db.tips = db.tips or {}
+    self.cardTip = nil
+    for _, tip in ipairs(TIPS) do
+        if not db.tips[tip.key] and tip.when(st) then
+            self.cardTip = tip.key
+            extra = { "|cffffd700" .. tip.text .. "|r" }
+            break
+        end
+    end
     card.line3:SetText(table.concat(extra, "  -  "))
     card.main.text:SetText("PLAY")
     card.main:SetScript("OnClick", function() UI:PlayFromCard() end)
@@ -613,6 +657,7 @@ end
 
 function UI:PlayFromCard()
     local st = self.state
+    if self.cardTip then GP:GetDB().tips[self.cardTip] = true; self.cardTip = nil end
     if self.greenBoost and GP:SpendItem("green") then
         local p = E:AddGreen(st)
         if p then
@@ -654,15 +699,20 @@ function UI:ShowResultCard(result, stars)
         card.main:SetScript("OnClick", function() UI:HideCard(); UI:NextLevel() end)
         styleButton(card.main, true, 0.2, 0.55, 0.25)
         card.main:Show()
+    elseif self.pendingFail then
+        card.main.text:SetText(("PLAY ON  (+%d balls, 1 play)"):format(E.PLAY_ON_BALLS))
+        card.main:SetScript("OnClick", function() UI:PlayOn() end)
+        styleButton(card.main, GP.Plays:CanPlay(), 0.2, 0.55, 0.25)
+        card.main:Show()
     else
         card.main:Hide()
     end
-    card.left.text:SetText("Map")
-    card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect() end)
+    card.left.text:SetText(self.pendingFail and "End level" or "Map")
+    card.left:SetScript("OnClick", function() UI:SettlePendingFail(); UI:HideCard(); UI:ShowLevelSelect(); if not GP.Plays:CanPlay() then UI:ShowOutOfPlays() end end)
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right.text:SetText("Retry")
-    card.right:SetScript("OnClick", function() UI:HideCard(); UI:StartLevel(st.level, true) end)
-    styleButton(card.right, GP.Plays:CanPlay(), 0.45, 0.3, 0.2)
+    card.right:SetScript("OnClick", function() UI:SettlePendingFail(); UI:HideCard(); UI:StartLevel(st.level, true) end)
+    styleButton(card.right, GP.Plays:Remaining() >= (self.pendingFail and 2 or 1), 0.45, 0.3, 0.2)
     card.right:Show()
     card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
     if result.rewards and #result.rewards > 0 then
@@ -843,7 +893,7 @@ end
 
 local KIND_DOT = {
     classic = { 1, 0.5, 0.08 }, eggs = { 1, 0.94, 0.75 }, gems = { 0.38, 0.94, 1 }, boss = { 1, 0.25, 0.25 },
-    duel = { 1, 0.25, 0.25 },
+    duel = { 1, 0.25, 0.25 }, longshots = { 1, 0.85, 0.2 },
 }
 
 -- page = chapter
@@ -1009,6 +1059,7 @@ end
 -- retry=true deals the colours again (oranges land on other pegs).
 function UI:StartLevel(n, retry)
     self:Initialize()
+    self:SettlePendingFail()
     if not GP:IsUnlocked(n) then n = GP:GetDB().unlocked or 1 end
     if not GP.Plays:CanPlay() then
         self:ShowOutOfPlays()
@@ -1166,8 +1217,10 @@ function UI:LayoutPegs()
     local st = self.state
     local field = self.field
     self.pegIndex = {}
+    if not self.introAt or GetTime() - self.introAt > 2 then self.introAt = GetTime() end
     for i, p in ipairs(st.pegs) do
         local t = self.pegTex[i]
+        if t then t.sweepAt = nil end
         if not t then
             t = {}
             t.ring = field:CreateTexture(nil, "ARTWORK", nil, 0)
@@ -1268,8 +1321,11 @@ function UI:DrawGuide()
                 d:SetVertexColor(1, 0.5, 0.5, 1)
                 d:SetAlpha(0.9 - 0.5 * (i / math.max(1, #pts)))
             elseif super then
-                d:SetVertexColor(0.6, 1, 0.6, 1)
-                d:SetAlpha(0.9 - 0.5 * (i / #pts))
+                -- the rainbow laser
+                local h = (i * 0.09) % 1
+                local r, g, b = math.abs(h * 6 - 3) - 1, 2 - math.abs(h * 6 - 2), 2 - math.abs(h * 6 - 4)
+                d:SetVertexColor(math.max(0, math.min(1, r)), math.max(0, math.min(1, g)), math.max(0, math.min(1, b)), 1)
+                d:SetAlpha(0.95)
             else
                 d:SetVertexColor(1, 1, 1, 1)
                 d:SetAlpha(0.85 - 0.6 * (i / #self.guideDots))
@@ -1513,6 +1569,23 @@ function UI:HandleEvents(now)
             GP:PlaySfx("gem.ogg")
             GP:PlaySfx("bucket.ogg")
             GP:PlayVoice("gem")
+        elseif t == "egg_fall" then
+            self:ShowBanner("|cffff9060THE EGG!|r", "Catch it in the bucket!", 1.5)
+            GP:PlaySfx("crack.ogg")
+            GP.Mascot:React("two_left")
+        elseif t == "egg_settle" then
+            self:LayoutPegs()
+        elseif t == "egg_saved" then
+            self:ShowBanner("|cffffd700PHOENIX HATCH!|r", "+" .. fmtBig(ev.bonus), 2)
+            self:Popup(ev.x, ev.y - 10, "SAVED!", 1, 0.95, 0.6)
+            GP:PlaySfx("hatch.ogg")
+            GP:PlayVoice("hatched")
+            GP.Mascot:React("hatched")
+        elseif t == "egg_lost" then
+            self:Popup(ev.x, E.FIELD_H - 30, "LOST", 1, 0.4, 0.4)
+            GP:PlaySfx("fail.ogg")
+        elseif t == "longshot_goal" then
+            self:Popup(E.FIELD_W / 2, 120, ("LONG SHOT! %d to go"):format(ev.left), 1, 0.9, 0.4)
         elseif t == "gem_dropped" then
             self:Popup(ev.x, ev.y, "GEM!", 0.6, 1, 1)
             GP:PlaySfx("gem.ogg")
@@ -1640,14 +1713,56 @@ function UI:HandleEvents(now)
     for i = #self.events, 1, -1 do self.events[i] = nil end
 end
 
+-- A loss is recorded when the player gives up on it (Retry, Map, End
+-- Level, or starting something else); Play On carries the level on first.
+function UI:SettlePendingFail()
+    if not self.pendingFail then return end
+    local result = self.pendingFail
+    self.pendingFail = nil
+    GP:RecordResult(result)
+    self:UpdateDisplay()
+end
+
+function UI:PlayOn()
+    local st = self.state
+    if not st or not self.pendingFail then return end
+    if not GP.Plays:CanPlay() then return end
+    if not E:PlayOn(st) then return end
+    GP.Plays:RecordFail()          -- the continue costs a play
+    self.pendingFail = nil
+    self:HideCard()
+    self:ShowBanner("|cff88ff88PLAY ON!|r", ("%d more balls"):format(E.PLAY_ON_BALLS), 2)
+    GP:PlaySfx("free_ball.ogg")
+    GP:PlayVoice("free_ball")
+    GP.Mascot:React("start")
+    self:UpdateDisplay()
+end
+
 function UI:OnLevelOver(result)
     local db = GP:GetDB()
     local prevBest = db.best[result.level] or 0
-    local stars, playsLeft = GP:RecordResult(result)
+    local stars, playsLeft
+    local canPlayOn = not result.cleared and not result.duel and not result.eggLost
+    if canPlayOn then
+        -- not recorded yet: the card offers Play On
+        self.pendingFail = result
+        stars, playsLeft = 0, GP.Plays:Remaining()
+    else
+        stars, playsLeft = GP:RecordResult(result)
+    end
     GP.Mascot:React(result.cleared and "cleared" or "failed")
     self.cardAt = GetTime() + 1.8
     self.cardResult, self.cardStars = result, stars
     if result.cleared then
+        -- the win sweep: whatever is left on the board sparkles away, one by one
+        local k = 0
+        for i, p in ipairs(self.state.pegs) do
+            local t = self.pegTex[i]
+            if t and not p.gone then
+                k = k + 1
+                t.sweepAt = GetTime() + 0.4 + k * 0.03
+            end
+        end
         local extra = result.score > prevBest and prevBest > 0 and "  |cff88ff88New best!|r" or ""
         self:ShowBanner("|cffffd700LEVEL CLEARED!|r",
             ("%d of 3 stars  -  Score %s  (bins %s)%s"):format(stars, fmtBig(result.score), fmtBig(result.feverTotal or 0), extra), 0)
@@ -1661,14 +1776,15 @@ function UI:OnLevelOver(result)
     else
         local goalWord = (E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic).goalWord
         local progress
-        if result.duel then progress = ("%s won the duel, %s to %s."):format(result.duel.name, fmtBig(result.duel.rival), fmtBig(result.duel.you))
+        if result.eggLost then progress = "An egg fell off the board."
+        elseif result.duel then progress = ("%s won the duel, %s to %s."):format(result.duel.name, fmtBig(result.duel.rival), fmtBig(result.duel.you))
         elseif result.objective == "boss" then progress = "The boss survived."
         else progress = ("%d of %d %s."):format(result.goals, result.goalTotal, goalWord) end
-        self:ShowBanner("|cffff6060OUT OF BALLS|r",
-            progress .. ("  Plays left today: %d."):format(playsLeft) .. (playsLeft > 0 and "  Restart to try again." or ""), 0)
+        self:ShowBanner(result.eggLost and "|cffff6060EGG LOST|r" or "|cffff6060OUT OF BALLS|r",
+            progress .. ("  Plays left today: %d."):format(playsLeft), 0)
         GP:PlaySfx("fail.ogg")
         GP:PlayVoice(playsLeft <= 0 and "out_of_plays" or (result.duel and "duel_lost" or "out_of_balls"))
-        if playsLeft <= 0 then
+        if playsLeft <= 0 and not self.pendingFail then
             self:ShowOutOfPlays(("You ran out of balls on level %d."):format(result.level))
         end
     end
@@ -1810,10 +1926,19 @@ function UI:Render(now)
     if self.barrel.SetRotation then self.barrel:SetRotation(a) end
 
     local pulse = 0.55 + 0.35 * math.sin(now * 9)
+    local intro = self.introAt and (now - self.introAt) or 99
     for i, p in ipairs(st.pegs) do
         local t = self.pegTex[i]
         if t then
-            if p.gone then
+            if t.sweepAt then
+                -- the win sweep
+                local a = 1 - (now - t.sweepAt) / 0.35
+                if a <= 0 then
+                    if t.shown ~= "gone" then t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); t.shown = "gone" end
+                elseif now >= t.sweepAt then
+                    t.disc:SetAlpha(a); t.rim:SetAlpha(a); t.ring:SetAlpha(a); t.ring:Show()
+                end
+            elseif p.gone then
                 local age = p.goneAt and (st.time - p.goneAt) or 1
                 local alpha = p.freed and 0 or (1 - age / 0.35)
                 if alpha <= 0 then
@@ -1898,6 +2023,17 @@ function UI:Render(now)
                     t.crack:Hide()
                 end
             end
+            -- the level intro: pieces fade in one after another
+            if intro < 1.8 and not p.gone then
+                local a = (intro - i * 0.012) / 0.2
+                if a < 0 then a = 0 elseif a > 1 then a = 1 end
+                t.disc:SetAlpha(a)
+                if t.rim:IsShown() then t.rim:SetAlpha(a) end
+                t.introDirty = true
+            elseif t.introDirty then
+                t.introDirty = nil
+                if not p.gone then t.disc:SetAlpha(1); t.rim:SetAlpha(1) end
+            end
             -- gimmick pieces move: follow them
             if p.moving and not p.gone then
                 placeAt(t.disc, field, p.x, p.y)
@@ -1945,7 +2081,19 @@ function UI:Render(now)
         local g = st.gems[i]
         if g then
             placeAt(tex, field, g.x, g.y)
-            if tex.SetRotation then tex:SetRotation(st.time * 3) end
+            if tex.bodyKind ~= g.kind then
+                tex.bodyKind = g.kind
+                if g.kind == "egg" then
+                    tex:SetTexture(TEX .. "egg")
+                    tex:SetSize(E.EGG_R * 2 + 2, E.EGG_R * 2 + 2)
+                    tex:SetVertexColor(COLORS.egg.base[1], COLORS.egg.base[2], COLORS.egg.base[3], 1)
+                else
+                    tex:SetTexture(TEX .. "gem")
+                    tex:SetSize(E.GEM_R * 2 + 4, E.GEM_R * 2 + 4)
+                    tex:SetVertexColor(COLORS.gem.base[1], COLORS.gem.base[2], COLORS.gem.base[3], 1)
+                end
+            end
+            if tex.SetRotation then tex:SetRotation(g.kind == "egg" and (g.vx * 0.01) or st.time * 3) end
             tex:Show()
         else
             tex:Hide()
@@ -2016,6 +2164,11 @@ function UI:UpdateCounters()
     self.comboText:SetText(st.combo .. " / " .. st.bestCombo)
     local nextFree = E.FREE_BALL_SCORES[st.freeBallIdx]
     self.freeBallText:SetText(nextFree and fmtBig(nextFree) or "-")
+    if self.freeBallBar then
+        local prev = E.FREE_BALL_SCORES[st.freeBallIdx - 1] or 0
+        self.freeBallBar:SetValue(nextFree and math.max(0, math.min(1, (st.score - prev) / (nextFree - prev))) or 1)
+        self.multBar:SetValue(math.max(0, math.min(1, E:Progress(st))))
+    end
     local status = ""
     if st.power == "guide" and st.superGuide > 0 then
         status = "Super Guide: " .. st.superGuide .. " shot" .. (st.superGuide == 1 and "" or "s") .. " left"

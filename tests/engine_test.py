@@ -189,6 +189,8 @@ for n in range(1, 1001):
     expected_kind = ev(f"L:Objective({n})")
     if spec.objective != expected_kind and not (expected_kind in ("eggs", "gems") and spec.objective == "classic"):
         problems.append((n, "objective", spec.objective, expected_kind))
+    if spec.objective == "eggs" and not any(p.nested for p in spec.pegs.values() if p.kind == "egg"):
+        problems.append((n, "no nested egg"))
     if spec.objective == "classic":
         coloured = counts["total"] - counts["block"] - counts["bumper"] - counts["key"]
         orange_expected = min(ev(f"L:Counts({n})"), coloured - max(2, coloured // 4))
@@ -200,6 +202,9 @@ for n in range(1, 1001):
     elif spec.objective == "gems":
         if counts["gem"] != spec.goal or counts["gem"] < 3 or counts["orange"] != 0:
             problems.append((n, "gems", counts["gem"], spec.goal))
+    elif spec.objective == "longshots":
+        if spec.goal < 2 or counts["orange"] < 8 or counts["goal"] != 0:
+            problems.append((n, "longshots", spec.goal, counts["orange"], counts["goal"]))
     elif spec.objective == "boss":
         bosses.add(spec.boss.id)
         if counts["boss"] != 1 or spec.goal != 1 or spec.gimmick or counts["orange"] != 0:
@@ -212,7 +217,7 @@ for n in range(1, 1001):
         no_bucket += 1
         if spec.objective == "gems" or n < 41:
             problems.append((n, "bucket removed on the wrong level"))
-    if counts["goal"] != spec.goal:
+    if counts["goal"] != spec.goal and spec.objective != "longshots":
         problems.append((n, "goal flags", counts["goal"], spec.goal))
     if counts["green"] != 2:
         problems.append((n, "greens", counts["green"]))
@@ -254,7 +259,7 @@ check("every power is assigned somewhere", len(powers) == 8, str(powers))
 pieces_by_level = {n: report(n)[1]["total"] for n in (1, 5, 11, 30, 61, 81)}
 check("the board fills in as the levels climb", pieces_by_level[1] < pieces_by_level[5] <= pieces_by_level[11] + 10 and pieces_by_level[11] < pieces_by_level[81], str(pieces_by_level))
 print(f"      pieces by level {pieces_by_level}")
-check("every objective appears, a boss or a duel on every tenth level", objectives.get("boss", 0) + objectives.get("duel", 0) == 100 and objectives.get("duel", 0) >= 40 and objectives.get("eggs", 0) > 100 and objectives.get("gems", 0) > 100, str(objectives))
+check("every objective appears, a boss or a duel on every tenth level", objectives.get("boss", 0) + objectives.get("duel", 0) == 100 and objectives.get("duel", 0) >= 40 and objectives.get("eggs", 0) > 100 and objectives.get("gems", 0) > 100 and objectives.get("longshots", 0) >= 90, str(objectives))
 check("every boss kind appears and the duels are the rival's", len(bosses) == 5 and duels == {"cogwhistle"}, f"{bosses} {duels}")
 check("some levels from chapter 5 have no bucket, never a gem level", no_bucket > 100, str(no_bucket))
 check("bricks are in play", bricks_total > 1000, str(bricks_total))
@@ -1203,6 +1208,101 @@ gate = ev("gate_probe")()
 check("the Key Gate gimmick appears from chapter 12 with its key and bar", gate is not None and gate[1] >= 1 and gate[2] >= 1, str(gate))
 chain = ev("chain_probe")()
 check("from level 300 a Key Cage can chain: a silver key for the cage round the gold key", chain is not None and chain[1] == 2 and chain[2] == 1, str(chain))
+
+# eggs: clear the nest and the egg falls; the bucket saves it, the floor loses the level
+lua(r"""
+function egg_fall_probe(saveIt)
+  local spec = L:Build(1)
+  spec.pegs = {
+    { shape = "peg", x = 245, y = 300, r = E.EGG_R, kind = "egg", goal = true, hp = 2, nested = true, special = true },
+    { shape = "peg", x = 225, y = 330, kind = "blue", nest = true }, { shape = "peg", x = 265, y = 330, kind = "blue", nest = true },
+    { shape = "peg", x = 100, y = 450, kind = "orange", goal = true },
+  }
+  spec.goal = 2
+  local st = E:NewLevel(spec)
+  st.bucket.x = saveIt and 245 or 60
+  st.bucket.dir = 0
+  local events = {}
+  -- light both nest pegs by hand and let them expire
+  for i = 2, 3 do st.pegs[i].lit = true; st.pegs[i].hitAt = st.time end
+  st.phase = E.PHASE.FLIGHT
+  st.balls[1] = { x = 400, y = 200, vx = 0, vy = 0, slow = 0 }
+  local fell, saved, lost = 0, 0, 0
+  for _ = 1, 400 do
+    st.balls[1] = st.balls[1] or { x = 400, y = 200, vx = 0, vy = 0, slow = 0 }
+    st.balls[1].y, st.balls[1].vy = 200, 0      -- park the ball out of the way
+    E:Step(st, 1 / 60, events)
+    fell = fell + count(events, "egg_fall")
+    saved = saved + count(events, "egg_saved")
+    lost = lost + count(events, "egg_lost")
+    wipe(events)
+    if st.phase == E.PHASE.OVER then break end
+  end
+  return fell, saved, lost, st.goalHit, st.phase, st.result and st.result.cleared, st.result and st.result.eggLost
+end
+""")
+fell, saved, lost, goal_hit, phase, cleared, egg_lost = ev("egg_fall_probe")(True)
+check("an egg whose nest is cleared falls, and the bucket saves and hatches it", fell == 1 and saved == 1 and goal_hit == 1 and lost == 0, f"fell {fell} saved {saved} goal {goal_hit}")
+fell, saved, lost, goal_hit, phase, cleared, egg_lost = ev("egg_fall_probe")(False)
+check("an egg off the board loses the level", fell == 1 and lost == 1 and phase == "OVER" and cleared == False and egg_lost == True, f"fell {fell} lost {lost} {phase} {cleared} {egg_lost}")
+
+# Play On: three more balls after running out, not after a lost egg
+lua(r"""
+function play_on_probe()
+  local spec = L:Build(1)
+  spec.pegs = { { shape = "peg", x = 60, y = 450, kind = "orange", goal = true } }
+  spec.goal = 1
+  local st = E:NewLevel(spec)
+  st.ballsLeft = 1
+  st.aim = 0
+  local events = {}
+  E:Launch(st, events)
+  for _ = 1, 400 do E:Step(st, 1 / 60, events) wipe(events) if st.phase == E.PHASE.OVER then break end end
+  local over = st.phase == E.PHASE.OVER and st.result and not st.result.cleared
+  local ok = E:PlayOn(st)
+  return over, ok, st.ballsLeft, st.phase
+end
+""")
+over, ok, balls, phase = ev("play_on_probe")()
+check("Play On after running out of balls gives three more and the level carries on", over and ok and balls == 3 and phase == "AIM", f"{over} {ok} {balls} {phase}")
+
+# a Long Shot level: two long shots finish it
+lua(r"""
+function longshot_level_probe()
+  local n
+  for k = 66, 200 do if L:Objective(k) == "longshots" then n = k break end end
+  local spec = L:Build(n)
+  local st = E:NewLevel(spec)
+  local events = {}
+  local oranges = {}
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" and p.shape == "peg" and p.maxhp == 1 then oranges[#oranges + 1] = p end end
+  table.sort(oranges, function(a, b) return a.x < b.x end)
+  local goals = 0
+  for shot = 1, st.goalTotal do
+    -- the two unlit oranges furthest apart
+    local a, b, best = nil, nil, 0
+    for i = 1, #oranges do for j = i + 1, #oranges do
+      local p, q = oranges[i], oranges[j]
+      if not p.lit and not q.lit and math.abs(p.x - q.x) > best then a, b, best = p, q, math.abs(p.x - q.x) end
+    end end
+    if not a or best < E.LONG_SHOT then return n, spec.goal, goals, "no pair " .. best end
+    st.phase = E.PHASE.FLIGHT
+    st.shotGoals = {}; st.shotStyles = {}
+    st.balls[1] = { x = a.x, y = a.y - 16, vx = 0, vy = 0, slow = 0 }
+    E:Step(st, 1 / 60, events)
+    st.balls[1] = { x = b.x, y = b.y - 16, vx = 0, vy = 0, slow = 0 }
+    E:Step(st, 1 / 60, events)
+    goals = goals + count(events, "longshot_goal")
+    wipe(events)
+    st.balls = {}
+    for _ = 1, 30 do E:Step(st, 1 / 60, events) wipe(events) end
+  end
+  return n, spec.goal, goals, st.phase
+end
+""")
+n, goal, goals, phase = ev("longshot_level_probe")()
+check(f"a Long Shot level (level {n}) is finished by its long shots", goal >= 2 and goals == goal and phase == "FEVER", f"goal {goal} got {goals} {phase}")
+check("the second retry draws a different picture", ev("L:Build(11, 2).layout") != ev("L:Build(11, 0).layout") and ev("L:Build(11, 1).layout") == ev("L:Build(11, 0).layout"))
 
 # the GNOME bonus: all five buckets lit pays 100,000 and the buckets become 25,000
 lua(r"""

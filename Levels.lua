@@ -840,6 +840,7 @@ function L:Objective(n)
     end
     if last == 5 and n >= 11 then return "eggs" end
     if last == 7 and n >= 31 then return "eggs" end
+    if last == 6 and n >= 66 then return "longshots" end
     if (last == 3 or last == 8) and n >= 21 then return "gems" end
     return "classic"
 end
@@ -881,6 +882,7 @@ function L:Title(n, objective, family, bossName, duelName)
     if objective == "boss" then return (bossName or "The Boss") .. " of " .. place end
     if objective == "duel" then return "A Duel with " .. (duelName or "the Rival") end
     if objective == "eggs" then return "Nests of " .. place end
+    if objective == "longshots" then return "Long Shots over " .. place end
     if objective == "gems" then return "Gems of " .. place end
     return (family or "Pegs") .. " of " .. place
 end
@@ -934,7 +936,8 @@ function L:ParFor(spec)
     if spec.objective == "eggs" then hard = hard + 0.1
     elseif spec.objective == "gems" then hard = hard + 0.2
     elseif spec.objective == "boss" then hard = hard + 0.15
-    elseif spec.objective == "duel" then hard = hard + 0.15 end
+    elseif spec.objective == "duel" then hard = hard + 0.15
+    elseif spec.objective == "longshots" then hard = hard + 0.15 end
     if spec.noBucket then hard = hard + 0.1 end
     hard = math.max(0, math.min(1, hard))
     local spare2 = self.STAR_SPARE[1] * (1 - 0.5 * hard)
@@ -1015,6 +1018,9 @@ function L:Build(n, attempt, opts)
     if opts.stage2 then
         family = FAMILIES[((n + chapter + 3 + attempt) % #FAMILIES) + 1]
         dens = math.min(dens, 0.6)
+    elseif attempt >= 2 and n > 10 then
+        -- the second retry and after: another picture altogether
+        family = FAMILIES[((n + chapter + attempt) % #FAMILIES) + 1]
     end
     local bossDef, bossHp
     if objective == "boss" then bossDef, bossHp = self:BossFor(n) end
@@ -1163,6 +1169,28 @@ function L:Build(n, attempt, opts)
                 end
             end
         end
+        -- an egg sits in a nest: two pegs under it hold it up, and when they
+        -- go the egg falls. An egg nothing could be put under is wedged in
+        -- place instead.
+        if kind == "egg" then
+            for _, p in ipairs(chosen) do
+                local held = 0
+                for _, q in ipairs(pegs) do
+                    if q ~= p and not q.special and math.abs(q.x - p.x) <= E.NEST_DX and q.y - p.y >= E.NEST_DY0 and q.y - p.y <= E.NEST_DY1 then held = held + 1 end
+                end
+                for _, off in ipairs({ -20, 20 }) do
+                    if held >= 2 then break end
+                    local q = { shape = "peg", x = p.x + off, y = p.y + 30, nest = true, mapped = true }
+                    local rp = E.PEG_R
+                    local ok = q.x - rp >= E.PEG_MARGIN - 6 and q.x + rp <= E.FIELD_W - E.PEG_MARGIN + 6 and q.y + rp <= E.PEG_BOTTOM
+                    if ok then
+                        for _, o in ipairs(pegs) do if surfaceDist(q, o) < -0.5 then ok = false break end end
+                    end
+                    if ok then pegs[#pegs + 1] = q; held = held + 1 end
+                end
+                p.nested = held > 0
+            end
+        end
         return #chosen
     end
 
@@ -1174,18 +1202,21 @@ function L:Build(n, attempt, opts)
     elseif objective == "boss" then
         for _, p in ipairs(pegs) do if p.kind == "boss" then goal = 1 end end
     end
-    if goal == 0 and objective ~= "classic" and objective ~= "duel" then objective = "classic" end
+    if goal == 0 and objective ~= "classic" and objective ~= "duel" and objective ~= "longshots" then objective = "classic" end
 
     -- colours go to everything but the solid and special pieces
     local order = {}
     for i, p in ipairs(pegs) do if not E.IsSolid(p) and not p.special then order[#order + 1] = i end end
     local orange = 0
-    if objective == "classic" or objective == "duel" then
+    if objective == "longshots" then
+        goal = 2 + floor(d * 2)
+    end
+    if objective == "classic" or objective == "duel" or objective == "longshots" then
         orange = opts.stage2 and E.DUEL_STAGE2_ORANGES or self:Counts(n)
         -- patterns keep at least a quarter of their pieces (and two) blue
         local floorBlue = math.max(2, floor(#order * 0.25))
         if orange > #order - floorBlue then orange = #order - floorBlue end
-        goal = orange
+        if objective ~= "longshots" then goal = orange end
     end
     for i = #order, 2, -1 do
         local j = rng(1, i)
@@ -1200,13 +1231,13 @@ function L:Build(n, attempt, opts)
     local given, coloured = 0, 0
     for _, idx in ipairs(order) do
         local p = pegs[idx]
-        if p.forceOrange and given < forced then p.kind = "orange"; p.goal = true; given = given + 1 end
+        if p.forceOrange and given < forced then p.kind = "orange"; p.goal = objective ~= "longshots"; given = given + 1 end
     end
     for _, idx in ipairs(order) do
         local p = pegs[idx]
         if not (p.forceOrange and p.kind == "orange") then
             coloured = coloured + 1
-            if coloured <= orange - given then p.kind = "orange"; p.goal = true
+            if coloured <= orange - given then p.kind = "orange"; p.goal = objective ~= "longshots"
             elseif coloured <= orange - given + greens then p.kind = "green"
             else p.kind = "blue" end
         end

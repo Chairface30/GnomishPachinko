@@ -17,6 +17,7 @@ local DEFAULTS = {
     best = {},             -- [level] = best score
     stars = {},            -- [level] = best stars (1-3)
     items = { ring = 2, rainbow = 0, green = 1 },   -- power-ups and boosts earned
+    tips = {},             -- first-encounter tips already shown
     lastPower = nil,       -- the power picked on the level card
     current = 1,           -- level the window opens on
     sound = true,

@@ -25,8 +25,9 @@ Point the launcher with the mouse and click the field to shoot. You have ten bal
 Every level is one of four kinds, marked by a coloured dot on the level select:
 
 - **Classic**: light every orange peg.
-- **Eggs** (levels ending 5 from chapter 2, and 7 from chapter 4): hatch every egg. Eggs take three hits and crack a little more each time.
-- **Gems** (levels ending 3 and 8 from chapter 3): knock every gem loose and catch it in the bucket. A gem that misses goes back to its nest for the next shot.
+- **Eggs** (levels ending 5 from chapter 2, and 7 from chapter 4): hatch every egg, two hits each. Eggs sit in nests: clear the pegs under one and it falls. Catch it in the bucket and it hatches with a bonus; let it fall off the board and the level is lost.
+- **Long Shots** (levels ending 6 from chapter 7): make two or three Long Shots, two orange pegs far apart in one shot.
+- **Gems** (levels ending 3 and 8 from chapter 3): knock every gem loose and drop it off the bottom; one in the bucket is a Bucket Drop bonus.
 - **Boss** (every tenth level in odd chapters): a big mechanical boss slides back and forth along the bottom, under the pegs, so the ball has to come down through the pattern or thread a gap to reach it. Hit it until its health is gone.
 - **Duel** (every tenth level in even chapters): clear the board, then Cogwhistle Overspark, Tinkmaster's older brother, challenges you on a fresh shared board: a coin flip, five balls each, turn and turn about, highest score wins. A shot that lights no orange costs a quarter of your duel score.
 - **No bucket** on some levels from chapter 5 (ending 4 and 9, never a gem level): the only free balls are the score marks. Five bosses take turns, each with a trick: the Tin Drake speeds up as it weakens, the Bolt Golem raises a two-hit shield every third shot, the Gyro Spider jumps when hit, the Mechano-Boar charges and turns around when hit, the Cog Yeti heals after any shot that misses it.
@@ -45,7 +46,7 @@ Every cleared level earns one to three stars by score. The marks come from the l
 
 ### Plays
 
-Losing a level (running out of balls) spends one of the day's plays. You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back, and five more plays for the day can be bought for 10g: mail the gold to Chairface Chippendale with "pachinko plays purchase" as the subject, or press **Buy plays** at a mailbox and the mail fills itself in. The count is kept in an encrypted record mirrored to several places outside the addon folder, so reinstalling the addon does not reset it, and an edited copy locks the day.
+Losing a level (running out of balls) spends one of the day's plays, and out of balls on an ordinary level you can Play On with three more balls for a play. You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back, and five more plays for the day can be bought for 10g: mail the gold to Chairface Chippendale with "pachinko plays purchase" as the subject, or press **Buy plays** at a mailbox and the mail fills itself in. The count is kept in an encrypted record mirrored to several places outside the addon folder, so reinstalling the addon does not reset it, and an edited copy locks the day.
 
 ## Tinkmaster Overspark
 
