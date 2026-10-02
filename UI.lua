@@ -347,18 +347,18 @@ function UI:CreateFrame()
     lastGlow:Hide()
     self.lastGlow = lastGlow
 
-    -- balls left: a strip of little balls along the top edge
+    -- balls left: a column of balls down the left column, off the board
     self.ballStrip = {}
     for i = 1, 10 do
-        local b = field:CreateTexture(nil, "OVERLAY", nil, 2)
-        b:SetSize(11, 11)
+        local b = frame:CreateTexture(nil, "OVERLAY", nil, 2)
+        b:SetSize(26, 26)
         ART:Set(b, "ball_small")
-        b:SetPoint("TOPLEFT", field, "TOPLEFT", 8 + (i - 1) * 13, -6)
+        b:SetPoint("TOP", frame, "TOPLEFT", EDGE + LEFT_W / 2, -(TOP_H + 4 + (i - 1) * 30))
         b:Hide()
         self.ballStrip[i] = b
     end
-    self.ballStripMore = field:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    self.ballStripMore:SetPoint("LEFT", self.ballStrip[10], "RIGHT", 3, 0)
+    self.ballStripMore = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.ballStripMore:SetPoint("TOP", self.ballStrip[10], "BOTTOM", 0, -4)
     self.ballStripMore:SetText("")
 
     -- the boss's health bar and name

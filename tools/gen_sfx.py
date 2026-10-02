@@ -54,7 +54,7 @@ EFFECTS = {
     "spooky":   ("A ghostly whoosh with a quick cartoon boo as a ball reappears, short.", 0.8, {}),
     # rewards
     "bucket":   ("An old mechanical cash register ka-ching: the key clacks, the drawer slams open with a loud brass bell ring, coins rattle in the tray, short.", 1.2, {"keep_tail": True}),
-    "rim":      ("A steel ball bouncing off the rim of a ceramic bowl, one short hollow ceramic clink, no reverb.", 0.4, {}),
+    "rim":      ("A steel ball striking the brass rim of a metal bucket, one short bright bell-like clang, metallic ring, no reverb.", 0.5, {"keep_tail": True}),
     "free_ball": ("A cheerful rising three-note chime, a bonus awarded, bright and short.", 0.9, {"keep_tail": True}),
     "combo":    ("A sparkling ascending arpeggio burst, a combo reward, bright and quick.", 1.0, {"keep_tail": True}),
     "bin":      ("A ball landing in a scoring slot with a satisfying bright ding, short.", 0.6, {"keep_tail": True}),
