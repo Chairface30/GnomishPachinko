@@ -1704,13 +1704,24 @@ function post_probe()
   local st = E:NewLevel(L:Build(1))
   local events = {}
   for _, p in ipairs(st.pegs) do if p.kind == "orange" then E.HitPeg(st, p, nil, events, true) end end
-  local posts, solid = 0, true
-  for _, p in ipairs(st.pegs) do if p.post then posts = posts + 1; if not E.IsSolid(p) then solid = false end end end
-  return st.phase, posts, solid
+  local dividers, caps, solid, floor = 0, 0, true, true
+  for _, p in ipairs(st.pegs) do
+    if p.post then
+      if p.divider then dividers = dividers + 1; if p.y + p.w / 2 < E.FIELD_H - 0.5 then floor = false end else caps = caps + 1 end
+      if not E.IsSolid(p) then solid = false end
+    end
+  end
+  -- a ball dropped straight onto a divider's line cannot pass it
+  local blocked = false
+  for _, p in ipairs(st.pegs) do
+    if p.divider and math.abs(p.x - E.FIELD_W / 5) < 1 and E.PegContact(p, E.FIELD_W / 5, E.FIELD_H - 10, E.BALL_R) then blocked = true end
+  end
+  return st.phase, dividers, caps, solid, floor, blocked
 end
 """)
-phase, posts, solid = ev("post_probe")()
-check("Fever stands four solid posts between the cups", phase == "FEVER" and posts == 4 and solid, f"{phase} {posts} {solid}")
+phase, dividers, caps, solid, floor, blocked = ev("post_probe")()
+check("Fever stands four solid floor-to-rim dividers with caps between the cups", phase == "FEVER" and dividers == 4 and caps == 4 and solid and floor and blocked,
+      f"{phase} {dividers} {caps} {solid} {floor} {blocked}")
 
 # ------------------------------------------------------------------ art slots
 # Every slot in Art.lua has its file in Textures/ at the size it says, and

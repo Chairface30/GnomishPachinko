@@ -87,7 +87,9 @@ def tool(*names):
 sheet("peg_blue", "peg_orange", "peg_green", "peg_purple",
       "peg_blue_lit", "peg_orange_lit", "peg_green_lit", "peg_purple_lit",
       "peg_blue_gone", "peg_orange_gone", "peg_green_gone",
-      "bucket", "bucket_splash1", "spark1", "spark2", "plate", "callout_fever")
+      "spark1", "spark2", "plate", "callout_fever")
+asset("bucket", "prop", "gnomish brass catching bucket on little wheels with gears and rivets, open top, front view, " + STYLE)
+asset("bucket_splash1", "effect", "burst of white sparks and little brass gear bits flying upward, catch effect, " + STYLE)
 # the sheet's button says START; the game writes its own labels, so the button is drawn blank
 asset("button_green", "prop", "wide rounded glossy green button with a dark green bevelled edge, blank, no text, four times as wide as tall, " + STYLE)
 pose("peg_purple_gone", "peg_purple", "the same purple orb broken into five separate flying glass shards with clear gaps between them and a few small sparks, mid-burst, nothing else")
@@ -123,8 +125,8 @@ derive("launcher_flash", "spark1", "copy")
 derive("bucket_splash2", "bucket_splash1", "spread", amount=1.25)
 derive("bucket_splash3", "bucket_splash1", "spread", amount=1.5)
 derive("bucket_splash4", "bucket_splash1", "spread", amount=1.75, fade=0.6)
-asset("fever_bucket", "prop", "wide shallow copper cup seen from the front, dark inside, four times as wide as tall, " + STYLE)
-derive("fever_bucket_lit", "fever_bucket", "gold")
+asset("fever_bucket", "prop", "wide gnomish brass hopper cup with rivets and a small gear at each end, open top, front view, four times as wide as tall, " + STYLE)
+derive("fever_bucket_lit", "fever_bucket", "bright")
 for pid, look in (("multiball", "two chrome balls"), ("guide", "a dotted aiming arc"), ("blast", "an orange starburst explosion"),
                   ("fireball", "a flaming orange ball"), ("spooky", "a pale green ghost"), ("pyramid", "a golden trapezoid ramp"),
                   ("lightning", "a blue lightning bolt"), ("frenzy", "a winged chrome ball with sparkles")):
@@ -142,7 +144,7 @@ for c in ("green", "orange", "grey"):
     derive("button_%s_down" % c, "button_%s" % c, "darken", amount=0.72)
 derive("gauge", "plate", "copy")
 derive("gauge_fill", "button_green", "rainbow")
-asset("fever_post", "prop", "small round brass post with a domed riveted top, seen from above, " + STYLE)
+asset("fever_post", "prop", "tall thin brass post with a domed riveted cap, vertical, three times as tall as wide, " + STYLE)
 asset("logo", "item", "one very wide horizontal game logo banner: the words GNOMISH PACHINKO in chunky glossy gold letters across a long copper plate with gears at both ends, wide aspect, " + STYLE)
 asset("portrait_frame", "prop", "round ornate copper frame ring with rivets, hollow empty centre, thick, " + STYLE)
 asset("banner", "prop", "long horizontal navy ribbon banner with gold edges and notched ends, eight times as wide as tall, " + STYLE)
@@ -366,8 +368,20 @@ def op_darken(img, amount=0.72):
     return ImageEnhance.Brightness(img).enhance(amount)
 
 
+def op_bright(img, amount=1.45):
+    """Lit: brighter and warmer, toward white-gold."""
+    out = ImageEnhance.Brightness(img).enhance(amount)
+    px = out.load()
+    for y in range(out.height):
+        for x in range(out.width):
+            r, g, b, a = px[x, y]
+            if a:
+                px[x, y] = (min(255, r + 30), min(255, g + 20), b, a)
+    return out
+
+
 OPS = {"copy": lambda i: i, "silver": op_silver, "gold": op_gold, "grey": op_grey, "hue": op_hue, "rainbow": op_rainbow,
-       "spread": op_spread, "darken": op_darken}
+       "spread": op_spread, "darken": op_darken, "bright": op_bright}
 
 
 # ---------------------------------------------------------------- the run

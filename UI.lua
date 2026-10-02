@@ -390,12 +390,15 @@ function UI:CreateFrame()
     splash:Hide()
     self.splashTex = splash
 
-    -- the posts between the Fever cups (the engine adds them as pieces)
+    -- the dividers between the Fever cups (the engine adds them as pieces):
+    -- a post from the floor to the rim with a dome on top
     self.postTex = {}
+    local postH = E.FEVER_POST_H + E.FEVER_POST_R + 2
     for i = 1, #E.FEVER_BINS - 1 do
         local t = field:CreateTexture(nil, "OVERLAY", nil, 2)
-        ART:SetPiece(t, "fever_post", E.FEVER_POST_R * 2 + 2)
-        t:SetPoint("CENTER", field, "TOPLEFT", i * FW / #E.FEVER_BINS, -E.FEVER_POST_Y)
+        ART:Set(t, "fever_post")
+        t:SetSize(E.FEVER_POST_W + 6, postH)
+        t:SetPoint("CENTER", field, "TOPLEFT", i * FW / #E.FEVER_BINS, -(FH - postH / 2))
         t:Hide()
         self.postTex[i] = t
     end
@@ -2005,7 +2008,7 @@ function UI:HandleEvents(now)
                 GP:PlaySfx("power_" .. ev.power .. ".ogg")
             end
         elseif t == "fever" then
-            self:ShowBanner("", "The goal is done - the rest of your balls go for the bins", 3)
+            self:ShowBanner("", "", 0)
             self:ShowCallout("callout_fever", 3)
             GP:PlaySfx("fever.ogg")
             self:StartFanfare(now)

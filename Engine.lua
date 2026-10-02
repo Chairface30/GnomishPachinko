@@ -648,9 +648,12 @@ applyPower = function(state, p, ball, events)
 end
 
 -- Fever: the goal is done, the bottom becomes the five cups, and four
--- little posts stand between them for the ball to bounce off.
-E.FEVER_POST_R = 7
-E.FEVER_POST_Y = H - 30
+-- dividers stand between them, floor to rim with a domed cap, so a ball
+-- either drops into a cup or bounces off a divider; nothing slips between.
+E.FEVER_POST_W = 12         -- a divider's thickness
+E.FEVER_POST_H = 32         -- its height off the floor (the cups' rim)
+E.FEVER_POST_R = 7          -- the dome on top
+E.FEVER_POST_Y = H - E.FEVER_POST_H
 local function startFever(state, events)
     state.phase = E.PHASE.FEVER
     state.lastSlow = false
@@ -658,7 +661,10 @@ local function startFever(state, events)
     state.feverNext = state.time + E.FEVER_FIRST_GAP
     local binW = W / #E.FEVER_BINS
     for i = 1, #E.FEVER_BINS - 1 do
-        state.pegs[#state.pegs + 1] = { shape = "peg", x = i * binW, y = E.FEVER_POST_Y, r = E.FEVER_POST_R,
+        local x = i * binW
+        state.pegs[#state.pegs + 1] = { shape = "brick", x = x, y = H - E.FEVER_POST_H / 2, angle = pi / 2,
+            w = E.FEVER_POST_H, h = E.FEVER_POST_W, kind = "block", post = true, divider = true, bounce = 0.8 }
+        state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = E.FEVER_POST_Y, r = E.FEVER_POST_R,
             kind = "block", post = true, bounce = 0.8 }
     end
     push(events, { type = "fever" })

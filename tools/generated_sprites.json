@@ -154,12 +154,16 @@
    "jobId": "cf_3dbabd24-02d8-4c46-9702-5658f4360b95"
   },
   "bucket": {
+   "assetId": "cmurf1bii0001smrmot8ltlnz",
+   "bgRemoved": true,
    "done": true,
-   "how": "sheet"
+   "how": "asset"
   },
   "bucket_splash1": {
+   "assetId": "cmurf1r01000fsmrm2nxkbtgf",
+   "bgRemoved": true,
    "done": true,
-   "how": "sheet"
+   "how": "asset"
   },
   "bucket_splash2": {
    "done": true,
@@ -247,7 +251,7 @@
    "jobId": "cf_7b0ec02b-e3a2-4808-83c4-65fc43a84290"
   },
   "fever_bucket": {
-   "assetId": "cmur5zl2s0001uu6ha010te1p",
+   "assetId": "cmurf28c000056easm13cgvl3",
    "bgRemoved": true,
    "done": true,
    "how": "asset"
@@ -257,7 +261,7 @@
    "how": "derive"
   },
   "fever_post": {
-   "assetId": "cmurd886u0001mvy964u2vf1a",
+   "assetId": "cmurf2o9b000as6p12tmqxxas",
    "bgRemoved": true,
    "done": true,
    "how": "asset"

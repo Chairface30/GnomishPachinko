@@ -916,7 +916,11 @@ def make_all(slots, only, from_base):
                 v = r / 255
                 px[x, y] = (int(255 * cr * v), int(255 * cg * v), int(255 * cb * v), a)
     put("gauge_fill", fillbar)
-    put("fever_post", tint_img(disc(64, 0.8, spec=0.4), COPPER_LIGHT))
+    post = Image.new("RGBA", (32 * SS, 96 * SS), (0, 0, 0, 0))
+    dp = ImageDraw.Draw(post)
+    dp.rectangle([8 * SS, 20 * SS, 24 * SS, 96 * SS], fill=rgb(COPPER))
+    dp.ellipse([4 * SS, 8 * SS, 28 * SS, 32 * SS], fill=rgb(COPPER_LIGHT))
+    put("fever_post", post)
     logo = ribbon(512, 128, NAVY, PARCHMENT)
     text_on(logo, "GNOMISH PACHINKO", 0.4, (255, 215, 80, 255))
     put("logo", logo)
