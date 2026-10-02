@@ -81,14 +81,24 @@ end
 
 -- The host's own framing (some models stand taller than others) unless the
 -- player has tuned it with /pachinko mascot z / scale.
+-- The client re-centres a model when it loads and when the camera is set,
+-- so the height is applied by moving the model's frame (z is a share of
+-- the frame's height, negative = lower), which nothing undoes; the scale
+-- and facing are applied after the camera, and again once the model loads.
 function M:Pose()
     local model, s = self.model, settings()
+    if not model then return end
     local h = (not s.custom) and self.hostPose or {}
+    local z = s.z or h.z or 0
+    if self.anchor then
+        model:ClearAllPoints()
+        model:SetPoint("CENTER", self.anchor, "CENTER", 0, z * model:GetHeight())
+    end
     pcall(function()
-        model:SetPosition(0, 0, s.z or h.z or -0.1)
+        if model.SetCamera then model:SetCamera(0) end
+        model:SetPosition(0, 0, 0)
         model:SetFacing(s.facing or 0.35)
         if model.SetModelScale then model:SetModelScale(s.scale or h.scale or 1) end
-        if model.SetCamera then model:SetCamera(0) end
     end)
 end
 
@@ -137,10 +147,14 @@ function M:Create(parent, anchor, w, h)
     if self.model or not parent then return end
     local model = CreateFrame("PlayerModel", "GnomishPachinkoMascot", parent)
     model:SetSize(w or self.SIZE.w, h or self.SIZE.h)
-    if w then model:SetPoint("CENTER", anchor or parent, "CENTER", 0, 0)
+    if w then
+        self.anchor = anchor or parent
+        model:SetPoint("CENTER", self.anchor, "CENTER", 0, 0)
     else model:SetPoint("TOPRIGHT", anchor or parent, "TOPRIGHT", -4, -4) end
     if model.SetFrameLevel and parent.GetFrameLevel then model:SetFrameLevel(parent:GetFrameLevel() + 3) end
     model:EnableMouse(false)
+    -- the client re-centres a model as it finishes loading: pose it again then
+    model:SetScript("OnModelLoaded", function() M:Pose() end)
     self.model = model
     self:Load()
     if settings().hide then model:Hide() end
@@ -227,15 +241,15 @@ function M:Command(args)
         GP:Print(("Mascot set to creature %d."):format(s.npc))
     elseif args:match("^scale%s+[%d%.]+") then
         s.scale = tonumber(args:match("[%d%.]+"))
-        self:Load()
+        self:Pose()
         GP:Print("Mascot scale " .. s.scale .. ".")
     elseif args:match("^face%s+[%-%d%.]+") then
         s.facing = tonumber(args:match("[%-%d%.]+"))
-        self:Load()
+        self:Pose()
         GP:Print("Mascot facing " .. s.facing .. ".")
     elseif args:match("^z%s+[%-%d%.]+") then
         s.z = tonumber(args:match("[%-%d%.]+"))
-        self:Load()
+        self:Pose()
         GP:Print("Mascot height " .. s.z .. ".")
     elseif args == "status" then
         GP:Print("Mascot tried: " .. table.concat(self.tried or {}, ", ") .. ". Showing: " .. tostring(self.loaded) .. ".")
