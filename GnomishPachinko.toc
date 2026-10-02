@@ -15,4 +15,3 @@ Plays.lua
 UI.lua
 Minimap.lua
 Mascot.lua
-Mascot.lua

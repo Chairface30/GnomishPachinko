@@ -26,7 +26,7 @@ Every level is one of four kinds, marked by a coloured dot on the level select:
 - **Eggs** (levels ending 5 from chapter 2, and 7 from chapter 4): hatch every egg. Eggs take three hits and crack a little more each time.
 - **Gems** (levels ending 3 and 8 from chapter 3): knock every gem loose and catch it in the bucket. A gem that misses goes back to its nest for the next shot.
 - **Boss** (every tenth level in odd chapters): a big mechanical boss slides back and forth along the bottom, under the pegs, so the ball has to come down through the pattern or thread a gap to reach it. Hit it until its health is gone.
-- **Duel** (every tenth level in even chapters): no target to hit. You light the oranges while the boss takes a turn after each of your shots: the Gear Rebuilder adds oranges, the Cog Shuffler moves them, the Sprocket Thief steals a ball after a shot that lights none.
+- **Duel** (every tenth level in even chapters): clear the board, then Cogwhistle Overspark, Tinkmaster's older brother, challenges you on a fresh shared board: a coin flip, five balls each, turn and turn about, highest score wins. A shot that lights no orange costs a quarter of your duel score.
 - **No bucket** on some levels from chapter 5 (ending 4 and 9, never a gem level): the only free balls are the score marks. Five bosses take turns, each with a trick: the Tin Drake speeds up as it weakens, the Bolt Golem raises a two-hit shield every third shot, the Gyro Spider jumps when hit, the Mechano-Boar charges and turns around when hit, the Cog Yeti heals after any shot that misses it.
 
 ### Powers

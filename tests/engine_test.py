@@ -205,8 +205,8 @@ for n in range(1, 1001):
             problems.append((n, "boss", counts["boss"], spec.gimmick))
     elif spec.objective == "duel":
         duels.add(spec.duel.id)
-        if counts["boss"] != 0 or spec.gimmick or counts["orange"] != spec.goal or spec.goal < 8 or spec.duel.turns < 3:
-            problems.append((n, "duel", counts["orange"], spec.goal, spec.duel.turns))
+        if counts["boss"] != 0 or spec.gimmick or counts["orange"] != spec.goal or spec.goal < 8 or spec.duel.stage != 1:
+            problems.append((n, "duel", counts["orange"], spec.goal))
     if spec.noBucket:
         no_bucket += 1
         if spec.objective == "gems" or n < 41:
@@ -254,7 +254,7 @@ pieces_by_level = {n: report(n)[1]["total"] for n in (1, 5, 11, 30, 61, 81)}
 check("the board fills in as the levels climb", pieces_by_level[1] < pieces_by_level[5] <= pieces_by_level[11] + 10 and pieces_by_level[11] < pieces_by_level[81], str(pieces_by_level))
 print(f"      pieces by level {pieces_by_level}")
 check("every objective appears, a boss or a duel on every tenth level", objectives.get("boss", 0) + objectives.get("duel", 0) == 100 and objectives.get("duel", 0) >= 40 and objectives.get("eggs", 0) > 100 and objectives.get("gems", 0) > 100, str(objectives))
-check("every boss kind and every duel kind appears", len(bosses) == 5 and len(duels) == 3, f"{bosses} {duels}")
+check("every boss kind appears and the duels are the rival's", len(bosses) == 5 and duels == {"cogwhistle"}, f"{bosses} {duels}")
 check("some levels from chapter 5 have no bucket, never a gem level", no_bucket > 100, str(no_bucket))
 check("bricks are in play", bricks_total > 1000, str(bricks_total))
 check("most levels from chapter 3 carry a gimmick", gimmick_levels > 450, str(gimmick_levels))
@@ -562,42 +562,75 @@ shields, shield, blocked, full = ev("boss_shield_probe")()
 check("the Bolt Golem raises a shield on the third shot that soaks a hit", shields == 1 and shield == 1 and blocked == 1 and full,
       f"shields {shields} left {shield} blocked {blocked} full {full}")
 
-# duels: a shot ends, the boss takes its turn
+# the duel: stage one clears into stage two, the coin flips, turns alternate, misses cost a quarter
 lua(r"""
-function duel_probe(id)
-  local spec
-  for n = 20, 1000, 20 do spec = L:Build(n) if spec.duel and spec.duel.id == id then break end end
+function duel_flow_probe()
+  local spec = L:Build(20)
   local st = E:NewLevel(spec)
-  local function orangeSet()
-    local s = {}
-    for _, p in ipairs(st.pegs) do if p.kind == "orange" and not p.lit then s[#s + 1] = p.x .. "," .. p.y end end
-    table.sort(s)
-    return table.concat(s, ";")
+  -- light every orange but one by hand, then the last through a touch
+  local last
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "orange" and p.maxhp == 1 then
+      if last then p.lit = true; p.gone = true; st.goalLeft = st.goalLeft - 1; st.goalHit = st.goalHit + 1 else last = p end
+    end
   end
-  local before = { total = st.goalTotal, balls = st.ballsLeft, set = orangeSet() }
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" and p.maxhp > 1 and p ~= last then p.lit = true; p.gone = true; st.goalLeft = st.goalLeft - 1; st.goalHit = st.goalHit + 1 end end
   local events = {}
-  st.aim = 0
-  assert(E:Launch(st, events))
-  -- a shot that touches nothing: drop the ball straight out at the side
-  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = 20, 560, 0, 300
-  local turn
+  touch(st, last, events)
+  local stageClear, fever = count(events, "stage_clear"), count(events, "fever")
+  wipe(events)
+  local score1 = st.score
+  -- stage two
+  local spec2 = L:Build(20, 50, { stage2 = true })
+  local st2 = E:StartDuel(st, spec2)
+  local info = { stageClear = stageClear, fever = fever, carried = st2.score == score1, coin = st2.duel.turn,
+                 balls = st2.ballsLeft, oranges2 = spec2.goal, stage2 = spec2.duel.stage }
+  -- the rival's aim points somewhere sensible
+  local aim = E:RivalAim(st2)
+  info.aimOk = type(aim) == "number" and math.abs(aim) <= E.MAX_AIM_DEG * math.pi / 180
+  -- a shot by whoever is up that hits nothing: a penalty for them, then the other side's turn
+  local d = st2.duel
+  d.scores[d.turn] = 10000
+  if d.turn == "you" then st2.score = st2.score + 10000 end
+  local shooter = d.turn
+  st2.aim = 0
+  assert(E:Launch(st2, events))
+  st2.balls[1].x, st2.balls[1].y, st2.balls[1].vx, st2.balls[1].vy = 20, 560, 0, 300
+  local turnEv, penalty
   for _ = 1, 120 do
-    E:Step(st, 1 / 60, events)
-    for _, e in ipairs(events) do if e.type == "boss_turn" then turn = e end end
+    E:Step(st2, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "duel_turn" then turnEv = e elseif e.type == "duel_penalty" then penalty = e end end
     wipe(events)
-    if st.phase == E.PHASE.AIM then break end
+    if st2.phase == E.PHASE.AIM and turnEv then break end
   end
-  return spec.level, turn and turn.id, turn and turn.turnsLeft, st.duel.turns, st.goalTotal - before.total,
-         before.balls - 1 - st.ballsLeft, orangeSet() ~= before.set
+  info.penalty = penalty and penalty.lost
+  info.penaltySide = penalty and penalty.side
+  info.scoreAfter = d.scores[shooter]
+  info.turnAfter = turnEv and turnEv.turn
+  info.shooter = shooter
+  info.ballsAfter = d.balls[shooter]
+  -- play the rest out with misses: the duel ends when both are out of balls, decided on score
+  local guard = 0
+  while st2.phase ~= E.PHASE.OVER and guard < 20 do
+    guard = guard + 1
+    if st2.phase == E.PHASE.AIM then
+      assert(E:Launch(st2, events))
+      st2.balls[1].x, st2.balls[1].y, st2.balls[1].vx, st2.balls[1].vy = 20, 560, 0, 300
+    end
+    for _ = 1, 120 do E:Step(st2, 1 / 60, events) wipe(events) if st2.phase ~= E.PHASE.FLIGHT then break end end
+  end
+  info.over = st2.phase == E.PHASE.OVER
+  info.result = st2.result and st2.result.duel and (st2.result.cleared and "you" or "rival")
+  info.expected = (d.scores.you > d.scores.rival) and "you" or "rival"
+  return info
 end
 """)
-duel_probe = ev("duel_probe")
-n, tid, left, turns, added, stolen, moved = duel_probe("rebuilder")
-check(f"the Gear Rebuilder adds two oranges after a shot (level {n})", tid == "rebuilder" and added == 2 and left == turns, f"{tid} added {added} left {left}")
-n, tid, left, turns, added, stolen, moved = duel_probe("shuffler")
-check(f"the Cog Shuffler moves the oranges after a shot (level {n})", tid == "shuffler" and moved and added == 0, f"{tid} moved {moved}")
-n, tid, left, turns, added, stolen, moved = duel_probe("thief")
-check(f"the Sprocket Thief steals a ball after a shot that lit nothing (level {n})", tid == "thief" and stolen == 1, f"{tid} stolen {stolen}")
+info = ev("duel_flow_probe")()
+check("clearing stage one of a duel starts the duel instead of Fever, carrying the score", info.stageClear == 1 and info.fever == 0 and info.carried, str(dict(info)))
+check("stage two is a ten-orange board, five balls each, with a coin flip", info.oranges2 == 10 and info.balls == 5 and info.stage2 == 2 and info.coin in ("you", "rival"), str(dict(info)))
+check("the rival picks an aim within the launcher's arc", info.aimOk)
+check("a shot that lights no orange costs its shooter a quarter and the turn passes", info.penalty == 2500 and info.penaltySide == info.shooter and info.scoreAfter == 7500 and info.turnAfter is not None and info.turnAfter != info.shooter and info.ballsAfter == 4, str(dict(info)))
+check("the duel ends when both are out of balls and the higher duel score wins", info.over and info.result == info.expected, str(dict(info)))
 
 # no bucket: a ball dropped where the bucket sits falls straight out
 lua(r"""
@@ -637,8 +670,16 @@ function play_level(n, aimMode, forcePower)
                  pyramid = 0, zaps = 0, zapLinks = 0 }
   local events = {}
   local shots = 0
-  while st.phase ~= E.PHASE.OVER and info.steps < 400000 do
-    if st.phase == E.PHASE.AIM then
+  while (st.phase ~= E.PHASE.OVER or (st.stageClear and not st.result)) and info.steps < 400000 do
+    if st.phase == E.PHASE.OVER and st.stageClear and not st.result then
+      -- a duel's stage one is clear: on to the shared board
+      st = E:StartDuel(st, L:Build(n, 50, { stage2 = true }))
+      info.duel = true
+    end
+    if st.phase == E.PHASE.AIM and st.duel and st.duel.stage == 2 and st.duel.turn == "rival" then
+      st.aim = E:RivalAim(st)
+      assert(E:Launch(st, events))
+    elseif st.phase == E.PHASE.AIM then
       shots = shots + 1
       if st.superGuide > 0 then info.superGuideSeen = true end
       if aimMode == "sweep" then
@@ -708,19 +749,19 @@ for n in list(range(1, 61)) + list(range(480, 500)) + list(range(981, 1001)):
         cleared += 1
         cleared_by_kind[kind] = cleared_by_kind.get(kind, 0) + 1
         scores.append((n, r.score, ev(f"L:StarsFor({n}, {r.score}, true)")))
-        if info.fever != 0:
+        if info.fever != 0 and not info.duel:
             problems.append((n, "fever timing", info.fever))
-        if r.ballsLeft != 0 or info.bins < 1:
+        if (r.ballsLeft != 0 or info.bins < 1) and not info.duel:
             problems.append((n, "leftover balls not fired", r.ballsLeft, info.bins))
-        if r.feverTotal < 1000 * info.bins:
+        if r.feverTotal < 1000 * info.bins and not info.duel:
             problems.append((n, "bins not scored", r.feverTotal, info.bins))
         if r.score > max_cleared_score:
             max_cleared_score = r.score
-        if r.binScore not in (1000, 10000, 25000):
+        if r.binScore not in (1000, 10000, 25000) and not info.duel:
             problems.append((n, "bin", r.binScore))
     elif info.fever is not None:
         problems.append((n, "fever without clear"))
-    if r.goals + st.goalLeft != st.goalTotal:
+    if r.goals + st.goalLeft != st.goalTotal and not info.duel:
         problems.append((n, "goal bookkeeping"))
     buckets += info.buckets
     stuck += info.stuck
@@ -1408,7 +1449,7 @@ function ui_run_level(n)
   return ok, st.objective, st.phase
 end
 """)
-for n in (15, 23, 10, 40):
+for n in (15, 23, 10, 20):
     ok, obj, phase = ev("ui_run_level")(n)
     check(f"the window runs level {n} ({obj}) without errors", ok and phase in ("AIM", "FLIGHT", "FEVER", "OVER"), f"{ok} {phase}")
 

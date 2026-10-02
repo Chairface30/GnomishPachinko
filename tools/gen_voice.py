@@ -58,6 +58,8 @@ LINES = {
     "duel_start":      "[sly] A duel! Make every shot count.",
     "boss_turn":       "[mechanical, taunting] My move!",
     "ball_stolen":     "[gloating] Ha! That one's mine now.",
+    "duel_won":        "[triumphant, laughing] You beat my brother! Cogwhistle will never live it down!",
+    "duel_lost":       "[sighing] Cogwhistle wins this one. Again, when you're ready.",
     "free_ball":       "[cheerful] Free ball!",
     "fever":           "[shouting, thrilled] Fever!",
     "level_cleared":   "[triumphant] Level cleared!",

@@ -829,7 +829,7 @@ function L:Title(n, objective, family, bossName, duelName)
     if n <= 10 then return STARTER_NAMES[n] or ("Level " .. n) end
     local place = self:ChapterName(floor((n - 1) / self.PER_CHAPTER) + 1)
     if objective == "boss" then return (bossName or "The Boss") .. " of " .. place end
-    if objective == "duel" then return (duelName or "The Duel") .. "'s Game" end
+    if objective == "duel" then return "A Duel with " .. (duelName or "the Rival") end
     if objective == "eggs" then return "Nests of " .. place end
     if objective == "gems" then return "Gems of " .. place end
     return (family or "Pegs") .. " of " .. place
@@ -844,16 +844,9 @@ function L:NoBucket(n)
     return self:Objective(n) ~= "gems"
 end
 
--- The duel boss for an even chapter's tenth level: kind by chapter, turns
--- climbing with it.
+-- The duel on an even chapter's tenth level: always the rival.
 function L:DuelFor(n)
-    local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
-    local def = E.DUELS[((floor(chapter / 2) - 1) % #E.DUELS) + 1]
-    local turns
-    if def.id == "rebuilder" then turns = 3 + floor(chapter / 20)
-    elseif def.id == "shuffler" then turns = 4 + floor(chapter / 12)
-    else turns = 3 + floor(chapter / 15) end
-    return def, turns
+    return E.RIVAL, E.DUEL_BALLS
 end
 
 -- The boss for a level: kind by chapter, health climbing from 5 to 21.
@@ -958,15 +951,21 @@ L.SurfaceDist = surfaceDist
 
 -- attempt (0, 1, 2...) reshuffles which pieces are orange, egg or gem on a
 -- retry; the picture itself never changes.
-function L:Build(n, attempt)
+-- opts.stage2: the duel's second board, sparser and with fewer oranges.
+function L:Build(n, attempt, opts)
     n = math.max(1, math.min(self.COUNT, floor(n)))
     attempt = attempt or 0
+    opts = opts or {}
     local seed = self:Seed(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local d = self:Difficulty(n)
     local objective = self:Objective(n)
     local family = (n <= 10) and STARTERS[n] or FAMILIES[((n + chapter) % #FAMILIES) + 1]
     local dens = self:Density(n)
+    if opts.stage2 then
+        family = FAMILIES[((n + chapter + 3 + attempt) % #FAMILIES) + 1]
+        dens = math.min(dens, 0.6)
+    end
     local bossDef, bossHp
     if objective == "boss" then bossDef, bossHp = self:BossFor(n) end
     local duelDef, duelTurns
@@ -1113,7 +1112,7 @@ function L:Build(n, attempt)
     for i, p in ipairs(pegs) do if not E.IsSolid(p) and not p.special then order[#order + 1] = i end end
     local orange = 0
     if objective == "classic" or objective == "duel" then
-        orange = self:Counts(n)
+        orange = opts.stage2 and E.DUEL_STAGE2_ORANGES or self:Counts(n)
         -- patterns keep at least a quarter of their pieces (and two) blue
         local floorBlue = math.max(2, floor(#order * 0.25))
         if orange > #order - floorBlue then orange = #order - floorBlue end
@@ -1181,7 +1180,7 @@ function L:Build(n, attempt)
         orange = orange,
         tough = tough,
         boss = (objective == "boss") and { id = bossDef.id, name = bossDef.name, blurb = bossDef.blurb, hp = bossHp } or nil,
-        duel = (objective == "duel") and { id = duelDef.id, name = duelDef.name, blurb = duelDef.blurb, turns = duelTurns } or nil,
+        duel = (objective == "duel") and { id = duelDef.id, name = duelDef.name, blurb = duelDef.blurb, stage = opts.stage2 and 2 or 1 } or nil,
         noBucket = self:NoBucket(n),
         balls = E.BALLS,
         power = self:PowerFor(chapter),

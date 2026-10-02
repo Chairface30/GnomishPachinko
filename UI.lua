@@ -99,18 +99,15 @@ function UI:ObjectiveText(st)
     if o == "gems" then return ("Catch all %d gems in the bucket"):format(st.goalTotal) end
     local text
     if o == "boss" and st.boss then text = ("Beat the %s (%d health)"):format(st.boss.bossName or "boss", st.boss.maxhp)
-    elseif o == "duel" and st.duel then text = ("Light all %d orange pegs. %s takes a turn after each of your shots (%d turns)"):format(st.goalTotal, st.duel.name, st.duel.turnsTotal)
+    elseif o == "duel" and st.duel and st.duel.stage == 2 then text = ("Duel with %s: five balls each, turn and turn about, highest score wins. A shot that lights no orange costs a quarter of your score"):format(st.duel.name)
+    elseif o == "duel" and st.duel then text = ("Stage 1: light all %d orange pegs. Then a duel with %s"):format(st.goalTotal, st.duel.name)
     else text = ("Light all %d orange pegs"):format(st.goalTotal) end
     if st.noBucket then text = text .. ". No bucket on this level" end
     return text
 end
 
 local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to catch", boss = "Boss health", duel = "Orange pegs left" }
-local DUEL_TURN_TEXT = {
-    rebuilder = function(ev) return ev.added > 0 and ("adds %d orange pegs"):format(ev.added) or "has nothing left to add" end,
-    shuffler = function(ev) return ("shuffles the orange pegs (%d moved)"):format(ev.moved or 0) end,
-    thief = function(ev) return ev.stole and "steals a ball!" or "finds nothing to steal" end,
-}
+
 
 function UI:Initialize()
     if self.frame then return end
@@ -299,6 +296,18 @@ function UI:CreateFrame()
     sub:SetPoint("TOP", banner, "BOTTOM", 0, -6)
     sub:SetWidth(FW - 60)
     self.bannerSub = sub
+    -- the duel's two score boxes
+    self.duelYou = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.duelYou:SetPoint("TOPLEFT", field, "TOPLEFT", 10, -8)
+    self.duelYou:SetJustifyH("LEFT")
+    self.duelYou:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
+    self.duelYou:Hide()
+    self.duelRival = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.duelRival:SetPoint("TOPRIGHT", field, "TOPRIGHT", -124, -8)
+    self.duelRival:SetJustifyH("RIGHT")
+    self.duelRival:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
+    self.duelRival:Hide()
+
     local shot = field:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     shot:SetPoint("BOTTOM", field, "BOTTOM", 0, 40)
     shot:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
@@ -529,11 +538,16 @@ function UI:ShowResultCard(result, stars)
     local st = self.state
     local card = self.card
     local cleared = result.cleared
-    card.title:SetText(cleared and "|cffffd700LEVEL CLEARED!|r" or "|cffff6060OUT OF BALLS|r")
+    if result.duel then
+        card.title:SetText(cleared and "|cffffd700YOU WON!|r" or ("|cffff6060" .. result.duel.name:upper() .. " WON|r"))
+    else
+        card.title:SetText(cleared and "|cffffd700LEVEL CLEARED!|r" or "|cffff6060OUT OF BALLS|r")
+    end
     setStars(card.stars, cleared and stars or 0)
     local def = E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic
     local goalLine
-    if result.objective == "boss" then goalLine = cleared and "Boss beaten" or "The boss survived"
+    if result.duel then goalLine = ("YOU %s  -  %s %s"):format(fmtBig(result.duel.you), result.duel.name, fmtBig(result.duel.rival))
+    elseif result.objective == "boss" then goalLine = cleared and "Boss beaten" or "The boss survived"
     else goalLine = ("%d of %d %s"):format(result.goals, result.goalTotal, def.goalWord) end
     card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(result.score)))
     card.line2:SetText((cleared and "|cff66ff66done|r  " or "|cffff6060missed|r  ") .. goalLine)
@@ -657,8 +671,8 @@ function UI:CreateLevelSelect()
                 local bossDef = L:BossFor(self.level)
                 GameTooltip:AddLine("Boss: " .. bossDef.name .. " - " .. bossDef.blurb, 1, 0.5, 0.5, true)
             elseif kind == "duel" then
-                local duelDef, turns = L:DuelFor(self.level)
-                GameTooltip:AddLine(("Duel: %s (%d turns) - %s"):format(duelDef.name, turns, duelDef.blurb), 1, 0.5, 0.5, true)
+                local duelDef = L:DuelFor(self.level)
+                GameTooltip:AddLine(("Duel with %s - %s"):format(duelDef.name, duelDef.blurb), 1, 0.5, 0.5, true)
             else
                 GameTooltip:AddLine(def.name .. " level: " .. def.text, 0.9, 0.9, 1, true)
             end
@@ -905,6 +919,8 @@ function UI:StartLevel(n, retry)
     self.state = E:NewLevel(spec)
     if self.card then self:HideCard() end
     if self.shotText then self.shotText:SetText("") end
+    self.duelStartAt, self.duelTurnAt, self.rivalShotAt = nil, nil, nil
+    if self.duelYou then self:UpdateDuelHud() end
     GP:GetDB().current = n
     self.guideAim = nil
     self:LayoutPegs()
@@ -941,6 +957,7 @@ end
 function UI:OnFieldClick()
     local st = self.state
     if not st then return end
+    if st.duel and st.duel.stage == 2 and st.duel.turn == "rival" then return end
     if not E:CanLaunch(st) then return end
     self:AimAtCursor()
     if E:Launch(st, self.events) then
@@ -949,6 +966,61 @@ function UI:OnFieldClick()
         GP.Mascot:React("launch")
         self:UpdateDisplay()
     end
+end
+
+-- ---------------------------------------------------------------------
+-- The duel
+
+function UI:UpdateDuelHud()
+    local st = self.state
+    if not (st and st.duel and st.duel.stage == 2) then
+        self.duelYou:Hide()
+        self.duelRival:Hide()
+        return
+    end
+    local d = st.duel
+    local yb = (d.turn == "you") and st.ballsLeft or d.balls.you
+    local rb = (d.turn == "rival") and st.ballsLeft or d.balls.rival
+    local function balls(n) return string.rep("o", math.max(0, n)) end
+    self.duelYou:SetText(("%sYOU  %s  %s|r"):format(d.turn == "you" and "|cff88ff88" or "|cffcccccc", fmtBig(d.scores.you), balls(yb)))
+    self.duelRival:SetText(("%s%s  %s  %s|r"):format(d.turn == "rival" and "|cffff8080" or "|cffcccccc", d.name:upper(), fmtBig(d.scores.rival), balls(rb)))
+    self.duelYou:Show()
+    self.duelRival:Show()
+end
+
+function UI:OnDuelTurn(turn, now)
+    local st = self.state
+    if turn == "rival" then
+        self:ShowBanner(("|cffff8080%s'S TURN|r"):format(st.duel.name:upper()), "", 1.6)
+        GP:PlaySfx("boss_turn.ogg")
+        GP:PlayVoice("boss_turn")
+        GP.Mascot:React("boss_turn")
+        st.aim = E:RivalAim(st)
+        self.guideDirty = true
+        self.rivalShotAt = now + E.RIVAL_THINK
+    else
+        self:ShowBanner("|cff88ff88YOUR TURN|r", "", 1.4)
+        self.rivalShotAt = nil
+    end
+    self:UpdateDuelHud()
+end
+
+-- Stage one is clear: build the shared board and flip the coin.
+function UI:BeginDuel(now)
+    local st = self.state
+    local spec2 = L:Build(st.level, (self.attempts and self.attempts[st.level] or 0) * 7 + 50, { stage2 = true })
+    self.state = E:StartDuel(st, spec2)
+    st = self.state
+    self:LayoutPegs()
+    self.bucket:Show()
+    for _, bin in ipairs(self.bins) do bin:Hide() end
+    self:HideGuide()
+    self.zoomScale = 1
+    self:ShowBanner("|cffffd700COIN FLIP|r", (st.duel.turn == "you") and "You shoot first" or (st.duel.name .. " shoots first"), 2)
+    GP:PlaySfx("free_ball.ogg")
+    self:UpdateDuelHud()
+    self:UpdateDisplay()
+    self.duelTurnAt = now + 2.1
 end
 
 -- ---------------------------------------------------------------------
@@ -1061,7 +1133,10 @@ function UI:DrawGuide()
         local p = pts[i]
         if p then
             placeAt(d, self.field, p.x, p.y)
-            if super then
+            if st.duel and st.duel.stage == 2 and st.duel.turn == "rival" then
+                d:SetVertexColor(1, 0.5, 0.5, 1)
+                d:SetAlpha(0.9 - 0.5 * (i / math.max(1, #pts)))
+            elseif super then
                 d:SetVertexColor(0.6, 1, 0.6, 1)
                 d:SetAlpha(0.9 - 0.5 * (i / #pts))
             else
@@ -1086,13 +1161,21 @@ function UI:CursorField()
     return cx / scale - left, top - cy / scale
 end
 
-function UI:AimAtCursor()
+-- The launcher swings toward the cursor rather than snapping (dt nil = snap).
+function UI:AimAtCursor(dt)
     local st = self.state
     if not st then return end
+    if st.duel and st.duel.stage == 2 and st.duel.turn == "rival" then return end
     local fx, fy = self:CursorField()
     if not fx then return end
     if fx < -120 or fx > E.FIELD_W + 120 or fy < -60 or fy > E.FIELD_H + 120 then return end
-    E:Aim(st, fx, fy)
+    local target = E:AimAngle(fx, fy)
+    if not target then return end
+    if not dt then st.aim = target return end
+    local diff = target - (st.aim or 0)
+    local step = E.AIM_SWING * dt
+    if diff > step then diff = step elseif diff < -step then diff = -step end
+    st.aim = (st.aim or 0) + diff
 end
 
 function UI:ShowBanner(text, subText, secs)
@@ -1243,13 +1326,21 @@ function UI:HandleEvents(now)
         elseif t == "boss_down" then
             GP:PlaySfx("boss_down.ogg")
             GP:PlayVoice("boss_down")
-        elseif t == "boss_turn" then
-            local what = DUEL_TURN_TEXT[ev.id] and DUEL_TURN_TEXT[ev.id](ev) or "takes a turn"
-            self:ShowBanner(("|cffff6060%s|r"):format(ev.name:upper() .. "'S TURN"),
-                ev.name .. " " .. what .. (ev.turnsLeft > 0 and ("  (%d turns left)"):format(ev.turnsLeft) or "  (its last turn)"), 2.5)
-            GP:PlaySfx("boss_turn.ogg")
-            GP:PlayVoice(ev.stole and "ball_stolen" or "boss_turn")
-            self:LayoutPegs()
+        elseif t == "stage_clear" then
+            self:ShowBanner("|cffffd700BOARD CLEARED!|r", (st.duel and st.duel.name or "The rival") .. " refuses to accept it. A duel!", 2.5)
+            GP:PlaySfx("clear.ogg")
+            GP:PlayVoice("duel_start")
+            self.duelStartAt = now + 2.6
+        elseif t == "duel_turn" then
+            self:OnDuelTurn(ev.turn, now)
+        elseif t == "duel_penalty" then
+            if ev.side == "you" then
+                self:ShowBanner("|cffff6060MISS PENALTY|r", ("No orange lit: -%s"):format(fmtBig(ev.lost)), 1.8)
+                GP:PlaySfx("lost.ogg")
+            else
+                self:ShowBanner("|cff88ff88HE MISSED!|r", ("%s loses %s"):format(st.duel.name, fmtBig(ev.lost)), 1.8)
+            end
+            self:UpdateDuelHud()
         elseif t == "gem_free" then
             GP:PlaySfx("gem_free.ogg")
         elseif t == "gem_caught" then
@@ -1372,7 +1463,7 @@ function UI:HandleEvents(now)
             elseif st.ballsLeft > 0 and not self.bannerUntil then self:ShowBanner("", "", 0) end
         elseif t == "level_over" then
             self:StopFanfare()
-            self:OnLevelOver(ev.result)
+            if not (st.stageClear and not st.result) then self:OnLevelOver(ev.result) end
         end
     end
     for i = #self.events, 1, -1 do self.events[i] = nil end
@@ -1392,19 +1483,20 @@ function UI:OnLevelOver(result)
         setStars(self.bannerStars, stars)
         for _, s in ipairs(self.bannerStars) do s:Show() end
         GP:PlaySfx("clear.ogg")
-        GP:PlayVoice(stars >= 3 and "three_stars" or "level_cleared")
+        GP:PlayVoice(result.duel and "duel_won" or (stars >= 3 and "three_stars" or "level_cleared"))
         if result.level == L.COUNT then
             self:ShowBanner("|cffffd700ALL 1000 LEVELS CLEARED!|r", "Score " .. fmtBig(result.score) .. ". You conquered Azeroth.", 0)
         end
     else
         local goalWord = (E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic).goalWord
         local progress
-        if result.objective == "boss" then progress = "The boss survived."
+        if result.duel then progress = ("%s won the duel, %s to %s."):format(result.duel.name, fmtBig(result.duel.rival), fmtBig(result.duel.you))
+        elseif result.objective == "boss" then progress = "The boss survived."
         else progress = ("%d of %d %s."):format(result.goals, result.goalTotal, goalWord) end
         self:ShowBanner("|cffff6060OUT OF BALLS|r",
             progress .. ("  Plays left today: %d."):format(playsLeft) .. (playsLeft > 0 and "  Restart to try again." or ""), 0)
         GP:PlaySfx("fail.ogg")
-        GP:PlayVoice(playsLeft <= 0 and "out_of_plays" or "out_of_balls")
+        GP:PlayVoice(playsLeft <= 0 and "out_of_plays" or (result.duel and "duel_lost" or "out_of_balls"))
         if playsLeft <= 0 then
             self:ShowOutOfPlays(("You ran out of balls on level %d."):format(result.level))
         end
@@ -1429,6 +1521,14 @@ function UI:OnUpdate(dt)
         end
     end
     GP.Mascot:Tick(now)
+    if self.duelStartAt and now >= self.duelStartAt then
+        self.duelStartAt = nil
+        self:BeginDuel(now)
+    end
+    if self.duelTurnAt and now >= self.duelTurnAt then
+        self.duelTurnAt = nil
+        if self.state and self.state.duel then self:OnDuelTurn(self.state.duel.turn, now) end
+    end
     if self.shotTextUntil and now >= self.shotTextUntil then
         self.shotTextUntil = nil
         self.shotText:SetText("")
@@ -1444,7 +1544,15 @@ function UI:OnUpdate(dt)
     if self.levelPanel and self.levelPanel:IsShown() then return end
 
     if st.phase == E.PHASE.AIM then
-        self:AimAtCursor()
+        self:AimAtCursor(dt)
+        -- the rival fires once his aim has been on show for a moment
+        if st.duel and st.duel.stage == 2 and st.duel.turn == "rival" and self.rivalShotAt and now >= self.rivalShotAt then
+            self.rivalShotAt = nil
+            if E:Launch(st, self.events) then
+                self:HideGuide()
+                GP:PlaySfx("launch.ogg")
+            end
+        end
         if self.guideAim ~= st.aim or self.guideDirty then
             self.guideAim = st.aim
             self.guideDirty = nil
@@ -1725,9 +1833,10 @@ function UI:UpdateCounters()
     else
         self.goalText:SetText(st.goalLeft .. " / " .. st.goalTotal)
     end
-    if st.duel then
-        self.objectiveText:SetText(self:ObjectiveText(st) .. ("\n%d turns left"):format(st.duel.turns))
+    if st.duel and st.duel.stage == 2 then
+        self.objectiveText:SetText(("Duel: YOU %s  -  %s %s"):format(fmtBig(st.duel.scores.you), st.duel.name, fmtBig(st.duel.scores.rival)))
     end
+    self:UpdateDuelHud()
     self.scoreText:SetText(fmtBig(st.score))
     self.multText:SetText("x" .. E:ScoreMultiplier(E:Progress(st)))
     self.comboText:SetText(st.combo .. " / " .. st.bestCombo)
@@ -1759,8 +1868,6 @@ function UI:UpdateDisplay()
             local def
             for _, d in ipairs(E.BOSSES) do if d.id == st.boss.ability then def = d end end
             if def then objective = objective .. "\n" .. def.blurb end
-        elseif st.duel then
-            objective = objective .. "\n" .. st.duel.blurb
         end
         self.objectiveText:SetText(objective)
         self.goalLabel:SetText(GOAL_LABEL[st.objective] or GOAL_LABEL.classic)

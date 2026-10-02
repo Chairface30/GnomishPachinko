@@ -34,10 +34,20 @@
     "text": "[astonished, shouting] Unbelievable combo!",
     "voice": "wo6udizrrtpIxWGp2qJk"
   },
+  "duel_lost": {
+    "at": "2026-10-01 20:40",
+    "text": "[sighing] Cogwhistle wins this one. Again, when you're ready.",
+    "voice": "Northern Terry"
+  },
   "duel_start": {
     "at": "2026-10-01 17:38",
     "text": "[sly] A duel! Make every shot count.",
     "voice": "wo6udizrrtpIxWGp2qJk"
+  },
+  "duel_won": {
+    "at": "2026-10-01 20:40",
+    "text": "[triumphant, laughing] You beat my brother! Cogwhistle will never live it down!",
+    "voice": "Northern Terry"
   },
   "fever": {
     "at": "2026-10-01 17:38",

@@ -82,7 +82,9 @@ The announcer is Tinkmaster Overspark, the gnome engineer who also stands in the
 | `boss_start.ogg` | "Boss fight! Watch yourself!" | A boss level starts |
 | `duel_start.ogg` | "A duel! Make every shot count." | A duel level starts |
 | `boss_turn.ogg` | "My move!" | A duel boss takes its turn |
-| `ball_stolen.ogg` | "Ha! That one's mine now." | The Sprocket Thief steals a ball |
+| `ball_stolen.ogg` | "Ha! That one's mine now." | (spare line, no longer called) |
+| `duel_won.ogg` | "You beat my brother! Cogwhistle will never live it down!" | A duel won |
+| `duel_lost.ogg` | "Cogwhistle wins this one. Again, when you're ready." | A duel lost |
 | `free_ball.ogg` | "Free ball!" | The bucket, or a score mark |
 | `fever.ogg` | "Fever!" | The goal is done, Fever begins |
 | `level_cleared.ogg` | "Level cleared!" | A clear with one or two stars |

@@ -142,14 +142,18 @@ E.OBJECTIVES = {
     duel    = { name = "Duel",    goalWord = "orange pegs", text = "Light every orange peg while the boss takes its turns" },
 }
 
--- Duel bosses: no piece to hit. You shoot, then the boss takes a turn,
--- for as many turns as it has; the goal is the orange pegs as usual.
-E.DUELS = {
-    { id = "rebuilder", name = "Gear Rebuilder", blurb = "Adds two orange pegs after each of your shots while its supply lasts." },
-    { id = "shuffler",  name = "Cog Shuffler",   blurb = "Moves the orange pegs to new spots after each of your shots." },
-    { id = "thief",     name = "Sprocket Thief", blurb = "Steals a ball after any shot that lights no orange peg." },
-}
-E.REBUILD_PER_TURN = 2
+-- The duel: no piece to hit. Stage one is a board to clear; then the
+-- rival steps up and the two of you shoot turn and turn about on one
+-- shared board, DUEL_BALLS each. Highest duel score wins. A shot that
+-- lights no orange costs its shooter DUEL_PENALTY of their duel score.
+E.RIVAL = { id = "cogwhistle", name = "Cogwhistle Overspark",
+    blurb = "Tinkmaster's older brother. Clear the board, then beat his score in a duel: five balls each, turn and turn about, and a shot that lights no orange costs a quarter of your score." }
+E.DUEL_BALLS   = 5
+E.DUEL_PENALTY = 0.25
+E.DUEL_STAGE2_ORANGES = 10
+E.RIVAL_THINK  = 1.4        -- seconds the rival shows his aim before firing
+E.STYLE_TIERS  = { { run = 20, points = 25000, caption = "UNBELIEVABLE!" }, { run = 12, points = 12500, caption = "AWESOME!" }, { run = 6, points = 5000, caption = "NICE!" } }
+E.AIM_SWING    = 5.0        -- radians a second the launcher swings toward the cursor
 
 -- The bosses, one kind per chapter in turn. `ability` is what Engine does
 -- with it; the names and blurbs are for the panel.
@@ -286,8 +290,8 @@ function E:NewLevel(spec)
         binsLit = {},
         gnomeBonus = false,
         noBucket = spec.noBucket or false,
-        duel = spec.duel and { id = spec.duel.id, name = spec.duel.name, blurb = spec.duel.blurb,
-            turns = spec.duel.turns, turnsTotal = spec.duel.turns } or nil,
+        duel = spec.duel and { name = spec.duel.name, blurb = spec.duel.blurb, stage = spec.duel.stage or 1,
+            turn = "you", balls = { you = 0, rival = 0 }, scores = { you = 0, rival = 0 } } or nil,
         power = spec.power,
         balls = {},
         gems = {},
@@ -381,6 +385,13 @@ local function clampAim(a)
     if a > lim then return lim end
     if a < -lim then return -lim end
     return a
+end
+
+-- The angle that points the launcher at (tx, ty), without setting it.
+function E:AimAngle(tx, ty)
+    local dx, dy = tx - W / 2, ty - E.LAUNCHER_Y
+    if dx == 0 and dy <= 0 then return nil end
+    return clampAim(atan2(dx, dy))
 end
 
 function E:Aim(state, tx, ty)
@@ -509,6 +520,11 @@ push = function(events, ev)
 end
 
 local function addScore(state, pts, events)
+    local d = state.duel
+    if d and d.stage == 2 then
+        d.scores[d.turn] = d.scores[d.turn] + pts
+        if d.turn ~= "you" then return end       -- the rival's points are his alone
+    end
     state.score = state.score + pts
     local threshold = E.FREE_BALL_SCORES[state.freeBallIdx]
     while threshold and state.score >= threshold do
@@ -596,12 +612,14 @@ bossReact = function(state, p, events)
     end
 end
 
--- A trick shot pays style points, once per kind per shot.
-local function style(state, name, events, x, y)
-    if state.shotStyles[name] then return end
-    state.shotStyles[name] = true
-    addScore(state, E.STYLE_POINTS, events)
-    push(events, { type = "style", name = name, points = E.STYLE_POINTS, x = x, y = y })
+-- A trick shot pays style points, once per kind (and tier) per shot.
+local function style(state, name, events, x, y, points, caption)
+    points = points or E.STYLE_POINTS
+    local key = name .. points
+    if state.shotStyles[key] then return end
+    state.shotStyles[key] = true
+    addScore(state, points, events)
+    push(events, { type = "style", name = name, points = points, caption = caption or "NICE!", x = x, y = y })
 end
 
 -- A key lit: every piece locked to it dissolves.
@@ -678,7 +696,9 @@ lightPeg = function(state, p, ball, events, quiet, at)
         if ball.slideAt and state.time - ball.slideAt <= E.SLIDE_GAP then ball.slideRun = (ball.slideRun or 0) + 1
         else ball.slideRun = 1 end
         ball.slideAt = state.time
-        if ball.slideRun >= E.SLIDE_RUN then style(state, "SUPER SLIDE", events, p.x, p.y) end
+        for _, tier in ipairs(E.STYLE_TIERS) do
+            if ball.slideRun >= tier.run then style(state, "SUPER SLIDE", events, p.x, p.y, tier.points, tier.caption) break end
+        end
     end
     push(events, { type = "peg", peg = p, points = pts, x = at and at.x or p.x, y = at and at.y or p.y,
         quiet = quiet, combo = state.combo })
@@ -691,6 +711,14 @@ lightPeg = function(state, p, ball, events, quiet, at)
     if p.kind == "green" then applyPower(state, p, ball, events) end
     if p.kind == "boss" then push(events, { type = "boss_down", x = p.x, y = p.y }) end
 
+    if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER and state.duel and state.duel.stage == 1 then
+        -- the board is clear: the rival steps up (the window builds stage two)
+        state.lastSlow = false
+        state.phase = E.PHASE.OVER
+        state.stageClear = true
+        push(events, { type = "stage_clear" })
+        return
+    end
     if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then
         state.phase = E.PHASE.FEVER
         state.lastSlow = false
@@ -806,7 +834,11 @@ end
 
 local function finishLevel(state, events)
     local cleared = state.goalLeft <= 0
+    local d = state.duel
+    if d and d.stage == 2 then cleared = d.scores.you > d.scores.rival end
+    if d and d.stage == 1 then cleared = false end
     state.result = {
+        duel = d and d.stage == 2 and { you = d.scores.you, rival = d.scores.rival, name = d.name } or nil,
         cleared = cleared,
         score = state.score,
         goals = state.goalHit,
@@ -914,58 +946,76 @@ local function integrateBall(state, ball, dt, events)
     return true
 end
 
--- The duel boss's turn, after a shot ends and before the next.
-local function duelTurn(state, events)
+-- Stage two of a duel: build it from the stage-two spec, carrying the
+-- player's score and stats over. A coin flip says who shoots first.
+function E:StartDuel(state, spec2)
+    local st = self:NewLevel(spec2)
+    st.score = state.score
+    st.stage1Score = state.score
+    st.freeBallIdx = state.freeBallIdx
+    st.bestCombo = state.bestCombo
+    st.duel = { name = (state.duel and state.duel.name) or E.RIVAL.name, blurb = (state.duel and state.duel.blurb) or E.RIVAL.blurb,
+        stage = 2, balls = { you = E.DUEL_BALLS, rival = E.DUEL_BALLS }, scores = { you = 0, rival = 0 } }
+    st.duel.turn = (st.rng() < 0.5) and "you" or "rival"
+    st.ballsLeft = st.duel.balls[st.duel.turn]
+    st.duelCoin = st.duel.turn
+    return st
+end
+
+-- The rival's aim: tries a fan of angles with a dry flight and takes one
+-- of the best, so he goes for the oranges but can be beaten.
+function E:RivalAim(state)
+    local best = {}
+    local R = E.BALL_R
+    for deg = -78, 78, 4 do
+        local a = deg * pi / 180
+        local x, y = W / 2 + sin(a) * 14, E.LAUNCHER_Y + cos(a) * 14
+        local b = { x = x, y = y, vx = sin(a) * E.LAUNCH_SPEED, vy = cos(a) * E.LAUNCH_SPEED, slow = 0 }
+        local touched, value = {}, 0
+        for _ = 1, floor(1.6 / E.STEP) do
+            b.vy = b.vy + E.GRAVITY * E.STEP
+            b.x = b.x + b.vx * E.STEP
+            b.y = b.y + b.vy * E.STEP
+            if b.x < R then b.x = R; if b.vx < 0 then b.vx = -b.vx * E.RESTITUTION end end
+            if b.x > W - R then b.x = W - R; if b.vx > 0 then b.vx = -b.vx * E.RESTITUTION end end
+            for _, q in ipairs(state.pegs) do
+                if not q.gone and not q.lit and not touched[q] and pegContact(q, b.x, b.y, R) then
+                    touched[q] = true
+                    value = value + (q.goal and 100 or (isSolid(q) and 0 or 10))
+                end
+            end
+            collideBall(state, b, nil, false)
+            if b.y - R > H then break end
+        end
+        best[#best + 1] = { aim = a, value = value }
+    end
+    table.sort(best, function(u, v) return u.value > v.value end)
+    local pick = best[state.rng(1, math.min(3, #best))] or best[1]
+    return pick and pick.aim or 0
+end
+
+-- After a shot in stage two: the miss penalty, then the other side's turn.
+local function duelTurnOver(state, events)
     local d = state.duel
-    if not d or d.turns <= 0 then return end
-    local ev = { type = "boss_turn", id = d.id, name = d.name }
-    local function unlit(kind)
-        local pool = {}
-        for _, p in ipairs(state.pegs) do
-            if p.kind == kind and not p.lit and not p.gone and not p.special then pool[#pool + 1] = p end
-        end
-        return pool
-    end
-    if d.id == "rebuilder" then
-        local pool = unlit("blue")
-        local added = 0
-        for _ = 1, E.REBUILD_PER_TURN do
-            if #pool == 0 then break end
-            local i = state.rng(1, #pool)
-            local p = pool[i]
-            table.remove(pool, i)
-            p.kind = "orange"
-            p.goal = true
-            state.goalTotal = state.goalTotal + 1
-            state.goalLeft = state.goalLeft + 1
-            added = added + 1
-        end
-        ev.added = added
-        if added == 0 then d.turns = 1 end     -- nothing left to add: this is its last turn
-    elseif d.id == "shuffler" then
-        local oranges, blues = unlit("orange"), unlit("blue")
-        local moved = 0
-        for _, p in ipairs(oranges) do
-            if #blues == 0 then break end
-            local i = state.rng(1, #blues)
-            local q = blues[i]
-            table.remove(blues, i)
-            q.kind, q.goal = "orange", true
-            p.kind, p.goal = "blue", nil
-            moved = moved + 1
-        end
-        ev.moved = moved
-    elseif d.id == "thief" then
-        if state.goalHitThisShot == 0 and state.ballsLeft > 1 then
-            state.ballsLeft = state.ballsLeft - 1
-            ev.stole = true
-        else
-            ev.stole = false
+    if not d or d.stage ~= 2 then return false end
+    if state.goalHitThisShot == 0 and state.shots > 0 then
+        local lost = floor(d.scores[d.turn] * E.DUEL_PENALTY)
+        if lost > 0 then
+            d.scores[d.turn] = d.scores[d.turn] - lost
+            if d.turn == "you" then state.score = state.score - lost end
+            push(events, { type = "duel_penalty", side = d.turn, lost = lost })
         end
     end
-    d.turns = d.turns - 1
-    ev.turnsLeft = d.turns
-    push(events, ev)
+    d.balls[d.turn] = state.ballsLeft
+    local other = (d.turn == "you") and "rival" or "you"
+    if d.balls[other] > 0 then
+        d.turn = other
+    elseif d.balls[d.turn] <= 0 then
+        return true          -- nobody has a ball left: the duel is decided
+    end
+    state.ballsLeft = d.balls[d.turn]
+    push(events, { type = "duel_turn", turn = d.turn, you = d.scores.you, rival = d.scores.rival })
+    return false
 end
 
 -- A gem back in its nest, ready for the next shot.
@@ -1198,8 +1248,10 @@ local function substep(state, dt, events)
         elseif state.shots > 0 then
             push(events, { type = "total_miss" })
         end
-        duelTurn(state, events)
-        if state.ballsLeft > 0 then
+        local decided = duelTurnOver(state, events)
+        if decided then
+            finishLevel(state, events)
+        elseif state.ballsLeft > 0 then
             state.phase = E.PHASE.AIM
             E:MovePurple(state)
             push(events, { type = "ready" })
