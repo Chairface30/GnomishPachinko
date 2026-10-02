@@ -1,113 +1,137 @@
-# Gnomish Pachinko — Asset List
+# Gnomish Pachinko — Art Asset List
 
-Everything below ships today as a generated placeholder (textures from `tools/make_textures.py`, sounds from `tools/make_notes.py`) or as a silent hook (the voice lines). Drop the real file in under the same name and the game picks it up; nothing in the code needs to change.
+Everything the game draws today is a generated placeholder (from `tools/make_textures.py`) or a plain colored square. This is the full list of art that would replace them, in the order it pays off. Audio is done: every effect and announcer line is generated with ElevenLabs (`tools/gen_sfx.py`, `tools/gen_voice.py`), and Tinkmaster Overspark himself is a 3D model from the game, so no character portraits are needed.
 
-## Formats
+Two tiers:
 
-- **Textures**: 32-bit uncompressed TGA with an alpha channel, power-of-two sizes, origin bottom-left (what Photoshop/GIMP/Krita export by default). Pieces the game **tints** must be drawn in white and grays: the game multiplies the texture by a colour, so any colour you paint is lost. Pieces marked *full colour* are drawn as they are.
-- **Sounds**: OGG Vorbis, 44.1 kHz, mono is fine, peak around -3 dB. Short effects under half a second; voice lines under three seconds.
-- Filenames are case-sensitive on CurseForge's packager: keep them exactly as listed.
+- **Drop-in**: same file name as today, the game uses it with no code change.
+- **Needs a small code change**: new file names (per-color pegs, animation frames, HUD skins). Deliver them and I wire them up; the code side is an hour, not a project.
 
-## Textures (`Textures/`)
+## 1. Format and rules
 
-### New pieces
+- **TGA, 32-bit, uncompressed, with alpha**, power-of-two sizes (32, 64, 128, 256, 512). Origin bottom-left (the default export in Photoshop, GIMP, Krita, Aseprite). PNG is fine to hand over; I convert.
+- **Tinted vs full color.** Anything marked *tinted* must be painted in white and grays: the game multiplies the texture by a color (blue, orange, gold, per boss...). Paint it in color and the color is lost. *Full color* pieces are drawn as painted.
+- Keep a little transparent padding inside the canvas so filtering does not clip edges. Round pieces: the shape should fill about 90% of the canvas.
+- File names exactly as listed, lower case; CurseForge's packager is case-sensitive.
 
-| File | Size | Tinted? | What it is |
+## 2. Art direction (from the Peggle Blast teardown, as a target, not a copy)
+
+- Bright, glossy casual-cartoon. Thick soft shading, a strong specular highlight on every round object, warm rim light, no hard black outlines on gameplay pieces.
+- Readability first: gameplay pieces saturated and high-contrast; the frame and background softer and lower in saturation so pegs always pop.
+- Materials: pegs and balls are glossy plastic or candy; the frame and HUD are warm **copper and brass** with rivets and inset plates (this is a gnomish machine); cards are **parchment-gold** with a thick rounded border; buttons fat, rounded, glossy.
+- Palette (approximate):
+
+| Role | Color |
+|---|---|
+| Blue peg / brick | `#2E6FE0` body, `#8FC2FF` highlight |
+| Orange peg / brick | `#F26A1B` body, `#FFC27A` highlight |
+| Green peg / brick | `#3DBE3A` body, `#B6F59A` highlight, small gear glyph |
+| Purple peg | `#A23FE0` body, `#E1A8FF` highlight, small star glyph |
+| Lit (hit) piece | pastel of its color plus a white glow |
+| Tough piece rims | steel `#C8CDD6` (two hits), gold `#F2C14E` (three hits) |
+| Frame / HUD | copper `#B8662A` to `#E39A55`, dark trim `#5A2E12` |
+| Card | gold-parchment `#F7C65A` to `#F2A93A`, border `#C4772A`, navy `#1F3A8A` titles |
+| Primary button | green `#3FC83A`, edge `#1E7A1C` |
+| Secondary button | orange `#F08A2A`, edge `#A3471A` |
+| Field background | night-sky navy today; a soft gnomish-workshop or Azeroth-sky backdrop per world later |
+
+Note on tinting: the game tints the *white* peg texture with the colors above, so one well-shaded white peg gives all four colors. Per-color hand-painted pegs (tier 2) are only worth it if you want glyphs and distinct materials per color.
+
+## 3. Gameplay pieces
+
+### 3.1 Drop-in replacements (same names, tinted unless noted)
+
+| File | Size | What it is | Drawn at |
 |---|---|---|---|
-| `egg.tga` | 64x64 | yes (cream) | A whole egg filling the square, slight point at the top. It is drawn 28 px tall in game, so keep the shading bold. Three hits hatch it; cracks are a separate overlay. |
-| `gem.tga` | 64x64 | yes (cyan) | A cut gemstone, faceted, drawn 22 px in game. It spins while falling. |
-| `boss.tga` | 64x64 | yes (per boss) | A round mechanical boss face, gnomish engineering: gear teeth round the rim, two eyes, a mouth. Drawn 54 px. One texture serves all five bosses through tinting (steel, brass, green, red, ice blue). |
-| `crack.tga` | 64x64 | no | White crack lines on a fully transparent square, no fill. Drawn over a damaged piece; shown faint after the first hit on a three-hit piece, solid when one hit remains. Also stretched over cracked bricks (30x11), so keep the cracks central. |
-| `rim.tga` | 64x64 | yes (steel or gold) | A thin ring hugging the edge of the square (the outer 20 % of the radius). Drawn around tough pegs and the minimap button. Shade it like a metal band: light at the top, dark at the bottom. |
-| `star.tga` | 32x32 | yes (gold or gray) | A five-point star with a lighter inner facet. Drawn at 9 px (level select), 12 px (side panel) and 28 px (result banner). |
-| `pyramid.tga` | 256x32 | no, full colour | A wide, low, golden trapezoid ramp with brick seams: the Pyramid power. Drawn 530x40 across the bottom of the field, so a horizontal design that tiles its detail works best. |
-| `key.tga` | 64x64 | yes (gold) | A loose key, drawn 22 px: light it and its gold cage dissolves. |
-| `blast.tga` | 128x128 | yes (orange) | A soft radial burst with ragged spikes, white in the middle fading to transparent at the edge. It scales from 40 px to about 300 px over half a second. |
+| `peg.tga` | 64x64 | Domed glossy disc with a thin darker rim | 18 px (pegs), 30 px (bumpers), 26 px (minimap button) |
+| `brick.tga` | 64x32 | Rounded rectangular bar, lit from the top, bevelled ends; must stretch to any length | 30x11 and longer |
+| `ball.tga` | 64x64 | Chrome sphere, strong highlight | 16 px |
+| `ring.tga` | 64x64 | Soft glow ring, the halo a lit piece wears | 36 px |
+| `rim.tga` | 64x64 | Thin metal band at the edge (outer 20% of the radius), light top, dark bottom | 26 px (tough pegs, boss shield), 33 px (minimap) |
+| `crack.tga` | 64x64 | White crack lines on transparent, no fill, central | over pegs 20 px and bricks 30x11 |
+| `egg.tga` | 64x64 | Egg, slightly pointed top; tinted cream. Two hits hatch it | 28 px |
+| `gem.tga` | 64x64 | Faceted cut gem; tinted cyan; spins while falling | 22 px |
+| `key.tga` | 64x64 | Old-fashioned key, bow at the top; tinted gold or silver | 22 px |
+| `boss.tga` | 64x64 | Round mechanical boss face, gear teeth round the rim, eyes, mouth; tinted per boss (steel, brass, green, red, ice) | 54 px, slides along the bottom |
+| `bucket.tga` | 128x32 | Wide copper or clay pot (full color) | 92x23 |
+| `pyramid.tga` | 256x32 | Wide golden trapezoid ramp with brick seams (full color) | 420x40 |
+| `blast.tga` | 128x128 | Soft radial burst with ragged spikes, white centre fading out | grows 40 to 300 px |
+| `dot.tga` | 32x32 | Soft dot; aim guide, lightning bolt, map path | 6 to 8 px |
+| `star.tga` | 32x32 | Five-point star with a lighter inner facet | 9, 12, 28 px |
+| `icon.tga` | 64x64 | Addon list icon (full color): a peg, a brick, a ball | 64 px |
 
-### Optional extras (the code would need small changes, ask when ready)
+### 3.2 Per-color and per-state set (needs a small code change)
 
-| File | Size | Notes |
+Only if you want more than tinting can give. Each piece has three states.
+
+| Files | Size | Notes |
 |---|---|---|
-| `boss_drake.tga`, `boss_golem.tga`, `boss_spider.tga`, `boss_boar.tga`, `boss_yeti.tga` | 64x64 each | Five distinct boss faces instead of one tinted face. |
-| `brickcrack.tga` | 64x32 | Crack lines shaped for a brick rather than a disc. |
-| `background.tga` | 512x512 | A field background (dark, low contrast) instead of the plain navy with stars. Could be one per region later. |
-| `minimap.tga` | 64x64 | A drawn minimap icon, if the "GP" text button is to be replaced by art. |
+| `peg_blue.tga`, `peg_orange.tga`, `peg_green.tga`, `peg_purple.tga` | 64x64 each | Full color. Green carries a small gear glyph, purple a star glyph |
+| `peg_<color>_lit.tga` | 64x64 | Pastel plus glow, the hit state |
+| `peg_<color>_gone.tga` | 64x64 | Shards or a burst, shown for a third of a second as the piece vanishes |
+| `brick_<color>.tga`, `brick_<color>_lit.tga`, `brick_<color>_gone.tga` | 64x32 | Same three states for bricks |
+| `brick_arc_<color>.tga` | 64x32 | Optional: a slightly wedge-shaped brick so curved runs look continuous |
+| `ball_fire.tga`, `ball_electric.tga`, `ball_rainbow.tga`, `ball_wing.tga` | 64x64 | Fireball, Chain Lightning, Rainbow Ball, Free Ball Frenzy balls |
+| `key_gold.tga`, `key_silver.tga` | 64x64 | The two lock colors, if not tinted |
+| `cage_gold.tga`, `cage_silver.tga` | 64x32 | Cage and gate bars, full color, stretched like bricks |
+| `rail.tga` | 64x32 | Indestructible grey steel bar with end caps (today a tinted brick) |
+| `bumper.tga` | 64x64 | Star bumper: blue ring, white star centre; today a tinted peg |
+| `egg_cracked.tga` | 64x64 | The egg after its first hit (today the crack overlay is drawn on top) |
+| `boss_drake.tga`, `boss_golem.tga`, `boss_spider.tga`, `boss_boar.tga`, `boss_yeti.tga` | 64x64 each | Five distinct boss faces instead of one tinted face: Tin Drake, Bolt Golem, Gyro Spider, Mechano-Boar, Cog Yeti |
+| `nest.tga` | 64x64 | A nest peg under an egg (today a plain blue peg) |
 
-### Existing textures you may also want to redraw
+### 3.3 Launcher, bucket and buckets
 
-`peg.tga` (64x64, tinted disc), `brick.tga` (64x32, tinted bar), `ball.tga` (64x64, tinted), `ring.tga` (64x64, the lit glow), `dot.tga` (32x32, aim guide), `bucket.tga` (128x32, full colour), `icon.tga` (64x64, the addon list icon, full colour).
-
-## Sound effects (`Sounds/`)
-
-**These are generated by the tool now**: `python tools/gen_sfx.py` lists every clip and its prompt (dry run), `--go` generates the missing ones with your `ELEVENLABS_API_KEY`, and the combo scale is built from one generated marimba note. The table below is the full set the game plays; everything not yet generated is a synthesized stand-in. Hand-made replacements are welcome under the same names.
-
-| File | Length | Prompt |
+| Files | Size | Notes |
 |---|---|---|
-| `clink.ogg` | 0.15 s | "A short bright metallic tink, a steel ball striking an iron peg, no reverb." |
-| `crack.ogg` | 0.25 s | "An eggshell cracking, a quick sharp snap, close-miked." |
-| `hatch.ogg` | 0.5 s | "A tiny creature chirping once as it hatches from an egg, cute and quick." |
-| `gem.ogg` | 0.45 s | "A sparkling crystal chime, three rising glassy notes, short." |
-| `boss_hit.ogg` | 0.3 s | "A dull metallic thud, a ball hitting a hollow iron machine, with a brief rattle." |
-| `boss_down.ogg` | 1.0 s | "A small steam-powered machine breaking down: a clank, a hiss of steam, parts falling, cartoonish." |
-| `zap.ogg` | 0.35 s | "A short crackling electric arc jumping between metal pins, zappy and bright." |
-| `blast.ogg` | 0.9 s | "A deep cartoon explosion with a quick boom and a short sparkle tail, no long rumble." |
-| `fanfare.ogg` | 6.0 s, loopable | "A grand triumphant brass fanfare with timpani and a snare roll, celebratory, loops cleanly." Plays from the moment the last goal piece lights until every leftover ball has landed; it restarts every 6 s while that lasts, so keep it exactly 6 s or tell me the new length. |
-| `slowmo.ogg` | 0.7 s | "A dramatic slow-motion whoosh with a single heartbeat thump, short." (the last-peg moment) |
-| `bumper.ogg` | 0.3 s | "A springy pinball bumper boing, low and bouncy." |
-| `launch.ogg`, `peg1-3.ogg`, `orange.ogg` | short | the cannon, three peg ticks, the goal-peg ping |
-| `note1-16.ogg` | short | the combo scale, C4 up two octaves, resampled from one generated marimba note |
-| `bucket.ogg` | 1.0 s | a cash-register ka-ching: the ball lands in the bucket |
-| `rim.ogg` | 0.4 s | a ceramic clink: the ball bounces off the bucket's rim |
-| `free_ball.ogg`, `combo.ogg`, `bin.ogg` | under 1 s | the other rewards |
-| `power_multiball/guide/fireball/spooky/pyramid/lightning.ogg` | about 1 s | one activation sound per power (`blast.ogg` is Space Blast's) |
-| `pyramid.ogg`, `lost.ogg`, `spooky.ogg`, `gem_free.ogg` | short | ramp bounce, a lost ball, the spooky re-entry, a gem knocked loose |
-| `unlock.ogg` | 0.9 s | a padlock clicking open and a cage of bars falling apart |
-| `boss_turn.ogg` | 0.8 s | a ratchet and clank: a duel boss takes its turn |
-| `shield.ogg`, `heal.ogg`, `hop.ogg` | short | the Bolt Golem's block, the Cog Yeti's heal, the Gyro Spider's jump |
-| `start.ogg`, `fail.ogg` | about 1 s | level start, out of balls |
+| `launcher_barrel.tga` | 32x64 | Copper cannon nozzle, drawn pointing down; rotates with the aim (today a grey rectangle) |
+| `launcher_hub.tga` | 64x64 | The pivot plate at the top centre (today a tinted peg) |
+| `launcher_flash.tga` | 64x64 | Muzzle flash, shown for a moment on launch |
+| `bucket_splash1.tga` to `bucket_splash4.tga` | 128x64 | A catch: white splash with spray, four frames |
+| `fever_bucket.tga` | 128x64 | One Fever cup; the game writes the letter and value on it. Unlit and lit (`fever_bucket_lit.tga`) |
 
-`fever.ogg` and `clear.ogg` are generated as well, so nothing is shared with the casino.
+## 4. Power, item and objective icons (full color)
 
-## Voice lines, generated
-
-`python tools/gen_voice.py` lists the announcer's lines (dry run); `--list-voices` shows your library with Trixie's voices marked as off limits; `--go --voice "<name>"` generates with Eleven v4 into `Sounds/Voice/`. Without `--voice` it picks the first non-Trixie voice, preferring labels like male and energetic, and says which.
-
-## Voice lines (`Sounds/Voice/`)
-
-The announcer is Tinkmaster Overspark, the gnome engineer who also stands in the field's corner as a 3D model. The hooks are already in the game and play `Sounds/Voice/<name>.ogg` if it exists, on the "Dialog" channel; `/pachinko voice` turns them off. Character: Tinkmaster Overspark himself, an excitable gnome engineer with Peggle-announcer energy, a little tinny like he is on a loudspeaker. One take each is plenty; two or three variants can come later (ask and the game will pick one at random).
-
-| File | Line | When |
+| Files | Size | Where |
 |---|---|---|
-| `level_start.ogg` | "Here we go!" | A level starts |
-| `boss_start.ogg` | "Boss fight! Watch yourself!" | A boss level starts |
-| `duel_start.ogg` | "A duel! Make every shot count." | A duel level starts |
-| `boss_turn.ogg` | "My move!" | A duel boss takes its turn |
-| `ball_stolen.ogg` | "Ha! That one's mine now." | (spare line, no longer called) |
-| `duel_won.ogg` | "You beat my brother! Cogwhistle will never live it down!" | A duel won |
-| `duel_lost.ogg` | "Cogwhistle wins this one. Again, when you're ready." | A duel lost |
-| `free_ball.ogg` | "Free ball!" | The bucket, or a score mark |
-| `fever.ogg` | "Fever!" | The goal is done, Fever begins |
-| `level_cleared.ogg` | "Level cleared!" | A clear with one or two stars |
-| `three_stars.ogg` | "Three stars! Magnificent!" | A clear with three stars |
-| `out_of_balls.ogg` | "Awww... out of balls." | A loss with plays left |
-| `out_of_plays.ogg` | "That's all your plays for today, friend." | A loss that used the last play |
-| `total_miss.ogg` | "Total miss." | A shot that touched nothing |
-| `style.ogg` | "Now that's style!" | Style points (Long Shot, Super Slide) |
-| `gnome_bonus.ogg` | "GNOME BONUS!" | All five Fever buckets lit |
-| `last_one.ogg` | "Last one!" | A ball closes in on the last goal piece (time slows, the view zooms in) |
-| `combo.ogg` | "Combo!" | A 10 or 15 chain |
-| `combo_huge.ogg` | "Unbelievable combo!" | A 20, 25 or 30 chain |
-| `hatched.ogg` | "It hatched!" | An egg hatches |
-| `gem.ogg` | "Gem!" | A gem lands in the bucket |
-| `boss_shield.ogg` | "Shields up!" | The Bolt Golem shields itself |
-| `boss_down.ogg` | "Boss down!" | A boss is beaten |
-| `power_multiball.ogg` | "Multiball!" | Green peg |
-| `power_guide.ogg` | "Super Guide!" | Green peg |
-| `power_blast.ogg` | "Space Blast!" | Green peg |
-| `power_fireball.ogg` | "Fireball!" | Green peg |
-| `power_spooky.ogg` | "Spooky Ball!" | Green peg |
-| `power_pyramid.ogg` | "Pyramid!" | Green peg |
-| `power_lightning.ogg` | "Chain Lightning!" | Green peg |
-| `power_frenzy.ogg` | "Free Ball Frenzy!" | Green peg |
+| `power_multiball.tga`, `power_guide.tga`, `power_blast.tga`, `power_fireball.tga`, `power_spooky.tga`, `power_pyramid.tga`, `power_lightning.tga`, `power_frenzy.tga` | 64x64 | The master selector on the level card and the side panel's Power line |
+| `item_ring.tga`, `item_rainbow.tga`, `item_green.tga` | 64x64 | Ring of Fire, Rainbow Ball, Extra Green Peg: the slots and the card |
+| `goal_orange.tga`, `goal_egg.tga`, `goal_gem.tga`, `goal_boss.tga`, `goal_duel.tga`, `goal_longshot.tga` | 32x32 | The objective counter's icon and the map nodes' dots |
+| `ball_small.tga` | 32x32 | The balls-left strip (a row of little balls) |
 
-Optional later: a line per boss name on its entrance ("The Tin Drake approaches!"), a "New best!" line, and "Welcome back" when the window opens.
+## 5. HUD, cards and map (full color)
+
+| Files | Size | Notes |
+|---|---|---|
+| `frame_bg.tga` | 512x512 | The window's copper frame plate, 9-slice friendly (even border) |
+| `plate.tga` | 256x64 | A copper inset plate for readouts (score, balls, objective) |
+| `card.tga` | 512x512 | The parchment-gold card (level start, result, out of plays), even border for 9-slice |
+| `button_green.tga`, `button_orange.tga`, `button_grey.tga` | 256x64 | Fat rounded glossy buttons, three colors; plus `_down` variants if you like |
+| `gauge.tga` | 128x64 | The multiplier semicircle, unfilled; `gauge_fill.tga` the rainbow fill (the game clips it by progress) |
+| `banner.tga` | 512x64 | A ribbon behind the big callouts (FEVER!, FREE BALL!, YOUR TURN) |
+| `map_node.tga`, `map_node_boss.tga`, `map_node_locked.tga` | 64x64 | Round stone or wood level nodes; the boss node larger and ringed |
+| `map_bg_1.tga` ... | 512x1024 | Optional: a map backdrop per world (ten chapters each): meadow, forest, cavern, workshop, snow... |
+| `field_bg_1.tga` ... | 512x1024 | Optional: a board backdrop per world behind the pegs, soft and low-contrast |
+| `minimap.tga` | 64x64 | A drawn minimap icon if the "GP" text button is to be replaced |
+
+## 6. Effects (tinted unless noted)
+
+| Files | Size | Notes |
+|---|---|---|
+| `spark1.tga` to `spark4.tga` | 64x64 | A small sparkle burst, four frames: peg hits, gem drops, the win sweep |
+| `confetti.tga` | 64x64 | A few bits of confetti (full color): the GNOME bonus and three-star clears |
+| `firework.tga` | 128x128 | A burst for the GNOME bonus |
+| `trail.tga` | 64x16 | One segment of the ball's rainbow ribbon in Fever and the Long Shot sparkle line (full color) |
+| `glow_soft.tga` | 128x128 | A soft radial glow for the last-peg zoom and the boss's hit flash |
+
+## 7. Priority
+
+1. **Section 3.1** (drop-in): the single biggest visual lift for the least work, no code needed.
+2. **Section 3.3** launcher and bucket, and the **section 4** icons: the HUD stops being text.
+3. **Section 5** frame, plate, card, buttons: the window stops looking like a debug panel.
+4. **Section 3.2** per-color pegs with lit and gone states, and the **section 6** effects.
+5. Backdrops per world.
+
+## Audio (done)
+
+Generated and in place: 40 effects (`tools/gen_sfx.py`, prompts inside), the 16-note combo scale from one marimba note, and 32 announcer lines in Tinkmaster Overspark's voice (`tools/gen_voice.py`, voice id `wo6udizrrtpIxWGp2qJk`). Regenerate any clip with `--only <name> --force`.
