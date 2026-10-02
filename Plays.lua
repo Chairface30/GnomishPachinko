@@ -27,10 +27,28 @@ local P = GP.Plays
 
 P.FAILS_PER_DAY  = 5
 P.WINDOW         = 24 * 60 * 60
-P.PRICE_COPPER   = 100000       -- 10g a lot
 P.PLAYS_PER_LOT  = 5
 P.CVAR           = "gnomishPachinkoCache"
-P.SUBJECT        = "pachinko plays purchase"
+
+-- Golden Gears: mailed gold to the banker becomes gears, one gear a gold.
+-- Gears buy special balls and plays; they are the only way to buy plays.
+P.GEAR_COPPER    = 10000        -- 1g a gear
+P.SUBJECT        = "pachinko golden gears"
+P.DEFAULT_GEARS_MAIL = 10
+P.SHOP = {
+    suction = { cost = 1,  n = 3, label = "3 Suction Tubes" },
+    ring    = { cost = 2,  n = 3, label = "3 Rings of Fire" },
+    rainbow = { cost = 3,  n = 3, label = "3 Rainbow Balls" },
+    plays   = { cost = 10, n = 5, label = "5 plays" },
+}
+P.SHOP_ORDER = { "suction", "ring", "rainbow", "plays" }
+P.START_ITEMS = { ring = 2, rainbow = 0, green = 1, suction = 1 }
+
+-- Everything that is worth cheating at lives in the vault, sealed: the
+-- gears, the special balls, the plays and the progress. These keys of the
+-- saved settings are filled from the vault at login and taken back out of
+-- the plain file at logout.
+P.SEALED = { "unlocked", "cleared", "best", "stars", "current", "lastPower", "tips", "dialogs" }
 
 local floor = math.floor
 
@@ -90,8 +108,8 @@ function P:GrantFree()
     return true
 end
 
-function P:PriceText(lots)
-    return tostring((lots or 1) * self.PRICE_COPPER / 10000) .. "g"
+function P:PriceText(gears)
+    return tostring(floor((gears or 1) * self.GEAR_COPPER / 10000)) .. "g"
 end
 
 -- Server time when the client gives it, the clock otherwise.
@@ -192,14 +210,88 @@ local function deserialize(body)
     return rec
 end
 
+-- The whole record, packed: numbers, strings, booleans and tables of them.
+local function pack(v, out)
+    local t = type(v)
+    if t == "number" then out[#out + 1] = "n" .. tostring(v) .. ";"
+    elseif t == "string" then out[#out + 1] = "s" .. #v .. ":" .. v
+    elseif t == "boolean" then out[#out + 1] = v and "T" or "F"
+    elseif t == "table" then
+        out[#out + 1] = "{"
+        local keys = {}
+        for k in pairs(v) do keys[#keys + 1] = k end
+        table.sort(keys, function(a, b)
+            local ta, tb = type(a), type(b)
+            if ta ~= tb then return ta < tb end
+            return a < b
+        end)
+        for _, k in ipairs(keys) do
+            if type(k) == "number" or type(k) == "string" then
+                local vt = type(v[k])
+                if vt == "number" or vt == "string" or vt == "boolean" or vt == "table" then
+                    pack(k, out)
+                    pack(v[k], out)
+                end
+            end
+        end
+        out[#out + 1] = "}"
+    else out[#out + 1] = "F" end
+end
+
+local function unpackAt(s, i)
+    local c = s:sub(i, i)
+    if c == "n" then
+        local j = s:find(";", i, true)
+        if not j then return nil end
+        return tonumber(s:sub(i + 1, j - 1)), j + 1
+    elseif c == "s" then
+        local j = s:find(":", i, true)
+        if not j then return nil end
+        local len = tonumber(s:sub(i + 1, j - 1))
+        if not len then return nil end
+        return s:sub(j + 1, j + len), j + 1 + len
+    elseif c == "T" then return true, i + 1
+    elseif c == "F" then return false, i + 1
+    elseif c == "{" then
+        local t = {}
+        i = i + 1
+        while s:sub(i, i) ~= "}" do
+            if i > #s then return nil end
+            local k, v
+            k, i = unpackAt(s, i)
+            if k == nil or not i then return nil end
+            v, i = unpackAt(s, i)
+            if not i then return nil end
+            t[k] = v
+        end
+        return t, i + 1
+    end
+    return nil
+end
+
 function P:Encode(rec)
-    return "GPV:" .. b64encode(crypt(serialize(rec), SECRET))
+    local out = {}
+    pack(rec, out)
+    local body = table.concat(out)
+    return "GPV2:" .. b64encode(crypt(body .. "|" .. hash(SECRET .. body), SECRET))
 end
 
 -- nil for nothing stored, false for a copy that does not check out.
 function P:Decode(text)
     if text == nil or text == "" then return nil end
-    if type(text) ~= "string" or text:sub(1, 4) ~= "GPV:" then return false end
+    if type(text) ~= "string" then return false end
+    if text:sub(1, 5) == "GPV2:" then
+        local raw = b64decode(text:sub(6))
+        if not raw then return false end
+        local plain = crypt(raw, SECRET)
+        local body, sum = plain:match("^(.*)|(%d+)$")
+        if not body or tonumber(sum) ~= hash(SECRET .. body) then return false end
+        local rec = unpackAt(body, 1)
+        if type(rec) ~= "table" or type(rec.fails) ~= "table" or type(rec.lots) ~= "table" then return false end
+        return rec
+    end
+    if text:sub(1, 4) ~= "GPV:" then return false end
+    -- the first version: fails and lots only
     local raw = b64decode(text:sub(5))
     if not raw then return false end
     local rec = deserialize(crypt(raw, SECRET))
@@ -274,7 +366,16 @@ local function merge(records)
     for f, n in pairs(failCount) do
         for _ = 1, n do fails[#fails + 1] = f end
     end
-    return { fails = fails, lots = lots, ts = now() }
+    -- the gears, the special balls and the progress: from the copy with the
+    -- highest revision (each save counts it up, so an old copy put back
+    -- cannot restore spent gears)
+    local newest
+    for _, rec in ipairs(records) do
+        if (rec.rev or 0) > ((newest and newest.rev) or -1) then newest = rec end
+    end
+    newest = newest or {}
+    return { fails = fails, lots = lots, ts = now(), rev = newest.rev or 0,
+        gears = newest.gears, items = newest.items, prog = newest.prog }
 end
 
 function P:Load()
@@ -296,13 +397,59 @@ function P:Load()
     prune(rec, t)
     self.rec = rec
     self.loaded = true
+    self:Unseal()
     self:Save()
     return rec
 end
 
+local function copy(v)
+    if type(v) ~= "table" then return v end
+    local t = {}
+    for k, x in pairs(v) do t[k] = copy(x) end
+    return t
+end
+
+-- The vault's progress into the settings (or, the first time, the plain
+-- settings into the vault: the progress from before it was sealed).
+function P:Unseal()
+    local db = GP:GetDB()
+    local r = self.rec
+    r.gears = math.max(0, floor(tonumber(r.gears) or 0))
+    if type(r.items) ~= "table" then
+        r.items = copy(type(db.items) == "table" and db.items or self.START_ITEMS)
+    end
+    for k, v in pairs(self.START_ITEMS) do if r.items[k] == nil then r.items[k] = 0 end end
+    db.items = nil
+    if type(r.prog) == "table" then
+        for _, k in ipairs(self.SEALED) do
+            if r.prog[k] ~= nil then db[k] = copy(r.prog[k]) end
+        end
+    end
+    GP:GetDB()      -- defaults for anything missing
+    db.items = nil
+end
+
+-- The settings' progress into the vault.
+function P:Seal()
+    local db = GP.db or GP:GetDB()
+    local r = self.rec
+    r.prog = r.prog or {}
+    for _, k in ipairs(self.SEALED) do r.prog[k] = copy(db[k]) end
+end
+
+-- At logout the sealed keys leave the plain file: only the vault has them.
+function P:StripPlain()
+    local db = GnomishPachinkoDB
+    if type(db) ~= "table" then return end
+    for _, k in ipairs(self.SEALED) do db[k] = nil end
+    db.items = nil
+end
+
 function P:Save()
     if not self.rec then return end
+    self:Seal()
     self.rec.ts = now()
+    self.rec.rev = (self.rec.rev or 0) + 1
     local text = self:Encode(self.rec)
     for _, m in ipairs(mirrors()) do m.set(text) end
     if type(C_CVar) == "table" and type(C_CVar.RegisterCVar) == "function" then
@@ -361,6 +508,51 @@ function P:AddLots(lots)
     return self:Remaining()
 end
 
+function P:Gears()
+    return floor(rec(self).gears or 0)
+end
+
+function P:AddGears(n)
+    local r = rec(self)
+    r.gears = math.max(0, floor((r.gears or 0) + n))
+    self:Save()
+    return r.gears
+end
+
+function P:Items()
+    local r = rec(self)
+    if type(r.items) ~= "table" then r.items = copy(self.START_ITEMS) end
+    return r.items
+end
+
+function P:AddItem(item, n)
+    local items = self:Items()
+    items[item] = math.max(0, (items[item] or 0) + n)
+    self:Save()
+    return items[item]
+end
+
+-- Spends gears in the shop. Returns ok, message.
+function P:Buy(what)
+    local offer = self.SHOP[what]
+    if not offer then return false, "Nothing like that in the shop" end
+    local have = self:Gears()
+    if have < offer.cost then
+        return false, ("%s cost %d Golden Gears; you have %d. Mail gold to %s to get more (1g a gear)."):format(offer.label, offer.cost, have, self:BankerName())
+    end
+    local r = rec(self)
+    r.gears = have - offer.cost
+    if what == "plays" then
+        r.lots[#r.lots + 1] = { ts = now(), left = offer.n }
+    else
+        local items = self:Items()
+        items[what] = (items[what] or 0) + offer.n
+    end
+    self:Save()
+    if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
+    return true, ("Bought %s for %d Golden Gears (%d left)."):format(offer.label, offer.cost, r.gears)
+end
+
 function P:FormatWait(secs)
     secs = floor(secs or 0)
     if secs <= 0 then return "now" end
@@ -375,7 +567,7 @@ function P:StatusText()
     if bought > 0 then s = s .. ", " .. bought .. " bought" end
     s = s .. ")."
     if free == 0 then s = s .. " Next free play in " .. self:FormatWait(self:NextFreeIn()) .. "." end
-    s = s .. " " .. self.PLAYS_PER_LOT .. " more plays cost " .. self:PriceText(1) .. " by mail to " .. self:BankerName() .. "."
+    s = s .. " Golden Gears: |cffffd700" .. self:Gears() .. "|r (5 plays cost 10; gears are 1g each by mail to " .. self:BankerName() .. ")."
     return s
 end
 
@@ -400,7 +592,7 @@ function P:ApplyPendingFill()
     fieldTry(failed, "recipient", function() SendMailNameEditBox:SetText(banker) end)
     fieldTry(failed, "subject", function() SendMailSubjectEditBox:SetText(self.SUBJECT) end)
     fieldTry(failed, "message", function()
-        SendMailBodyEditBox:SetText(string.format("Buying %d Gnomish Pachinko plays for %s.", p.plays, self:PriceText(p.lots)))
+        SendMailBodyEditBox:SetText(string.format("Buying %d Gnomish Pachinko Golden Gears for %s.", p.gears, self:PriceText(p.gears)))
     end)
     fieldTry(failed, "money", function() MoneyInputFrame_SetCopper(SendMailMoney, p.copper) end)
     local okMoney, copper = pcall(MoneyInputFrame_GetCopper, SendMailMoney)
@@ -409,27 +601,28 @@ function P:ApplyPendingFill()
         for _, label in ipairs(failed) do if label == "money" then seen = true end end
         if not seen then failed[#failed + 1] = "money" end
     end
-    local price = self:PriceText(p.lots)
+    local price = self:PriceText(p.gears)
     if #failed == 0 then
-        GP:Print("Mail filled out: " .. price .. " to " .. banker .. " for |cffffd700" .. p.plays .. "|r plays. Press Send to complete.")
+        GP:Print("Mail filled out: " .. price .. " to " .. banker .. " for |cffffd700" .. p.gears .. "|r Golden Gears. Press Send to complete.")
     else
         GP:Print("|cffff8800Could not fill in: " .. table.concat(failed, ", ") .. ".|r Send " .. price .. " to " .. banker ..
-            " with \"" .. self.SUBJECT .. "\" as the subject for |cffffd700" .. p.plays .. "|r plays.")
+            " with \"" .. self.SUBJECT .. "\" as the subject for |cffffd700" .. p.gears .. "|r Golden Gears.")
     end
 end
 
-function P:FillPurchaseMail(lots)
-    lots = floor(tonumber(lots) or 0)
-    if lots < 1 then return false, "Buy at least one lot (" .. self:PriceText(1) .. ")" end
+-- Fills out the mail for some Golden Gears (1g each).
+function P:FillPurchaseMail(gears)
+    gears = floor(tonumber(gears) or self.DEFAULT_GEARS_MAIL)
+    if gears < 1 then return false, "Buy at least one Golden Gear (1g)" end
     if not (MailFrame and MailFrame:IsShown()) then
-        return false, "Visit a mailbox first: the helper fills the mail out there. " .. self.PLAYS_PER_LOT ..
-            " plays cost " .. self:PriceText(1) .. ", sent to " .. self:BankerName() .. " with \"" .. self.SUBJECT .. "\" as the subject."
+        return false, "Visit a mailbox first: the helper fills the mail out there. Golden Gears are 1g each, sent to " ..
+            self:BankerName() .. " with \"" .. self.SUBJECT .. "\" as the subject."
     end
-    local copper = lots * self.PRICE_COPPER
+    local copper = gears * self.GEAR_COPPER
     if GetMoney and GetMoney() < copper then
-        return false, "You do not have " .. self:PriceText(lots) .. " on you"
+        return false, "You do not have " .. self:PriceText(gears) .. " on you"
     end
-    self.pendingFill = { lots = lots, copper = copper, plays = lots * self.PLAYS_PER_LOT }
+    self.pendingFill = { gears = gears, copper = copper }
     if SendMailFrame and SendMailFrame:IsShown() then
         self:ApplyPendingFill()
     elseif C_Timer and C_Timer.After then
@@ -440,16 +633,16 @@ function P:FillPurchaseMail(lots)
     return true
 end
 
--- Credits a confirmed purchase (also what the mail hook calls).
+-- Credits a confirmed purchase (also what the mail hook calls): a gear a gold.
 function P:OnPurchase(copper)
-    local lots = floor(copper / self.PRICE_COPPER)
-    if lots <= 0 then return 0 end
-    local left = self:AddLots(lots)
-    GP:Print(string.format("|cff00ff00Plays purchased!|r %s mailed to the banker: |cffffd700%d|r plays, good for 24 hours. Plays left: |cffffd700%d|r",
-        self:PriceText(lots), lots * self.PLAYS_PER_LOT, left))
+    local gears = floor(copper / self.GEAR_COPPER)
+    if gears <= 0 then return 0 end
+    local total = self:AddGears(gears)
+    GP:Print(string.format("|cff00ff00Golden Gears!|r %s mailed to the banker: |cffffd700%d|r gears. You have |cffffd700%d|r.",
+        self:PriceText(gears), gears, total))
     GP:PlaySfx("free_ball.ogg")
     if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
-    return lots
+    return gears
 end
 
 -- The mailbox button sits under the casino's "Buy Casino Credits" button
@@ -471,15 +664,15 @@ end
 if MailFrame then
     local mailBtn = CreateFrame("Button", nil, MailFrame, "UIPanelButtonTemplate")
     mailBtn:SetSize(130, 22)
-    mailBtn:SetText("Buy Pachinko Plays")
+    mailBtn:SetText("Buy Golden Gears")
     mailBtn:SetScript("OnClick", function()
-        local ok, err = P:FillPurchaseMail(1)
+        local ok, err = P:FillPurchaseMail(P.DEFAULT_GEARS_MAIL)
         if not ok then GP:Print(err) end
     end)
     mailBtn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_TOP")
-        GameTooltip:AddLine("Gnomish Pachinko: buy plays for the day")
-        GameTooltip:AddLine(P:PriceText(1) .. " = " .. P.PLAYS_PER_LOT .. " plays", 0.8, 0.8, 0.8)
+        GameTooltip:AddLine("Gnomish Pachinko: Golden Gears")
+        GameTooltip:AddLine("1g = 1 Golden Gear. Gears buy special balls and plays (5 plays for 10).", 0.8, 0.8, 0.8, true)
         GameTooltip:AddLine(P:StatusText(), 0.8, 0.8, 0.8, true)
         GameTooltip:Show()
     end)
@@ -508,7 +701,7 @@ do
             local okS, s = pcall(function() return "" .. tostring(subject) end)
             if not okR then return end
             local short = (r:match("^([^-]+)") or r):gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")
-            if short:lower() == BANKER and money >= P.PRICE_COPPER and okS and s:lower():find("pachinko", 1, true) then
+            if short:lower() == BANKER and money >= P.GEAR_COPPER and okS and s:lower():find("pachinko", 1, true) then
                 pendingPurchase = { money = money }
             end
         end)

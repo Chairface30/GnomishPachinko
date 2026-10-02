@@ -677,9 +677,22 @@ function UI:CreateFrame()
     self.playsText:SetHeight(30)
     self.playsText:SetJustifyH("CENTER")
     self.playsText:SetJustifyV("TOP")
-    self.buyBtn = makeButton(side, SIDE_W, 24, "Buy " .. GP.Plays.PLAYS_PER_LOT .. " plays (" .. GP.Plays:PriceText(1) .. ")")
+    self.buyBtn = makeButton(side, SIDE_W, 24, "Get Golden Gears (1g each, by mail)")
     self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 30)
-    self.buyBtn:SetScript("OnClick", function() UI:BuyPlays() end)
+    self.buyBtn:SetScript("OnClick", function() UI:BuyGears() end)
+    -- the Golden Gear shop
+    self.gearsText = label("", -380, "GameFontNormal")
+    self.gearsText:SetWidth(SIDE_W)
+    self.gearsText:SetJustifyH("CENTER")
+    self.shopBtns = {}
+    for i, what in ipairs(GP.Plays.SHOP_ORDER) do
+        local offer = GP.Plays.SHOP[what]
+        local b = makeButton(side, SIDE_W, 24, ("%s - %d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s"))
+        b:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -400 - (i - 1) * 27)
+        b.what = what
+        b:SetScript("OnClick", function(self) UI:ShopBuy(self.what) end)
+        self.shopBtns[i] = b
+    end
     -- the owner's characters top up for free
     self.freeBtn = makeButton(side, SIDE_W, 24, "Owner: " .. GP.Plays.PLAYS_PER_LOT .. " free plays")
     self.freeBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 0)
@@ -1273,7 +1286,7 @@ function UI:CreatePlaysPanel()
     panel.text:SetJustifyH("CENTER")
     panel.wait = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
     panel.wait:SetPoint("TOP", panel.text, "BOTTOM", 0, -14)
-    panel.buy = makeButton(panel, 220, 30, "Buy " .. GP.Plays.PLAYS_PER_LOT .. " plays for " .. GP.Plays:PriceText(1))
+    panel.buy = makeButton(panel, 260, 30, "Buy 5 plays for 10 Golden Gears")
     panel.buy:SetPoint("TOP", panel.wait, "BOTTOM", 0, -24)
     panel.buy:SetScript("OnClick", function() UI:BuyPlays() end)
     panel.free = makeButton(panel, 220, 30, "Owner: " .. GP.Plays.PLAYS_PER_LOT .. " free plays")
@@ -1294,8 +1307,9 @@ function UI:ShowOutOfPlays(reason)
     local panel = self.playsPanel
     panel.text:SetText((reason and (reason .. "\n") or "") ..
         ("You have used all %d free plays for the day."):format(P.FAILS_PER_DAY))
-    panel.how:SetText(("Mail %s to %s with \"%s\" as the subject, or press the button at a mailbox and it fills in. Bought plays last 24 hours."):format(
-        P:PriceText(1), P:BankerName(), P.SUBJECT))
+    panel.how:SetText(("You have %d Golden Gears. Gears are 1g each: mail gold to %s with \"%s\" as the subject, or press the button at a mailbox and it fills in. Bought plays last 24 hours."):format(
+        P:Gears(), P:BankerName(), P.SUBJECT))
+    panel.buy.text:SetText(P:Gears() >= P.SHOP.plays.cost and "Buy 5 plays for 10 Golden Gears" or "Get Golden Gears by mail")
     styleButton(panel.buy, true, 0.55, 0.4, 0.1)
     styleButton(panel.levels, true, 0.35, 0.3, 0.45)
     if P:IsOwner() then
@@ -1326,9 +1340,24 @@ function UI:UpdatePlaysPanel()
     self.playsPanel.wait:SetText("Next free play in |cffffd700" .. P:FormatWait(P:NextFreeIn()) .. "|r")
 end
 
+-- Plays: with gears, straight from the shop; without, the mail for gears.
 function UI:BuyPlays()
-    local ok, err = GP.Plays:FillPurchaseMail(1)
+    local P = GP.Plays
+    if P:Gears() >= P.SHOP.plays.cost then return self:ShopBuy("plays") end
+    self:BuyGears()
+end
+
+function UI:BuyGears()
+    local ok, err = GP.Plays:FillPurchaseMail(GP.Plays.DEFAULT_GEARS_MAIL)
     if not ok then GP:Print(err) end
+end
+
+function UI:ShopBuy(what)
+    local ok, msg = GP.Plays:Buy(what)
+    GP:Print(msg)
+    if ok then GP:PlaySfx("unlock.ogg") end
+    self:UpdateDisplay()
+    if self.playsPanel and self.playsPanel:IsShown() then self:UpdatePlaysPanel() end
 end
 
 function UI:ClaimFreePlays()
@@ -2899,6 +2928,10 @@ function UI:UpdateDisplay()
     if free == 0 and bought == 0 then plays = plays .. "\n|cffff8080Next free play in " .. P:FormatWait(P:NextFreeIn()) .. "|r" end
     self.playsText:SetText(plays)
     styleButton(self.buyBtn, true, 0.5, 0.38, 0.1)
+    self.gearsText:SetText(("|cffffd700Golden Gears: %d|r"):format(P:Gears()))
+    for _, b in ipairs(self.shopBtns) do
+        styleButton(b, P:Gears() >= P.SHOP[b.what].cost, 0.5, 0.38, 0.1)
+    end
     if P:IsOwner() then
         styleButton(self.freeBtn, true, 0.2, 0.5, 0.25)
         self.freeBtn:Show()

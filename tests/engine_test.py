@@ -1213,10 +1213,21 @@ end
 used, rings, lit, armed_after, green_kind = ev("ring_probe")()
 check("an armed Ring of Fire is spent on launch and its first hit takes the neighbours too", used == 1 and rings == 1 and lit == 3 and armed_after is None, f"used {used} rings {rings} lit {lit}")
 check("Extra Green Peg turns a blue peg green", green_kind == "green")
-check("rewards: a clear earns a Ring of Fire, three stars an Extra Green Peg, a boss two Rainbow Balls",
-      (lambda before, after: after["ring"] == before["ring"] + 1 and after["green"] == before["green"] + 1 and after["rainbow"] == before["rainbow"] + 2)(
-          dict(ev("(function() GP:GetDB() return GnomishPachinkoDB.items end)()")),
-          (lua("GP:RecordResult({ level = 10, cleared = true, score = 999999999, objective = 'boss', goals = 1, goalTotal = 1 })"), dict(ev("GnomishPachinkoDB.items")))[1]))
+lua("""
+local function snap() local t = {} for k, v in pairs(P:Items()) do t[k] = v end return t end
+__i0 = snap()
+GP:RecordResult({ level = 3, cleared = true, score = 999999999, objective = 'classic', goals = 3, goalTotal = 3 })
+__i1 = snap()
+GP:RecordResult({ level = 10, cleared = true, score = 999999999, objective = 'boss', goals = 1, goalTotal = 1 })
+__i2 = snap()
+local db = GnomishPachinkoDB
+db.cleared[3], db.stars[3], db.best[3], db.cleared[10], db.stars[10], db.best[10] = nil, nil, nil, nil, nil, nil
+db.unlocked = 1
+""")
+i0, i1, i2 = dict(ev("__i0")), dict(ev("__i1")), dict(ev("__i2"))
+check("only bosses give special balls: an ordinary three-star clear gives nothing",
+      i1 == i0 and i2["ring"] == i1["ring"] + 2 and i2["rainbow"] == i1["rainbow"] + 1 and i2["suction"] == i1["suction"] + 2 and i2["green"] == i1["green"] + 1,
+      f"{i0} {i1} {i2}")
 hosts = [ev(f"GP:HostFor({n}).id") for n in (1, 11, 21, 31, 41)]
 check("four gnome hosts take the chapters in turn", hosts == ["tink", "mekka", "razzle", "bink", "tink"], str(hosts))
 check("the level card offers the host's two powers",
@@ -1458,7 +1469,7 @@ function vault_probe()
   out.canPlay = P:CanPlay()
   local text = GnomishPachinkoSaved.plays
   out.prefix = text:sub(1, 4)
-  out.opaque = not text:find("1|", 1, true)
+  out.opaque = not text:find("fails", 1, true) and not text:find("gears", 1, true)
   local rec = P:Decode(text)
   out.roundTrip = rec and #rec.fails == 0 and #rec.lots == 0
   -- spend the day's plays
@@ -1507,7 +1518,7 @@ end
 """)
 v = ev("vault_probe")()
 check("the vault starts with the day's free plays", v["fresh"] == 5 and v["canPlay"])
-check("the stored copy is an opaque encrypted blob that decodes back", v["prefix"] == "GPV:" and v["opaque"] and v["roundTrip"])
+check("the stored copy is an opaque encrypted blob that decodes back", v["prefix"] == "GPV2" and v["opaque"] and v["roundTrip"])
 check("five losses use the day's plays and block play", v["spent"] == 0 and v["blocked"] and 0 < v["wait"] <= 24 * 3600 and v["mirrorsAgree"], str(dict(v)))
 check("a bought lot adds five plays, spent after the free ones", v["bought"] == 5 and v["boughtSpent"] == 4)
 check("deleting one copy (a reinstall) changes nothing and the copy is re-minted", v["afterReinstall"] == 4 and v["healed"])
@@ -1531,8 +1542,42 @@ lua('GnomishPachinkoDB.unlocked = 1')
 lua("__before = P:BoughtLeft(); P:GrantFree()")
 check("an owner's free top-up adds a lot of plays", ev("P:BoughtLeft()") == ev("__before") + 5)
 lua('__unitName, __unitSurname = "Thrall", "Frostwolf"')
-lua("__buyPrinted = #__printed; __boughtBefore = P:BoughtLeft(); P:OnPurchase(200000)")
-check("a confirmed mail purchase credits two lots", ev("P:BoughtLeft()") == ev("__boughtBefore") + 10 and ev("#__printed") == ev("__buyPrinted") + 1)
+lua("__buyPrinted = #__printed; __gearsBefore = P:Gears(); __boughtBefore = P:BoughtLeft(); P:OnPurchase(200000)")
+check("a confirmed mail of 20g credits 20 Golden Gears and no plays", ev("P:Gears()") == ev("__gearsBefore") + 20 and ev("P:BoughtLeft()") == ev("__boughtBefore") and ev("#__printed") == ev("__buyPrinted") + 1)
+lua("""
+__g0 = P:Gears(); __s0 = P:Items().suction; __r0 = P:Items().ring; __rb0 = P:Items().rainbow; __b0 = P:BoughtLeft()
+P:Buy("suction"); P:Buy("ring"); P:Buy("rainbow"); P:Buy("plays")
+__g1 = P:Gears()
+""")
+check("the gear shop: 1 gear 3 suction, 2 gears 3 Rings, 3 gears 3 Rainbows, 10 gears 5 plays",
+      ev("__g0 - __g1") == 16 and ev("P:Items().suction - __s0") == 3 and ev("P:Items().ring - __r0") == 3 and ev("P:Items().rainbow - __rb0") == 3 and ev("P:BoughtLeft() - __b0") == 5)
+lua("__g2 = P:Gears(); __okPoor = P:Buy('plays')")
+check("the shop refuses what the gears cannot pay for", ev("__okPoor") == False and ev("P:Gears()") == ev("__g2"))
+# the save is sealed: progress and gears live only in the vault
+lua("""
+GnomishPachinkoDB.unlocked = 37; GnomishPachinkoDB.stars[5] = 3
+P:Save()
+__sealedGears = P:Gears()
+P:StripPlain()
+__plainGone = GnomishPachinkoDB.unlocked == nil and GnomishPachinkoDB.stars == nil and GnomishPachinkoDB.items == nil
+-- a player edits the plain file while logged out: it changes nothing
+GnomishPachinkoDB.unlocked = 400
+GnomishPachinkoDB.items = { suction = 999 }
+P.rec = nil
+P:Load()
+__restored = GnomishPachinkoDB.unlocked == 37 and GnomishPachinkoDB.stars[5] == 3 and P:Items().suction < 999 and P:Gears() == __sealedGears
+-- an old copy put back (more gears than now) loses to the newer one
+local old = GnomishPachinkoSaved.plays
+P:AddGears(-1)
+GnomishPachinkoChar.plays = old
+P.rec = nil
+P:Load()
+__oldLoses = P:Gears() == __sealedGears - 1
+""")
+check("at logout the progress, gears and special balls leave the plain file", ev("__plainGone"))
+check("edits to the plain file change nothing: the sealed vault restores progress, gears and balls", ev("__restored"))
+check("an older copy of the vault put back cannot restore spent gears", ev("__oldLoses"))
+lua("GnomishPachinkoDB.unlocked = 1; GnomishPachinkoDB.stars[5] = nil; P:Save()")
 lua("P.rec = nil; GnomishPachinkoSaved, GnomishPachinkoChar = nil, nil; P:Load()")
 
 # ------------------------------------------------------------------ window
@@ -1613,7 +1658,7 @@ else:
     lua("GP:RecordResult({ level = 1, cleared = true, score = 1234, objective = 'classic', goals = 15, goalTotal = 15 })")
     check("recording a clear unlocks the next level and awards a star", ev("GnomishPachinkoDB.unlocked") >= 2 and ev("GnomishPachinkoDB.stars[1]") == 1)
 lua("UI:ShowLevelSelect()")
-check("the level map shows chapter 1 with level 2 open and the boss node tenth", ev("UI.levelPanel:IsShown() and UI.levelPanel.nodes[2]:IsEnabled() and not UI.levelPanel.nodes[3]:IsEnabled() and UI.levelPanel.nodes[10].level == 10"))
+check("the level map shows chapter 1 with level 2 open and the boss node tenth", ev("UI.levelPanel:IsShown() and UI.levelPanel.nodes[2]:IsEnabled() and not UI.levelPanel.nodes[3]:IsEnabled() and UI.levelPanel.nodes[10].level == 10"), f"unlocked {ev('GnomishPachinkoDB.unlocked')}")
 lua("UI.levelPanel.cells[2]:Click()")
 check("clicking an open level starts it", ev("UI.state.level == 2 and not UI.levelPanel:IsShown()"))
 lua("UI:ShowLevelSelect(); UI.levelPanel.next:Click()")

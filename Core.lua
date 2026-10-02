@@ -16,7 +16,6 @@ local DEFAULTS = {
     cleared = {},          -- [level] = true
     best = {},             -- [level] = best score
     stars = {},            -- [level] = best stars (1-3)
-    items = { ring = 2, rainbow = 0, green = 1, suction = 1 },   -- power-ups and boosts earned
     tips = {},             -- first-encounter tips already shown
     lastPower = nil,       -- the power picked on the level card
     current = 1,           -- level the window opens on
@@ -95,20 +94,17 @@ function GP:RecordResult(result)
         self.Plays:RecordFail()
     end
     if result.score > (db.best[n] or 0) then db.best[n] = result.score end
-    -- rewards: a Ring of Fire for a clear, an Extra Green Peg for three
-    -- stars, two Rainbow Balls for a boss or a duel won
+    -- rewards come from bosses (and duels) only: special balls, a suction
+    -- tube and an Extra Green Peg; everything else is bought with gears
     local rewards = {}
-    if result.cleared then
-        db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
-        db.items.ring = (db.items.ring or 0) + 1
-        rewards[#rewards + 1] = { item = "ring", n = 1 }
-        if stars >= 3 then db.items.green = (db.items.green or 0) + 1; rewards[#rewards + 1] = { item = "green", n = 1 } end
-        if result.objective == "boss" or result.duel then
-            db.items.rainbow = (db.items.rainbow or 0) + 2; rewards[#rewards + 1] = { item = "rainbow", n = 2 }
-            db.items.suction = (db.items.suction or 0) + 1; rewards[#rewards + 1] = { item = "suction", n = 1 }
+    if result.cleared and (result.objective == "boss" or result.duel) then
+        for _, r in ipairs({ { item = "ring", n = 2 }, { item = "rainbow", n = 1 }, { item = "suction", n = 2 }, { item = "green", n = 1 } }) do
+            self.Plays:AddItem(r.item, r.n)
+            rewards[#rewards + 1] = r
         end
     end
     result.rewards = rewards
+    self.Plays:Save()
     return stars, self.Plays:Remaining()
 end
 
@@ -132,17 +128,15 @@ end
 
 function GP:ItemCount(item)
     if self:Unlimited() then return 99 end
-    local db = self:GetDB()
-    db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
-    return db.items[item] or 0
+    return self.Plays:Items()[item] or 0
 end
 
 function GP:SpendItem(item)
     if self:Unlimited() then return true end
-    local db = self:GetDB()
-    db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
-    if (db.items[item] or 0) <= 0 then return false end
-    db.items[item] = db.items[item] - 1
+    local items = self.Plays:Items()
+    if (items[item] or 0) <= 0 then return false end
+    items[item] = items[item] - 1
+    self.Plays:Save()
     return true
 end
 
@@ -195,15 +189,19 @@ function GP:UnlockAll()
         return false
     end
     self:GetDB().unlocked = self.Levels.COUNT
+    self.Plays:Save()
     self:Print(("All %d levels unlocked for testing."):format(self.Levels.COUNT))
     if self.UI and self.UI.levelPanel and self.UI.levelPanel:IsShown() then self.UI:LevelPage(self.UI.levelPage) end
     return true
 end
 
 function GP:ResetProgress()
-    GnomishPachinkoDB = nil
+    -- keep the settings, wipe the progress (gears, special balls and plays stay)
+    local keep = GnomishPachinkoDB or {}
+    GnomishPachinkoDB = { sound = keep.sound, voice = keep.voice, minimap = keep.minimap, mascot = keep.mascot }
     self.db = nil
     self:GetDB()
+    self.Plays:Save()
     if self.Levels then self.Levels.starCache = nil end
     self:Print("Progress wiped. Back to level 1. (The day's plays are not reset.)")
     if self.UI and self.UI.frame then
@@ -246,9 +244,15 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     elseif msg == "plays" then
         GP:Print(GP.Plays:StatusText())
     elseif msg:match("^buy") then
-        local lots = tonumber(msg:match("%d+")) or 1
-        local ok, err = GP.Plays:FillPurchaseMail(lots)
+        local gears = tonumber(msg:match("%d+")) or GP.Plays.DEFAULT_GEARS_MAIL
+        local ok, err = GP.Plays:FillPurchaseMail(gears)
         if not ok then GP:Print(err) end
+    elseif msg:match("^shop%s+%a+") then
+        local ok, m = GP.Plays:Buy(msg:match("^shop%s+(%a+)"))
+        GP:Print(m)
+        if ok and GP.UI and GP.UI.frame then GP.UI:UpdateDisplay() end
+    elseif msg == "gears" then
+        GP:Print(("Golden Gears: %d. Shop: suction (1), ring (2), rainbow (3), plays (10). /pachinko shop <item>; /pachinko buy <n> fills the mail for n gears."):format(GP.Plays:Gears()))
     elseif msg == "reset" then
         GP:ResetProgress()
     elseif msg == "unlockall" then
@@ -275,5 +279,6 @@ loader:SetScript("OnEvent", function(_, event, name)
         if GP.Minimap then GP.Minimap:Create() end
     elseif event == "PLAYER_LOGOUT" then
         GP.Plays:Save()
+        GP.Plays:StripPlain()       -- the progress lives only in the sealed vault
     end
 end)

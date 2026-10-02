@@ -46,7 +46,13 @@ Every cleared level earns one to three stars by score. The marks come from the l
 
 ### Plays
 
-Losing a level (running out of balls) spends one of the day's plays, and out of balls on an ordinary level you can Play On with three more balls for a play. You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back, and five more plays for the day can be bought for 10g: mail the gold to Chairface Chippendale with "pachinko plays purchase" as the subject, or press **Buy plays** at a mailbox and the mail fills itself in. The count is kept in an encrypted record mirrored to several places outside the addon folder, so reinstalling the addon does not reset it, and an edited copy locks the day.
+Losing a level (running out of balls) spends one of the day's plays, and out of balls on an ordinary level you can Play On with three more balls for a play. You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back.
+
+### Golden Gears
+
+Golden Gears are the pachinko's own currency: mail gold to Chairface Chippendale with "pachinko golden gears" as the subject (or press **Get Golden Gears** at a mailbox and the mail fills itself in) and every gold is one gear. The shop in the side panel sells 3 Suction Tubes for 1 gear, 3 Rings of Fire for 2, 3 Rainbow Balls for 3, and 5 plays for 10. Gears are the only way to buy plays. Special balls are otherwise earned only from bosses and duels. `/pachinko gears` shows your gears, `/pachinko shop <suction|ring|rainbow|plays>` buys, `/pachinko buy <n>` fills the mail for n gears.
+
+Everything worth cheating at, the gears, the special balls, the plays and the level progress, is kept in an encrypted, checksummed record mirrored to several places outside the addon folder. At logout it leaves the plain save file entirely and comes back from the sealed copy at login, so editing the save changes nothing, an older copy put back cannot restore spent gears, and an edited copy locks the day's plays.
 
 ## The hosts
 
