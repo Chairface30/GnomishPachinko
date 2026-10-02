@@ -772,7 +772,7 @@ function UI:CreateFrame()
     -- each as wide as the circle at its inner edge (the ring's band covers
     -- the steps), each with its own copy of the model
     local innerR = math.floor(PORTRAIT / 2 * 0.8)
-    local clipR = innerR + 3
+    local clipR = (UI.PORTRAIT_STRIPS == 1) and (math.floor(PORTRAIT / 2 / math.sqrt(2)) - 1) or (innerR + 3)
     local strips = {}
     local N = UI.PORTRAIT_STRIPS
     local hStrip = 2 * clipR / N
@@ -1233,7 +1233,13 @@ function UI:PyramidPuff(x, y, size, dur, now)
     pick:Show()
 end
 
-UI.PORTRAIT_STRIPS = 9    -- clip strips making the host's round window
+-- The host's window: one model clipped to a square whose corners just
+-- reach the ring's outer edge. The ring's band is wide (its opening is
+-- about 0.58 of its radius), so the square's edges and corners all lie
+-- under it and the host shows only through the round opening, however far
+-- it is zoomed. (Several model copies in strips drifted out of step: each
+-- copy picks its own idle fidgets.)
+UI.PORTRAIT_STRIPS = 1
 
 -- TEMPORARY: a panel left of the window to set each host's height (z) and
 -- zoom (scale) by eye. Values save to GnomishPachinkoDB.mascot.tune[hostId];

@@ -3,7 +3,7 @@
 ## Unreleased
 
 - Fixed: the boss Model turn slider did nothing. The camera now circles the boss to turn it.
-- **The host's window is round.** However far a host is zoomed, the model stays inside the ring. WoW clips models only to rectangles, so the circle is built from nine strips, each holding a synced copy of the model.
+- **The host stays inside the ring however far it is zoomed.** The model is clipped to a square that lies wholly under the ring's band, so it shows only through the round opening. A try with nine model copies in strips was dropped: the copies drifted out of step.
 - **The tuning panel sets each boss separately:** arrows pick the boss and show its model on any boss level. Sliders set view angle (swinging the camera up for a bird's-eye view), camera distance, turn, tilt and x/y offset. A button hides the platform for that boss.
 
 - Fixed: the host Zoom slider snapped back. The client refits a model to its frame, so zoom now resizes the model's frame instead.

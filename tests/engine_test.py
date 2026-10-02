@@ -1894,18 +1894,17 @@ __powerPlayed = #__played_files > n
 """)
 check("a power is announced in its own host's voice", ev("__powerPlayed") and ev("__powerVoice").replace(chr(92), "/").endswith("Voice/razzle/power_pyramid.ogg"), ev("__powerVoice"))
 
-# the host's window is round: clip strips shaped to the circle, a model copy in each
+# the host's window: one model, clipped to the square round the ring's
+# opening, whose corners the outer ring covers
 lua(r"""
-local n, inside = #GP.Mascot.copies, true
-for _, c in ipairs(UI.portraitClips) do
-  if c:GetWidth() > 2 * (math.floor(UI.PORTRAIT_SIZE_FOR_TEST or 0) + 999) then inside = false end
-end
-__stripCopies = n == UI.PORTRAIT_STRIPS and #UI.portraitClips == UI.PORTRAIT_STRIPS
--- the middle strip is the widest, the end strips the narrowest
-local mid = UI.portraitClips[math.ceil(UI.PORTRAIT_STRIPS / 2)]:GetWidth()
-__stripRound = UI.portraitClips[1]:GetWidth() < mid and UI.portraitClips[UI.PORTRAIT_STRIPS]:GetWidth() < mid
+local clip = UI.portraitClips[1]
+local half = clip:GetWidth() / 2
+local corner = half * math.sqrt(2)
+__oneModel = #GP.Mascot.copies == 1 and #UI.portraitClips == 1
+__cornersCovered = corner <= UI.portraitRingFrame:GetWidth() / 2 and half >= UI.portraitRingFrame:GetWidth() / 2 * 0.6
 """)
-check("the host's window is round: one model copy per clip strip, strips narrowing toward top and bottom", ev("__stripCopies") and ev("__stripRound"))
+check("the host is one model (copies drift out of step)", ev("__oneModel"))
+check("the host's square clip lies under the ring band: corners inside its rim, edges past its opening", ev("__cornersCovered"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
