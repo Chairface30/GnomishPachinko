@@ -1857,6 +1857,25 @@ __tuneReset = GnomishPachinkoDB.mascot.tune[__tuneId] == nil
 """)
 check("the tuning panel saves a host's height and zoom, and resets them",
       ev("__tuneId") == "mekka" and ev("__tuneOk") and ev("__tuneReset"))
+lua(r"""
+GnomishPachinkoDB.mascot.bossView = nil
+UI:StartLevel(10, true)
+UI.tuner.boss.x:GetScript("OnValueChanged")(UI.tuner.boss.x, 12)
+UI.tuner.boss.view:GetScript("OnValueChanged")(UI.tuner.boss.view, 0.5)
+local v = UI:BossView("drake")
+__bossViewOk = v.x == 12 and v.view == 0.5 and v.pitch == UI.BOSS_VIEW.pitch and UI.bossViewCache.x == 12
+  and UI:BossView("golem").x == 0
+-- the platform hides for one boss only
+UI.tuner.platBtn:Click()
+__platHidden = not UI.bossPlatform:IsShown() and UI:BossView("drake").noPlatform == true and not UI:BossView("golem").noPlatform
+-- the arrows show the next boss's model on the board
+UI:TuneBoss(1)
+__nextBoss = UI.bossModelFor
+GnomishPachinkoDB.mascot.bossView = nil
+""")
+check("the boss sliders save view angle, distance, turn, tilt, x and y per boss", ev("__bossViewOk"))
+check("the platform can be hidden for one boss", ev("__platHidden"))
+check("the boss arrows show the next boss's model to set it", ev("__nextBoss") == "golem")
 check("the zoom slider resizes the host's model frame (the client undoes SetModelScale)", abs(ev("__zoomW") - 1.4) < 0.01, str(ev("__zoomW")))
 
 # a power is announced by the host it belongs to, whoever hosts the level
@@ -1870,6 +1889,19 @@ __powerVoice = __played_files[#__played_files] or ""
 __powerPlayed = #__played_files > n
 """)
 check("a power is announced in its own host's voice", ev("__powerPlayed") and ev("__powerVoice").replace(chr(92), "/").endswith("Voice/razzle/power_pyramid.ogg"), ev("__powerVoice"))
+
+# the host's window is round: clip strips shaped to the circle, a model copy in each
+lua(r"""
+local n, inside = #GP.Mascot.copies, true
+for _, c in ipairs(UI.portraitClips) do
+  if c:GetWidth() > 2 * (math.floor(UI.PORTRAIT_SIZE_FOR_TEST or 0) + 999) then inside = false end
+end
+__stripCopies = n == UI.PORTRAIT_STRIPS and #UI.portraitClips == UI.PORTRAIT_STRIPS
+-- the middle strip is the widest, the end strips the narrowest
+local mid = UI.portraitClips[math.ceil(UI.PORTRAIT_STRIPS / 2)]:GetWidth()
+__stripRound = UI.portraitClips[1]:GetWidth() < mid and UI.portraitClips[UI.PORTRAIT_STRIPS]:GetWidth() < mid
+""")
+check("the host's window is round: one model copy per clip strip, strips narrowing toward top and bottom", ev("__stripCopies") and ev("__stripRound"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

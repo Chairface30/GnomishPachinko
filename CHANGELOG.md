@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The host's window is round.** However far a host is zoomed, the model stays inside the ring. WoW clips models only to rectangles, so the circle is built from nine strips, each holding a synced copy of the model.
+- **The tuning panel sets each boss separately:** arrows pick the boss and show its model on any boss level. Sliders set view angle (swinging the camera up for a bird's-eye view), camera distance, turn, tilt and x/y offset. A button hides the platform for that boss.
+
 - Fixed: the host Zoom slider snapped back. The client refits a model to its frame, so zoom now resizes the model's frame instead.
 - A power is announced in the voice of the host it belongs to, whichever host runs the level.
 - The Pyramid lasts three strikes, and a ball over its bare corners past the bottom step falls through.

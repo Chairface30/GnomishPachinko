@@ -767,16 +767,28 @@ function UI:CreateFrame()
     boxBg:SetPoint("CENTER")
     ART:Set(boxBg, "dot", 0.03, 0.04, 0.14)   -- a dark disc behind the host
     self.portraitBox = box
-    -- the host at full size, clipped at the ring's inner bottom edge so his
-    -- feet never show below it (the ring's band covers the cut)
-    local clip = CreateFrame("Frame", nil, box)
+    -- the host, clipped to the ring's round window however far he is zoomed:
+    -- a model clips only to rectangles, so the circle is built from strips,
+    -- each as wide as the circle at its inner edge (the ring's band covers
+    -- the steps), each with its own copy of the model
     local innerR = math.floor(PORTRAIT / 2 * 0.8)
-    clip:SetPoint("TOPLEFT", box, "TOPLEFT", 0, 0)
-    clip:SetPoint("TOPRIGHT", box, "TOPRIGHT", 0, 0)
-    clip:SetHeight(PORTRAIT / 2 + innerR)
-    if clip.SetClipsChildren then pcall(clip.SetClipsChildren, clip, true) end
-    self.portraitClip = clip
-    if GP.Mascot then GP.Mascot:Create(clip, box, PORTRAIT - 16, PORTRAIT - 16) end
+    local clipR = innerR + 3
+    local strips = {}
+    local N = UI.PORTRAIT_STRIPS
+    local hStrip = 2 * clipR / N
+    for k = 1, N do
+        local top = clipR - (k - 1) * hStrip
+        local bottom = top - hStrip
+        local near = (top > 0 and bottom < 0) and 0 or math.min(math.abs(top), math.abs(bottom))
+        local half = math.sqrt(math.max(0, clipR * clipR - near * near))
+        local clip = CreateFrame("Frame", nil, box)
+        clip:SetSize(2 * half, hStrip + 0.5)
+        clip:SetPoint("CENTER", box, "CENTER", 0, (top + bottom) / 2)
+        if clip.SetClipsChildren then pcall(clip.SetClipsChildren, clip, true) end
+        strips[k] = clip
+    end
+    self.portraitClips = strips
+    if GP.Mascot then GP.Mascot:Create(strips[1], box, PORTRAIT - 16, PORTRAIT - 16, strips) end
     local ringFrame = CreateFrame("Frame", nil, frame)
     ringFrame:SetSize(PORTRAIT, PORTRAIT)
     ringFrame:SetPoint("CENTER", box, "CENTER", 0, 0)
@@ -1221,12 +1233,14 @@ function UI:PyramidPuff(x, y, size, dur, now)
     pick:Show()
 end
 
+UI.PORTRAIT_STRIPS = 9    -- clip strips making the host's round window
+
 -- TEMPORARY: a panel left of the window to set each host's height (z) and
 -- zoom (scale) by eye. Values save to GnomishPachinkoDB.mascot.tune[hostId];
 -- once set they are copied into GP.HOSTS and this panel is removed.
 function UI:CreateMascotTuner(frame)
     local panel = CreateFrame("Frame", nil, frame)
-    panel:SetSize(230, 246)
+    panel:SetSize(230, 556)
     panel:SetPoint("TOPRIGHT", frame, "TOPLEFT", -8, -40)
     local bg = panel:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
@@ -1266,15 +1280,55 @@ function UI:CreateMascotTuner(frame)
     end
     panel.z = slider("z", "Height (z)", -1, 1, -72)
     panel.scale = slider("scale", "Zoom (scale)", 0.3, 2.5, -122)
-    panel.pitch = slider("pitch", "Boss tilt (all bosses)", -3.14, 3.14, -172)
-    panel.pitch:SetScript("OnValueChanged", function(_, v)
-        if UI.tuneLoading then return end
+    -- the boss view, shared by every boss (seen on a boss level)
+    -- each boss has its own view; the arrows show another boss's model in
+    -- place of the board's boss, so all five can be set on one boss level
+    local bossTitle = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    bossTitle:SetPoint("TOP", panel, "TOP", 0, -154)
+    bossTitle:SetWidth(150)
+    panel.bossTitle = bossTitle
+    local bprev = makeButton(panel, 26, 22, "<")
+    bprev:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -150)
+    bprev:SetScript("OnClick", function() UI:TuneBoss(-1) end)
+    local bnext = makeButton(panel, 26, 22, ">")
+    bnext:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -150)
+    bnext:SetScript("OnClick", function() UI:TuneBoss(1) end)
+    panel.boss = {}
+    local function bossSlider(key, lo, hi, y)
+        local sl = slider("boss" .. key, key, lo, hi, y)
+        sl:SetScript("OnValueChanged", function(_, v)
+            if UI.tuneLoading then return end
+            local db = GP:GetDB()
+            db.mascot = db.mascot or {}
+            db.mascot.bossView = db.mascot.bossView or {}
+            local id = UI:TuneBossId()
+            db.mascot.bossView[id] = db.mascot.bossView[id] or {}
+            db.mascot.bossView[id][key] = math.floor(v * 100 + 0.5) / 100
+            UI:PoseBossModel()
+            UI:RefreshTuner()
+        end)
+        panel.boss[key] = sl
+    end
+    bossSlider("view", 0, 1.55, -180)
+    bossSlider("dist", 0.3, 3, -230)
+    bossSlider("yaw", -3.14, 3.14, -280)
+    bossSlider("pitch", -3.14, 3.14, -330)
+    bossSlider("x", -60, 60, -380)
+    bossSlider("y", -60, 60, -430)
+    local plat = makeButton(panel, 214, 22, "Platform: shown")
+    plat:SetPoint("TOP", panel, "TOP", 0, -472)
+    plat:SetScript("OnClick", function()
         local db = GP:GetDB()
         db.mascot = db.mascot or {}
-        db.mascot.bossPitch = math.floor(v * 100 + 0.5) / 100
+        db.mascot.bossView = db.mascot.bossView or {}
+        local id = UI:TuneBossId()
+        local t = db.mascot.bossView[id] or {}
+        t.noPlatform = not t.noPlatform or nil
+        db.mascot.bossView[id] = t
         UI:PoseBossModel()
         UI:RefreshTuner()
     end)
+    panel.platBtn = plat
     local reset = makeButton(panel, 100, 22, "Reset host")
     reset:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 8, 8)
     reset:SetScript("OnClick", function() UI:SetTune(nil) end)
@@ -1338,9 +1392,16 @@ function UI:RefreshTuner()
     self.tuneLoading = true
     p.z:SetValue(z)
     p.scale:SetValue(scale)
-    p.pitch:SetValue(self:BossPitch())
+    local view = self:BossView(self:TuneBossId())
+    for key, sl in pairs(p.boss) do sl:SetValue(view[key]) end
+    local def = self:TuneBossDef()
+    p.bossTitle:SetText(def and def.name or "")
+    p.platBtn.text:SetText(view.noPlatform and "Platform: hidden" or "Platform: shown")
     self.tuneLoading = false
-    if p.pitch.textFs then p.pitch.textFs:SetText(("Boss tilt: %.2f (on a boss level)"):format(self:BossPitch())) end
+    local names = { view = "View angle (up = from above)", dist = "Camera distance", pitch = "Model tilt", yaw = "Model turn", x = "Boss x", y = "Boss y" }
+    for key, sl in pairs(p.boss) do
+        if sl.textFs then sl.textFs:SetText(("%s: %.2f"):format(names[key], view[key])) end
+    end
     if p.z.textFs then p.z.textFs:SetText(("Height (z): %.2f"):format(z)) end
     if p.scale.textFs then p.scale.textFs:SetText(("Zoom (scale): %.2f"):format(scale)) end
 end
@@ -1361,7 +1422,9 @@ function UI:SetBoardChrome(shown)
         self.splashTex:Hide()
     end
     if self.bossModel then
-        if shown and self.bossModelNpc then self.bossModel:Show(); self.bossPlatform:Show()
+        if shown and self.bossModelNpc then
+            self.bossModel:Show()
+            if (self.bossViewCache or {}).noPlatform then self.bossPlatform:Hide() else self.bossPlatform:Show() end
         else self.bossModel:Hide(); self.bossPlatform:Hide() end
     end
 end
@@ -1838,7 +1901,11 @@ function UI:LayoutPegs(midLevel)
     if st.boss then
         self.bossName:SetText(st.boss.bossName or "Boss")
         self.bossBg:Show(); self.bossFill:Show(); self.bossName:Show()
-        if not midLevel or self.bossModelFor ~= st.boss.ability then self:LoadBossModel(st.boss.ability) end
+        if not midLevel then
+            self:LoadBossModel(st.boss.ability)
+            for i, d in ipairs(E.BOSSES) do if d.id == st.boss.ability then self.tuneBossIndex = i end end
+            if self.tuner then self:RefreshTuner() end
+        end
     else
         self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
         self:HideBossModel()
@@ -1888,24 +1955,78 @@ function UI:BossModelLoaded()
     return ok and id ~= nil
 end
 
--- The board is seen from above, so the boss is too: the model is pitched
--- over toward the camera by BOSS_PITCH radians (TEMPORARY: the tuning
--- panel's tilt slider overrides it until the value is hardcoded).
-UI.BOSS_PITCH = 1.2
-function UI:BossPitch()
+-- The board is seen from above, so the boss is too: the model is tilted
+-- (pitch), turned (yaw) and rolled toward the camera, and nudged off the
+-- boss's centre by x, y pixels. TEMPORARY: the tuning panel's boss sliders
+-- override BOSS_VIEW until the values are hardcoded.
+UI.BOSS_VIEW = { view = 1.2, dist = 1, pitch = 0, yaw = 0, x = 0, y = 0 }
+UI.BOSS_VIEWS = {}      -- per boss id: overrides of BOSS_VIEW, plus noPlatform
+function UI:BossView(id)
     local m = GP:GetDB().mascot
-    return (m and m.bossPitch) or self.BOSS_PITCH
+    local saved = (id and m and m.bossView and m.bossView[id]) or {}
+    local fixed = (id and self.BOSS_VIEWS[id]) or {}
+    local v = {}
+    for k, d in pairs(self.BOSS_VIEW) do
+        if saved[k] ~= nil then v[k] = saved[k] elseif fixed[k] ~= nil then v[k] = fixed[k] else v[k] = d end
+    end
+    if saved.noPlatform ~= nil then v.noPlatform = saved.noPlatform else v.noPlatform = fixed.noPlatform end
+    return v
+end
+
+-- TEMPORARY: which boss the tuning panel is setting
+function UI:TuneBossDef()
+    return E.BOSSES[self.tuneBossIndex or 1]
+end
+function UI:TuneBossId()
+    local d = self:TuneBossDef()
+    return d and d.id
+end
+function UI:TuneBoss(dir)
+    local n = #E.BOSSES
+    self.tuneBossIndex = ((self.tuneBossIndex or 1) - 1 + dir) % n + 1
+    if self.state and self.state.boss then self:LoadBossModel(self:TuneBossId()) end
+    self:RefreshTuner()
 end
 
 function UI:PoseBossModel()
     local m = self.bossModel
+    local v = self:BossView(self.bossModelFor)
+    self.bossViewCache = v
+    if self.bossModelNpc then
+        if v.noPlatform then self.bossPlatform:Hide() else self.bossPlatform:Show() end
+    end
     pcall(function()
         if m.SetCamera then m:SetCamera(0) end
         m:SetPosition(0, 0, 0)
-        m:SetFacing(0)
+        m:SetFacing(v.yaw)
     end)
-    if m.SetPitch then pcall(m.SetPitch, m, self:BossPitch()) end
+    if m.SetPitch then pcall(m.SetPitch, m, v.pitch) end
+    -- a bird's-eye view: the camera swings up over the model; without the
+    -- custom-camera calls the model itself is tilted as far instead
+    if not self:BossCamera(v) and m.SetPitch then pcall(m.SetPitch, m, v.pitch + v.view) end
     self.bossAnim = nil
+end
+
+-- The client's own framing of the model (camera 0) is turned into a custom
+-- camera and swung up by `view` radians round the point it looks at, at
+-- `dist` times its distance, so every model keeps its own fit.
+function UI:BossCamera(v)
+    local m = self.bossModel
+    if not (m.MakeCurrentCameraCustom and m.GetCameraPosition and m.GetCameraTarget and m.SetCameraPosition) then return false end
+    local ok = pcall(function()
+        m:MakeCurrentCameraCustom()
+        local px, py, pz = m:GetCameraPosition()
+        local tx, ty, tz = m:GetCameraTarget()
+        local dx, dy, dz = px - tx, py - ty, pz - tz
+        local R = math.sqrt(dx * dx + dy * dy + dz * dz) * v.dist
+        local hl = math.sqrt(dx * dx + dy * dy)
+        local hx, hy = 1, 0
+        if hl > 0.0001 then hx, hy = dx / hl, dy / hl end
+        local el = math.min(v.view, 1.55)
+        m:SetCameraPosition(tx + hx * R * math.cos(el), ty + hy * R * math.cos(el), tz + R * math.sin(el))
+        m:SetCameraTarget(tx, ty, tz)
+    end)
+    return ok
 end
 
 function UI:HideBossModel()
@@ -2914,7 +3035,8 @@ function UI:Render(now)
                         self.bossPlatform:ClearAllPoints()
                         self.bossPlatform:SetPoint("CENTER", field, "TOPLEFT", p.x, -p.y)
                         self.bossModel:ClearAllPoints()
-                        self.bossModel:SetPoint("CENTER", field, "TOPLEFT", p.x, -p.y)
+                        local view = self.bossViewCache or self:BossView(self.bossModelFor)
+                        self.bossModel:SetPoint("CENTER", field, "TOPLEFT", p.x + view.x, -(p.y + view.y))
                         if p.lit then
                             if self.bossAnim ~= "death" and self.bossAnim ~= "dead" then
                                 self:BossAnim("death")

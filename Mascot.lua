@@ -150,8 +150,58 @@ end
 
 -- parent: the frame the model lives in. With a size given it fills the
 -- parent's centre (the portrait box); otherwise it sits in the corner.
-function M:Create(parent, anchor, w, h)
+-- A model is clipped only by rectangles, so a round window is built from
+-- strips: `strips` (optional) is a list of clip frames shaped to the circle,
+-- each holding a copy of the model, all driven together through one proxy
+-- (any call on M.model goes to every copy; the first copy's answer comes back).
+local function proxyOf(copies)
+    return setmetatable({ copies = copies }, { __index = function(t, k)
+        local first = copies[1][k]
+        if type(first) ~= "function" then return first end
+        local f = function(_, ...)
+            local a, b, c, d
+            for i, m in ipairs(copies) do
+                local fn = m[k]
+                if fn then
+                    if i == 1 then a, b, c, d = fn(m, ...) else fn(m, ...) end
+                end
+            end
+            return a, b, c, d
+        end
+        rawset(t, k, f)
+        return f
+    end })
+end
+
+function M:Create(parent, anchor, w, h, strips)
     if self.model or not parent then return end
+    if strips and #strips > 0 then
+        local copies = {}
+        for i, clip in ipairs(strips) do
+            local m = CreateFrame("PlayerModel", i == 1 and "GnomishPachinkoMascot" or nil, clip)
+            copies[i] = m
+        end
+        local model = proxyOf(copies)
+        model:SetSize(w, h)
+        self.baseW, self.baseH = w, h
+        self.anchor = anchor or parent
+        model:SetPoint("CENTER", self.anchor, "CENTER", 0, 0)
+        for _, m in ipairs(copies) do
+            if m.SetFrameLevel and m:GetParent() and m:GetParent().GetFrameLevel then m:SetFrameLevel(m:GetParent():GetFrameLevel() + 3) end
+        end
+        model:EnableMouse(false)
+        -- each copy re-poses as it loads; the animation restarts on all at
+        -- once so the strips stay in step
+        model:SetScript("OnModelLoaded", function()
+            M:Pose()
+            if M.current then M:Play(M.current) end
+        end)
+        self.model = model
+        self.copies = copies
+        self:Load()
+        if settings().hide then model:Hide() end
+        return model
+    end
     local model = CreateFrame("PlayerModel", "GnomishPachinkoMascot", parent)
     model:SetSize(w or self.SIZE.w, h or self.SIZE.h)
     self.baseW, self.baseH = w, h
