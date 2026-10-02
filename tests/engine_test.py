@@ -1764,6 +1764,20 @@ end
 levels, nsizes, early, soft = ev("balloon_probe")()
 check("balloons stand in most levels from chapter 2, in several sizes, with the soft bounce", levels > 300 and nsizes >= 3 and early == 0 and soft, f"{levels} {nsizes} {early} {soft}")
 
+# the guide's ghost ball touches the piece it meets, edge to edge
+lua(r"""
+function guide_touch_probe()
+  local st = E:NewLevel(L:Build(1))
+  st.pegs = { { shape = "peg", x = 245, y = 330, kind = "blue" } }
+  st.aim = 0
+  local _, hit, x, y = E:Guide(st)
+  if not hit then return -1 end
+  return math.sqrt((x - 245) ^ 2 + (y - 330) ^ 2) - (E.BALL_R + E.PEG_R)
+end
+""")
+gap = ev("guide_touch_probe")()
+check("the guide's ghost ball touches the piece edge to edge, not inside it", 0 <= gap < 0.5, str(gap))
+
 # this round's rules
 lua(r"""
 function round_probe()

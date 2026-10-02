@@ -487,7 +487,18 @@ function E:Guide(state, maxT, every)
         if x > W - E.BALL_R then x = W - E.BALL_R; vx = -vx * E.RESTITUTION end
         if y > H then break end
         first = firstContact(state, x, y)
-        if first then break end
+        if first then
+            -- back off to the moment the ball's edge touches the piece:
+            -- halve the last step until the ball sits just outside it
+            local px, py = x - vx * dt, y - vy * dt
+            local lo, hi = 0, 1
+            for _ = 1, 10 do
+                local mid = (lo + hi) / 2
+                if firstContact(state, px + (x - px) * mid, py + (y - py) * mid) then hi = mid else lo = mid end
+            end
+            x, y = px + (x - px) * lo, py + (y - py) * lo
+            break
+        end
         t = t + dt
         if t >= nextSample then
             pts[#pts + 1] = { x = x, y = y }
