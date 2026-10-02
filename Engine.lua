@@ -103,11 +103,13 @@ E.GUIDE_SHOTS = 3
 E.CHAIN_LINKS = 6           -- Chain Lightning: pieces after the green one
 E.CHAIN_REACH = 120
 E.PYRAMID_STRIKES = 5       -- a step pyramid over the bucket stands for this many strikes
-E.PYRAMID_KICK    = 520     -- the ball leaves it at least this fast, upward
-E.PYRAMID_SIDE    = 260     -- ... and at least this fast toward the wall on its side
-E.PYRAMID_W       = 240     -- base width
-E.PYRAMID_H       = 120     -- base to the tip of its peak
+E.PYRAMID_SIDE    = 260     -- the ball leaves it at least this fast toward the wall on its side
+E.PYRAMID_W       = E.FIELD_W  -- base width: the whole bottom, nothing drops past it
+E.PYRAMID_H       = 122     -- base to the tip of its peak
 E.PYRAMID_BASE    = E.FIELD_H - 2
+-- ... and at least this fast upward: enough to climb from its foot to the
+-- middle of the board
+E.PYRAMID_KICK    = math.ceil(math.sqrt(2 * E.GRAVITY * (E.PYRAMID_BASE - E.FIELD_H / 2)) * 1.04)
 
 -- Combos: every piece lit in one shot adds COMBO_STEP x (hits so far)
 -- to its points, and long chains pay a bonus at these lengths.

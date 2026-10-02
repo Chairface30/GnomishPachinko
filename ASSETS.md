@@ -52,8 +52,8 @@ The authoritative list is `Art.lua` (run `python tools/make_textures.py --sheet 
 | `dot.tga` | 32x32 | Soft dot: aim guide, lightning bolt, map path | 5 to 8 px |
 | `star.tga` | 32x32 | Five-point star, gold when earned, grey when not | 10 to 30 px |
 | `blast.tga` | 128x128 | Soft radial burst with ragged spikes: Space Blast (about an inch across), Ring of Fire | 40 to 100 px |
-| `pyramid.tga` | 256x128 | The sandstone step pyramid with a gold capstone (full color) | 240x120 |
-| `pyramid_crumble1..4.tga` | 256x128 | The same pyramid after 1 to 4 of its 5 strikes | 240x120 |
+| `pyramid.tga` | 512x128 | The sandstone step pyramid with a gold capstone, as wide as the board (full color) | 490x122 |
+| `pyramid_crumble1..4.tga` | 512x128 | The same pyramid after 1 to 4 of its 5 strikes | 490x122 |
 | `pyramid_dust.tga` | 128x128 | A sandstone dust cloud: strikes and the collapse | varies |
 | `web.tga` | 64x64 | The Gyro Spider's web | 26x26 body |
 | `icon.tga` | 64x64 | Addon list icon (full colour) | 64 px |

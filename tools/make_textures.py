@@ -924,9 +924,9 @@ def make_all(slots, only, from_base):
     put("dot", dot_img(32))
     put("star", star_img(32))
     put("blast", burst(128))
-    put("pyramid", step_pyramid_img(256, 128))
+    put("pyramid", step_pyramid_img(512, 128))
     for i in range(1, 5):
-        put("pyramid_crumble%d" % i, step_pyramid_img(256, 128, i))
+        put("pyramid_crumble%d" % i, step_pyramid_img(512, 128, i))
     put("pyramid_dust", dust_img(128))
     put("web", web_img(64))
     put("icon", addon_icon())
