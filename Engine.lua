@@ -130,6 +130,10 @@ E.BOSS_BAND   = { y0 = 590, y1 = 700, y = 640 }     -- in Levels' design space: 
 E.SCRAP_R        = 11        -- a boss's scrap block
 E.SCRAP_PER_SHOT = 2         -- thrown after a shot that hit it
 E.SCRAP_MAX      = 6         -- on the board at once
+E.SCRAP_PER_SHOT_DRAKE = 2   -- the Tin Drake throws after every shot ...
+E.SCRAP_MAX_DRAKE      = 18  -- ... up to this many
+E.SCRAP_COL_W    = 44        -- scrap sits on columns this wide (a ball passes between neighbours)
+E.SCRAP_FREE_COLS = 3        -- columns always left empty: scrap is never a wall
 E.GOLEM_SHIELD = 2
 E.GOLEM_EVERY  = 3
 
@@ -1564,28 +1568,56 @@ local function substep(state, dt, events)
     if #state.balls == 0 and not rolling and not (state.phoenixes and #state.phoenixes > 0) then
         state.looseWait = 0
         clearLitPegs(state, events)
-        -- every boss fights back: after a shot that hit it, it throws scrap,
-        -- solid blocks in the gap above it that the next shots must find a way round
+        -- every boss fights back with scrap: solid blocks in the gap above it
+        -- that later shots must find a way round. Most bosses throw it after
+        -- a shot that hit them; the Tin Drake after every shot, so a wasted
+        -- shot makes it harder to reach. Scrap sits on a grid of columns and
+        -- a few columns are always kept clear, so it never becomes a wall.
         local boss = state.boss
-        if boss and not boss.lit and not boss.gone and state.bossHitThisShot then
-            local made = 0
-            local count = 0
-            for _, p in ipairs(state.pegs) do if p.scrap and not p.gone then count = count + 1 end end
-            for _ = 1, 12 do
-                if made >= E.SCRAP_PER_SHOT or count + made >= E.SCRAP_MAX then break end
-                local x = 50 + state.rng() * (W - 100)
-                local y = E.PEG_BOTTOM + 16 + state.rng() * math.max(4, boss.y - E.BOSS_R - 40 - E.PEG_BOTTOM - 16)
-                local ok = true
-                for _, q in ipairs(state.pegs) do
-                    if not q.gone then
-                        local dx, dy = q.x - x, q.y - y
-                        local rr = (q.r or E.PEG_R) + E.SCRAP_R + 10
-                        if q.shape ~= "brick" and dx * dx + dy * dy < rr * rr then ok = false break end
-                    end
+        if boss and not boss.lit and not boss.gone and (state.bossHitThisShot or boss.ability == "drake") then
+            local drake = boss.ability == "drake"
+            local cols = floor((W - 80) / E.SCRAP_COL_W)
+            local x0 = (W - cols * E.SCRAP_COL_W) / 2
+            local yTop = E.PEG_BOTTOM + 18
+            local yBot = boss.y - E.BOSS_R - 34
+            local rows = math.max(1, math.min(3, floor((yBot - yTop) / 30) + 1))
+            local used, colUsed, count = {}, {}, 0
+            for _, p in ipairs(state.pegs) do
+                if p.scrap and not p.gone then
+                    count = count + 1
+                    used[p.cell] = true
+                    colUsed[p.col] = true
                 end
-                if ok then
-                    state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = y, r = E.SCRAP_R, kind = "block", scrap = true }
-                    made = made + 1
+            end
+            local maxScrap = drake and E.SCRAP_MAX_DRAKE or E.SCRAP_MAX
+            local perShot = drake and E.SCRAP_PER_SHOT_DRAKE or E.SCRAP_PER_SHOT
+            local made = 0
+            for _ = 1, 40 do
+                if made >= perShot or count + made >= maxScrap then break end
+                local c = state.rng(1, cols)
+                local r = state.rng(1, rows)
+                local cell = c * 10 + r
+                if not used[cell] then
+                    -- keep at least SCRAP_FREE_COLS columns with nothing in them
+                    local free = 0
+                    for k = 1, cols do if not colUsed[k] and k ~= c then free = free + 1 end end
+                    if colUsed[c] or free >= E.SCRAP_FREE_COLS then
+                        local x = x0 + (c - 0.5) * E.SCRAP_COL_W
+                        local y = (rows == 1) and (yTop + yBot) / 2 or (yTop + (r - 1) * (yBot - yTop) / (rows - 1))
+                        local clear = true
+                        for _, q in ipairs(state.pegs) do
+                            if not q.gone and not q.scrap and q ~= boss and q.shape ~= "brick" then
+                                local dx, dy = q.x - x, q.y - y
+                                local rr = (q.r or E.PEG_R) + E.SCRAP_R + 6
+                                if dx * dx + dy * dy < rr * rr then clear = false break end
+                            end
+                        end
+                        if clear then
+                            state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = y, r = E.SCRAP_R, kind = "block", scrap = true, cell = cell, col = c }
+                            used[cell], colUsed[c] = true, true
+                            made = made + 1
+                        end
+                    end
                 end
             end
             if made > 0 then push(events, { type = "boss_scrap", count = made, x = boss.x, y = boss.y }) end

@@ -1112,7 +1112,11 @@ function UI:CreateLevelSelect()
     end)
     -- the owner's characters can open every level for testing
     panel.unlock = makeButton(panel, 150, 24, "Unlock all (testing)")
-    panel.unlock:SetPoint("BOTTOM", 0, 40)
+    panel.unlock:SetPoint("BOTTOM", -80, 40)
+    panel.unlimited = makeButton(panel, 150, 24, "Unlimited items")
+    panel.unlimited:SetPoint("BOTTOM", 80, 40)
+    panel.unlimited:SetScript("OnClick", function() GP:ToggleUnlimited(); UI:LevelPage(UI.levelPage) end)
+    panel.unlimited:Hide()
     panel.unlock:SetScript("OnClick", function() GP:UnlockAll() end)
     panel.unlock:Hide()
     panel.reset:SetScript("OnLeave", function(self)
@@ -1172,8 +1176,12 @@ function UI:LevelPage(page)
     if GP.Plays:IsOwner() then
         styleButton(panel.unlock, true, 0.2, 0.5, 0.25)
         panel.unlock:Show()
+        panel.unlimited.text:SetText(GP:Unlimited() and "Unlimited: on" or "Unlimited: off")
+        styleButton(panel.unlimited, true, 0.2, 0.5, 0.25)
+        panel.unlimited:Show()
     else
         panel.unlock:Hide()
+        panel.unlimited:Hide()
     end
     if panel.reset.armedUntil and GetTime() >= panel.reset.armedUntil then
         panel.reset.armedUntil = nil

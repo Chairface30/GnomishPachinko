@@ -1518,6 +1518,8 @@ lua('__unitName, __unitSurname = "Thrall", "Frostwolf"; GnomishPachinkoDB.unlock
 check("a stranger cannot unlock all levels", ev("__strangerUnlock") == False and ev("GnomishPachinkoDB.unlocked") == 1)
 lua('__unitName, __unitSurname = "Chairface", "Chippendale"; __ownerUnlock = GP:UnlockAll()')
 check("an owner unlocks every level for testing", ev("__ownerUnlock") == True and ev("GnomishPachinkoDB.unlocked") == ev("L.COUNT"))
+lua('GP:ToggleUnlimited(); __unlimitedCount = GP:ItemCount("suction"); GP:SpendItem("suction"); __unlimitedAfter = GP:ItemCount("suction"); GP:ToggleUnlimited()')
+check("an owner can switch on unlimited special balls for testing", ev("__unlimitedCount") == 99 and ev("__unlimitedAfter") == 99 and not ev("GP:Unlimited()"))
 lua('GnomishPachinkoDB.unlocked = 1')
 lua("__before = P:BoughtLeft(); P:GrantFree()")
 check("an owner's free top-up adds a lot of plays", ev("P:BoughtLeft()") == ev("__before") + 5)
@@ -1792,6 +1794,38 @@ end
 """)
 gap = ev("guide_touch_probe")()
 check("the guide's ghost ball touches the piece edge to edge, not inside it", 0 <= gap < 0.5, str(gap))
+
+# the Tin Drake throws scrap after every shot, and scrap never walls the boss off
+lua(r"""
+function drake_probe()
+  local spec
+  for n = 10, 400, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "drake" then break end end
+  local st = E:NewLevel(spec)
+  local events = {}
+  local counts = {}
+  for shot = 1, 14 do
+    st.phase = E.PHASE.FLIGHT
+    st.balls = {}
+    st.shots = shot
+    st.bossHitThisShot = false
+    st.ballsLeft = 10
+    for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+    local n = 0
+    for _, p in ipairs(st.pegs) do if p.scrap then n = n + 1 end end
+    counts[#counts + 1] = n
+  end
+  -- the columns: at least three with no scrap in them
+  local cols = math.floor((E.FIELD_W - 80) / E.SCRAP_COL_W)
+  local used = {}
+  for _, p in ipairs(st.pegs) do if p.scrap then used[p.col] = true end end
+  local free = 0
+  for c = 1, cols do if not used[c] then free = free + 1 end end
+  return counts[1], counts[#counts], free
+end
+""")
+first, last, free = ev("drake_probe")()
+check("the Tin Drake throws scrap after every shot, even a miss, and keeps three columns clear",
+      first >= 1 and last > first and free >= 3, f"{first} {last} {free}")
 
 # this round's rules
 lua(r"""

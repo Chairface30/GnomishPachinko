@@ -102,13 +102,33 @@ function GP:RecordResult(result)
     return stars, self.Plays:Remaining()
 end
 
+-- Debugging (owner characters only): special balls and boosts never run out.
+function GP:Unlimited()
+    local db = self:GetDB()
+    return db.debugUnlimited and self.Plays and self.Plays:IsOwner() or false
+end
+
+function GP:ToggleUnlimited()
+    if not (self.Plays and self.Plays:IsOwner()) then
+        self:Print("Unlimited items are for the owner's characters only.")
+        return false
+    end
+    local db = self:GetDB()
+    db.debugUnlimited = not db.debugUnlimited
+    self:Print("Unlimited special balls and boosts " .. (db.debugUnlimited and "on" or "off") .. " (testing).")
+    if self.UI and self.UI.frame then self.UI:UpdateDisplay() end
+    return db.debugUnlimited
+end
+
 function GP:ItemCount(item)
+    if self:Unlimited() then return 99 end
     local db = self:GetDB()
     db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
     return db.items[item] or 0
 end
 
 function GP:SpendItem(item)
+    if self:Unlimited() then return true end
     local db = self:GetDB()
     db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
     if (db.items[item] or 0) <= 0 then return false end
@@ -205,10 +225,12 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         GP:ResetProgress()
     elseif msg == "unlockall" then
         GP:UnlockAll()
+    elseif msg == "unlimited" then
+        GP:ToggleUnlimited()
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
-            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing).")
+            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
     end
 end
 
