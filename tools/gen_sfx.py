@@ -65,7 +65,7 @@ EFFECTS = {
     "power_spooky":    ("A spooky ghostly whoosh with a faint cartoon boo, a power-up, short.", 1.2, {}),
     "power_pyramid":   ("Heavy stone blocks sliding into place with a dusty thud, short.", 1.0, {}),
     "power_lightning": ("An electric charge building for a moment then a crackling zap, short.", 1.0, {}),
-    "power_frenzy":    ("A burst of three quick bouncy pops with a sparkle, extra balls arriving, short and cheerful.", 1.0, {}),
+    "power_frenzy":    ("Three quick bouncy pops in a row followed by a bright sparkle, extra balls arriving, cheerful.", 1.2, {"keep_tail": True}),
     "blast":    ("A deep cartoon explosion with a quick boom and a short sparkle tail, no long rumble.", 1.2, {"keep_tail": True}),
     "zap":      ("A short crackling electric arc jumping between metal pins, zappy and bright.", 0.5, {}),
     "pyramid":  ("A ball bouncing hard off a stone ramp with a springy thump, short.", 0.4, {}),
