@@ -121,6 +121,7 @@ slot("launcher_barrel", 32, 64, { note = "the cannon nozzle, drawn pointing down
 slot("launcher_hub",    64, 64, { note = "the pivot plate at the top centre" })
 slot("launcher_flash",  64, 64, { tint = true, note = "the muzzle flash on launch" })
 slot("bucket",          128, 128, { note = "the free-ball bucket (a nest, a pot, whatever the world wants); its rim at the top third" })
+slot("bucket_suck", 512, 512, { frames = 16, cols = 4, note = "the tube sucking: a 4 by 4 sheet of 16 frames, played while a Suction Tube ball is in flight" })
 for i = 1, 4 do slot("bucket_splash" .. i, 128, 128, { note = "a catch: splash frame " .. i .. " of 4, drawn over the bucket" }) end
 slot("fever_tube",       128, 64, { source = true, note = "the mouth of a brass vacuum tube, opening up: the source the five lettered tubes are drawn from" })
 for _, letter in ipairs({ "g", "n", "o", "m", "e" }) do

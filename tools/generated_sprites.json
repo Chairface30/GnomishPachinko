@@ -177,6 +177,12 @@
    "done": true,
    "how": "derive"
   },
+  "bucket_suck": {
+   "assetId": "cmurhqwax0002124ozuygivjz",
+   "done": true,
+   "how": "anim",
+   "jobId": "wf_77f13ffc-c98d-4008-a6c6-6ee305a09aa4"
+  },
   "bumper": {
    "assetId": "cmur5t0im0005i1b35gpcofa4",
    "bgRemoved": true,
@@ -249,6 +255,10 @@
    "done": true,
    "how": "pose",
    "jobId": "cf_7b0ec02b-e3a2-4808-83c4-65fc43a84290"
+  },
+  "fever_balloon": {
+   "done": true,
+   "how": "asset"
   },
   "fever_bucket": {
    "assetId": "cmurf28c000056easm13cgvl3",

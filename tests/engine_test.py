@@ -219,7 +219,7 @@ for n in range(1, 401):
             problems.append((n, "duel", counts["orange"], spec.goal))
     if spec.noBucket:
         no_bucket += 1
-        if spec.objective == "gems" or n < 41:
+        if spec.objective == "gems" or (n < 41 and spec.objective != "boss"):
             problems.append((n, "bucket removed on the wrong level"))
     if counts["goal"] != spec.goal and spec.objective != "longshots":
         problems.append((n, "goal flags", counts["goal"], spec.goal))
@@ -1556,6 +1556,21 @@ check("Play on the card hides it", ev("not UI.card:IsShown()"))
 lua("__aimBefore = UI.state.aim or 0; UI:OnKey('RIGHT'); __aimAfter = UI.state.aim; UI:OnKey('SPACE')")
 check("Right nudges the aim a quarter of a degree and Space pauses", abs(ev("__aimAfter - __aimBefore") - 0.25 * math.pi / 180) < 1e-6 and ev("UI.paused") == True)
 lua("UI:OnKey('SPACE')")
+lua("""
+__aim0 = UI.state.aim
+UI.field:GetScript("OnMouseDown")(UI.field, "RightButton")
+__cursor.x = __cursor.x + 50
+__advance(0.5)
+__fineDelta = UI.state.aim - __aim0
+__fineZoom = UI.zoomScale
+UI.field:GetScript("OnMouseUp")(UI.field, "RightButton")
+__advance(1.5)
+__zoomAfter = UI.zoomScale
+""")
+check("holding the right button zooms in on the landing spot and turns the cannon a fiftieth of a degree a pixel",
+      abs(ev("__fineDelta") - 50 * 0.02 * math.pi / 180) < 1e-6 and ev("__fineZoom") > 2 and ev("__zoomAfter") < 1.05,
+      f"{ev('__fineDelta')} {ev('__fineZoom')} {ev('__zoomAfter')}")
+check("boss levels have no vacuum tube", all(ev(f"L:NoBucket({n})") for n in range(10, 401, 20)))
 check("Space again resumes", ev("UI.paused") == False)
 ok, result = ev("ui_play")(900)
 check("a level plays to its end through the window", ok)

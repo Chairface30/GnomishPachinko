@@ -85,6 +85,16 @@ def derive(name, source, op, **kw):
     PLAN[name] = {"how": "derive", "source": source, "op": op, **kw}
 
 
+ANIMS = {}
+
+
+def anim(name, base, prompt, frames=16):
+    """An animated sheet: the base slot's AutoSprite asset animated
+    (animate_asset), its 4 x 4 sheet saved whole; the game plays it by frame."""
+    ANIMS[name] = {"base": base, "prompt": prompt, "frames": frames}
+    PLAN[name] = {"how": "anim", "base": base, "prompt": prompt}
+
+
 def tool(*names):
     for n in names:
         PLAN[n] = {"how": "tool"}
@@ -213,6 +223,7 @@ derive("spark4", "spark2", "spread", amount=1.4, fade=0.6)
 asset("phoenix", "character", "fiery phoenix bird flying straight up, wings spread wide, flames trailing below, seen from behind, " + STYLE)
 asset("confetti", "effect", "scattered colourful confetti bits mid-air, " + STYLE)
 asset("firework", "effect", "radial firework burst, white centre, golden rays, " + STYLE)
+anim("bucket_suck", "bucket", "the brass vacuum tube mouth cartoonishly sucking: it bulges and squashes rhythmically, wind swirls spiral into the opening, the pressure gauge needle wobbles")
 tool("peg", "brick", "key", "boss", "ring", "rim", "crack", "dot", "star", "blast", "pyramid", "icon", "trail", "glow_soft")
 
 

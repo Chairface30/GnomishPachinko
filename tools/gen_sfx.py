@@ -97,6 +97,7 @@ EFFECTS = {
     "grumble4": ("A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 4.", 1.4, {}),
     "grumble5": ("A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 5.", 1.4, {}),
     "grumble6": ("A low mechanical robot grumbling nonsense syllables like a muted tuba, mrh hrm, menacing, no words, variation 6.", 1.4, {}),
+    "suction":  ("A cartoon vacuum cleaner sucking air through a brass tube, a steady whooshing hoovering whoosh with a gentle wobble, seamless loop.", 2.0, {"loop": True}),
     "fever_music": ("A short exciting arcane fever music loop, bright synth arpeggios over driving drums and brass hits, building, about eight seconds.", 8.0, {"loop": True}),
     "fanfare":  ("A grand triumphant brass fanfare with timpani and a snare roll, celebratory, seamless loop.", 6.0, {"loop": True}),
     "fail":     ("A short sad trombone wah-wah, cartoon failure, brief.", 1.4, {"keep_tail": True}),

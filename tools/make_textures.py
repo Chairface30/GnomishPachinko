@@ -880,6 +880,14 @@ def make_all(slots, only, from_base):
     put("bucket", bucket_img(128, 128, (150, 82, 40), (220, 160, 90)))
     for i in range(1, 5):
         put("bucket_splash%d" % i, splash(128, 128, i - 1))
+    suck = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
+    tube = finish(bucket_img(128, 128, (150, 82, 40), (220, 160, 90)), 128, 128)
+    for k in range(16):
+        sq = 1 + 0.08 * math.sin(k / 16 * 2 * math.pi)
+        f = tube.resize((int(128 * sq), int(128 / sq)), Image.LANCZOS)
+        suck.alpha_composite(f, ((k % 4) * 128 + (128 - f.width) // 2, (k // 4) * 128 + (128 - f.height) // 2))
+    if "bucket_suck" not in [n for n in made] and not os.path.exists(os.path.join(OUT, "bucket_suck.tga")):
+        put("bucket_suck", suck)
     tube = bucket_img(128, 64, (150, 100, 40), (230, 190, 110))
     put("fever_tube", tube)
     for letter in "gnome":

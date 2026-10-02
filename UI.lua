@@ -266,7 +266,11 @@ function UI:CreateFrame()
     self.fieldBg = fieldBg
     field:EnableMouse(true)
     field:SetScript("OnMouseDown", function(_, button)
-        if button == "LeftButton" then UI:OnFieldClick() end
+        if button == "LeftButton" then UI:OnFieldClick()
+        elseif button == "RightButton" then UI:StartFineAim() end
+    end)
+    field:SetScript("OnMouseUp", function(_, button)
+        if button == "RightButton" then UI:StopFineAim() end
     end)
     -- the keyboard is ours only while the mouse is over the field
     field:SetScript("OnEnter", function() pcall(frame.EnableKeyboard, frame, true) end)
@@ -1391,6 +1395,7 @@ function UI:OnFieldClick()
     if st.duel and st.duel.stage == 2 and st.duel.turn == "rival" then return end
     if not E:CanLaunch(st) then return end
     self:AimAtCursor()
+    self.fineAim = nil
     if E:Launch(st, self.events) then
         self:HideGuide()
         self.flashAt = GetTime()
@@ -1590,6 +1595,8 @@ function UI:DrawGuide()
     local pts, hit, hx, hy
     local super = st.superGuide > 0
     if super then pts = E:Simulate(st) else pts, hit, hx, hy = E:Guide(st) end
+    local last = pts[#pts]
+    if hx then self.guideEnd = { x = hx, y = hy } elseif last then self.guideEnd = { x = last.x, y = last.y } end
     -- the ball drawn where it first meets a piece (walls do not count)
     if hit and hx then
         placeAt(self.guideBall, self.field, hx, hy)
@@ -1658,6 +1665,24 @@ function UI:TogglePause()
     if self.paused then self:ShowBanner("|cffffd700PAUSED|r", "Space to carry on", 0) else self:ShowBanner("", "", 0) end
 end
 
+-- Fine aim: with the right button held the view zooms in on where the
+-- shot will land and the cursor turns the cannon a fiftieth of a degree a
+-- pixel, from where it was pointing.
+local FINE_RAD_PER_PX = 0.02 * math.pi / 180
+local FINE_ZOOM = 3
+
+function UI:StartFineAim()
+    local st = self.state
+    if not st or st.phase ~= E.PHASE.AIM or not GetCursorPosition then return end
+    if st.duel and st.duel.stage == 2 and st.duel.turn == "rival" then return end
+    local cx = GetCursorPosition()
+    self.fineAim = { x = cx, aim = st.aim or 0 }
+end
+
+function UI:StopFineAim()
+    self.fineAim = nil
+end
+
 -- The launcher swings toward the cursor rather than snapping (dt nil = snap).
 function UI:AimAtCursor(dt)
     local st = self.state
@@ -1670,6 +1695,14 @@ function UI:AimAtCursor(dt)
         local c = self.keyAimCursor
         if GetTime() < self.keyAimUntil and c and c[1] and math.abs(c[1] - fx) < 3 and math.abs(c[2] - fy) < 3 then return end
         self.keyAimUntil = nil
+    end
+    if self.fineAim then
+        local cx = GetCursorPosition()
+        local scale = (UIParent and UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
+        local lim = E.MAX_AIM_DEG * math.pi / 180
+        local a = self.fineAim.aim + (cx - self.fineAim.x) / scale * FINE_RAD_PER_PX
+        st.aim = math.max(-lim, math.min(lim, a))
+        return
     end
     if fx < -120 or fx > E.FIELD_W + 120 or fy < -60 or fy > E.FIELD_H + 120 then return end
     local target = E:AimAngle(fx, fy)
@@ -2319,7 +2352,8 @@ function UI:UpdateZoom(dt)
     -- a short hold after the slow-mo lets go, so a brief gap between two
     -- stretches of it never reverses the zoom mid-way
     local hold = self.slowSeenAt and (now - self.slowSeenAt) < 0.25 and st and st.phase == E.PHASE.FLIGHT
-    local target = (slow or hold) and E.LAST_ZOOM or 1
+    local fine = self.fineAim and st and st.phase == E.PHASE.AIM and self.guideEnd
+    local target = (slow or hold) and E.LAST_ZOOM or (fine and FINE_ZOOM or 1)
     local cur = self.zoomScale or 1
     if math.abs(target - cur) < 0.002 then
         if cur == 1 and self.zoomApplied == 1 then return end
@@ -2332,7 +2366,16 @@ function UI:UpdateZoom(dt)
     local field = self.field
     local FW, FH = E.FIELD_W, E.FIELD_H
     -- the ball nearest the piece is the centre; keep the last one seen once it is gone
-    if st and st.lastPeg and #st.balls > 0 then
+    if fine then
+        local g = self.guideEnd
+        if self.zoomX then
+            local k = math.min(1, dt * 16)
+            self.zoomX = self.zoomX + (g.x - self.zoomX) * k
+            self.zoomY = self.zoomY + (g.y - self.zoomY) * k
+        else
+            self.zoomX, self.zoomY = g.x, g.y
+        end
+    elseif st and st.lastPeg and #st.balls > 0 then
         local best, bd = nil, math.huge
         for _, b in ipairs(st.balls) do
             local dx, dy = b.x - st.lastPeg.x, b.y - st.lastPeg.y
@@ -2668,6 +2711,27 @@ function UI:Render(now)
     if st.phase ~= E.PHASE.FEVER and st.phase ~= E.PHASE.OVER and not st.noBucket then
         self.bucket:ClearAllPoints()
         self.bucket:SetPoint("TOP", field, "TOPLEFT", st.bucket.x, -(E.BucketTop() - 22))
+    end
+    -- a Suction Tube ball in flight: the tube sucks, and whooshes
+    local sucking = false
+    if st.phase == E.PHASE.FLIGHT and not st.noBucket then
+        for _, b in ipairs(st.balls) do if b.suction then sucking = true break end end
+    end
+    if sucking then
+        local frame = math.floor(now * 14) % 16
+        ART:Set(self.bucket, "bucket_suck")
+        local c, r = frame % 4, math.floor(frame / 4)
+        self.bucket:SetTexCoord(c / 4, (c + 1) / 4, r / 4, (r + 1) / 4)
+        if not self.suckUntil or now >= self.suckUntil then
+            local _, handle = GP:PlaySfx("suction.ogg")
+            self.suckHandle = handle
+            self.suckUntil = now + 2.0
+        end
+    elseif self.bucket.slot == "bucket_suck" then
+        ART:Set(self.bucket, "bucket")
+        self.bucket:SetTexCoord(0, 1, 0, 1)
+        if self.suckHandle and type(StopSound) == "function" then pcall(StopSound, self.suckHandle, 200) end
+        self.suckHandle, self.suckUntil = nil, nil
     end
     -- the catch splash plays its four frames over the bucket
     if self.splashAt then

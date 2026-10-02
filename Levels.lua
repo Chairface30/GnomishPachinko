@@ -920,6 +920,7 @@ end
 -- Levels without the bucket: from chapter 5, levels ending 4 and 9 (never
 -- a gem level, the bucket is its goal).
 function L:NoBucket(n)
+    if self:Objective(n) == "boss" then return true end      -- the boss owns the bottom: no tube
     if n < 41 then return false end
     local last = n % 10
     if last ~= 4 and last ~= 9 then return false end
