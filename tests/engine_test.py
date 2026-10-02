@@ -1723,6 +1723,10 @@ phase, dividers, caps, solid, floor, blocked = ev("post_probe")()
 check("Fever stands four solid floor-to-rim dividers with caps between the cups", phase == "FEVER" and dividers == 4 and caps == 4 and solid and floor and blocked,
       f"{phase} {dividers} {caps} {solid} {floor} {blocked}")
 
+check("every chapter has its own map and board backdrop, the tenth level its boss arena",
+      ev("ART:MapBackdrop(17)") == "map_bg_17" and ev("ART:FieldBackdrop(161)") == "field_bg_17" and ev("ART:FieldBackdrop(170)") == "field_boss_17"
+      and ev("ART:FieldBackdrop(400)") == "field_boss_40" and ev("ART.CHAPTERS") == ev("#L.CHAPTERS"))
+
 # ------------------------------------------------------------------ art slots
 # Every slot in Art.lua has its file in Textures/ at the size it says, and
 # nothing sits in Textures/ that the registry does not know about.

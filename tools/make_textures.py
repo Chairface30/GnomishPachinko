@@ -938,6 +938,8 @@ def make_all(slots, only, from_base):
             put(s["name"], backdrop(s["w"], s["h"], (0.1, 0.08, 0.22), (0.05, 0.04, 0.12), stars=60, seed=1))
         if s["name"].startswith("field_bg_"):
             put(s["name"], backdrop(s["w"], s["h"], (0.05, 0.06, 0.2), (0.02, 0.03, 0.1), stars=90, seed=2))
+        if s["name"].startswith("field_boss_"):
+            put(s["name"], backdrop(s["w"], s["h"], (0.2, 0.04, 0.06), (0.06, 0.02, 0.04), stars=30, seed=3))
     mm = tint_img(disc(64, 0.95, spec=0.3), (0.36, 0.20, 0.52))
     text_on(mm, "GP", 0.42, (255, 215, 50, 255))
     put("minimap", mm)

@@ -30,10 +30,9 @@ local ART = GP.Art
 ART.PATH = "Interface\\AddOns\\GnomishPachinko\\Textures\\"
 ART.WHITE = "Interface\\Buttons\\WHITE8x8"
 
--- How many per-world backdrops exist (field_bg_1.., map_bg_1..). A world
--- is ten chapters; worlds past the count wrap round.
-ART.FIELD_BG_COUNT = 4      -- forest, canyon, cavern, snow
-ART.MAP_BG_COUNT = 4
+-- Every chapter has its own map backdrop, board backdrop and boss arena,
+-- painted for its zone (map_bg_<chapter>, field_bg_<chapter>, field_boss_<chapter>).
+ART.CHAPTERS = 40
 
 ART.PEG_COLORS = { "blue", "orange", "green", "purple" }
 ART.PIECE_STATES = { "", "_lit", "_gone" }
@@ -150,8 +149,9 @@ slot("map_node",        64, 64, { note = "an open level node" })
 slot("map_node_done",   64, 64, { note = "a cleared level node" })
 slot("map_node_locked", 64, 64, { note = "a locked level node" })
 slot("map_node_boss",   64, 64, { note = "the boss node, larger and ringed" })
-for i = 1, ART.MAP_BG_COUNT do slot("map_bg_" .. i, 256, 512, { free = true, note = "map backdrop for world " .. i }) end
-for i = 1, ART.FIELD_BG_COUNT do slot("field_bg_" .. i, 256, 512, { free = true, note = "board backdrop for world " .. i }) end
+for i = 1, ART.CHAPTERS do slot("map_bg_" .. i, 256, 512, { free = true, note = "map backdrop for chapter " .. i }) end
+for i = 1, ART.CHAPTERS do slot("field_bg_" .. i, 256, 512, { free = true, note = "board backdrop for chapter " .. i }) end
+for i = 1, ART.CHAPTERS do slot("field_boss_" .. i, 256, 512, { free = true, note = "the boss arena of chapter " .. i }) end
 slot("minimap", 64, 64, { note = "the minimap button" })
 
 section("Effects")
@@ -212,15 +212,17 @@ function ART:Goal(objective)
     local map = { classic = "orange", eggs = "egg", gems = "gem", boss = "boss", duel = "duel", longshots = "longshot" }
     return "goal_" .. (map[objective] or "orange")
 end
-function ART:World(level)
+function ART:Chapter(level)
     local chapter = math.floor(((level or 1) - 1) / 10) + 1
-    return math.floor((chapter - 1) / 10) + 1
+    return ((chapter - 1) % self.CHAPTERS) + 1
 end
-function ART:FieldBackdrop(level) return "field_bg_" .. (((self:World(level) - 1) % self.FIELD_BG_COUNT) + 1) end
-function ART:MapBackdrop(chapter)
-    local world = math.floor((chapter - 1) / 10) + 1
-    return "map_bg_" .. (((world - 1) % self.MAP_BG_COUNT) + 1)
+-- The board's backdrop: the chapter's, or its boss arena on the tenth level.
+function ART:FieldBackdrop(level)
+    local chapter = self:Chapter(level)
+    if (level or 1) % 10 == 0 then return "field_boss_" .. chapter end
+    return "field_bg_" .. chapter
 end
+function ART:MapBackdrop(chapter) return "map_bg_" .. (((chapter - 1) % self.CHAPTERS) + 1) end
 function ART:Frames(prefix, n)
     local list = {}
     for i = 1, n do list[i] = prefix .. i end

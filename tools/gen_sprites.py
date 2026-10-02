@@ -152,13 +152,50 @@ asset("map_node", "item", "round carved wooden level button, brown, " + STYLE)
 asset("map_node_done", "item", "round carved wooden level button with a green gem centre, " + STYLE)
 asset("map_node_locked", "item", "round grey stone level button with an iron padlock, " + STYLE)
 asset("map_node_boss", "item", "round red iron level button with a skull, " + STYLE)
-WORLDS = (("forest", "sunlit fantasy forest meadow with a winding dirt path", "dark forest night, faint tree silhouettes, deep green"),
-          ("canyon", "warm desert canyon at dusk with mesas and a winding trail", "dark warm canyon dusk, deep rust and purple, faint rock shapes"),
-          ("cavern", "glowing underground jungle cavern with crystals and a winding path", "dark cavern, faint teal crystal glow, deep blue-black"),
-          ("snow", "frozen mountain pass at night with snow, pines and a winding path", "dark icy night, faint snowfall, deep navy"))
-for i, (name, mapLook, fieldLook) in enumerate(WORLDS, 1):
-    asset("map_bg_%d" % i, "texture", "tall painted %s, soft, low contrast, portrait, world map backdrop" % mapLook, keep_bg=True)
-    asset("field_bg_%d" % i, "texture", "tall very low contrast game board backdrop: %s, no objects, portrait" % fieldLook, keep_bg=True)
+BIOMES = [('Elwynn Forest', 'sunlit oak forest with meadows, a stream and a farmhouse'),
+          ('Durotar', 'red desert of dry earth, cacti and rust-coloured canyons'),
+          ('Dun Morogh', 'snowy pine mountains with frozen lakes and stone huts'),
+          ('Mulgore', 'golden rolling grassland with mesas and totem poles'),
+          ('Teldrassil', 'moonlit forest of giant purple-leafed trees and glowing lanterns'),
+          ('Tirisfal Glades', 'gloomy dead forest with graveyards, fog and crooked trees'),
+          ('Westfall', 'dry golden farmland with windmills and haystacks under a hazy sky'),
+          ('Loch Modan', 'a calm lake among green hills with pines and a stone dam'),
+          ('Darkshore', 'dark pine coast with moonlit cliffs and crashing waves'),
+          ('Silverpine Forest', 'gray misty pine forest with mossy stones'),
+          ('The Barrens', 'dry savanna with acacia trees, red earth and distant mesas'),
+          ('Redridge Mountains', 'red cliffs round a blue lake with pines'),
+          ('Stonetalon Mountains', 'rocky crags with a burnt forest and logging camps'),
+          ('Ashenvale', 'lush ancient forest in purple and green with moonwells'),
+          ('Duskwood', 'dark haunted forest of crooked bare trees and fog'),
+          ('Wetlands', 'misty marsh with reeds, pools and mossy boulders'),
+          ('Hillsbrad Foothills', 'green rolling foothills with farms and stone walls'),
+          ('Thousand Needles', 'towering red rock spires rising from a dry canyon floor'),
+          ('Alterac Mountains', 'snowy mountains with ruined stone walls and pines'),
+          ('Arathi Highlands', 'windswept highland moors with standing stones'),
+          ('Desolace', 'gray barren wasteland with giant bones and dust'),
+          ('Stranglethorn Vale', 'dense tropical jungle with vine-covered ruins'),
+          ('Dustwallow Marsh', 'dark swamp with mangroves, mist and still black water'),
+          ('Badlands', 'cracked red desert canyons under a hot sky'),
+          ('Swamp of Sorrows', 'green swamp with giant mushrooms and glowing pools'),
+          ('Feralas', 'lush jungle of giant trees with waterfalls and ruins'),
+          ('The Hinterlands', 'misty pine highlands with troll stone ruins'),
+          ('Tanaris', 'sand dunes desert with an oasis and palm trees'),
+          ('Searing Gorge', 'lava flows, ash and molten rock under a smoky sky'),
+          ('Azshara', 'autumn forest in red and gold with ruins on sea cliffs'),
+          ('Blasted Lands', 'red scorched wasteland with cracked earth and a dark stone portal'),
+          ("Un'Goro Crater", 'prehistoric jungle crater with a volcano and giant ferns'),
+          ('Felwood', 'corrupted green forest with glowing fungus and twisted trees'),
+          ('Burning Steppes', 'volcanic black rock with lava rivers and ash'),
+          ('Western Plaguelands', 'sickly brown blighted fields with dead trees'),
+          ('Eastern Plaguelands', 'dead orange blighted land with plague cauldrons and ruins'),
+          ('Winterspring', 'snowy valley with frozen lakes and tall pines under the moon'),
+          ('Deadwind Pass', 'dark stormy mountain pass with a ruined tower'),
+          ('Silithus', 'orange desert with giant insect hives and sand'),
+          ('Moonglade', 'serene moonlit glade with a still lake and soft lights')]
+for i, (zone, look) in enumerate(BIOMES, 1):
+    asset("map_bg_%d" % i, "texture", "tall painted fantasy landscape, %s, winding dirt path, soft, low contrast, portrait, level map backdrop" % look, keep_bg=True)
+    asset("field_bg_%d" % i, "texture", "tall very low contrast game board backdrop: %s at dusk, dark, no objects, portrait" % look, keep_bg=True)
+    asset("field_boss_%d" % i, "texture", "tall very low contrast boss arena backdrop: %s at night, ominous red glow, dark, no objects, portrait" % look, keep_bg=True)
 asset("minimap", "item", "round purple glossy button with gold letters GP, " + STYLE)
 derive("spark3", "spark1", "spread", amount=1.3, fade=0.8)
 derive("spark4", "spark2", "spread", amount=1.4, fade=0.6)

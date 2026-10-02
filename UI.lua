@@ -910,11 +910,23 @@ end
 -- climbing a winding path from the bottom left to the boss at the top,
 -- stars under every node. Prev/Next step a chapter, << and >> ten.
 
-local NODE_PATH = {}
-for i = 1, 10 do
-    local t = (i - 1) / 9
-    NODE_PATH[i] = { x = E.FIELD_W / 2 + (E.FIELD_W / 2 - 70) * math.sin((i - 1) * 1.05 + 2.4), y = (E.FIELD_H - 90) - t * (E.FIELD_H - 220) }
+-- The ten nodes climb from the bottom to the boss at the top along a path
+-- that winds differently in every chapter (seeded by the chapter number).
+local function nodePath(chapter)
+    local rng = E.NewRng((chapter or 1) * 7919 + 13)
+    local freq = 0.85 + rng() * 0.5
+    local phase = rng() * math.pi * 2
+    local swing = E.FIELD_W / 2 - 70
+    local path = {}
+    for i = 1, 10 do
+        local t = (i - 1) / 9
+        local x = E.FIELD_W / 2 + swing * math.sin((i - 1) * freq + phase) + (rng() - 0.5) * 40
+        if x < 60 then x = 60 elseif x > E.FIELD_W - 60 then x = E.FIELD_W - 60 end
+        path[i] = { x = x, y = (E.FIELD_H - 90) - t * (E.FIELD_H - 220) + (rng() - 0.5) * 16 }
+    end
+    return path
 end
+local NODE_PATH = nodePath(1)
 
 function UI:CreateLevelSelect()
     local FW, FH = E.FIELD_W, E.FIELD_H
@@ -959,10 +971,21 @@ function UI:CreateLevelSelect()
         local d = panel:CreateTexture(nil, "ARTWORK")
         d:SetSize(5, 5)
         ART:Set(d, "dot", 0.6, 0.5, 0.8, 0.6)
-        local seg, k = math.floor((i - 1) / 7) + 1, ((i - 1) % 7 + 1) / 8
-        local a, b = NODE_PATH[seg], NODE_PATH[seg + 1]
-        d:SetPoint("CENTER", panel, "TOPLEFT", a.x + (b.x - a.x) * k, -(a.y + (b.y - a.y) * k))
         panel.pathDots[i] = d
+    end
+    -- lays the nodes and the dots along a chapter's path
+    function panel:LayPath(chapter)
+        local path = nodePath(chapter)
+        for i, c in ipairs(self.nodes) do
+            c:ClearAllPoints()
+            c:SetPoint("CENTER", self, "TOPLEFT", path[i].x, -path[i].y)
+        end
+        for i, d in ipairs(self.pathDots) do
+            local seg, k = math.floor((i - 1) / 7) + 1, ((i - 1) % 7 + 1) / 8
+            local a, b = path[seg], path[seg + 1]
+            d:ClearAllPoints()
+            d:SetPoint("CENTER", self, "TOPLEFT", a.x + (b.x - a.x) * k, -(a.y + (b.y - a.y) * k))
+        end
     end
 
     panel.nodes = {}
@@ -1028,6 +1051,7 @@ function UI:CreateLevelSelect()
         panel.nodes[i] = c
     end
     panel.cells = panel.nodes
+    panel:LayPath(1)
 
     panel.back = makeButton(panel, 120, 26, "Back to the game")
     panel.back:SetPoint("BOTTOM", -66, 10)
@@ -1091,6 +1115,7 @@ function UI:LevelPage(page)
     local panel = self.levelPanel
     local first = (page - 1) * L.PER_CHAPTER
     ART:Set(panel.mapBg, ART:MapBackdrop(page))
+    panel:LayPath(page)
     panel.title:SetText(("|cffffd700Chapter %d  -  %s|r"):format(page, L:ChapterName(page)))
     panel.subtitle:SetText(("Levels %d - %d"):format(first + 1, math.min(L.COUNT, first + L.PER_CHAPTER)))
     styleButton(panel.prev, page > 1, 0.3, 0.3, 0.45)
