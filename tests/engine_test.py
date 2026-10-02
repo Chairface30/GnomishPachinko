@@ -1973,6 +1973,30 @@ end
 lvl1, lvl2, b1, b2 = ev("guide_levels_probe")()
 check("Super Guide shows three bounces, and six when earned again while it runs", lvl1 == 1 and lvl2 == 2 and b1 <= 3 and b2 <= 6 and b2 >= b1, f"{lvl1} {lvl2} {b1} {b2}")
 
+# a rail stays whole through the shot: a ball coming back across it later still rides it
+lua(r"""
+function rail_return_probe()
+  local spec = L:Build(11)
+  local keep, cx, cy = {}
+  for _, p in ipairs(spec.pegs) do if p.rail then keep[#keep + 1] = p; cx, cy = p.railCx, p.railCy end end
+  spec.pegs = keep
+  local st = E:NewLevel(spec)
+  local events = {}
+  st.phase = E.PHASE.FLIGHT
+  st.balls = { { x = cx - 40, y = cy - 60, vx = 0, vy = 0, slow = 0 } }
+  local rode2 = 0
+  for i = 1, 600 do
+    -- a second ball arrives three seconds later, long after the first lit the bricks
+    if i == 360 then st.balls[#st.balls + 1] = { x = cx - 40, y = cy - 60, vx = 0, vy = 0, slow = 0, tag = 2 } end
+    if i < 360 and #st.balls == 0 then st.balls[1] = { x = 20, y = 30, vx = 0, vy = 0, slow = 0 } end   -- keep the shot going
+    E:Step(st, 1 / 120, events)
+    for _, b in ipairs(st.balls) do if b.tag == 2 and b.rail then rode2 = rode2 + 1 end end
+  end
+  return rode2
+end
+""")
+check("a rail stays whole through the shot, so a ball coming back three seconds later still rides it", ev("rail_return_probe")() > 10)
+
 # this round's rules
 lua(r"""
 function round_probe()

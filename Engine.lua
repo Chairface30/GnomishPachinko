@@ -912,7 +912,8 @@ end
 local function expireLitPegs(state, events)
     local n = 0
     for _, p in ipairs(state.pegs) do
-        if p.lit and not p.gone and state.time - (p.hitAt or state.time) >= E.LIT_SECS then
+        -- a rail stays whole until the shot ends, so a ball can ride it again
+        if p.lit and not p.gone and not p.rail and state.time - (p.hitAt or state.time) >= E.LIT_SECS then
             p.gone = true
             p.goneAt = state.time
             n = n + 1
