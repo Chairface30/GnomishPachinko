@@ -28,6 +28,8 @@ local COLORS = {
     boss   = { base = { 1.00, 1.00, 1.00 }, lit = { 1.00, 1.00, 1.00 }, glow = { 1.00, 0.60, 0.60 } },
     key    = { base = { 1.00, 0.85, 0.30 }, lit = { 1.00, 1.00, 0.80 }, glow = { 1.00, 0.95, 0.60 } },
     cage   = { base = { 0.85, 0.68, 0.25 }, lit = { 0.85, 0.68, 0.25 }, glow = { 1.00, 0.90, 0.50 } },
+    silver = { base = { 0.72, 0.78, 0.88 }, lit = { 0.72, 0.78, 0.88 }, glow = { 0.9, 0.95, 1.0 } },
+    silverkey = { base = { 0.80, 0.88, 1.00 }, lit = { 1, 1, 1 }, glow = { 0.9, 0.95, 1.0 } },
     block  = { base = { 0.42, 0.42, 0.48 }, lit = { 0.42, 0.42, 0.48 }, glow = { 0.42, 0.42, 0.48 } },
     bumper = { base = { 1.00, 0.35, 0.60 }, lit = { 1.00, 0.35, 0.60 }, glow = { 1.00, 0.70, 0.85 } },
 }
@@ -164,6 +166,11 @@ function UI:CreateFrame()
     field:SetScript("OnMouseDown", function(_, button)
         if button == "LeftButton" then UI:OnFieldClick() end
     end)
+    -- the keyboard is ours only while the mouse is over the field
+    field:SetScript("OnEnter", function() pcall(frame.EnableKeyboard, frame, true) end)
+    field:SetScript("OnLeave", function() pcall(frame.EnableKeyboard, frame, false) end)
+    frame:SetScript("OnKeyDown", function(f, key) UI:OnKey(key) end)
+    pcall(frame.EnableKeyboard, frame, false)
     self.field = field
 
     for _ = 1, 48 do
@@ -296,6 +303,29 @@ function UI:CreateFrame()
     sub:SetPoint("TOP", banner, "BOTTOM", 0, -6)
     sub:SetWidth(FW - 60)
     self.bannerSub = sub
+    -- power-up slots: armed for the next shot
+    self.itemSlots = {}
+    for i, id in ipairs({ "ring", "rainbow" }) do
+        local b = makeButton(field, 86, 24, "")
+        b:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", 8 + (i - 1) * 92, 36)
+        b:SetFrameLevel(field:GetFrameLevel() + 4)
+        b.item = id
+        b:SetScript("OnClick", function(self) UI:ToggleItem(self.item) end)
+        b:SetScript("OnEnter", function(self)
+            if not GameTooltip then return end
+            GameTooltip:SetOwner(self, "ANCHOR_TOP")
+            GameTooltip:AddLine(E.ITEMS[self.item].name)
+            GameTooltip:AddLine(E.ITEMS[self.item].blurb, 0.8, 0.8, 0.9, true)
+            GameTooltip:AddLine("Earned by clearing levels. Click to arm for the next shot.", 0.6, 0.6, 0.7, true)
+            GameTooltip:Show()
+        end)
+        b:SetScript("OnLeave", function(self)
+            if GameTooltip then GameTooltip:Hide() end
+            if self:IsEnabled() then self:SetBackdropBorderColor(1, 1, 1, 0.9) end
+        end)
+        self.itemSlots[i] = b
+    end
+
     -- the duel's two score boxes
     self.duelYou = field:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     self.duelYou:SetPoint("TOPLEFT", field, "TOPLEFT", 10, -8)
@@ -493,6 +523,20 @@ function UI:CreateCard()
     card.line3:SetPoint("TOP", card.line2, "BOTTOM", 0, -8)
     card.line3:SetWidth(320)
     card.line3:SetTextColor(0.75, 0.75, 0.85)
+    -- the master selector: any power unlocked so far
+    card.powerPrev = makeButton(card, 24, 22, "<")
+    card.powerPrev:SetPoint("TOP", card.line3, "BOTTOM", -130, -10)
+    card.powerNext = makeButton(card, 24, 22, ">")
+    card.powerNext:SetPoint("TOP", card.line3, "BOTTOM", 130, -10)
+    card.powerText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    card.powerText:SetPoint("TOP", card.line3, "BOTTOM", 0, -12)
+    card.powerText:SetWidth(230)
+    card.powerPrev:SetScript("OnClick", function() UI:CyclePower(-1) end)
+    card.powerNext:SetScript("OnClick", function() UI:CyclePower(1) end)
+    -- the Extra Green Peg boost
+    card.boost = makeButton(card, 200, 22, "")
+    card.boost:SetPoint("TOP", card.powerText, "BOTTOM", 0, -8)
+    card.boost:SetScript("OnClick", function() UI:ToggleGreenBoost() end)
     card.main = makeButton(card, 150, 32, "PLAY")
     card.main:SetPoint("BOTTOM", 0, 48)
     card.left = makeButton(card, 110, 26, "Map")
@@ -523,14 +567,63 @@ function UI:ShowStartCard()
     if best then extra[#extra + 1] = "Best " .. fmtBig(best) end
     card.line3:SetText(table.concat(extra, "  -  "))
     card.main.text:SetText("PLAY")
-    card.main:SetScript("OnClick", function() UI:HideCard(); GP:PlaySfx("start.ogg") end)
+    card.main:SetScript("OnClick", function() UI:PlayFromCard() end)
     styleButton(card.main, true, 0.2, 0.55, 0.25)
     card.left.text:SetText("Map")
     card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect() end)
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right:Hide()
+    self.greenBoost = false
+    self:RefreshCardChoices()
+    card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.boost:Show()
     self.cardSheet:Show()
     card:Show()
+end
+
+function UI:RefreshCardChoices()
+    local st, card = self.state, self.card
+    local name, blurb = powerName(st.power)
+    card.powerText:SetText(("Power: |cff88ff88%s|r"):format(name))
+    local many = #GP:UnlockedPowers() > 1
+    styleButton(card.powerPrev, many, 0.3, 0.3, 0.45)
+    styleButton(card.powerNext, many, 0.3, 0.3, 0.45)
+    local n = GP:ItemCount("green")
+    card.boost.text:SetText(("Extra Green Peg (%d): %s"):format(n, self.greenBoost and "|cff88ff88ON|r" or "off"))
+    styleButton(card.boost, n > 0 or self.greenBoost, 0.25, 0.4, 0.25)
+end
+
+function UI:CyclePower(dir)
+    local st = self.state
+    local list = GP:UnlockedPowers()
+    if #list < 2 then return end
+    local idx = 1
+    for i, id in ipairs(list) do if id == st.power then idx = i end end
+    idx = ((idx - 1 + dir) % #list) + 1
+    st.power = list[idx]
+    GP:GetDB().lastPower = st.power
+    self:RefreshCardChoices()
+    self:UpdateDisplay()
+end
+
+function UI:ToggleGreenBoost()
+    if not self.greenBoost and GP:ItemCount("green") <= 0 then return end
+    self.greenBoost = not self.greenBoost
+    self:RefreshCardChoices()
+end
+
+function UI:PlayFromCard()
+    local st = self.state
+    if self.greenBoost and GP:SpendItem("green") then
+        local p = E:AddGreen(st)
+        if p then
+            self:LayoutPegs()
+            self:Popup(p.x, p.y - 16, "EXTRA GREEN", 0.6, 1, 0.6)
+        end
+    end
+    self.greenBoost = false
+    self:HideCard()
+    GP:PlaySfx("start.ogg")
+    self:UpdateDisplay()
 end
 
 -- After the level: stars, score, what happened, and where to go next.
@@ -571,6 +664,15 @@ function UI:ShowResultCard(result, stars)
     card.right:SetScript("OnClick", function() UI:HideCard(); UI:StartLevel(st.level, true) end)
     styleButton(card.right, GP.Plays:CanPlay(), 0.45, 0.3, 0.2)
     card.right:Show()
+    card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
+    if result.rewards and #result.rewards > 0 then
+        local parts = {}
+        for _, r in ipairs(result.rewards) do parts[#parts + 1] = ("+%d %s"):format(r.n, E.ITEMS[r.item].name) end
+        card.powerText:SetText("|cffffd700Rewards:|r " .. table.concat(parts, ", "))
+        card.powerText:Show()
+    else
+        card.powerText:Hide()
+    end
     self.cardSheet:Show()
     card:Show()
 end
@@ -916,10 +1018,15 @@ function UI:StartLevel(n, retry)
     self.attempts = self.attempts or {}
     if retry then self.attempts[n] = (self.attempts[n] or 0) + 1 else self.attempts[n] = 0 end
     local spec = L:Build(n, self.attempts[n])
+    local last = GP:GetDB().lastPower
+    if last then
+        for _, id in ipairs(GP:UnlockedPowers()) do if id == last then spec.power = last end end
+    end
     self.state = E:NewLevel(spec)
     if self.card then self:HideCard() end
     if self.shotText then self.shotText:SetText("") end
     self.duelStartAt, self.duelTurnAt, self.rivalShotAt = nil, nil, nil
+    self.paused = false
     if self.duelYou then self:UpdateDuelHud() end
     GP:GetDB().current = n
     self.guideAim = nil
@@ -965,6 +1072,30 @@ function UI:OnFieldClick()
         GP:PlaySfx("launch.ogg")
         GP.Mascot:React("launch")
         self:UpdateDisplay()
+    end
+end
+
+-- ---------------------------------------------------------------------
+-- Power-ups
+
+function UI:ToggleItem(item)
+    local st = self.state
+    if not st or st.phase ~= E.PHASE.AIM then return end
+    if st.armed == item then
+        E:Arm(st, nil)
+    elseif GP:ItemCount(item) > 0 then
+        E:Arm(st, item)
+    end
+    self:UpdateItemSlots()
+end
+
+function UI:UpdateItemSlots()
+    local st = self.state
+    for _, b in ipairs(self.itemSlots or {}) do
+        local n = GP:ItemCount(b.item)
+        local armed = st and st.armed == b.item
+        b.text:SetText(("%s %d%s"):format(b.item == "ring" and "Ring" or "Rainbow", n, armed and " |cff88ff88ARMED|r" or ""))
+        styleButton(b, (n > 0 or armed) and st ~= nil, armed and 0.2 or 0.35, armed and 0.5 or 0.3, 0.25)
     end
 end
 
@@ -1161,6 +1292,32 @@ function UI:CursorField()
     return cx / scale - left, top - cy / scale
 end
 
+-- Left/Right nudge the aim by 1.2 degrees, Space pauses. Other keys pass
+-- through to the game where the client allows it.
+function UI:OnKey(key)
+    local st = self.state
+    local handled = false
+    if key == "LEFT" or key == "RIGHT" then
+        if st and st.phase == E.PHASE.AIM then
+            local step = 1.2 * math.pi / 180
+            st.aim = math.max(-E.MAX_AIM_DEG * math.pi / 180, math.min(E.MAX_AIM_DEG * math.pi / 180, (st.aim or 0) + (key == "LEFT" and -step or step)))
+            self.keyAimUntil = GetTime() + 2
+            self.keyAimCursor = { self:CursorField() }
+            self.guideDirty = true
+        end
+        handled = true
+    elseif key == "SPACE" then
+        self:TogglePause()
+        handled = true
+    end
+    if self.frame.SetPropagateKeyboardInput then pcall(self.frame.SetPropagateKeyboardInput, self.frame, not handled) end
+end
+
+function UI:TogglePause()
+    self.paused = not self.paused
+    if self.paused then self:ShowBanner("|cffffd700PAUSED|r", "Space to carry on", 0) else self:ShowBanner("", "", 0) end
+end
+
 -- The launcher swings toward the cursor rather than snapping (dt nil = snap).
 function UI:AimAtCursor(dt)
     local st = self.state
@@ -1168,6 +1325,12 @@ function UI:AimAtCursor(dt)
     if st.duel and st.duel.stage == 2 and st.duel.turn == "rival" then return end
     local fx, fy = self:CursorField()
     if not fx then return end
+    -- after an arrow-key nudge the cursor only takes over once it moves
+    if self.keyAimUntil then
+        local c = self.keyAimCursor
+        if GetTime() < self.keyAimUntil and c and c[1] and math.abs(c[1] - fx) < 3 and math.abs(c[2] - fy) < 3 then return end
+        self.keyAimUntil = nil
+    end
     if fx < -120 or fx > E.FIELD_W + 120 or fy < -60 or fy > E.FIELD_H + 120 then return end
     local target = E:AimAngle(fx, fy)
     if not target then return end
@@ -1259,15 +1422,16 @@ function UI:ShowBolt(path, now)
     self.boltUntil = now + 0.5
 end
 
-function UI:ShowBlast(x, y, now)
+function UI:ShowBlast(x, y, now, radius)
     self.blastAt = now
+    self.blastRadius = radius or E.BLAST_RADIUS
     self.blastX, self.blastY = x, y
     self.blastTex:Show()
     self.blastRing:Show()
 end
 
 local POWER_BANNERS = {
-    multiball = "|cff88ff88MULTIBALL!|r", guide = "|cff88ff88SUPER GUIDE!|r", blast = "|cffffaa44SPACE BLAST!|r",
+    multiball = "|cff88ff88MULTIBALL!|r", guide = "|cff88ff88SUPER GUIDE!|r", blast = "|cffffaa44SPACE BLAST!|r", frenzy = "|cffffd700FREE BALL FRENZY!|r",
     fireball = "|cffff8844FIREBALL!|r", spooky = "|cffaaffaaSPOOKY BALL!|r", pyramid = "|cffffd700PYRAMID!|r",
     lightning = "|cffaaddffCHAIN LIGHTNING!|r",
 }
@@ -1353,6 +1517,13 @@ function UI:HandleEvents(now)
             self:Popup(ev.x, ev.y, "GEM!", 0.6, 1, 1)
             GP:PlaySfx("gem.ogg")
             GP:PlayVoice("gem")
+        elseif t == "item_used" then
+            GP:SpendItem(ev.item)
+            self:UpdateItemSlots()
+        elseif t == "ring" then
+            self:ShowBlast(ev.x, ev.y, now, ev.radius)
+            GP:PlaySfx(ev.item == "rainbow" and "blast.ogg" or "power_fireball.ogg")
+            self:ShowBanner(ev.item == "rainbow" and "|cffff88ffRAINBOW BALL!|r" or "|cffff8844RING OF FIRE!|r", "", 1.2)
         elseif t == "unlock" then
             self:ShowBanner("|cffffd700UNLOCKED!|r", "The cage falls away", 1.5)
             self:Popup(ev.x, ev.y - 16, "KEY!", 1, 0.9, 0.4)
@@ -1560,6 +1731,7 @@ function UI:OnUpdate(dt)
         end
     end
 
+    if self.paused then self:Render(now) return end
     E:Step(st, dt, self.events)
     if #self.events > 0 then
         self.guideDirty = true
@@ -1702,7 +1874,8 @@ function UI:Render(now)
                     -- unlit: the purple peg hops around, so re-tint when the kind changes
                     if t.kind ~= p.kind or t.shown ~= "base" then
                         local c = COLORS[p.kind] or COLORS.blue
-                        if p.lock then c = COLORS.cage end
+                        if p.lock then c = p.silver and COLORS.silver or COLORS.cage end
+                        if p.kind == "key" and p.silver then c = COLORS.silverkey end
                         t.disc:SetVertexColor(c.base[1], c.base[2], c.base[3], 1)
                         t.kind = p.kind
                         t.shown = "base"
@@ -1804,11 +1977,12 @@ function UI:Render(now)
             self.blastRing:Hide()
         else
             local f = age / 0.6
-            local size = 40 + (E.BLAST_RADIUS * 2.2 - 40) * math.sqrt(f)
+            local radius = self.blastRadius or E.BLAST_RADIUS
+            local size = 40 + (radius * 2.2 - 40) * math.sqrt(f)
             self.blastTex:SetSize(size, size)
             self.blastTex:SetAlpha(1 - f)
             placeAt(self.blastTex, field, self.blastX, self.blastY)
-            local rs = 20 + (E.BLAST_RADIUS * 2 + 20 - 20) * f
+            local rs = 20 + (radius * 2) * f
             self.blastRing:SetSize(rs, rs)
             self.blastRing:SetAlpha(1 - f)
             placeAt(self.blastRing, field, self.blastX, self.blastY)
@@ -1888,6 +2062,7 @@ function UI:UpdateDisplay()
         styleButton(self.retryBtn, false, 0.35, 0.3, 0.45)
     end
     styleButton(self.levelsBtn, true, 0.35, 0.3, 0.45)
+    self:UpdateItemSlots()
     local P = GP.Plays
     local free, bought = P:FreeLeft(), P:BoughtLeft()
     local plays = ("Plays left today: |cffffd700%d|r"):format(free + bought)

@@ -249,7 +249,7 @@ for n in range(1, 1001):
         sig1 = [(p.x, p.y, p.kind, p.shape, p.maxhp) for p in spec.pegs.values()]
 check("all 1000 levels build with the published goals, 2 greens, nothing overlapping", not problems, str(problems[:5]))
 check("every layout family appears", len(families) == len(ev("L.FAMILIES")), str(sorted(families)))
-check("every power is assigned somewhere", len(powers) == 7, str(powers))
+check("every power is assigned somewhere", len(powers) == 8, str(powers))
 pieces_by_level = {n: report(n)[1]["total"] for n in (1, 5, 11, 30, 61, 81)}
 check("the board fills in as the levels climb", pieces_by_level[1] < pieces_by_level[5] <= pieces_by_level[11] + 10 and pieces_by_level[11] < pieces_by_level[81], str(pieces_by_level))
 print(f"      pieces by level {pieces_by_level}")
@@ -667,7 +667,7 @@ function play_level(n, aimMode, forcePower)
   local st = E:NewLevel(spec)
   local info = { escaped = false, fever = nil, powers = 0, buckets = 0, spooky = 0, scoreFree = 0,
                  maxBalls = 0, steps = 0, stuck = 0, blastHit = 0, superGuideSeen = false, bins = 0,
-                 pyramid = 0, zaps = 0, zapLinks = 0 }
+                 pyramid = 0, zaps = 0, zapLinks = 0, frenzyBalls = 0 }
   local events = {}
   local shots = 0
   while (st.phase ~= E.PHASE.OVER or (st.stageClear and not st.result)) and info.steps < 400000 do
@@ -724,6 +724,7 @@ function play_level(n, aimMode, forcePower)
       if (e.type == "peg" or e.type == "crack") and e.quiet then info.blastHit = info.blastHit + 1 end
       if e.type == "pyramid" then info.pyramid = info.pyramid + 1 end
       if e.type == "zap" then info.zaps = info.zaps + 1; info.zapLinks = info.zapLinks + #e.path - 1 end
+      if e.type == "power" and e.power == "frenzy" then info.frenzyBalls = info.frenzyBalls + E.FRENZY_BALLS end
     end
     for i = #events, 1, -1 do events[i] = nil end
   end
@@ -814,7 +815,7 @@ check("a ball glancing off the bucket's lip reports a rim bounce, not a catch", 
 
 # powers, forced one at a time on an early level while hunting greens
 seen = {}
-for power in ("multiball", "guide", "blast", "fireball", "spooky", "pyramid", "lightning"):
+for power in ("multiball", "guide", "blast", "fireball", "spooky", "pyramid", "lightning", "frenzy"):
     hits = 0
     for n in range(1, 16):
         st, info = play(n, "green", power)
@@ -829,6 +830,7 @@ check("spooky ball re-enters from the top", any(i.spooky > 0 for i in seen.get("
 check("fireball levels get a power event", len(seen.get("fireball", [])) > 0)
 check("the pyramid bounces the ball back up", any(i.pyramid > 0 for i in seen.get("pyramid", [])), str([i.pyramid for i in seen.get("pyramid", [])]))
 check("chain lightning leaps through several pieces", any(i.zapLinks >= 3 for i in seen.get("lightning", [])), str([i.zapLinks for i in seen.get("lightning", [])]))
+check("free ball frenzy hands out extra balls", any(i.frenzyBalls >= 3 for i in seen.get("frenzy", [])), str([i.frenzyBalls for i in seen.get("frenzy", [])]))
 
 # fireball passes through: a ball with fire set reaches further than its first contact
 lua(r"""
@@ -1136,6 +1138,70 @@ cage = ev("cage_probe")()
 check("the Key Cage gimmick appears from chapter 9 and its key dissolves the bars",
       cage is not None and cage[1] == 4 and cage[2] == 1 and cage[3] == 0 and cage[4], str(cage))
 
+# power-ups: an armed Ring of Fire hits everything round the first hit, once; the extra green peg
+lua(r"""
+function ring_probe()
+  local spec = L:Build(1)
+  spec.pegs = {
+    { shape = "peg", x = 300, y = 300, kind = "blue" }, { shape = "peg", x = 340, y = 300, kind = "blue" },
+    { shape = "peg", x = 300, y = 340, kind = "blue" }, { shape = "peg", x = 300, y = 500, kind = "orange", goal = true },
+    { shape = "peg", x = 100, y = 450, kind = "blue" },
+  }
+  spec.goal = 1
+  local st = E:NewLevel(spec)
+  assert(E:Arm(st, "ring"))
+  local events = {}
+  st.aim = 0
+  assert(E:Launch(st, events))
+  local used, rings = count(events, "item_used"), 0
+  wipe(events)
+  st.balls[1].x, st.balls[1].y, st.balls[1].vx, st.balls[1].vy = 300, 300 - 16, 0, 50
+  for _ = 1, 10 do E:Step(st, 1 / 60, events) rings = rings + count(events, "ring") wipe(events) end
+  local lit = 0
+  for _, p in ipairs(st.pegs) do if p.lit then lit = lit + 1 end end
+  local before = 0
+  for _, p in ipairs(spec.pegs) do if p.kind == "green" then before = before + 1 end end
+  local g = E:AddGreen(st)
+  return used, rings, lit, st.armed, g and g.kind
+end
+""")
+used, rings, lit, armed_after, green_kind = ev("ring_probe")()
+check("an armed Ring of Fire is spent on launch and its first hit takes the neighbours too", used == 1 and rings == 1 and lit == 3 and armed_after is None, f"used {used} rings {rings} lit {lit}")
+check("Extra Green Peg turns a blue peg green", green_kind == "green")
+check("rewards: a clear earns a Ring of Fire, three stars an Extra Green Peg, a boss two Rainbow Balls",
+      (lambda before, after: after["ring"] == before["ring"] + 1 and after["green"] == before["green"] + 1 and after["rainbow"] == before["rainbow"] + 2)(
+          dict(ev("(function() GP:GetDB() return GnomishPachinkoDB.items end)()")),
+          (lua("GP:RecordResult({ level = 10, cleared = true, score = 999999999, objective = 'boss', goals = 1, goalTotal = 1 })"), dict(ev("GnomishPachinkoDB.items")))[1]))
+check("powers unlock one per chapter reached", list(ev("GP:UnlockedPowers()").values()) == ["multiball", "guide"], str(list(ev("GP:UnlockedPowers()").values())))
+lua("GnomishPachinkoDB.unlocked = math.min(GnomishPachinkoDB.unlocked, 2); GnomishPachinkoDB.cleared[10] = nil; GnomishPachinkoDB.stars[10] = nil; GnomishPachinkoDB.best[10] = nil")
+
+# gates and chained locks build
+lua(r"""
+function gate_probe()
+  local n
+  for k = 111, 400 do if L:Build(k).gimmick == "Key Gate" then n = k break end end
+  if not n then return nil end
+  local spec = L:Build(n)
+  local keys, locked = 0, 0
+  for _, p in ipairs(spec.pegs) do if p.kind == "key" then keys = keys + 1 end if p.lock then locked = locked + 1 end end
+  return n, keys, locked
+end
+function chain_probe()
+  for k = 300, 1000 do
+    local spec = L:Build(k)
+    if spec.gimmick and spec.gimmick:find("Key Cage", 1, true) then
+      local keys, silver = 0, 0
+      for _, p in ipairs(spec.pegs) do if p.kind == "key" then keys = keys + 1 if p.silver then silver = silver + 1 end end end
+      if keys == 2 then return k, keys, silver end
+    end
+  end
+end
+""")
+gate = ev("gate_probe")()
+check("the Key Gate gimmick appears from chapter 12 with its key and bar", gate is not None and gate[1] >= 1 and gate[2] >= 1, str(gate))
+chain = ev("chain_probe")()
+check("from level 300 a Key Cage can chain: a silver key for the cage round the gold key", chain is not None and chain[1] == 2 and chain[2] == 1, str(chain))
+
 # the GNOME bonus: all five buckets lit pays 100,000 and the buckets become 25,000
 lua(r"""
 function gnome_probe()
@@ -1336,6 +1402,10 @@ end
 check("the window opens on level 1 with its start card", ev("UI.frame:IsShown() and UI.state.level == 1 and UI.card:IsShown()"))
 lua("UI.card.main:Click()")
 check("Play on the card hides it", ev("not UI.card:IsShown()"))
+lua("UI:OnKey('RIGHT'); __aimAfter = UI.state.aim; UI:OnKey('SPACE')")
+check("Right nudges the aim 1.2 degrees and Space pauses", abs(ev("__aimAfter")) > 0.02 and ev("UI.paused") == True)
+lua("UI:OnKey('SPACE')")
+check("Space again resumes", ev("UI.paused") == False)
 ok, result = ev("ui_play")(900)
 check("a level plays to its end through the window", ok)
 lua("__advance(2.5)")

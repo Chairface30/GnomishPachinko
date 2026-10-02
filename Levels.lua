@@ -674,6 +674,28 @@ GIMMICKS[#GIMMICKS + 1] = { name = "Bumper Gate", build = function(rng, add, mov
     add(bumper(W - 70, y + 150))
 end }
 
+GIMMICKS[#GIMMICKS + 1] = { name = "Key Gate", build = function(rng, add, mover, exclude, d)
+    -- a long solid bar slanted over a cluster of pegs, and the key that
+    -- drops it on the other side of the field
+    local left = rng() < 0.5
+    local cx = left and 150 or (W - 150)
+    local cy = 300 + rng() * 60
+    local id = "gate" .. floor(cy)
+    exclude({ x0 = cx - 120, x1 = cx + 120, y0 = cy - 40, y1 = cy + 110 }, "gate")
+    add(cageBar(cx, cy, left and 0.35 or -0.35, 230, id), "gate")
+    for k = 0, 2 do
+        local p = peg(cx - 40 + k * 40, cy + 60)
+        p.forceOrange = true
+        add(p, "gate")
+    end
+    add(peg(cx - 20, cy + 95), "gate")
+    add(peg(cx + 20, cy + 95), "gate")
+    local kx = left and (W - 110) or 110
+    local ky = 190 + rng() * 60
+    exclude({ x0 = kx - 30, x1 = kx + 30, y0 = ky - 30, y1 = ky + 30 }, "gkey")
+    add(key(kx, ky, id), "gkey")
+end }
+
 GIMMICKS[#GIMMICKS + 1] = { name = "Key Cage", build = function(rng, add, mover, exclude, d)
     -- a gold cage of solid bars round three pegs that will be orange, and
     -- the loose key that opens it somewhere up the field
@@ -693,8 +715,25 @@ GIMMICKS[#GIMMICKS + 1] = { name = "Key Cage", build = function(rng, add, mover,
     end
     local kx = cx < W / 2 and (W - 110) or 110
     local ky = 170 + rng() * 60
-    exclude({ x0 = kx - 30, x1 = kx + 30, y0 = ky - 30, y1 = ky + 30 }, "key")
-    add(key(kx, ky, id), "key")
+    if d >= 0.3 then
+        -- a chain: the gold key sits in a silver cage, whose key is elsewhere
+        local id2 = id .. "s"
+        exclude({ x0 = kx - 60, x1 = kx + 60, y0 = ky - 40, y1 = ky + 40 }, "key")
+        local bars = {
+            cageBar(kx, ky - 24, 0, 60, id2), cageBar(kx, ky + 24, 0, 60, id2),
+            cageBar(kx - 28, ky, pi / 2, 48, id2), cageBar(kx + 28, ky, pi / 2, 48, id2),
+        }
+        for _, b in ipairs(bars) do b.silver = true; add(b, "key") end
+        add(key(kx, ky, id), "key")
+        local k2x, k2y = W - kx, 150 + rng() * 40
+        exclude({ x0 = k2x - 30, x1 = k2x + 30, y0 = k2y - 30, y1 = k2y + 30 }, "key2")
+        local k2 = key(k2x, k2y, id2)
+        k2.silver = true
+        add(k2, "key2")
+    else
+        exclude({ x0 = kx - 30, x1 = kx + 30, y0 = ky - 30, y1 = ky + 30 }, "key")
+        add(key(kx, ky, id), "key")
+    end
 end }
 
 GIMMICKS[#GIMMICKS + 1] = { name = "Sliding Block", build = function(rng, add, mover, exclude, d)
@@ -713,7 +752,7 @@ L.GIMMICKS = GIMMICKS
 
 -- The order the gimmicks arrive in: one new one per chapter from chapter
 -- 3, each making its debut on the first level of its chapter.
-L.GIMMICK_ORDER = { "Slider", "Lifts", "Blocks", "Wheel", "Bumpers", "Pendulum", "Key Cage", "Twin Wheels", "Bumper Gate", "Sliding Block" }
+L.GIMMICK_ORDER = { "Slider", "Lifts", "Blocks", "Wheel", "Bumpers", "Pendulum", "Key Cage", "Twin Wheels", "Bumper Gate", "Key Gate", "Sliding Block" }
 local function gimmickByName(name)
     for _, g in ipairs(GIMMICKS) do if g.name == name then return g end end
 end

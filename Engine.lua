@@ -131,6 +131,19 @@ E.POWERS = {
     { id = "spooky",    name = "Spooky Ball",     blurb = "A lost ball comes back in from the top." },
     { id = "pyramid",   name = "Pyramid",         blurb = "A ramp across the bottom bounces the ball back up, for three shots." },
     { id = "lightning", name = "Chain Lightning", blurb = "A bolt leaps from the green peg through six more pieces." },
+    { id = "frenzy",    name = "Free Ball Frenzy", blurb = "Three extra balls and 5,000 points on the spot." },
+}
+E.FRENZY_BALLS  = 3
+E.FRENZY_POINTS = 5000
+
+-- Power-ups carried into a shot (armed from the side panel, earned by
+-- clearing levels): the first piece the ball hits also hits everything
+-- within the radius. Extra Green Peg is a pre-level boost: one more
+-- green peg on the board.
+E.ITEMS = {
+    ring    = { name = "Ring of Fire",    radius = 70,  blurb = "The next shot's first hit also hits every piece in a small ring." },
+    rainbow = { name = "Rainbow Ball",    radius = 150, blurb = "The next shot's first hit also hits every piece in a wide ring." },
+    green   = { name = "Extra Green Peg", blurb = "Start the level with one more green peg." },
 }
 
 -- What a level asks of you.
@@ -483,7 +496,11 @@ function E:Launch(state, events)
         x = x, y = y,
         vx = sin(a) * E.LAUNCH_SPEED, vy = cos(a) * E.LAUNCH_SPEED,
         slow = 0,
+        ring = state.armed and E.ITEMS[state.armed] and E.ITEMS[state.armed].radius or nil,
+        item = state.armed,
     }
+    if state.armed then push(events, { type = "item_used", item = state.armed }) end
+    state.armed = nil
     state.ballsLeft = state.ballsLeft - 1
     state.ballsFired = state.ballsFired + 1
     state.shots = state.shots + 1
@@ -558,6 +575,9 @@ applyPower = function(state, p, ball, events)
         ball.fire = true
     elseif power == "spooky" and ball then
         ball.spooky = (ball.spooky or 0) + 1
+    elseif power == "frenzy" then
+        state.ballsLeft = state.ballsLeft + E.FRENZY_BALLS
+        addScore(state, E.FRENZY_POINTS, events)
     elseif power == "pyramid" then
         state.pyramidShots = E.PYRAMID_SHOTS - 1
         state.pyramidBounces = E.PYRAMID_BOUNCES
@@ -804,11 +824,44 @@ collideBall = function(state, ball, events, light)
                             push(events, { type = "bounce", peg = p, speed = -vn })
                         end
                     end
-                    if light and not isSolid(p) then hitPeg(state, p, ball, events) end
+                    if light and not isSolid(p) then
+                        if hitPeg(state, p, ball, events) and ball.ring then
+                            -- the armed ring: everything around the first hit
+                            local r2 = ball.ring * ball.ring
+                            local cx, cy, radius = p.x, p.y, ball.ring
+                            ball.ring = nil
+                            for _, q in ipairs(state.pegs) do
+                                if q ~= p and not q.lit and not q.gone then
+                                    local dx, dy = q.x - cx, q.y - cy
+                                    if dx * dx + dy * dy <= r2 then hitPeg(state, q, nil, events, true) end
+                                end
+                            end
+                            push(events, { type = "ring", item = ball.item, x = cx, y = cy, radius = radius })
+                        end
+                    end
                 end
             end
         end
     end
+end
+
+-- A pre-level Extra Green Peg: one unlit plain blue peg turns green.
+function E:AddGreen(state)
+    local pool = {}
+    for _, p in ipairs(state.pegs) do
+        if p.kind == "blue" and not p.lit and not p.gone and not p.special and not p.moving then pool[#pool + 1] = p end
+    end
+    if #pool == 0 then return nil end
+    local p = pool[state.rng(1, #pool)]
+    p.kind = "green"
+    return p
+end
+
+-- Arm an item for the next shot (nil to disarm).
+function E:Arm(state, item)
+    if item and not E.ITEMS[item] then return false end
+    state.armed = item
+    return true
 end
 
 -- The Pyramid bar, while it has bounces left this shot.

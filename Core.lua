@@ -16,6 +16,8 @@ local DEFAULTS = {
     cleared = {},          -- [level] = true
     best = {},             -- [level] = best score
     stars = {},            -- [level] = best stars (1-3)
+    items = { ring = 2, rainbow = 0, green = 1 },   -- power-ups and boosts earned
+    lastPower = nil,       -- the power picked on the level card
     current = 1,           -- level the window opens on
     sound = true,
     voice = true,          -- the announcer's lines (Sounds/Voice)
@@ -32,7 +34,15 @@ function GP:GetDB()
     local db = GnomishPachinkoDB
     for k, v in pairs(DEFAULTS) do
         if db[k] == nil then
-            if type(v) == "table" then db[k] = {} else db[k] = v end
+            if type(v) == "table" then
+                db[k] = {}
+                for kk, vv in pairs(v) do db[k][kk] = vv end
+            else
+                db[k] = v
+            end
+        elseif type(v) == "table" and type(db[k]) == "table" then
+            -- new keys inside a saved table (the items list grows)
+            for kk, vv in pairs(v) do if db[k][kk] == nil and type(vv) ~= "table" then db[k][kk] = vv end end
         end
     end
     self.db = db
@@ -74,7 +84,42 @@ function GP:RecordResult(result)
         self.Plays:RecordFail()
     end
     if result.score > (db.best[n] or 0) then db.best[n] = result.score end
+    -- rewards: a Ring of Fire for a clear, an Extra Green Peg for three
+    -- stars, two Rainbow Balls for a boss or a duel won
+    local rewards = {}
+    if result.cleared then
+        db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
+        db.items.ring = (db.items.ring or 0) + 1
+        rewards[#rewards + 1] = { item = "ring", n = 1 }
+        if stars >= 3 then db.items.green = (db.items.green or 0) + 1; rewards[#rewards + 1] = { item = "green", n = 1 } end
+        if result.objective == "boss" or result.duel then db.items.rainbow = (db.items.rainbow or 0) + 2; rewards[#rewards + 1] = { item = "rainbow", n = 2 } end
+    end
+    result.rewards = rewards
     return stars, self.Plays:Remaining()
+end
+
+function GP:ItemCount(item)
+    local db = self:GetDB()
+    db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
+    return db.items[item] or 0
+end
+
+function GP:SpendItem(item)
+    local db = self:GetDB()
+    db.items = db.items or { ring = 0, rainbow = 0, green = 0 }
+    if (db.items[item] or 0) <= 0 then return false end
+    db.items[item] = db.items[item] - 1
+    return true
+end
+
+-- The powers unlocked so far: one per chapter reached.
+function GP:UnlockedPowers()
+    local db = self:GetDB()
+    local chapter = math.floor(((db.unlocked or 1) - 1) / self.Levels.PER_CHAPTER) + 1
+    local n = math.min(#self.Engine.POWERS, chapter)
+    local list = {}
+    for i = 1, n do list[i] = self.Engine.POWERS[i].id end
+    return list
 end
 
 function GP:ClearedCount()

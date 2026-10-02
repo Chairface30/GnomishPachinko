@@ -62,41 +62,68 @@ local function settings()
     return db.mascot
 end
 
--- Try the saved look first, then the fallbacks. Each call is guarded:
--- the client may lack a method, or the id may be unknown to it.
-function M:Load()
-    local model = self.model
-    if not model then return end
+-- The looks to try, in order: the saved display id, the saved creature,
+-- Tinkmaster himself, and only then the player. A creature's model loads
+-- a moment after SetCreature on this client, so each step is judged
+-- after a short wait (GetModelFileID still nil = the client does not
+-- have that model), not on the spot.
+function M:Candidates()
     local s = settings()
-    local tried = {}
-    local function try(label, fn)
-        local ok = pcall(fn)
-        tried[#tried + 1] = label .. (ok and "" or " (refused)")
-        if not ok then return false end
-        -- an unknown model leaves no file behind
-        if model.GetModelFileID then
-            local okF, id = pcall(model.GetModelFileID, model)
-            if okF and not id then return false end
-        end
-        return true
-    end
-    local shown = false
-    if s.display then shown = try("display " .. s.display, function() model:SetDisplayInfo(s.display) end) end
-    if not shown and s.npc then shown = try("npc " .. s.npc, function() model:SetCreature(s.npc) end) end
-    if not shown and s.npc ~= M.DEFAULT_NPC then
-        shown = try("npc " .. M.DEFAULT_NPC, function() model:SetCreature(M.DEFAULT_NPC) end)
-    end
-    if not shown then shown = try("player", function() model:SetUnit("player") end) end
-    self.loaded = shown
+    local list = {}
+    if s.display then list[#list + 1] = { label = "display " .. s.display, fn = function(m) m:SetDisplayInfo(s.display) end } end
+    if s.npc then list[#list + 1] = { label = "npc " .. s.npc, fn = function(m) m:SetCreature(s.npc) end } end
+    if s.npc ~= M.DEFAULT_NPC then list[#list + 1] = { label = "npc " .. M.DEFAULT_NPC, fn = function(m) m:SetCreature(M.DEFAULT_NPC) end } end
+    list[#list + 1] = { label = "player", fn = function(m) m:SetUnit("player") end }
+    return list
+end
+
+function M:Pose()
+    local model, s = self.model, settings()
     pcall(function()
         model:SetPosition(0, 0, s.z or -0.1)
         model:SetFacing(s.facing or 0.35)
         if model.SetModelScale then model:SetModelScale(s.scale or 1) end
         if model.SetCamera then model:SetCamera(0) end
     end)
-    self.tried = tried
-    self:Play("stand")
-    return shown
+end
+
+function M:HasModel()
+    local model = self.model
+    if not model or not model.GetModelFileID then return true end     -- cannot tell: assume yes
+    local ok, id = pcall(model.GetModelFileID, model)
+    return (not ok) or id ~= nil
+end
+
+function M:Load()
+    local model = self.model
+    if not model then return end
+    self.loadToken = (self.loadToken or 0) + 1
+    local token = self.loadToken
+    local list = self:Candidates()
+    self.tried = {}
+    local function attempt(i)
+        if token ~= self.loadToken then return end
+        local c = list[i]
+        if not c then self.loaded = false return end
+        local ok = pcall(c.fn, model)
+        self.tried[#self.tried + 1] = c.label .. (ok and "" or " (refused)")
+        if not ok then return attempt(i + 1) end
+        self:Pose()
+        self:Play("stand")
+        self.loaded = c.label
+        if i >= #list then return end
+        -- give the model time to arrive before judging it
+        local check = function()
+            if token ~= self.loadToken then return end
+            if not self:HasModel() then
+                self.tried[#self.tried] = c.label .. " (no model)"
+                attempt(i + 1)
+            end
+        end
+        if C_Timer and C_Timer.After then C_Timer.After(1.5, check) else check() end
+    end
+    attempt(1)
+    return true
 end
 
 function M:Create(parent, anchor)
@@ -173,15 +200,15 @@ function M:Command(args)
         end
         s.npc, s.display = tonumber(npc), nil
         self:Load()
-        GP:Print(("Mascot set to creature %s%s."):format(npc, self.loaded and "" or " (the client could not show it; the fallback is up)"))
+        GP:Print(("Mascot set to creature %s."):format(npc))
     elseif args:match("^id%s+%d+") then
         s.display, s.npc = tonumber(args:match("%d+")), nil
         self:Load()
-        GP:Print(("Mascot set to display id %d%s."):format(s.display, self.loaded and "" or " (not shown; fallback up)"))
+        GP:Print(("Mascot set to display id %d."):format(s.display))
     elseif args:match("^npc%s+%d+") then
         s.npc, s.display = tonumber(args:match("%d+")), nil
         self:Load()
-        GP:Print(("Mascot set to creature %d%s."):format(s.npc, self.loaded and "" or " (not shown; fallback up)"))
+        GP:Print(("Mascot set to creature %d."):format(s.npc))
     elseif args:match("^scale%s+[%d%.]+") then
         s.scale = tonumber(args:match("[%d%.]+"))
         self:Load()
@@ -194,6 +221,8 @@ function M:Command(args)
         s.z = tonumber(args:match("[%-%d%.]+"))
         self:Load()
         GP:Print("Mascot height " .. s.z .. ".")
+    elseif args == "status" then
+        GP:Print("Mascot tried: " .. table.concat(self.tried or {}, ", ") .. ". Showing: " .. tostring(self.loaded) .. ".")
     elseif args == "reset" then
         GP:GetDB().mascot = nil
         settings()
@@ -204,6 +233,6 @@ function M:Command(args)
         local name = args:match("^play%s+(%a+)")
         if self.ANIM[name] then self:Play(name) else GP:Print("Unknown animation. Try: " .. table.concat((function() local t = {} for k in pairs(self.ANIM) do t[#t + 1] = k end table.sort(t) return t end)(), ", ")) end
     else
-        GP:Print("/pachinko mascot - show or hide. mascot target - use the targeted creature. mascot npc <id> / id <display id>. mascot scale <n>, face <radians>, z <n>, play <animation>, reset.")
+        GP:Print("/pachinko mascot - show or hide. mascot target - use the targeted creature. mascot npc <id> / id <display id>. mascot scale <n>, face <radians>, z <n>, play <animation>, status, reset.")
     end
 end

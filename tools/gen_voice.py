@@ -83,6 +83,7 @@ LINES = {
     "power_spooky":    "[spooky, playful] Spooky Ball!",
     "power_pyramid":   "[grand] Pyramid!",
     "power_lightning": "[electric, excited] Chain Lightning!",
+    "power_frenzy":    "[gleeful] Free Ball Frenzy!",
 }
 
 

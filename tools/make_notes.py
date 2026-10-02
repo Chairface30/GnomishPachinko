@@ -238,6 +238,7 @@ STANDINS = {
     "power_spooky.ogg": lambda: sweep(500, 150, 0.8, 3),
     "power_pyramid.ogg": lambda: sweep(140, 60, 0.6, 5),
     "power_lightning.ogg": lambda: sweep(300, 2400, 0.4, 5),
+    "power_frenzy.ogg": lambda: tone_seq((880, 1109, 1319, 1760), each=0.08, decay=8),
 }
 
 

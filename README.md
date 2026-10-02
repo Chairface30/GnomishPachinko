@@ -29,9 +29,13 @@ Every level is one of four kinds, marked by a coloured dot on the level select:
 - **Duel** (every tenth level in even chapters): clear the board, then Cogwhistle Overspark, Tinkmaster's older brother, challenges you on a fresh shared board: a coin flip, five balls each, turn and turn about, highest score wins. A shot that lights no orange costs a quarter of your duel score.
 - **No bucket** on some levels from chapter 5 (ending 4 and 9, never a gem level): the only free balls are the score marks. Five bosses take turns, each with a trick: the Tin Drake speeds up as it weakens, the Bolt Golem raises a two-hit shield every third shot, the Gyro Spider jumps when hit, the Mechano-Boar charges and turns around when hit, the Cog Yeti heals after any shot that misses it.
 
-### Powers
+### Powers, power-ups and boosts
 
-One per chapter, in turn: Multiball, Super Guide (the full bounce path for three shots), Space Blast (a huge explosion that hits everything near the green peg), Fireball, Spooky Ball, Pyramid (a ramp across the bottom that bounces the ball back up, for three shots) and Chain Lightning (a bolt that leaps from the green peg through six more pieces).
+Powers unlock one per chapter and the level card lets you pick any you have: Multiball, Super Guide (the full bounce path for three shots), Space Blast (a huge explosion that hits everything near the green peg), Fireball, Spooky Ball, Pyramid (a ramp across the bottom that bounces the ball back up, for three shots), Chain Lightning (a bolt that leaps from the green peg through six more pieces) and Free Ball Frenzy (three extra balls and 5,000 points).
+
+Two power-ups can be armed for a shot from the slots at the field's bottom-left: Ring of Fire (the first hit also hits everything in a small ring) and Rainbow Ball (a wide ring). The level card offers one boost, Extra Green Peg. They are earned, never bought: a Ring of Fire for every clear, an Extra Green Peg for three stars, two Rainbow Balls for a boss or a duel won.
+
+With the mouse over the field, Left and Right nudge the aim by 1.2 degrees and Space pauses.
 
 ### Stars
 

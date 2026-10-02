@@ -108,5 +108,6 @@ The announcer is Tinkmaster Overspark, the gnome engineer who also stands in the
 | `power_spooky.ogg` | "Spooky Ball!" | Green peg |
 | `power_pyramid.ogg` | "Pyramid!" | Green peg |
 | `power_lightning.ogg` | "Chain Lightning!" | Green peg |
+| `power_frenzy.ogg` | "Free Ball Frenzy!" | Green peg |
 
 Optional later: a line per boss name on its entrance ("The Tin Drake approaches!"), a "New best!" line, and "Welcome back" when the window opens.
