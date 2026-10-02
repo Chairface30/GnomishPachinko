@@ -21,7 +21,7 @@ local WHITE = ART.WHITE
 -- box under it straddling the board's top edge; a column left of the board
 -- for the special-ball buttons; a column right of it with the info block at
 -- the top and the level and plays buttons at the bottom.
-local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 60, 110, 16, 240, 270
+local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 84, 110, 16, 240, 270   -- EDGE: content keeps this far from the window's edge, past the riveted band and the brass corners
 local PAD = EDGE
 local PORTRAIT = 2 * (E.LAUNCH_R - 12)      -- the host's box: the launcher slides round its rim
 local FANFARE_SECS = 6.0     -- length of Sounds/fanfare.ogg; it loops while Fever lasts
@@ -499,13 +499,13 @@ function UI:CreateFrame()
 
     local function label(text, y, template)
         local fs = side:CreateFontString(nil, "OVERLAY", template or "GameFontNormalSmall")
-        fs:SetPoint("TOPLEFT", side, "TOPLEFT", 0, y)
+        fs:SetPoint("TOPLEFT", side, "TOPLEFT", 6, y)
         fs:SetText(text)
         return fs
     end
     local function value(y, template)
         local fs = side:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
-        fs:SetPoint("TOPRIGHT", side, "TOPRIGHT", 0, y)
+        fs:SetPoint("TOPRIGHT", side, "TOPRIGHT", -6, y)
         fs:SetJustifyH("RIGHT")
         return fs
     end
