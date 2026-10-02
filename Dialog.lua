@@ -54,8 +54,8 @@ D.SCRIPTS = {
     } },
     { key = "slide", when = function(st) return st.level == 8 end, lines = {
         { "host", "Now this is a beauty: a spiral of bricks." },
-        { "host", "Graze its outside edge and the ball sticks to the rail and rides it all the way in. That's a Super Slide!" },
-        { "host", "Aim for the edge, not the middle. Go on, clear the whole spiral in one shot." },
+        { "host", "It's a rail! Drop the ball into its mouth on the left and it runs along the inside like a road, all the way round. That's a Super Slide!" },
+        { "host", "Hold the right mouse button to zoom in and line the shot up with the mouth. Go on, clear the whole spiral in one shot." },
     } },
     { key = "items", when = function(st) return st.level == 2 end, lines = {
         { "host", "See the buttons to the left of the board? Those are my special balls." },

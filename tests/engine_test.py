@@ -1872,6 +1872,29 @@ GP.Dialog.panel:Hide()
 check("a new announcer line cuts the last one off, and none plays while a dialog is up", ev("__cutFirst") and ev("__quietUnderDialog"), f"{ev('__cutFirst')} {ev('__quietUnderDialog')} {ev('__h1')} {ev('GnomishPachinkoDB.sound')} {ev('GnomishPachinkoDB.voice')}")
 check("the host's lines come from the host's own voice folder", ev("(function() UI.state.level = 15; __n = #__played_files; GP:PlayVoice('fever'); return __played_files[#__played_files] end)()").find("Voice\\mekka\\fever") >= 0)
 
+# level 8: the spiral is a rail; a shot down its mouth rides the inside all the way round
+lua(r"""
+function spiral_ride(aimDeg)
+  local st = E:NewLevel(L:Build(8))
+  st.aim = aimDeg * math.pi / 180
+  local events = {}
+  E:Launch(st, events)
+  local railed = false
+  for _ = 1, 600 do
+    E:Step(st, 1 / 120, events)
+    if st.balls[1] and st.balls[1].rail then railed = true end
+    if #st.balls == 0 then break end
+  end
+  local lit, total = 0, 0
+  for _, p in ipairs(st.pegs) do if p.rail then total = total + 1; if p.lit or p.gone then lit = lit + 1 end end end
+  return lit, total, railed
+end
+""")
+ride = ev("spiral_ride")
+rides = [ride(k / 10) for k in range(-260, -180)]
+full = sum(1 for lit, total, railed in rides if railed and lit == total)
+check("level 8's spiral rides end to end from a band of aims, not one pixel", full >= 8, f"{full} aims of 0.1 degree ride all of it")
+
 # this round's rules
 lua(r"""
 function round_probe()

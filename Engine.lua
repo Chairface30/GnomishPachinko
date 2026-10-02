@@ -922,13 +922,67 @@ end
 
 -- Resolve a body against every peg. light=false runs a dry pass (the
 -- guide's simulation and falling gems): bounces only, no hits.
+-- Rails: a curve of bricks (p.rail names it, p.railCx/Cy its centre). A
+-- ball that meets a rail brick from the centre side locks onto the rail
+-- and runs along its face like a road, lighting each brick, until the rail
+-- ends or the ball is too slow to hold on.
+E.RAIL_MIN_SPEED = 60
+local function brickFrame(q)
+    local c, s = cos(q.angle or 0), sin(q.angle or 0)
+    local nx, ny = -s, c
+    -- the face that looks at the rail's centre
+    local side = ((q.railCx - q.x) * nx + (q.railCy - q.y) * ny) >= 0 and 1 or -1
+    return c, s, nx * side, ny * side
+end
+
+local function railStep(state, ball, events)
+    local R = E.BALL_R
+    local best, bestD, bx, by, bnx, bny
+    for _, q in ipairs(state.pegs) do
+        if q.rail == ball.rail and not q.gone then
+            local c, s, nx, ny = brickFrame(q)
+            local dx, dy = ball.x - q.x, ball.y - q.y
+            local lx = dx * c + dy * s
+            local ly = dx * nx + dy * ny            -- along the inner face's normal
+            if abs(lx) <= q.w / 2 + R * 0.6 and ly > -q.h and ly < q.h / 2 + R + 10 then
+                local d = abs(ly - (q.h / 2 + R))
+                if not bestD or d < bestD then
+                    best, bestD = q, d
+                    bx, by = q.x + c * lx + nx * (q.h / 2 + R + 0.2), q.y + s * lx + ny * (q.h / 2 + R + 0.2)
+                    bnx, bny = nx, ny
+                end
+            end
+        end
+    end
+    if not best then ball.rail = nil return end
+    ball.x, ball.y = bx, by
+    local vn = ball.vx * bnx + ball.vy * bny
+    ball.vx, ball.vy = ball.vx - vn * bnx, ball.vy - vn * bny
+    if ball.vx * ball.vx + ball.vy * ball.vy < E.RAIL_MIN_SPEED * E.RAIL_MIN_SPEED then
+        ball.rail = nil
+        return
+    end
+    hitPeg(state, best, ball, events)
+end
+E.RailStep = railStep
+
 collideBall = function(state, ball, events, light)
     local R = E.BALL_R
     for _, p in ipairs(state.pegs) do
-        if not p.gone then
+        if not p.gone and not (ball.rail and p.rail == ball.rail) then
             local depth, nx, ny = pegContact(p, ball.x, ball.y, R)
             if depth then
-                if ball.fire and light and not isSolid(p) and p.kind ~= "boss" and not p.loose then
+                local onto = false
+                if p.rail and light and not ball.fire and p.railCx then
+                    -- from the centre side, the ball takes the rail instead of bouncing
+                    local _, _, fnx, fny = brickFrame(p)
+                    if (ball.x - p.x) * fnx + (ball.y - p.y) * fny > 0 then onto = true end
+                end
+                if onto then
+                    ball.rail = p.rail
+                    ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
+                    railStep(state, ball, events)
+                elseif ball.fire and light and not isSolid(p) and p.kind ~= "boss" and not p.loose then
                     -- a fireball burns through: hit it, keep flying
                     hitPeg(state, p, ball, events)
                 else
@@ -1094,6 +1148,7 @@ local function integrateBall(state, ball, dt, events)
     if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.y < R then ball.y = R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
 
+    if ball.rail then railStep(state, ball, events) end
     collideBall(state, ball, events, true)
     collidePyramid(state, ball, events)
     -- a piece against the wall can push the ball through it: keep it inside

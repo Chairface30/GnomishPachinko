@@ -116,7 +116,7 @@ local function barrier(x, y, angle, w)
 end
 
 -- A chain of touching bricks along a curve f(t) -> x, y for t in [0, 1].
-local function brickCurve(add, f, count, group, rng, skip)
+local function brickCurve(add, f, count, group, rng, skip, extra)
     local prevx, prevy
     for k = 0, count do
         local t = k / count
@@ -126,7 +126,9 @@ local function brickCurve(add, f, count, group, rng, skip)
             local ang = math.atan2 and math.atan2(y - prevy, x - prevx) or math.atan(y - prevy, x - prevx)
             local len = sqrt((x - prevx) ^ 2 + (y - prevy) ^ 2)
             if not (skip and rng() < skip) then
-                add(brick(mx, my, ang, len + 1, E.BRICK_H), group)
+                local b = brick(mx, my, ang, len + 1, E.BRICK_H)
+                if extra then for k, v in pairs(extra) do b[k] = v end end
+                add(b, group)
             end
         end
         prevx, prevy = x, y
@@ -571,15 +573,19 @@ STARTERS[7] = { name = "First Bricks", build = function(rng, add)
     row(add, 470, 4, CX - 150, CX + 150)
 end }
 
+-- The level 8 spiral, a rail: it winds anticlockwise and opens at the upper
+-- left, where its outer arm runs down and to the left in line with a ball
+-- from the cannon, so a shot that grazes the mouth runs along the inside
+-- of the arm and round the spiral to its middle.
+L.SPIRAL8 = { a0 = -3.00, turns = 1.5, r0 = 48, r1 = 175, cy = 330, count = 30 }
 STARTERS[8] = { name = "Super Slide", build = function(rng, add)
-    -- a spiral of bricks: catch its outside edge and the ball rides it in
-    local turns, r0, r1 = 1.6, 50, 175
+    local sp = L.SPIRAL8
     brickCurve(add, function(t)
-        local a = -pi / 2 + t * turns * 2 * pi
-        local r = r1 - (r1 - r0) * t
-        return CX + r * cos(a), 330 + r * sin(a) * 0.9
-    end, 30, "spiral", rng)
-    row(add, 520, 4, CX - 150, CX + 150)
+        local a = sp.a0 - t * sp.turns * 2 * pi
+        local r = sp.r1 - (sp.r1 - sp.r0) * t
+        return CX + r * cos(a), sp.cy + r * sin(a) * 0.9
+    end, sp.count, "spiral", rng, nil, { rail = "spiral", railCx = CX, railCy = sp.cy })
+    row(add, 530, 4, CX - 150, CX + 150)
 end }
 
 STARTERS[9] = { name = "Columns", build = function(rng, add)
@@ -1092,6 +1098,7 @@ function L:Build(n, attempt, opts)
         if not p.mapped then
             p.x, p.y = mapX(p.x), mapY(p.y)
             if p.bx then p.bx, p.by = mapX(p.bx), mapY(p.by) end
+            if p.railCx then p.railCx, p.railCy = mapX(p.railCx), mapY(p.railCy) end
             if p.shape == "brick" then p.w = p.w * SX end
             p.mapped = true
         end
