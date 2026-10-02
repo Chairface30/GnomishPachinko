@@ -1646,7 +1646,7 @@ function UI:HandleEvents(now)
             if k == "orange" then
                 self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 1, 0.8, 0.3)
             elseif k == "purple" then
-                self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 0.9, 0.6, 1)
+                self:Popup(ev.x, ev.y - 14, "POINT BOOST +" .. ev.points, 0.9, 0.6, 1)
             elseif k == "green" then
                 self:Popup(ev.x, ev.y - 14, "+" .. ev.points, 0.6, 1, 0.6)
             elseif k == "egg" then
