@@ -140,15 +140,23 @@ derive("button_orange", "button_green", "hue", hue=28)
 derive("button_grey", "button_green", "grey")
 for c in ("green", "orange", "grey"):
     derive("button_%s_down" % c, "button_%s" % c, "darken", amount=0.72)
-asset("gauge", "item", "unfilled grey semicircular gauge arc, flat bottom, thick ring, " + STYLE)
-derive("gauge_fill", "gauge", "rainbow")
+derive("gauge", "plate", "copy")
+derive("gauge_fill", "button_green", "rainbow")
+asset("fever_post", "prop", "small round brass post with a domed riveted top, seen from above, " + STYLE)
+asset("logo", "item", "one game logo: the words GNOMISH PACHINKO in chunky glossy gold letters on a copper plate with gears and a blue orb, single wide emblem, " + STYLE)
+asset("portrait_frame", "prop", "round ornate copper frame ring with rivets, hollow empty centre, thick, " + STYLE)
 asset("banner", "prop", "long horizontal navy ribbon banner with gold edges and notched ends, eight times as wide as tall, " + STYLE)
 asset("map_node", "item", "round carved wooden level button, brown, " + STYLE)
 asset("map_node_done", "item", "round carved wooden level button with a green gem centre, " + STYLE)
 asset("map_node_locked", "item", "round grey stone level button with an iron padlock, " + STYLE)
 asset("map_node_boss", "item", "round red iron level button with a skull, " + STYLE)
-asset("map_bg_1", "texture", "tall painted fantasy forest meadow backdrop with a winding path, soft, low contrast, portrait", keep_bg=True)
-asset("field_bg_1", "texture", "tall soft night sky backdrop with faint stars, very low contrast, dark navy, portrait", keep_bg=True)
+WORLDS = (("forest", "sunlit fantasy forest meadow with a winding dirt path", "dark forest night, faint tree silhouettes, deep green"),
+          ("canyon", "warm desert canyon at dusk with mesas and a winding trail", "dark warm canyon dusk, deep rust and purple, faint rock shapes"),
+          ("cavern", "glowing underground jungle cavern with crystals and a winding path", "dark cavern, faint teal crystal glow, deep blue-black"),
+          ("snow", "frozen mountain pass at night with snow, pines and a winding path", "dark icy night, faint snowfall, deep navy"))
+for i, (name, mapLook, fieldLook) in enumerate(WORLDS, 1):
+    asset("map_bg_%d" % i, "texture", "tall painted %s, soft, low contrast, portrait, world map backdrop" % mapLook, keep_bg=True)
+    asset("field_bg_%d" % i, "texture", "tall very low contrast game board backdrop: %s, no objects, portrait" % fieldLook, keep_bg=True)
 asset("minimap", "item", "round purple glossy button with gold letters GP, " + STYLE)
 derive("spark3", "spark1", "spread", amount=1.3, fade=0.8)
 derive("spark4", "spark2", "spread", amount=1.4, fade=0.6)
@@ -450,7 +458,7 @@ def main():
     if args.stage in ("asset", "all"):
         for n in todo("asset"):
             p = PLAN[n]
-            entry = rec["slots"].get(n, {"how": "asset"})
+            entry = {"how": "asset"} if args.force else rec["slots"].get(n, {"how": "asset"})
             try:
                 if not entry.get("assetId"):
                     prev = api.call("generate_asset_preview", category=p["category"], description=p["description"][:200], style=ART_STYLE, quality=args.quality)
@@ -465,7 +473,9 @@ def main():
                                 break
                     if not urls:
                         raise RuntimeError("no preview url in " + json.dumps(prev)[:300])
-                    created = api.call("create_asset", name="GP " + n, imageUrl=urls[0], description=n)
+                    # asset names are unique per account: a forced redraw gets a stamp
+                    aname = "GP " + n + (" " + time.strftime("%m%d%H%M%S") if args.force else "")
+                    created = api.call("create_asset", name=aname, imageUrl=urls[0], description=n)
                     entry["assetId"] = created.get("id") or created.get("asset", {}).get("id")
                     rec["slots"][n] = entry
                     save_record(rec)

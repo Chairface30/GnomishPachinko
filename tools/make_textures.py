@@ -905,8 +905,22 @@ def make_all(slots, only, from_base):
     for name, col, edge in (("green", (0.25, 0.78, 0.23), (0.12, 0.48, 0.11)), ("orange", (0.94, 0.54, 0.16), (0.64, 0.28, 0.1)), ("grey", (0.45, 0.42, 0.55), (0.25, 0.22, 0.32))):
         put("button_" + name, rounded_plate(256, 64, col, edge, 16 // 2, radius=30))
         put("button_%s_down" % name, rounded_plate(256, 64, tuple(v * 0.7 for v in col), edge, 16 // 2, radius=30))
-    put("gauge", gauge_shape(128, 64, False))
-    put("gauge_fill", gauge_shape(128, 64, True))
+    put("gauge", rounded_plate(256, 64, (0.18, 0.1, 0.07), COPPER_LIGHT, 16 // 2, radius=28))
+    fillbar = bar(256, 64, 0.8, (1, 1, 1))
+    px = fillbar.load()
+    for y in range(fillbar.height):
+        for x in range(fillbar.width):
+            r, g, b, a = px[x, y]
+            if a:
+                cr, cg, cb = hue_rgb(x / fillbar.width * 0.85)
+                v = r / 255
+                px[x, y] = (int(255 * cr * v), int(255 * cg * v), int(255 * cb * v), a)
+    put("gauge_fill", fillbar)
+    put("fever_post", tint_img(disc(64, 0.8, spec=0.4), COPPER_LIGHT))
+    logo = ribbon(512, 128, NAVY, PARCHMENT)
+    text_on(logo, "GNOMISH PACHINKO", 0.4, (255, 215, 80, 255))
+    put("logo", logo)
+    put("portrait_frame", tint_img(rim_img(128), COPPER_LIGHT))
     put("banner", ribbon(512, 64, NAVY, PARCHMENT))
     fever = ribbon(512, 128, (0.45, 0.15, 0.6), (1.0, 0.85, 0.3))
     text_on(fever, "FEVER!", 0.55, (255, 240, 150, 255))

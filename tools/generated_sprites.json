@@ -256,8 +256,29 @@
    "done": true,
    "how": "derive"
   },
+  "fever_post": {
+   "assetId": "cmurd886u0001mvy964u2vf1a",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
   "field_bg_1": {
    "assetId": "cmur6cwb20007d4lldygt9spd",
+   "done": true,
+   "how": "asset"
+  },
+  "field_bg_2": {
+   "assetId": "cmurddv7j0007v5ps0pruy4er",
+   "done": true,
+   "how": "asset"
+  },
+  "field_bg_3": {
+   "assetId": "cmurde7bp002vv5aegl0vg75v",
+   "done": true,
+   "how": "asset"
+  },
+  "field_bg_4": {
+   "assetId": "cmurdelsx0002g2ectaajg65g",
    "done": true,
    "how": "asset"
   },
@@ -273,10 +294,8 @@
    "how": "asset"
   },
   "gauge": {
-   "assetId": "cmur68zfm0001xl1z08b2lfqt",
-   "bgRemoved": true,
    "done": true,
-   "how": "asset"
+   "how": "derive"
   },
   "gauge_fill": {
    "done": true,
@@ -368,8 +387,29 @@
    "done": true,
    "how": "asset"
   },
+  "logo": {
+   "assetId": "cmurdfe2s000vszgbxr6m3mp2",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
+  },
   "map_bg_1": {
    "assetId": "cmur6ci2x000110t3ahdhqye4",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_2": {
+   "assetId": "cmurdcp2e002mv5ae7qlpb5lw",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_3": {
+   "assetId": "cmurdd45k00057i7lv9ulhako",
+   "done": true,
+   "how": "asset"
+  },
+  "map_bg_4": {
+   "assetId": "cmurddj3k000yp1obimab334k",
    "done": true,
    "how": "asset"
   },
@@ -455,6 +495,12 @@
   "plate": {
    "done": true,
    "how": "sheet"
+  },
+  "portrait_frame": {
+   "assetId": "cmurd927m000h8ppp7n68ephr",
+   "bgRemoved": true,
+   "done": true,
+   "how": "asset"
   },
   "power_blast": {
    "assetId": "cmur60ycu000110f5bgxcy3rh",

@@ -126,11 +126,14 @@ function M:Load()
     return true
 end
 
-function M:Create(parent, anchor)
+-- parent: the frame the model lives in. With a size given it fills the
+-- parent's centre (the portrait box); otherwise it sits in the corner.
+function M:Create(parent, anchor, w, h)
     if self.model or not parent then return end
     local model = CreateFrame("PlayerModel", "GnomishPachinkoMascot", parent)
-    model:SetSize(self.SIZE.w, self.SIZE.h)
-    model:SetPoint("TOPRIGHT", anchor or parent, "TOPRIGHT", -4, -4)
+    model:SetSize(w or self.SIZE.w, h or self.SIZE.h)
+    if w then model:SetPoint("CENTER", anchor or parent, "CENTER", 0, 0)
+    else model:SetPoint("TOPRIGHT", anchor or parent, "TOPRIGHT", -4, -4) end
     if model.SetFrameLevel and parent.GetFrameLevel then model:SetFrameLevel(parent:GetFrameLevel() + 3) end
     model:EnableMouse(false)
     self.model = model

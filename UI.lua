@@ -17,7 +17,8 @@ local UI = GP.UI
 -- plain fill left, for bars and the field's border.
 local WHITE = ART.WHITE
 
-local PAD, SIDE_W, TOP_H = 16, 200, 44
+local PAD, SIDE_W, TOP_H = 36, 240, 108    -- gutters clear the frame's copper border; the top band holds the logo and Tinkmaster's box
+local PORTRAIT = 96                         -- the portrait box, centred over the field's top edge
 local FANFARE_SECS = 6.0     -- length of Sounds/fanfare.ogg; it loops while Fever lasts
 local FX_POOL = 48           -- sparkle, confetti and glow textures in flight at once
 local TRAIL_LEN = 14         -- segments of the ball's ribbon
@@ -219,13 +220,15 @@ function UI:CreateFrame()
     self.frame = frame
     if UISpecialFrames then tinsert(UISpecialFrames, "GnomishPachinkoFrame") end
 
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -12)
-    title:SetText("|cffffd700Gnomish Pachinko|r")
-    title:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    -- the logo, top left
+    local logo = frame:CreateTexture(nil, "ARTWORK")
+    logo:SetSize(280, 70)
+    logo:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD, -22)
+    ART:Set(logo, "logo")
+    self.logo = logo
 
     local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", -4, -4)
+    closeBtn:SetPoint("TOPRIGHT", -12, -12)
     closeBtn:SetScript("OnClick", function() UI:Hide() end)
 
     -- ===== field =====
@@ -394,6 +397,15 @@ function UI:CreateFrame()
     splash:Hide()
     self.splashTex = splash
 
+    -- the posts between the Fever cups (the engine adds them as pieces)
+    self.postTex = {}
+    for i = 1, #E.FEVER_BINS - 1 do
+        local t = field:CreateTexture(nil, "OVERLAY", nil, 2)
+        ART:SetPiece(t, "fever_post", E.FEVER_POST_R * 2 + 2)
+        t:SetPoint("CENTER", field, "TOPLEFT", i * FW / #E.FEVER_BINS, -E.FEVER_POST_Y)
+        t:Hide()
+        self.postTex[i] = t
+    end
     self.bins = {}
     local binW = FW / #E.FEVER_BINS
     for i, pts in ipairs(E.FEVER_BINS) do
@@ -433,7 +445,7 @@ function UI:CreateFrame()
     self.itemSlots = {}
     for i, id in ipairs({ "ring", "rainbow" }) do
         local b = makeButton(field, 86, 26, "")
-        b:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", 8 + (i - 1) * 92, 36)
+        b:SetPoint("BOTTOMLEFT", field, "BOTTOMLEFT", 8, 36 + (i - 1) * 30)
         b:SetFrameLevel(field:GetFrameLevel() + 4)
         b.item = id
         buttonIcon(b, ART:Item(id), 20)
@@ -571,12 +583,12 @@ function UI:CreateFrame()
     self.scoreText = value(-220, "GameFontHighlight")
     label("Multiplier", -238)
     self.multText = value(-238, "GameFontHighlightSmall")
-    label("Combo (this shot / best)", -254)
-    self.comboText = value(-254, "GameFontHighlightSmall")
-    label("Best on this level", -270)
-    self.bestText = value(-270, "GameFontHighlightSmall")
-    label("Next free ball at", -286)
-    self.freeBallText = value(-286, "GameFontHighlightSmall")
+    label("Combo (this shot / best)", -274)
+    self.comboText = value(-274, "GameFontHighlightSmall")
+    label("Best on this level", -290)
+    self.bestText = value(-290, "GameFontHighlightSmall")
+    label("Next free ball at", -306)
+    self.freeBallText = value(-306, "GameFontHighlightSmall")
     local function bar(y, r, g, b)
         local f = CreateFrame("StatusBar", nil, side)
         f:SetSize(SIDE_W, 5)
@@ -591,62 +603,62 @@ function UI:CreateFrame()
         bg:SetVertexColor(0.1, 0.1, 0.14, 0.9)
         return f
     end
-    self.freeBallBar = bar(-298, 0.4, 0.7, 1)
-    -- the multiplier gauge: a semicircle whose rainbow fill is clipped by progress
-    local gauge = { back = side:CreateTexture(nil, "ARTWORK", nil, 1), fill = side:CreateTexture(nil, "ARTWORK", nil, 2) }
-    gauge.back:SetSize(56, 28)
-    gauge.back:SetPoint("TOPRIGHT", side, "TOPRIGHT", -34, -230)
-    ART:Set(gauge.back, "gauge")
-    gauge.fill:SetPoint("TOPLEFT", gauge.back, "TOPLEFT", 0, 0)
-    gauge.fill:SetSize(56, 28)
+    self.freeBallBar = bar(-320, 0.4, 0.7, 1)
+    -- the multiplier: a horizontal trough with a rainbow bar clipped by progress
+    local trough = CreateFrame("Frame", nil, side)
+    trough:SetSize(SIDE_W, 16)
+    trough:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -254)
+    local gauge = { skin = ART:NewSkin(side, "gauge", "ARTWORK", 0, trough), fill = side:CreateTexture(nil, "ARTWORK", nil, 2), w = SIDE_W - 8 }
+    gauge.fill:SetPoint("LEFT", trough, "LEFT", 4, 0)
+    gauge.fill:SetSize(gauge.w, 10)
     ART:Set(gauge.fill, "gauge_fill")
     function gauge:SetValue(f)
         f = math.max(0.01, math.min(1, f or 0))
         self.fill:SetTexCoord(0, f, 0, 1)
-        self.fill:SetWidth(56 * f)
+        self.fill:SetWidth(self.w * f)
     end
     gauge:SetValue(0)
     self.multBar = gauge
-    label("Stars on this level", -302)
+    label("Stars on this level", -330)
     self.sideStars = makeStars(side, 12, 2)
-    for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -302) end
-    self.starNeedText = label("", -318)
+    for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -330) end
+    self.starNeedText = label("", -346)
     self.starNeedText:SetWidth(SIDE_W)
     self.starNeedText:SetJustifyH("LEFT")
     self.starNeedText:SetTextColor(0.65, 0.65, 0.78)
-    divider(-338)
+    divider(-366)
 
     self.nextBtn = makeButton(side, SIDE_W, 32, "NEXT LEVEL")
-    self.nextBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -346)
+    self.nextBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -374)
     self.nextBtn:SetScript("OnClick", function() UI:NextLevel() end)
     self.retryBtn = makeButton(side, SIDE_W, 26, "Restart level")
-    self.retryBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -384)
+    self.retryBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -412)
     self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current, true) end)
     self.levelsBtn = makeButton(side, SIDE_W, 26, "Level select")
-    self.levelsBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -414)
+    self.levelsBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -442)
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 
-    self.playsText = label("", -448, "GameFontNormal")
+    self.playsText = label("", -476, "GameFontNormal")
     self.playsText:SetWidth(SIDE_W)
     self.playsText:SetHeight(30)
     self.playsText:SetJustifyH("LEFT")
     self.playsText:SetJustifyV("TOP")
     self.buyBtn = makeButton(side, SIDE_W, 24, "Buy " .. GP.Plays.PLAYS_PER_LOT .. " plays (" .. GP.Plays:PriceText(1) .. ")")
-    self.buyBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -482)
+    self.buyBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -510)
     self.buyBtn:SetScript("OnClick", function() UI:BuyPlays() end)
     -- the owner's characters top up for free
     self.freeBtn = makeButton(side, SIDE_W, 24, "Owner: " .. GP.Plays.PLAYS_PER_LOT .. " free plays")
-    self.freeBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -510)
+    self.freeBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -538)
     self.freeBtn:SetScript("OnClick", function() UI:ClaimFreePlays() end)
     self.freeBtn:Hide()
 
-    self.progressText = label("", -540)
+    self.progressText = label("", -568)
     self.progressText:SetWidth(SIDE_W)
     self.progressText:SetJustifyH("LEFT")
     self.progressText:SetTextColor(0.8, 0.8, 0.9)
 
     local tip = side:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    tip:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -574)
+    tip:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -602)
     tip:SetWidth(SIDE_W)
     tip:SetJustifyH("LEFT")
     tip:SetJustifyV("TOP")
@@ -659,7 +671,26 @@ function UI:CreateFrame()
     self:CreateLevelSelect()
     self:CreatePlaysPanel()
     self:CreateCard()
-    if GP.Mascot then GP.Mascot:Create(view, view) end
+    -- the host's box: a round frame centred over the field's top edge, the model inside it
+    local box = CreateFrame("Frame", nil, frame)
+    box:SetSize(PORTRAIT, PORTRAIT)
+    box:SetPoint("CENTER", view, "TOP", 0, 10)
+    box:SetFrameLevel(field:GetFrameLevel() + 12)
+    local boxBg = box:CreateTexture(nil, "BACKGROUND")
+    boxBg:SetSize(PORTRAIT - 14, PORTRAIT - 14)
+    boxBg:SetPoint("CENTER")
+    boxBg:SetTexture(WHITE)
+    boxBg:SetVertexColor(0.03, 0.04, 0.14, 1)
+    self.portraitBox = box
+    if GP.Mascot then GP.Mascot:Create(box, box, PORTRAIT - 16, PORTRAIT - 16) end
+    local ringFrame = CreateFrame("Frame", nil, frame)
+    ringFrame:SetSize(PORTRAIT, PORTRAIT)
+    ringFrame:SetPoint("CENTER", box, "CENTER", 0, 0)
+    ringFrame:SetFrameLevel(box:GetFrameLevel() + 5)
+    local ring = ringFrame:CreateTexture(nil, "ARTWORK")
+    ring:SetAllPoints(ringFrame)
+    ART:Set(ring, "portrait_frame")
+    self.portraitRing = ring
     self.events = {}
 end
 
@@ -670,7 +701,7 @@ end
 function UI:CreateCard()
     local FW, FH = E.FIELD_W, E.FIELD_H
     local card = CreateFrame("Frame", nil, self.frame)
-    card:SetSize(360, 300)
+    card:SetSize(400, 380)
     card:SetPoint("CENTER", self.view, "CENTER", 0, 10)
     card:SetFrameLevel(self.field:GetFrameLevel() + 6)
     card.skin = ART:NewSkin(card, "card", "BACKGROUND", 0)
@@ -687,26 +718,26 @@ function UI:CreateCard()
     self.cardSheet = sheet
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    card.title:SetPoint("TOP", 0, -16)
+    card.title:SetPoint("TOP", 0, -38)
     card.title:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
-    card.title:SetWidth(330)
+    card.title:SetWidth(340)
     card.stars = makeStars(card, 30, 4)
-    for i, s in ipairs(card.stars) do s:SetPoint("TOP", card, "TOP", (i - 2) * 36, -50) end
+    for i, s in ipairs(card.stars) do s:SetPoint("TOP", card, "TOP", (i - 2) * 36, -72) end
     card.line1 = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    card.line1:SetPoint("TOP", 0, -92)
-    card.line1:SetWidth(320)
+    card.line1:SetPoint("TOP", 0, -114)
+    card.line1:SetWidth(330)
     card.line2 = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.line2:SetPoint("TOP", card.line1, "BOTTOM", 0, -8)
-    card.line2:SetWidth(320)
+    card.line2:SetWidth(330)
     card.line3 = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     card.line3:SetPoint("TOP", card.line2, "BOTTOM", 0, -8)
-    card.line3:SetWidth(320)
+    card.line3:SetWidth(330)
     card.line3:SetTextColor(0.75, 0.75, 0.85)
     -- the master selector: any power unlocked so far
     card.powerPrev = makeButton(card, 24, 22, "<")
-    card.powerPrev:SetPoint("TOP", card.line3, "BOTTOM", -130, -10)
+    card.powerPrev:SetPoint("TOP", card.line3, "BOTTOM", -140, -10)
     card.powerNext = makeButton(card, 24, 22, ">")
-    card.powerNext:SetPoint("TOP", card.line3, "BOTTOM", 130, -10)
+    card.powerNext:SetPoint("TOP", card.line3, "BOTTOM", 140, -10)
     card.powerText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     card.powerText:SetPoint("TOP", card.line3, "BOTTOM", 0, -12)
     card.powerText:SetWidth(230)
@@ -722,11 +753,11 @@ function UI:CreateCard()
     buttonIcon(card.boost, "item_green", 16)
     card.boost:SetScript("OnClick", function() UI:ToggleGreenBoost() end)
     card.main = makeButton(card, 150, 32, "PLAY")
-    card.main:SetPoint("BOTTOM", 0, 48)
+    card.main:SetPoint("BOTTOM", 0, 70)
     card.left = makeButton(card, 110, 26, "Map")
-    card.left:SetPoint("BOTTOMLEFT", 16, 14)
+    card.left:SetPoint("BOTTOMLEFT", 30, 32)
     card.right = makeButton(card, 110, 26, "Retry")
-    card.right:SetPoint("BOTTOMRIGHT", -16, 14)
+    card.right:SetPoint("BOTTOMRIGHT", -30, 32)
 end
 
 function UI:HideCard()
@@ -897,11 +928,13 @@ function UI:CreateLevelSelect()
     panel:SetSize(FW, FH)
     panel:SetPoint("TOPLEFT", self.view, "TOPLEFT", 0, 0)
     panel:SetFrameLevel(self.field:GetFrameLevel() + 10)
-    panel.skin = ART:NewSkin(panel, "frame_bg", "BACKGROUND", -8)
     panel.mapBg = panel:CreateTexture(nil, "BACKGROUND", nil, -7)
-    panel.mapBg:SetPoint("TOPLEFT", panel, "TOPLEFT", 12, -12)
-    panel.mapBg:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -12, 12)
+    panel.mapBg:SetAllPoints(panel)
     ART:Set(panel.mapBg, "map_bg_1")
+    local edge = CreateFrame("Frame", nil, panel, "BackdropTemplate")
+    edge:SetAllPoints(panel)
+    edge:SetBackdrop({ edgeFile = WHITE, edgeSize = 2 })
+    edge:SetBackdropBorderColor(0.45, 0.35, 0.70, 1)
     panel:EnableMouse(true)
     panel:Hide()
     self.levelPanel = panel
@@ -914,13 +947,13 @@ function UI:CreateLevelSelect()
     panel.subtitle:SetTextColor(0.7, 0.7, 0.85)
 
     panel.prev10 = makeButton(panel, 36, 24, "<<")
-    panel.prev10:SetPoint("TOPLEFT", 14, -12)
+    panel.prev10:SetPoint("TOPLEFT", 10, -10)
     panel.prev10:SetScript("OnClick", function() UI:LevelPage(UI.levelPage - 10) end)
     panel.prev = makeButton(panel, 60, 24, "< Prev")
     panel.prev:SetPoint("LEFT", panel.prev10, "RIGHT", 4, 0)
     panel.prev:SetScript("OnClick", function() UI:LevelPage(UI.levelPage - 1) end)
     panel.next10 = makeButton(panel, 36, 24, ">>")
-    panel.next10:SetPoint("TOPRIGHT", -14, -12)
+    panel.next10:SetPoint("TOPRIGHT", -10, -10)
     panel.next10:SetScript("OnClick", function() UI:LevelPage(UI.levelPage + 10) end)
     panel.next = makeButton(panel, 60, 24, "Next >")
     panel.next:SetPoint("RIGHT", panel.next10, "LEFT", -4, 0)
@@ -1024,13 +1057,16 @@ function UI:CreateLevelSelect()
         if self:IsEnabled() then hoverButton(self, false) end
     end)
     panel.legend = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.legend:SetPoint("BOTTOMLEFT", 14, 14)
-    panel.legend:SetText("|cff66ff66green|r cleared   |cffffd700brown|r open   |cff777777gray|r locked\n" ..
-        "the corner icon is the level's goal: oranges, eggs, gems, a boss, a duel, Long Shots")
+    panel.legend:SetPoint("BOTTOMLEFT", 12, 44)
+    panel.legend:SetWidth(FW / 2 - 20)
     panel.legend:SetJustifyH("LEFT")
+    panel.legend:SetJustifyV("BOTTOM")
+    panel.legend:SetText("|cff66ff66green|r cleared, |cffffd700brown|r open, |cff777777gray|r locked. The corner icon is the level's goal.")
     panel.total = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.total:SetPoint("BOTTOMRIGHT", -14, 14)
+    panel.total:SetPoint("BOTTOMRIGHT", -12, 44)
+    panel.total:SetWidth(FW / 2 - 20)
     panel.total:SetJustifyH("RIGHT")
+    panel.total:SetJustifyV("BOTTOM")
 end
 
 function UI:ShowLevelSelect()
@@ -1146,7 +1182,7 @@ function UI:CreatePlaysPanel()
     panel.how:SetWidth(FW - 120)
     panel.how:SetTextColor(0.75, 0.75, 0.85)
     panel.levels = makeButton(panel, 140, 26, "Level select")
-    panel.levels:SetPoint("BOTTOM", 0, 14)
+    panel.levels:SetPoint("BOTTOM", 0, 32)
     panel.levels:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 end
 
@@ -1246,6 +1282,7 @@ function UI:StartLevel(n, retry)
         bin.litShown = false
         ART:SetSkin(bin.skin, "fever_bucket")
     end
+    for _, t in ipairs(self.postTex) do t:Hide() end
     self.splashAt, self.flashAt, self.electricUntil, self.calloutUntil = nil, nil, nil, nil
     self.splashTex:Hide(); self.flashTex:Hide(); self.calloutTex:Hide(); self.lastGlow:Hide()
     self:ClearFx()
@@ -1352,6 +1389,7 @@ function UI:BeginDuel(now)
     self:LayoutPegs()
     self.bucket:Show()
     for _, bin in ipairs(self.bins) do bin:Hide() end
+    for _, t in ipairs(self.postTex) do t:Hide() end
     self:HideGuide()
     self.zoomScale = 1
     self:ShowBanner("|cffffd700COIN FLIP|r", (st.duel.turn == "you") and "You shoot first" or (st.duel.name .. " shoots first"), 2)
@@ -1974,6 +2012,7 @@ function UI:HandleEvents(now)
             GP:PlayVoice("fever")
             self.bucket:Hide()
             for _, bin in ipairs(self.bins) do bin:Show() end
+            for _, t in ipairs(self.postTex) do t:Show() end
         elseif t == "bucket" then
             self:ShowBanner("|cff88ccffFREE BALL!|r", "", 1.5)
             self.splashAt = now

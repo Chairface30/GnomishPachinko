@@ -32,8 +32,8 @@ ART.WHITE = "Interface\\Buttons\\WHITE8x8"
 
 -- How many per-world backdrops exist (field_bg_1.., map_bg_1..). A world
 -- is ten chapters; worlds past the count wrap round.
-ART.FIELD_BG_COUNT = 1
-ART.MAP_BG_COUNT = 1
+ART.FIELD_BG_COUNT = 4      -- forest, canyon, cavern, snow
+ART.MAP_BG_COUNT = 4
 
 ART.PEG_COLORS = { "blue", "orange", "green", "purple" }
 ART.PIECE_STATES = { "", "_lit", "_gone" }
@@ -125,6 +125,7 @@ slot("bucket",          128, 128, { note = "the free-ball bucket (a nest, a pot,
 for i = 1, 4 do slot("bucket_splash" .. i, 128, 128, { note = "a catch: splash frame " .. i .. " of 4, drawn over the bucket" }) end
 slot("fever_bucket",     128, 32, { note = "one Fever cup; the game writes the letter and value on it" })
 slot("fever_bucket_lit", 128, 32, { note = "a Fever cup already scored" })
+slot("fever_post",       64, 64,  { fill = 0.8, note = "a little post between two Fever cups; the ball bounces off it" })
 
 section("Icons")
 for _, id in ipairs(ART.POWER_IDS) do slot("power_" .. id, 64, 64, { note = "power icon: " .. id }) end
@@ -139,8 +140,10 @@ for _, c in ipairs(ART.BUTTON_SKINS) do
     slot("button_" .. c,           256, 64, { inset = 16, edge = 8, note = c .. " button" })
     slot("button_" .. c .. "_down", 256, 64, { inset = 16, edge = 8, note = c .. " button, pressed" })
 end
-slot("gauge",      128, 64, { note = "the multiplier semicircle, unfilled" })
-slot("gauge_fill", 128, 64, { note = "its rainbow fill; the game clips it by progress" })
+slot("gauge",      256, 64, { inset = 16, edge = 6, note = "the multiplier bar's trough, 9-slice" })
+slot("gauge_fill", 256, 64, { note = "its rainbow fill, a glossy bar; the game clips it left to right by progress" })
+slot("logo",       512, 128, { note = "the game's logo, top left of the window" })
+slot("portrait_frame", 128, 128, { note = "the round copper frame round Tinkmaster's box at the top centre; hollow middle" })
 slot("banner",     512, 64, { note = "a ribbon behind the big callouts" })
 slot("callout_fever", 512, 128, { note = "the FEVER! callout graphic (text baked in)" })
 slot("map_node",        64, 64, { note = "an open level node" })

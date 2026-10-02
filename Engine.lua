@@ -638,6 +638,23 @@ applyPower = function(state, p, ball, events)
     push(events, { type = "power", power = power, x = p.x, y = p.y })
 end
 
+-- Fever: the goal is done, the bottom becomes the five cups, and four
+-- little posts stand between them for the ball to bounce off.
+E.FEVER_POST_R = 7
+E.FEVER_POST_Y = H - 30
+local function startFever(state, events)
+    state.phase = E.PHASE.FEVER
+    state.lastSlow = false
+    state.feverTotal = 0
+    state.feverNext = state.time + E.FEVER_FIRST_GAP
+    local binW = W / #E.FEVER_BINS
+    for i = 1, #E.FEVER_BINS - 1 do
+        state.pegs[#state.pegs + 1] = { shape = "peg", x = i * binW, y = E.FEVER_POST_Y, r = E.FEVER_POST_R,
+            kind = "block", post = true, bounce = 0.8 }
+    end
+    push(events, { type = "fever" })
+end
+
 -- A push on a loose piece: it wakes and rolls.
 nudgeLoose = function(p, dvx, dvy)
     p.vx = (p.vx or 0) + dvx
@@ -743,13 +760,7 @@ lightPeg = function(state, p, ball, events, quiet, at)
                     state.goalLeft = state.goalLeft - 1
                     state.goalHitThisShot = state.goalHitThisShot + 1
                     push(events, { type = "longshot_goal", left = state.goalLeft })
-                    if state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then
-                        state.phase = E.PHASE.FEVER
-                        state.lastSlow = false
-                        state.feverTotal = 0
-                        state.feverNext = state.time + E.FEVER_FIRST_GAP
-                        push(events, { type = "fever" })
-                    end
+                    if state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then startFever(state, events) end
                 end
                 break
             end
@@ -790,13 +801,7 @@ lightPeg = function(state, p, ball, events, quiet, at)
         push(events, { type = "stage_clear" })
         return
     end
-    if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then
-        state.phase = E.PHASE.FEVER
-        state.lastSlow = false
-        state.feverTotal = 0
-        state.feverNext = state.time + E.FEVER_FIRST_GAP
-        push(events, { type = "fever" })
-    end
+    if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then startFever(state, events) end
 end
 
 -- Touched pieces leave on their own after LIT_SECS, ball or no ball.

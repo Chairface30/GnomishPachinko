@@ -1694,6 +1694,20 @@ check("eggs wear the egg art at loose-piece size and cradle bricks the per-colou
 check("a lit peg swaps to its _lit picture, a vanishing one to _gone, the goal icon follows the objective",
       a["litSlot"] == "peg_blue_lit" and a["goneSlot"] == "peg_blue_gone" and a["goalIcon"] == "goal_egg" and a["ballSlot"] == "ball", str(dict(a)))
 
+# Fever stands four solid posts between the five cups for the ball to bounce off
+lua(r"""
+function post_probe()
+  local st = E:NewLevel(L:Build(1))
+  local events = {}
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" then E.HitPeg(st, p, nil, events, true) end end
+  local posts, solid = 0, true
+  for _, p in ipairs(st.pegs) do if p.post then posts = posts + 1; if not E.IsSolid(p) then solid = false end end end
+  return st.phase, posts, solid
+end
+""")
+phase, posts, solid = ev("post_probe")()
+check("Fever stands four solid posts between the cups", phase == "FEVER" and posts == 4 and solid, f"{phase} {posts} {solid}")
+
 # ------------------------------------------------------------------ art slots
 # Every slot in Art.lua has its file in Textures/ at the size it says, and
 # nothing sits in Textures/ that the registry does not know about.
