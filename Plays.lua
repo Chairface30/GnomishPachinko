@@ -98,11 +98,12 @@ function P:IsOwner()
     return false
 end
 
--- The owner's free top-up: a lot of plays, no mail.
+-- The owner's free top-up: Golden Gears, no mail.
+P.OWNER_GEARS = 10
 function P:GrantFree()
     if not self:IsOwner() then return false, "Not available on this character" end
-    local left = self:AddLots(1)
-    GP:Print(("|cff00ff00Owner top-up:|r %d free plays, good for 24 hours. Plays left: |cffffd700%d|r"):format(self.PLAYS_PER_LOT, left))
+    self:AddGears(self.OWNER_GEARS)
+    GP:Print(("|cff00ff00Owner top-up:|r %d Golden Gears. Gears: |cffffd700%d|r"):format(self.OWNER_GEARS, self:Gears()))
     GP:PlaySfx("free_ball.ogg")
     if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
     return true

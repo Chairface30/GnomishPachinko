@@ -104,7 +104,7 @@ E.CHAIN_LINKS = 6           -- Chain Lightning: pieces after the green one
 E.CHAIN_REACH = 120
 E.PYRAMID_SHOTS   = 3       -- the shot that earns it and two more
 E.PYRAMID_BOUNCES = 4       -- per shot
-E.PYRAMID_KICK    = 380     -- the ball leaves it at least this fast, upward
+E.PYRAMID_KICK    = 520     -- the ball leaves it at least this fast, upward
 E.PYRAMID_W       = E.FIELD_W - 90
 E.PYRAMID_H       = 14
 E.PYRAMID_Y       = E.FIELD_H - E.BUCKET_H - 6 - 40
@@ -131,7 +131,9 @@ E.SCRAP_R        = 11        -- a boss's scrap block
 E.SCRAP_PER_SHOT = 2         -- thrown after a shot that hit it
 E.SCRAP_MAX      = 6         -- on the board at once
 E.SCRAP_PER_SHOT_DRAKE = 2   -- the Tin Drake throws after every shot ...
-E.SCRAP_MAX_DRAKE      = 18  -- ... up to this many
+E.SCRAP_MAX_DRAKE      = 40  -- ... up to this many
+E.SCRAP_ROW1           = 5   -- the Drake's first row: blocks in its middle before it takes the ends and climbs
+E.SCRAP_ROW_GAP        = 34  -- between the Drake's rows of scrap
 E.SCRAP_COL_W    = 44        -- scrap sits on columns this wide (a ball passes between neighbours)
 E.SCRAP_FREE_COLS = 3        -- columns always left empty: scrap is never a wall
 E.GOLEM_SHIELD = 2
@@ -1633,6 +1635,80 @@ local function updateLastPeg(state, dt, events)
     end
 end
 
+-- The Tin Drake's scrap: two blocks after every shot. First the row just
+-- above it, SCRAP_ROW1 blocks in its middle; then that row's two open ends
+-- by the walls (easy bank shots); then rows higher up, only where the
+-- pattern has been cleared. Every row keeps a column clear (the first row
+-- keeps two), so the scrap is never a wall.
+local function drakeScrap(state, boss, events)
+    local cols = floor((W - 80) / E.SCRAP_COL_W)
+    local x0 = (W - cols * E.SCRAP_COL_W) / 2
+    local yBand = math.max(E.PEG_BOTTOM + 18, boss.y - E.BOSS_R - 40)
+    local used, count = {}, 0
+    for _, p in ipairs(state.pegs) do
+        if p.scrap and not p.gone and p.row then
+            count = count + 1
+            used[p.row] = used[p.row] or {}
+            used[p.row][p.col] = true
+        end
+    end
+    local function rowCount(r) local n = 0 for _ in pairs(used[r] or {}) do n = n + 1 end return n end
+    local function rowY(r) return yBand - (r - 1) * E.SCRAP_ROW_GAP end
+    local function put(r, c)
+        if used[r] and used[r][c] then return false end
+        local x, y = x0 + (c - 0.5) * E.SCRAP_COL_W, rowY(r)
+        for _, q in ipairs(state.pegs) do
+            if not q.gone and q ~= boss then
+                if q.shape == "brick" then
+                    if pegContact(q, x, y, E.SCRAP_R + 6) then return false end
+                else
+                    local dx, dy = q.x - x, q.y - y
+                    local rr = (q.r or E.PEG_R) + E.SCRAP_R + 6
+                    if dx * dx + dy * dy < rr * rr then return false end
+                end
+            end
+        end
+        state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = y, r = E.SCRAP_R, kind = "block", scrap = true, row = r, col = c }
+        used[r] = used[r] or {}
+        used[r][c] = true
+        return true
+    end
+    -- try the given columns of a row in a random order
+    local function tryRow(r, list)
+        local n = #list
+        if n == 0 then return false end
+        local start = state.rng(1, n)
+        for k = 0, n - 1 do
+            if put(r, list[((start + k - 1) % n) + 1]) then return true end
+        end
+        return false
+    end
+    local middle = {}
+    for c = 2, cols - 1 do middle[#middle + 1] = c end
+    local made = 0
+    while made < E.SCRAP_PER_SHOT_DRAKE and count + made < E.SCRAP_MAX_DRAKE do
+        local placed = false
+        local r1 = used[1] or {}
+        local inMiddle = rowCount(1) - (r1[1] and 1 or 0) - (r1[cols] and 1 or 0)
+        if inMiddle < E.SCRAP_ROW1 then placed = tryRow(1, middle) end
+        if not placed then placed = tryRow(1, { 1, cols }) end
+        if not placed then
+            for r = 2, 14 do
+                if rowY(r) < E.PEG_TOP then break end
+                if rowCount(r) < cols - 1 then
+                    local all = {}
+                    for c = 1, cols do all[#all + 1] = c end
+                    placed = tryRow(r, all)
+                end
+                if placed then break end
+            end
+        end
+        if not placed then break end
+        made = made + 1
+    end
+    if made > 0 then push(events, { type = "boss_scrap", count = made, x = boss.x, y = boss.y }) end
+end
+
 local function substep(state, dt, events)
     state.time = state.time + dt
     if #state.movers > 0 then E:UpdateMovers(state) end
@@ -1698,8 +1774,10 @@ local function substep(state, dt, events)
         -- shot makes it harder to reach. Scrap sits on a grid of columns and
         -- a few columns are always kept clear, so it never becomes a wall.
         local boss = state.boss
-        if boss and not boss.lit and not boss.gone and (state.bossHitThisShot or boss.ability == "drake") then
-            local drake = boss.ability == "drake"
+        if boss and not boss.lit and not boss.gone and boss.ability == "drake" then
+            drakeScrap(state, boss, events)
+        elseif boss and not boss.lit and not boss.gone and state.bossHitThisShot then
+            local drake = false
             local cols = floor((W - 80) / E.SCRAP_COL_W)
             local x0 = (W - cols * E.SCRAP_COL_W) / 2
             local yTop = E.PEG_BOTTOM + 18

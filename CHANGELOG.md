@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **The Tin Drake builds upward.** It throws two blocks after every shot: first five in the row just above it, then that row's two ends by the walls (easy bank shots), then rows higher up, only where the pattern has been cleared. Every row keeps a column open.
+- **The pyramid kicks harder**, so a ball that lands on it goes back up the board.
+- **The owner's button gives 10 Golden Gears** instead of free plays.
+- The Get Golden Gears button is twice as tall and its text wraps.
+
 ### Gnomish Pachinko v1.1.0
 
 - **Every picture is a named art slot.** `Art.lua` lists all 114 of them (pegs and bricks in four colours and three states, balls, eggs, gems, bosses, launcher, bucket and splash, icons, skins, map, effects) with a generated placeholder each, and the window draws only through them, so a finished sprite dropped into `Textures/` under the slot's name is used with no code change. `tools/cut_sheet.py` slices a transparent sprite sheet into the slots from a JSON map; `tools/make_textures.py` regenerates the placeholders. New on screen because of it: lit and vanishing pictures per piece, a muzzle flash, a bucket splash, sparkles on every hit, confetti and fireworks on the GNOME bonus and three-star clears, a rainbow ribbon in Fever and behind the Rainbow Ball, a glow on the last piece, lit Fever cups, icons for powers, power-ups and the objective, a balls-left strip, a multiplier gauge, skinned buttons, cards, plates, map nodes and backdrops, and a drawn minimap button.

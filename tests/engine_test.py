@@ -1554,8 +1554,8 @@ check("an owner unlocks every level for testing", ev("__ownerUnlock") == True an
 lua('GP:ToggleUnlimited(); __unlimitedCount = GP:ItemCount("suction"); GP:SpendItem("suction"); __unlimitedAfter = GP:ItemCount("suction"); GP:ToggleUnlimited()')
 check("an owner can switch on unlimited special balls for testing", ev("__unlimitedCount") == 99 and ev("__unlimitedAfter") == 99 and not ev("GP:Unlimited()"))
 lua('GnomishPachinkoDB.unlocked = 1')
-lua("__before = P:BoughtLeft(); P:GrantFree()")
-check("an owner's free top-up adds a lot of plays", ev("P:BoughtLeft()") == ev("__before") + 5)
+lua("__before = P:BoughtLeft(); __gBefore = P:Gears(); P:GrantFree()")
+check("an owner's free top-up adds 10 Golden Gears and no plays", ev("P:Gears()") == ev("__gBefore") + 10 and ev("P:BoughtLeft()") == ev("__before"))
 lua('__unitName, __unitSurname = "Thrall", "Frostwolf"')
 lua("__buyPrinted = #__printed; __gearsBefore = P:Gears(); __boughtBefore = P:BoughtLeft(); P:OnPurchase(200000)")
 check("a confirmed mail of 20g credits 20 Golden Gears and no plays", ev("P:Gears()") == ev("__gearsBefore") + 20 and ev("P:BoughtLeft()") == ev("__boughtBefore") and ev("#__printed") == ev("__buyPrinted") + 1)
@@ -1566,7 +1566,7 @@ __g1 = P:Gears()
 """)
 check("the gear shop: 1 gear 3 suction, 2 gears 3 Rings, 3 gears 3 Rainbows, 10 gears 5 plays",
       ev("__g0 - __g1") == 16 and ev("P:Items().suction - __s0") == 3 and ev("P:Items().ring - __r0") == 3 and ev("P:Items().rainbow - __rb0") == 3 and ev("P:BoughtLeft() - __b0") == 5)
-lua("__g2 = P:Gears(); __okPoor = P:Buy('plays')")
+lua("P:AddGears(3 - P:Gears()); __g2 = P:Gears(); __okPoor = P:Buy('plays')")
 check("the shop refuses what the gears cannot pay for", ev("__okPoor") == False and ev("P:Gears()") == ev("__g2"))
 # the save is sealed: progress and gears live only in the vault
 lua("""
@@ -1706,8 +1706,10 @@ check("buying plays hides the panel and the game resumes", ev("not UI.playsPanel
 check("a stranger sees no owner button", ev("not UI.freeBtn:IsShown()"))
 lua('__unitName, __unitSurname = "Notte", "Sure"; for _ = 1, 10 do P:RecordFail() end; UI:StartLevel(1)')
 check("an owner out of plays sees the free button on the panel", ev("UI.playsPanel:IsShown() and UI.playsPanel.free:IsShown() and UI.freeBtn:IsShown()"))
-lua("UI.playsPanel.free:Click()")
-check("clicking it grants plays and the game resumes", ev("not UI.playsPanel:IsShown() and P:Remaining() == 5"))
+lua("__ownG = P:Gears(); UI.playsPanel.free:Click()")
+check("clicking it grants 10 Golden Gears", ev("P:Gears() - __ownG") == 10)
+lua("UI.playsPanel.buy:Click()")
+check("the gears buy plays from the panel and the game resumes", ev("not UI.playsPanel:IsShown() and P:Remaining() == 5"))
 lua('__unitName, __unitSurname = "Thrall", "Frostwolf"; UI:UpdateDisplay()')
 
 # the mascot: a model frame in the corner that reacts to the game
@@ -1884,18 +1886,39 @@ function drake_probe()
     for _, p in ipairs(st.pegs) do if p.scrap then n = n + 1 end end
     counts[#counts + 1] = n
   end
-  -- the columns: at least three with no scrap in them
   local cols = math.floor((E.FIELD_W - 80) / E.SCRAP_COL_W)
-  local used = {}
-  for _, p in ipairs(st.pegs) do if p.scrap then used[p.col] = true end end
-  local free = 0
-  for c = 1, cols do if not used[c] then free = free + 1 end end
-  return counts[1], counts[#counts], free
+  local function rows()
+    local t = {}
+    for _, p in ipairs(st.pegs) do if p.scrap then t[p.row] = t[p.row] or {}; t[p.row][p.col] = true end end
+    return t
+  end
+  local r1 = rows()[1] or {}
+  local r1n = 0 for _ in pairs(r1) do r1n = r1n + 1 end
+  local endsTaken = r1[1] and r1[cols]
+  -- now the pattern is cleared: the Drake climbs into the space
+  for _, p in ipairs(st.pegs) do if not p.scrap and p ~= st.boss then p.gone = true end end
+  for shot = 15, 40 do
+    st.phase = E.PHASE.FLIGHT
+    st.balls = {}
+    st.shots = shot
+    st.ballsLeft = 10
+    for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+  end
+  local t = rows()
+  local upper, wall = 0, false
+  for r, cs in pairs(t) do
+    local n = 0 for _ in pairs(cs) do n = n + 1 end
+    if r > 1 then upper = upper + n end
+    if n >= cols then wall = true end
+  end
+  return counts[1], counts[#counts], r1n, endsTaken and true or false, upper, wall
 end
 """)
-first, last, free = ev("drake_probe")()
-check("the Tin Drake throws scrap after every shot, even a miss, and keeps three columns clear",
-      first >= 1 and last > first and free >= 3, f"{first} {last} {free}")
+first, last, r1n, ends, upper, wall = ev("drake_probe")()
+check("the Tin Drake throws scrap after every shot, fills its first row, then takes the two bank ends",
+      first == 2 and last > first and r1n == 7 and ends, f"{first} {last} {r1n} {ends}")
+check("then it climbs into cleared space above, and no row is ever a wall",
+      upper > 0 and not wall, f"{upper} {wall}")
 
 # arming the Suction Tube starts the tube sucking; disarming it unfired stops it
 lua("""
