@@ -1856,6 +1856,18 @@ __tuneReset = GnomishPachinkoDB.mascot.tune[__tuneId] == nil
 check("the tuning panel saves a host's height and zoom, and resets them",
       ev("__tuneId") == "mekka" and ev("__tuneOk") and ev("__tuneReset"))
 
+# a power is announced by the host it belongs to, whoever hosts the level
+lua(r"""
+UI:StartLevel(1, true)
+GnomishPachinkoDB.sound, GnomishPachinkoDB.voice = true, true
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+local n = #__played_files
+GP:PlayVoice("power_pyramid", GP:HostForPower("pyramid"))
+__powerVoice = __played_files[#__played_files] or ""
+__powerPlayed = #__played_files > n
+""")
+check("a power is announced in its own host's voice", ev("__powerPlayed") and ev("__powerVoice").replace(chr(92), "/").endswith("Voice/razzle/power_pyramid.ogg"), ev("__powerVoice"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

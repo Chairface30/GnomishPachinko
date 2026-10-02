@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A power is announced in the voice of the host it belongs to, whichever host runs the level.
 - The Pyramid lasts three strikes, and a ball over its bare corners past the bottom step falls through.
 - **Temporary host tuning panel** left of the window: Height and Zoom sliders for each of the four hosts (arrows pick the host), and a Boss tilt slider. Values save on the spot; they will be written into the game and the panel removed.
 - **Lit bricks always leave after two seconds,** Super Slide rails included. A lit rail brick no longer catches the ball or gives it the speed boost.

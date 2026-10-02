@@ -2548,7 +2548,7 @@ function UI:HandleEvents(now)
             GP:PlayVoice(ev.combo >= 20 and "combo_huge" or "combo")
         elseif t == "power" then
             self:ShowBanner(POWER_BANNERS[ev.power] or "POWER!", "", 1.4)
-            GP:PlayVoice("power_" .. ev.power)
+            GP:PlayVoice("power_" .. ev.power, GP:HostForPower(ev.power))
             if ev.power == "blast" then
                 self:ShowBlast(ev.x, ev.y, now)
                 GP:PlaySfx("blast.ogg")

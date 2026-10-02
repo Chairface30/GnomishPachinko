@@ -57,12 +57,14 @@ end
 
 -- The announcer. Lines live in Sounds/Voice/<name>.ogg (see ASSETS.md);
 -- a line that is not there yet simply does not play.
-function GP:PlayVoice(name)
+-- `host` (optional) speaks instead of the level's host: a power is
+-- announced by the host it belongs to.
+function GP:PlayVoice(name, host)
     local db = self.db or self:GetDB()
     if db.sound == false or db.voice == false then return end
     if self.Dialog and self.Dialog:IsShown() then return end
     self:StopVoice()
-    local dir = self:Host().voiceDir or ""
+    local dir = (host or self:Host()).voiceDir or ""
     local ok, played, handle = pcall(PlaySoundFile, "Interface\\AddOns\\GnomishPachinko\\Sounds\\Voice\\" .. dir .. name .. ".ogg", "Dialog")
     if ok and played then self.voiceHandle = handle end
     return ok and played
@@ -150,6 +152,13 @@ GP.HOSTS = {
     { id = "razzle", name = "Razzle Sprysprocket",     npc = 1269, voiceDir = "razzle\\", powers = { "pyramid", "frenzy" } },
     { id = "bink",   name = "Bink",                    npc = 5144, voiceDir = "bink\\",   powers = { "fireball", "spooky" } },
 }
+
+-- The host a power belongs to.
+function GP:HostForPower(power)
+    for _, h in ipairs(self.HOSTS) do
+        for _, p in ipairs(h.powers) do if p == power then return h end end
+    end
+end
 
 function GP:HostFor(level)
     local chapter = math.floor(((level or 1) - 1) / 10) + 1
