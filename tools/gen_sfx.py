@@ -69,6 +69,10 @@ EFFECTS = {
     "blast":    ("A deep cartoon explosion with a quick boom and a short sparkle tail, no long rumble.", 1.2, {"keep_tail": True}),
     "zap":      ("A short crackling electric arc jumping between metal pins, zappy and bright.", 0.5, {}),
     "pyramid":  ("A ball bouncing hard off a stone ramp with a springy thump, short.", 0.4, {}),
+    "web_shoot": ("A mechanical spider squirting sticky webbing, two quick wet thwips, short.", 0.7, {}),
+    "web_catch": ("A ball caught in a sticky spider web, a stretchy elastic thwump, short.", 0.6, {}),
+    "pyramid_crumble": ("Sandstone blocks cracking and a few stones crumbling off, gritty, short.", 0.8, {"keep_tail": True}),
+    "pyramid_dust": ("A stone pyramid collapsing into rubble with a whooshing dusty rumble, falling grit, short.", 1.6, {"keep_tail": True}),
     # pieces
     "crack":    ("An eggshell cracking, one quick sharp snap, close-miked, short.", 0.4, {}),
     "hatch":    ("A tiny creature chirping once as it hatches from an egg, cute and quick.", 0.8, {}),
@@ -112,8 +116,8 @@ BASE_HZ = 261.63
 GROUPS = {
     "peg": ["peg1", "peg2", "peg3", "clink", "bumper", "orange"],
     "notes": ["note_base"],
-    "powers": [n for n in EFFECTS if n.startswith("power_")] + ["blast", "zap", "pyramid"],
-    "boss": ["boss_hit", "boss_down", "shield", "heal", "hop"],
+    "powers": [n for n in EFFECTS if n.startswith("power_")] + ["blast", "zap", "pyramid", "pyramid_crumble", "pyramid_dust"],
+    "boss": ["boss_hit", "boss_down", "shield", "heal", "hop", "web_shoot", "web_catch"],
 }
 
 

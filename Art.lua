@@ -75,7 +75,11 @@ slot("crack",   64, 64,  { tint = true, note = "white crack lines, transparent e
 slot("dot",     32, 32,  { tint = true, note = "a soft dot: aim guide, lightning bolt, map path" })
 slot("star",    32, 32,  { tint = true, note = "a five-point star, gold when earned, grey when not" })
 slot("blast",   128, 128, { tint = true, note = "a soft radial burst with ragged spikes: Space Blast, Ring of Fire" })
-slot("pyramid", 256, 32, { note = "the golden trapezoid ramp of the Pyramid power" })
+slot("pyramid", 256, 128, { note = "the Pyramid power: a sandstone step pyramid, five tiers under a pointed gold capstone, base across the full width, tip at the top centre" })
+for i = 1, 4 do
+    slot("pyramid_crumble" .. i, 256, 128, { note = "the step pyramid after " .. i .. " of its 5 strikes: chipped steps and cracks, more broken at each stage" })
+end
+slot("pyramid_dust", 128, 128, { note = "a billowing cloud of sandstone dust and grit, soft-edged: Pyramid strikes and its collapse" })
 slot("icon",    64, 64,  { note = "the addon list icon" })
 
 -- ===== gameplay pieces, one file a look =====
@@ -92,6 +96,7 @@ for _, c in ipairs(ART.PEG_COLORS) do
 end
 slot("bumper",      64, 64, { fill = 0.7, note = "a star bumper: throws the ball back harder" })
 slot("block",       64, 64, { fill = 0.7, note = "a round solid steel block: never lights" })
+slot("web",         64, 64, { fill = 0.7, note = "a round silvery spider web, spokes and rings, the Gyro Spider's: catches a ball" })
 slot("rail",        64, 32, { fill = 0.9, note = "a solid grey steel bar with end caps: never lights" })
 slot("cage_gold",   64, 32, { fill = 0.9, note = "one gold bar of a key cage, stretched like a brick" })
 slot("cage_silver", 64, 32, { fill = 0.9, note = "one silver bar of a key cage" })

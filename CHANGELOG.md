@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **The Pyramid is a step pyramid.** It stands over the bucket, which is parked and hidden under it. Both sides throw the ball up and back toward the wall on that side. It lasts five strikes over any number of shots, crumbles a little at each one, and turns to dust on the last.
+- **Each boss fights its own way.** Steel scrap is now only the Tin Drake's. The Gyro Spider spins two webs after every shot, anywhere in the open. A ball that touches a web is caught, and the web and the ball are both gone. A fireball burns webs away.
+- The Gyro Spider uses the Mechano-Tank spider mech model.
+- The Get Golden Gears button reads "Get Golden Gears" over "1g each".
+- New sounds: web shot, web catch, pyramid crumble, pyramid collapse.
+
 - **The Tin Drake builds upward.** It throws two blocks after every shot: first five in the row just above it, then that row's two ends by the walls (easy bank shots), then rows higher up, only where the pattern has been cleared. Every row keeps a column open.
 - **The pyramid kicks harder**, so a ball that lands on it goes back up the board.
 - **The owner's button gives 10 Golden Gears** instead of free plays.

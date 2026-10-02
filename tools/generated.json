@@ -239,6 +239,16 @@
     "prompt": "A ball bouncing hard off a stone ramp with a springy thump, short.",
     "secs": 0.4
   },
+  "pyramid_crumble": {
+    "at": "2026-10-02 19:22",
+    "prompt": "Sandstone blocks cracking and a few stones crumbling off, gritty, short.",
+    "secs": 0.8
+  },
+  "pyramid_dust": {
+    "at": "2026-10-02 19:22",
+    "prompt": "A stone pyramid collapsing into rubble with a whooshing dusty rumble, falling grit, short.",
+    "secs": 1.6
+  },
   "rim": {
     "at": "2026-10-02 17:49",
     "prompt": "A steel ball striking the brass rim of a metal bucket, one short bright bell-like clang, metallic ring, no reverb.",
@@ -273,6 +283,16 @@
     "at": "2026-10-01 19:32",
     "prompt": "A padlock clicking open and a small cage of metal bars falling apart with a jingle, short.",
     "secs": 0.9
+  },
+  "web_catch": {
+    "at": "2026-10-02 19:22",
+    "prompt": "A ball caught in a sticky spider web, a stretchy elastic thwump, short.",
+    "secs": 0.6
+  },
+  "web_shoot": {
+    "at": "2026-10-02 19:22",
+    "prompt": "A mechanical spider squirting sticky webbing, two quick wet thwips, short.",
+    "secs": 0.7
   },
   "zap": {
     "at": "2026-10-01 17:39",

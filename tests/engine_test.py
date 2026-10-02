@@ -907,31 +907,57 @@ end
 lit, bounces = ev("fire_passes")()
 check("a fireball lights pegs without bouncing", lit >= 1 and bounces == 0, f"lit {lit} bounces {bounces}")
 
-# the pyramid in isolation: a ball dropped on it comes back up fast, four times at most
+# the pyramid in isolation: balls dropped on each face go up and out toward
+# that face's wall; it lasts five strikes, then turns to dust
 lua(r"""
 function pyramid_probe()
   local spec = L:Build(1)
   spec.pegs = {}
   spec.goal = 0
   local st = E:NewLevel(spec)
-  st.pyramidShots = 1
   st.aim = 0
   local events = {}
   E:Launch(st, events)
-  local bounces, up = 0, 0
-  for _ = 1, 600 do
-    E:Step(st, 1 / 60, events)
-    for _, e in ipairs(events) do if e.type == "pyramid" then bounces = bounces + 1 end end
-    wipe(events)
-    local b = st.balls[1]
-    if b and -b.vy > up then up = -b.vy end
-    if st.phase ~= E.PHASE.FLIGHT then break end
+  local template = {}
+  for k, v in pairs(st.balls[1]) do template[k] = v end
+  st.pyramidHits = E.PYRAMID_STRIKES
+  local out = { strikes = 0, dust = 0, sideOk = true, upOk = true, bucketHidden = true }
+  local offsets = { -60, 60, -20, 25, 0, -40, 40 }
+  for i, off in ipairs(offsets) do
+    local b = {}
+    for k, v in pairs(template) do b[k] = v end
+    b.x, b.y, b.vx, b.vy = E.FIELD_W / 2 + off, E.PYRAMID_BASE - E.PYRAMID_H - 80, 0, 60
+    st.balls = { b }
+    st.phase = E.PHASE.FLIGHT
+    local struck = false
+    for _ = 1, 90 do
+      E:Step(st, 1 / 60, events)
+      for _, e in ipairs(events) do
+        if e.type == "pyramid" then
+          out.strikes = out.strikes + 1
+          struck = true
+          local bb = st.balls[1]
+          if bb then
+            if bb.vy > -E.PYRAMID_KICK * 0.9 then out.upOk = false end
+            if off ~= 0 and bb.vx * off < 0 then out.sideOk = false end
+            if math.abs(bb.vx) < E.PYRAMID_SIDE - 1 then out.sideOk = false end
+          end
+        elseif e.type == "pyramid_dust" then out.dust = out.dust + 1 end
+      end
+      wipe(events)
+      if struck then break end
+    end
+    if i == 2 and math.abs(st.bucket.x - E.FIELD_W / 2) > 0.5 then out.bucketHidden = false end
   end
-  return bounces, up
+  out.up = E.PyramidUp(st)
+  return out
 end
 """)
-bounces, up = ev("pyramid_probe")()
-check("the pyramid bar gives four strong bounces a shot", bounces == 4 and up >= 370, f"bounces {bounces} up {up:.0f}")
+pr = dict(ev("pyramid_probe")())
+check("each pyramid strike throws the ball up and toward the wall on that side", pr["upOk"] and pr["sideOk"], str(pr))
+check("the pyramid stands five strikes, then turns to dust once and is gone",
+      pr["strikes"] == 5 and pr["dust"] == 1 and not pr["up"], str(pr))
+check("the bucket is parked under the pyramid while it stands", pr["bucketHidden"], str(pr))
 
 # score free balls
 lua(r"""
@@ -1919,6 +1945,63 @@ check("the Tin Drake throws scrap after every shot, fills its first row, then ta
       first == 2 and last > first and r1n == 7 and ends, f"{first} {last} {r1n} {ends}")
 check("then it climbs into cleared space above, and no row is ever a wall",
       upper > 0 and not wall, f"{upper} {wall}")
+
+# the Gyro Spider spins webs after every shot; a ball that touches one is
+# caught, and the web goes with it
+lua(r"""
+function web_probe()
+  local spec
+  for n = 10, 400, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "spider" then break end end
+  local st = E:NewLevel(spec)
+  local events = {}
+  local out = { webs = 0, scrap = 0, caught = false, webGone = false, lost = false, clear = true }
+  for shot = 1, 3 do
+    st.phase = E.PHASE.FLIGHT
+    st.balls = {}
+    st.shots = shot
+    st.ballsLeft = 10
+    for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+  end
+  local web
+  for _, p in ipairs(st.pegs) do
+    if p.web and not p.gone then out.webs = out.webs + 1; web = web or p end
+    if p.scrap then out.scrap = out.scrap + 1 end
+  end
+  -- no web sits on another piece
+  for _, p in ipairs(st.pegs) do
+    if p.web then
+      for _, q in ipairs(st.pegs) do
+        if q ~= p and not q.gone and q.shape ~= "brick" then
+          local dx, dy = q.x - p.x, q.y - p.y
+          if dx * dx + dy * dy < ((q.r or E.PEG_R) + p.r) ^ 2 then out.clear = false end
+        end
+      end
+    end
+  end
+  -- drop a ball onto a web
+  st.aim = 0
+  st.phase = E.PHASE.AIM
+  wipe(events)
+  E:Launch(st, events)
+  local b = st.balls[1]
+  b.x, b.y, b.vx, b.vy = web.x, web.y - web.r - E.BALL_R - 4, 0, 120
+  for _ = 1, 30 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do
+      if e.type == "web_catch" then out.caught = true end
+      if e.type == "lost" and e.webbed then out.lost = true end
+    end
+    wipe(events)
+    if out.lost then break end
+  end
+  out.webGone = web.gone == true
+  return out
+end
+""")
+wp = dict(ev("web_probe")())
+check("the Gyro Spider spins webs after every shot, in open space, and throws no steel scrap",
+      wp["webs"] >= 4 and wp["scrap"] == 0 and wp["clear"], str(wp))
+check("a ball that touches a web is caught: ball and web both gone", wp["caught"] and wp["lost"] and wp["webGone"], str(wp))
 
 # arming the Suction Tube starts the tube sucking; disarming it unfired stops it
 lua("""

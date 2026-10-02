@@ -141,6 +141,7 @@ local function pieceSlot(p, state)
     if k == "gem" then return "gem" end
     if k == "key" then return p.silver and "key_silver" or "key_gold" end
     if k == "bumper" then return p.balloon and "fever_balloon" or "bumper" end
+    if k == "web" then return "web" end
     if k == "block" then
         if p.lock then return p.silver and "cage_silver" or "cage_gold" end
         return (p.shape == "brick") and "rail" or "block"
@@ -203,6 +204,7 @@ local TIPS = {
     { key = "duel",      when = function(st) return st.objective == "duel" end, text = "Tinkmaster: \"My brother Cogwhistle again. Clear the board, then it's a duel: five balls each, and hit an orange every shot or he docks your score.\"" },
     { key = "longshots", when = function(st) return st.objective == "longshots" end, text = "Tinkmaster: \"Long Shots! Light two orange pegs far apart in one shot. Bounce it off the far wall and watch.\"" },
     { key = "tough",     when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, text = "Tinkmaster: \"Steel-rimmed pieces take two hits, gold-rimmed three. They crack first.\"" },
+    { key = "webs",      when = function(st) return st.boss and st.boss.ability == "spider" end, text = "Tinkmaster: \"The Gyro Spider spins webs after every shot. Touch one and the ball is caught, web and all. A fireball burns them away.\"" },
     { key = "nobucket",  when = function(st) return st.noBucket end, text = "Tinkmaster: \"No bucket on this one. The only free balls are the score marks, so make every ball count.\"" },
     { key = "keys",      when = function(st) for _, p in ipairs(st.pegs) do if p.kind == "key" then return true end end end, text = "Tinkmaster: \"A key! Light it and its cage falls away. Sometimes the key is behind another lock.\"" },
     { key = "items",     when = function(st) return st.level == 2 end, text = "Tinkmaster: \"Two slots at the bottom-left: Ring of Fire and Rainbow Ball. Click one to arm it for your next shot. You earn more by clearing levels.\"" },
@@ -325,13 +327,21 @@ function UI:CreateFrame()
     blastRing:Hide()
     self.blastRing = blastRing
 
-    -- the Pyramid bar
+    -- the Pyramid: a step pyramid over the bucket, crumbling strike by strike
     local pyr = field:CreateTexture(nil, "ARTWORK", nil, 3)
     ART:Set(pyr, "pyramid")
-    pyr:SetSize(E.PYRAMID_W + 20, 40)
-    pyr:SetPoint("CENTER", field, "TOPLEFT", FW / 2, -(E.PYRAMID_Y + 6))
+    pyr:SetSize(E.PYRAMID_W, E.PYRAMID_H)
+    pyr:SetPoint("BOTTOM", field, "TOPLEFT", FW / 2, -E.PYRAMID_BASE)
     pyr:Hide()
     self.pyramidTex = pyr
+    -- its dust: a puff at each strike, a cloud when it falls
+    self.pyramidPuffs = {}
+    for i = 1, 4 do
+        local d = field:CreateTexture(nil, "OVERLAY", nil, 3)
+        ART:Set(d, "pyramid_dust")
+        d:Hide()
+        self.pyramidPuffs[i] = d
+    end
 
     self.pegTex = {}
 
@@ -677,7 +687,7 @@ function UI:CreateFrame()
     self.playsText:SetHeight(30)
     self.playsText:SetJustifyH("CENTER")
     self.playsText:SetJustifyV("TOP")
-    self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears (1g each, by mail)")
+    self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears\n1g each")
     self.buyBtn.text:SetWidth(SIDE_W - 16)
     self.buyBtn.text:SetWordWrap(true)
     self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 30)
@@ -1158,6 +1168,21 @@ function UI:CreateLevelSelect()
     end)
 end
 
+-- A puff of Pyramid dust at a field point, growing and fading over dur seconds.
+function UI:PyramidPuff(x, y, size, dur, now)
+    local pick = self.pyramidPuffs[1]
+    for _, d in ipairs(self.pyramidPuffs) do
+        if not d.untilT then pick = d break end
+        if d.untilT < pick.untilT then pick = d end
+    end
+    pick.size, pick.dur, pick.untilT = size, dur, now + dur
+    pick:SetSize(size * 0.6, size * 0.36)
+    pick:SetAlpha(1)
+    pick:ClearAllPoints()
+    pick:SetPoint("CENTER", self.field, "TOPLEFT", x, -y)
+    pick:Show()
+end
+
 -- The board's chrome: the host's box, the balls-left strip, the special-ball
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
 function UI:SetBoardChrome(shown)
@@ -1409,6 +1434,8 @@ function UI:StartLevel(n, retry)
     for _, s in ipairs(self.bannerStars) do s:Hide() end
     self.bucket:Show()
     self.pyramidTex:Hide()
+    self.bucketUnderPyramid = nil
+    for _, d in ipairs(self.pyramidPuffs) do d.untilT = nil; d:Hide() end
     self.blastTex:Hide()
     self.blastRing:Hide()
     for _, d in ipairs(self.boltDots) do d:Hide() end
@@ -2053,6 +2080,18 @@ function UI:HandleEvents(now)
             self:LayoutPegs(true)
             GP:PlaySfx("clink.ogg")
             self:Popup(ev.x, ev.y - 40, "SCRAP!", 1, 0.6, 0.3)
+        elseif t == "boss_webs" then
+            self:LayoutPegs(true)
+            GP:PlaySfx("web_shoot.ogg")
+            self:Popup(ev.x, ev.y - 40, "WEBS!", 0.85, 0.85, 0.95)
+        elseif t == "web_catch" then
+            self:LayoutPegs(true)
+            GP:PlaySfx("web_catch.ogg")
+            self:Popup(ev.x, ev.y - 20, "WEBBED!", 0.85, 0.85, 0.95)
+        elseif t == "web_burn" then
+            self:LayoutPegs(true)
+            GP:PlaySfx("web_catch.ogg")
+            self:Popup(ev.x, ev.y - 20, "BURNED", 1, 0.55, 0.2)
         elseif t == "boss_heal" then
             GP:PlaySfx("heal.ogg")
             self:Popup(ev.x, ev.y - 30, "+1", 1, 0.4, 0.4)
@@ -2154,6 +2193,11 @@ function UI:HandleEvents(now)
             end
         elseif t == "pyramid" then
             GP:PlaySfx("pyramid.ogg")
+            if (ev.left or 0) > 0 then GP:PlaySfx("pyramid_crumble.ogg") end
+            self:PyramidPuff(ev.x, ev.y, 46, 0.5, now)
+        elseif t == "pyramid_dust" then
+            GP:PlaySfx("pyramid_dust.ogg")
+            self:PyramidPuff(ev.x, ev.y, E.PYRAMID_W * 1.25, 1.2, now)
         elseif t == "lost" then
             if st.phase ~= E.PHASE.FEVER then GP:PlaySfx("lost.ogg") end
         elseif t == "zap" then
@@ -2754,11 +2798,33 @@ function UI:Render(now)
         end
     end
 
-    if st.pyramidBounces > 0 and st.phase == E.PHASE.FLIGHT then
-        self.pyramidTex:SetAlpha(0.55 + 0.45 * st.pyramidBounces / E.PYRAMID_BOUNCES)
+    if E.PyramidUp(st) and st.phase ~= E.PHASE.OVER then
+        -- whole, then four stages of crumbling, one per strike
+        local stage = E.PYRAMID_STRIKES - st.pyramidHits
+        ART:Set(self.pyramidTex, stage <= 0 and "pyramid" or ("pyramid_crumble" .. math.min(4, stage)))
         self.pyramidTex:Show()
+        -- the bucket is parked under it, out of sight
+        if self.bucket:IsShown() then self.bucket:Hide() end
+        self.bucketUnderPyramid = true
     else
         self.pyramidTex:Hide()
+        if self.bucketUnderPyramid then
+            self.bucketUnderPyramid = nil
+            if not st.noBucket and st.phase ~= E.PHASE.FEVER and st.phase ~= E.PHASE.OVER then self.bucket:Show() end
+        end
+    end
+    for _, d in ipairs(self.pyramidPuffs) do
+        if d.untilT then
+            local f = 1 - (d.untilT - now) / d.dur
+            if f >= 1 then
+                d.untilT = nil
+                d:Hide()
+            else
+                local s = d.size * (0.6 + 0.6 * f)
+                d:SetSize(s, s * 0.6)
+                d:SetAlpha(1 - f)
+            end
+        end
     end
 
     if self.boltUntil then
@@ -2878,8 +2944,8 @@ function UI:UpdateCounters()
     local status = ""
     if st.power == "guide" and st.superGuide > 0 then
         status = ("Super Guide (%d bounces): %d shot%s left"):format(E.GUIDE_BOUNCES[st.guideLevel or 1], st.superGuide, st.superGuide == 1 and "" or "s")
-    elseif st.power == "pyramid" and (st.pyramidShots > 0 or st.pyramidBounces > 0) then
-        status = "Pyramid: this shot" .. (st.pyramidShots > 0 and (" and " .. st.pyramidShots .. " more") or "")
+    elseif st.power == "pyramid" and E.PyramidUp(st) then
+        status = ("Pyramid: %d strike%s left"):format(st.pyramidHits, st.pyramidHits == 1 and "" or "s")
     end
     self.powerStatus:SetText(status)
     local s2, s3 = L:StarScores(st.level)

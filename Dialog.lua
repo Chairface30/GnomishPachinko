@@ -23,7 +23,7 @@ D.SPEAKERS = {
     cog    = { name = "Cogwhistle Overspark", npc = 7800, voice = "mumble" },
     drake  = { name = "Tin Drake",            npc = 6235, voice = "grumble" },
     golem  = { name = "Bolt Golem",           npc = 6229, voice = "grumble" },
-    spider = { name = "Gyro Spider",          npc = 7361, voice = "grumble" },
+    spider = { name = "Gyro Spider",          npc = 6225, voice = "grumble" },   -- Mechano-Tank, the gnomish spider mech
     boar   = { name = "Mechano-Boar",         npc = 6228, voice = "grumble" },
     yeti   = { name = "Cog Yeti",             npc = 7079, voice = "grumble" },
 }

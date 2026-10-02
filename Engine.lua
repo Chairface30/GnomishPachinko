@@ -102,12 +102,12 @@ E.BLAST_RADIUS = 45         -- about an inch on screen
 E.GUIDE_SHOTS = 3
 E.CHAIN_LINKS = 6           -- Chain Lightning: pieces after the green one
 E.CHAIN_REACH = 120
-E.PYRAMID_SHOTS   = 3       -- the shot that earns it and two more
-E.PYRAMID_BOUNCES = 4       -- per shot
+E.PYRAMID_STRIKES = 5       -- a step pyramid over the bucket stands for this many strikes
 E.PYRAMID_KICK    = 520     -- the ball leaves it at least this fast, upward
-E.PYRAMID_W       = E.FIELD_W - 90
-E.PYRAMID_H       = 14
-E.PYRAMID_Y       = E.FIELD_H - E.BUCKET_H - 6 - 40
+E.PYRAMID_SIDE    = 260     -- ... and at least this fast toward the wall on its side
+E.PYRAMID_W       = 240     -- base width
+E.PYRAMID_H       = 120     -- base to the tip of its peak
+E.PYRAMID_BASE    = E.FIELD_H - 2
 
 -- Combos: every piece lit in one shot adds COMBO_STEP x (hits so far)
 -- to its points, and long chains pay a bonus at these lengths.
@@ -134,6 +134,10 @@ E.SCRAP_PER_SHOT_DRAKE = 2   -- the Tin Drake throws after every shot ...
 E.SCRAP_MAX_DRAKE      = 40  -- ... up to this many
 E.SCRAP_ROW1           = 5   -- the Drake's first row: blocks in its middle before it takes the ends and climbs
 E.SCRAP_ROW_GAP        = 34  -- between the Drake's rows of scrap
+E.WEB_R          = 13        -- a Gyro Spider web
+E.WEB_PER_SHOT   = 2         -- spun after every shot ...
+E.WEB_MAX        = 10        -- ... up to this many on the board
+E.WEB_CLEAR      = 14        -- the gap kept between a web and any piece
 E.SCRAP_COL_W    = 44        -- scrap sits on columns this wide (a ball passes between neighbours)
 E.SCRAP_FREE_COLS = 3        -- columns always left empty: scrap is never a wall
 E.GOLEM_SHIELD = 2
@@ -148,7 +152,7 @@ E.POWERS = {
     { id = "blast",     name = "Space Blast",     blurb = "A huge explosion hits every piece near the green one." },
     { id = "fireball",  name = "Fireball",        blurb = "The ball burns straight through pegs." },
     { id = "spooky",    name = "Spooky Ball",     blurb = "A lost ball comes back in from the top." },
-    { id = "pyramid",   name = "Pyramid",         blurb = "A ramp across the bottom bounces the ball back up, for three shots." },
+    { id = "pyramid",   name = "Pyramid",         blurb = "A step pyramid over the bucket throws the ball back up toward the walls, for five strikes." },
     { id = "lightning", name = "Chain Lightning", blurb = "A bolt leaps from the green peg through six more pieces." },
     { id = "frenzy",    name = "Free Ball Frenzy", blurb = "Three extra balls and 5,000 points on the spot." },
 }
@@ -217,7 +221,7 @@ E.AIM_SWING    = 5.0        -- radians a second the launcher swings toward the c
 E.BOSSES = {
     { id = "drake",  name = "Tin Drake",    blurb = "Speeds up as it weakens.",                         speed = 0.6 },
     { id = "golem",  name = "Bolt Golem",   blurb = "Raises a two-hit shield every third shot.",        speed = 0.7 },
-    { id = "spider", name = "Gyro Spider",  blurb = "Jumps to a new spot whenever it is hit.",          speed = 1.0 },
+    { id = "spider", name = "Gyro Spider",  blurb = "Jumps when hit, and spins webs after every shot: a ball that touches one is caught with it.", speed = 1.0 },
     { id = "boar",   name = "Mechano-Boar", blurb = "Charges fast and turns around when hit.",          speed = 1.8 },
     { id = "yeti",   name = "Cog Yeti",     blurb = "Heals one point after any shot that misses it.",   speed = 0.8 },
 }
@@ -305,7 +309,7 @@ end
 E.PegContact = pegContact
 
 -- Solid pieces never light: barriers and bumpers.
-local function isSolid(p) return p.kind == "block" or p.kind == "bumper" end
+local function isSolid(p) return p.kind == "block" or p.kind == "bumper" or p.kind == "web" end
 E.IsSolid = isSolid
 
 -- Bounding radius used for spacing checks.
@@ -315,10 +319,6 @@ local function pegRadius(p)
 end
 E.PegRadius = pegRadius
 
--- The Pyramid: one wide solid bar just above the bucket.
-E.PYRAMID_PARTS = {
-    { shape = "brick", x = W / 2, y = E.PYRAMID_Y, angle = 0, w = E.PYRAMID_W, h = E.PYRAMID_H, kind = "block" },
-}
 
 -- ---------------------------------------------------------------------
 -- State
@@ -360,8 +360,7 @@ function E:NewLevel(spec)
         bestCombo = 0,
         freeBallIdx = 1,
         superGuide = 0,
-        pyramidShots = 0,
-        pyramidBounces = 0,
+        pyramidHits = 0,
         lastSlow = false,
         lastPeg = nil,
         lastSpent = 0,
@@ -603,12 +602,6 @@ function E:Launch(state, events)
         state.superGuide = state.superGuide - 1
         if state.superGuide == 0 then state.guideLevel = nil end
     end
-    if state.pyramidShots > 0 then
-        state.pyramidShots = state.pyramidShots - 1
-        state.pyramidBounces = E.PYRAMID_BOUNCES
-    else
-        state.pyramidBounces = 0
-    end
     -- the Bolt Golem shields itself every third shot
     local b = state.boss
     if b and not b.lit and b.ability == "golem" and state.shots % E.GOLEM_EVERY == 0 then
@@ -682,8 +675,7 @@ applyPower = function(state, p, ball, events)
         state.ballsLeft = state.ballsLeft + E.FRENZY_BALLS
         addScore(state, E.FRENZY_POINTS, events)
     elseif power == "pyramid" then
-        state.pyramidShots = E.PYRAMID_SHOTS - 1
-        state.pyramidBounces = E.PYRAMID_BOUNCES
+        state.pyramidHits = E.PYRAMID_STRIKES
     elseif power == "lightning" then
         local path = { { x = p.x, y = p.y } }
         local used = { [p] = true }
@@ -943,6 +935,8 @@ E.BucketTop = bucketTop
 local function moveBucket(state, dt)
     if state.noBucket then return end
     local b = state.bucket
+    -- parked in the middle, under the Pyramid, while it stands
+    if E.PyramidUp(state) then b.x = W / 2 return end
     local lo, hi = E.BUCKET_W / 2 + 4, W - E.BUCKET_W / 2 - 4
     b.x = b.x + b.dir * E.BUCKET_SPEED * dt
     if b.x > hi then b.x = hi; b.dir = -1 end
@@ -1004,6 +998,20 @@ collideBall = function(state, ball, events, light)
     for _, p in ipairs(state.pegs) do
         if not p.gone and not (ball.rail and p.rail == ball.rail) then
             local depth, nx, ny = pegContact(p, ball.x, ball.y, R)
+            if depth and p.web then
+                -- a web: only a real ball in play meets it
+                if light and state.phase ~= E.PHASE.FEVER then
+                    p.gone = true
+                    if ball.fire then
+                        push(events, { type = "web_burn", x = p.x, y = p.y })
+                    else
+                        ball.webbed = true
+                        push(events, { type = "web_catch", x = p.x, y = p.y })
+                        return
+                    end
+                end
+                depth = nil
+            end
             if depth then
                 local onto = false
                 if p.rail and light and not ball.fire and p.railCx then
@@ -1108,24 +1116,57 @@ function E:Arm(state, item)
     return true
 end
 
--- The Pyramid bar, while it has bounces left this shot.
+-- The Pyramid: a step pyramid standing over the bucket (which is parked
+-- and hidden under it). It is drawn in steps, but each side bounces as one
+-- smooth slope, so every strike sends the ball up and out toward the wall
+-- on that side. It crumbles a little at each strike and turns to dust on
+-- the last one.
+function E.PyramidUp(state)
+    return (state.pyramidHits or 0) > 0 and state.phase ~= E.PHASE.FEVER
+end
+
 local function collidePyramid(state, ball, events)
-    if state.pyramidBounces <= 0 or state.phase == E.PHASE.FEVER then return end
+    if not E.PyramidUp(state) then return end
     local R = E.BALL_R
-    for _, part in ipairs(E.PYRAMID_PARTS) do
-        local depth, nx, ny = pegContact(part, ball.x, ball.y, R)
-        if depth then
-            ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
-            local vn = ball.vx * nx + ball.vy * ny
-            if vn < 0 then
-                local k = (1 + 0.8) * vn
-                ball.vx = ball.vx - k * nx
-                ball.vy = ball.vy - k * ny
-                if ball.vy > -E.PYRAMID_KICK then ball.vy = -E.PYRAMID_KICK end
-                state.pyramidBounces = state.pyramidBounces - 1
-                push(events, { type = "pyramid", x = ball.x, left = state.pyramidBounces })
-            end
-        end
+    local cx, base, hw, ph = W / 2, E.PYRAMID_BASE, E.PYRAMID_W / 2, E.PYRAMID_H
+    local top = base - ph
+    if ball.y + R < top or ball.y > base or abs(ball.x - cx) > hw + R then return end
+    local side = (ball.x < cx) and -1 or 1
+    if ball.x == cx then side = (ball.vx < 0) and -1 or 1 end
+    -- the face from the peak (cx, top) down to the base corner on this side
+    local L = sqrt(hw * hw + ph * ph)
+    local fnx, fny = side * ph / L, -hw / L          -- its outward normal
+    local ex, ey = side * hw, ph                     -- along it
+    local t = ((ball.x - cx) * ex + (ball.y - top) * ey) / (L * L)
+    t = t < 0 and 0 or (t > 1 and 1 or t)
+    local px, py = cx + t * ex, top + t * ey
+    local dx, dy = ball.x - px, ball.y - py
+    local d = sqrt(dx * dx + dy * dy)
+    local inside = ball.y > top and abs(ball.x - cx) < hw * (ball.y - top) / ph
+    local nx, ny, depth
+    if inside then
+        nx, ny = fnx, fny
+        depth = R - ((ball.x - cx) * fnx + (ball.y - top) * fny)
+    elseif d < R then
+        if d > 0.0001 then nx, ny = dx / d, dy / d else nx, ny = fnx, fny end
+        depth = R - d
+    else
+        return
+    end
+    ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
+    local vn = ball.vx * nx + ball.vy * ny
+    if vn >= 0 then return end
+    local k = (1 + 0.8) * vn
+    local vx, vy = ball.vx - k * nx, ball.vy - k * ny
+    -- up, and back toward the wall on this side
+    if vy > -E.PYRAMID_KICK then vy = -E.PYRAMID_KICK end
+    if vx * side < E.PYRAMID_SIDE then vx = side * E.PYRAMID_SIDE end
+    if abs(vx) > 520 then vx = side * 520 end
+    ball.vx, ball.vy = vx, vy
+    state.pyramidHits = state.pyramidHits - 1
+    push(events, { type = "pyramid", x = ball.x, y = ball.y, left = state.pyramidHits })
+    if state.pyramidHits <= 0 then
+        push(events, { type = "pyramid_dust", x = cx, y = base - ph / 2 })
     end
 end
 
@@ -1155,7 +1196,7 @@ end
 
 -- Bucket test shared by balls and gems: 1 = caught, 2 = rim bounce, nil = clear.
 local function bucketCheck(state, body, events, radius)
-    if state.noBucket then return nil end
+    if state.noBucket or E.PyramidUp(state) then return nil end
     local R = radius or E.BALL_R
     local b = state.bucket
     local top = bucketTop()
@@ -1189,6 +1230,10 @@ local function integrateBall(state, ball, dt, events)
     if ball.rail then railStep(state, ball, events) end
     collideBall(state, ball, events, true)
     collidePyramid(state, ball, events)
+    if ball.webbed then
+        push(events, { type = "lost", x = ball.x, webbed = true })
+        return false
+    end
     -- a piece against the wall can push the ball through it: keep it inside
     if ball.x < R then ball.x = R; if ball.vx < 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
@@ -1197,7 +1242,7 @@ local function integrateBall(state, ball, dt, events)
     -- the suction tube steers every falling ball of a suction shot toward it:
     -- it bends the sideways speed toward the speed that lands the ball in the
     -- tube, and never touches the fall itself (not a magnet: no stopping, no lift)
-    if (ball.suction or state.suctionShot) and not state.noBucket and state.phase ~= E.PHASE.FEVER and ball.vy > 0 then
+    if (ball.suction or state.suctionShot) and not state.noBucket and not E.PyramidUp(state) and state.phase ~= E.PHASE.FEVER and ball.vy > 0 then
         local above = bucketTop() - ball.y
         local dx = state.bucket.x - ball.x
         if above > 0 and above < E.SUCTION_REACH and abs(dx) < E.SUCTION_SIDE then
@@ -1709,6 +1754,39 @@ local function drakeScrap(state, boss, events)
     if made > 0 then push(events, { type = "boss_scrap", count = made, x = boss.x, y = boss.y }) end
 end
 
+-- The Gyro Spider's webs: two after every shot, anywhere in the open
+-- between the pattern's pieces. A ball that touches one is caught: the web
+-- and the ball are both gone. A fireball burns a web away and flies on.
+local function spiderWebs(state, boss, events)
+    local count = 0
+    for _, p in ipairs(state.pegs) do if p.web and not p.gone then count = count + 1 end end
+    local yTop, yBot = E.PEG_TOP + 30, boss.y - E.BOSS_R - 30
+    if yBot <= yTop then return end
+    local made = 0
+    for _ = 1, 120 do
+        if made >= E.WEB_PER_SHOT or count + made >= E.WEB_MAX then break end
+        local x = 34 + state.rng() * (W - 68)
+        local y = yTop + state.rng() * (yBot - yTop)
+        local clear = true
+        for _, q in ipairs(state.pegs) do
+            if not q.gone then
+                if q.shape == "brick" then
+                    if pegContact(q, x, y, E.WEB_R + E.WEB_CLEAR) then clear = false break end
+                else
+                    local dx, dy = q.x - x, q.y - y
+                    local rr = (q.r or E.PEG_R) + E.WEB_R + E.WEB_CLEAR
+                    if dx * dx + dy * dy < rr * rr then clear = false break end
+                end
+            end
+        end
+        if clear then
+            state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = y, r = E.WEB_R, kind = "web", web = true }
+            made = made + 1
+        end
+    end
+    if made > 0 then push(events, { type = "boss_webs", count = made, x = boss.x, y = boss.y }) end
+end
+
 local function substep(state, dt, events)
     state.time = state.time + dt
     if #state.movers > 0 then E:UpdateMovers(state) end
@@ -1768,61 +1846,14 @@ local function substep(state, dt, events)
     if #state.balls == 0 and not rolling and not (state.phoenixes and #state.phoenixes > 0) then
         state.looseWait = 0
         clearLitPegs(state, events)
-        -- every boss fights back with scrap: solid blocks in the gap above it
-        -- that later shots must find a way round. Most bosses throw it after
-        -- a shot that hit them; the Tin Drake after every shot, so a wasted
-        -- shot makes it harder to reach. Scrap sits on a grid of columns and
-        -- a few columns are always kept clear, so it never becomes a wall.
+        -- each boss fights back its own way: the Tin Drake throws steel
+        -- scrap, the Gyro Spider spins webs (the Bolt Golem's shield and the
+        -- Cog Yeti's healing are below, the boar's charge in its movement)
         local boss = state.boss
         if boss and not boss.lit and not boss.gone and boss.ability == "drake" then
             drakeScrap(state, boss, events)
-        elseif boss and not boss.lit and not boss.gone and state.bossHitThisShot then
-            local drake = false
-            local cols = floor((W - 80) / E.SCRAP_COL_W)
-            local x0 = (W - cols * E.SCRAP_COL_W) / 2
-            local yTop = E.PEG_BOTTOM + 18
-            local yBot = boss.y - E.BOSS_R - 34
-            local rows = math.max(1, math.min(3, floor((yBot - yTop) / 30) + 1))
-            local used, colUsed, count = {}, {}, 0
-            for _, p in ipairs(state.pegs) do
-                if p.scrap and not p.gone then
-                    count = count + 1
-                    used[p.cell] = true
-                    colUsed[p.col] = true
-                end
-            end
-            local maxScrap = drake and E.SCRAP_MAX_DRAKE or E.SCRAP_MAX
-            local perShot = drake and E.SCRAP_PER_SHOT_DRAKE or E.SCRAP_PER_SHOT
-            local made = 0
-            for _ = 1, 40 do
-                if made >= perShot or count + made >= maxScrap then break end
-                local c = state.rng(1, cols)
-                local r = state.rng(1, rows)
-                local cell = c * 10 + r
-                if not used[cell] then
-                    -- keep at least SCRAP_FREE_COLS columns with nothing in them
-                    local free = 0
-                    for k = 1, cols do if not colUsed[k] and k ~= c then free = free + 1 end end
-                    if colUsed[c] or free >= E.SCRAP_FREE_COLS then
-                        local x = x0 + (c - 0.5) * E.SCRAP_COL_W
-                        local y = (rows == 1) and (yTop + yBot) / 2 or (yTop + (r - 1) * (yBot - yTop) / (rows - 1))
-                        local clear = true
-                        for _, q in ipairs(state.pegs) do
-                            if not q.gone and not q.scrap and q ~= boss and q.shape ~= "brick" then
-                                local dx, dy = q.x - x, q.y - y
-                                local rr = (q.r or E.PEG_R) + E.SCRAP_R + 6
-                                if dx * dx + dy * dy < rr * rr then clear = false break end
-                            end
-                        end
-                        if clear then
-                            state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = y, r = E.SCRAP_R, kind = "block", scrap = true, cell = cell, col = c }
-                            used[cell], colUsed[c] = true, true
-                            made = made + 1
-                        end
-                    end
-                end
-            end
-            if made > 0 then push(events, { type = "boss_scrap", count = made, x = boss.x, y = boss.y }) end
+        elseif boss and not boss.lit and not boss.gone and boss.ability == "spider" then
+            spiderWebs(state, boss, events)
         end
         -- the Cog Yeti heals after a shot that never touched it
         local b = state.boss

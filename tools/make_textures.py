@@ -737,6 +737,111 @@ def pyramid_img(w, h):
     return img
 
 
+def step_pyramid_img(w, h, stage=0):
+    """A sandstone step pyramid: five tiers whose step noses sit on the
+    line from the base corners to the peak, under a gold capstone. Stage
+    1-4 chips the steps and cracks the blocks, more at each stage."""
+    import random
+    bw, bh = w * SS, h * SS
+    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    tiers, th = 5, 0.16
+    sand, tread, mortar, shade = (214, 178, 108, 255), (240, 214, 150, 255), (150, 112, 60, 255), (178, 140, 80, 255)
+    for i in range(tiers):
+        y1 = bh * (1 - i * th)
+        y0 = bh * (1 - (i + 1) * th)
+        half = bw / 2 * (1 - (i + 1) * th)
+        x0, x1 = bw / 2 - half, bw / 2 + half
+        d.rectangle([x0, y0, x1, y1], fill=sand)
+        d.rectangle([x0, y0, x1, y0 + SS * 2], fill=tread)
+        d.rectangle([bw / 2, y0 + SS * 2, x1, y1], fill=shade)
+        # block joints
+        n = max(2, int(half * 2 / (SS * 22)))
+        for k in range(1, n):
+            x = x0 + (x1 - x0) * (k + (0.5 if i % 2 else 0)) / n
+            if x0 < x < x1:
+                d.line([(x, y0 + SS * 2), (x, y1)], fill=mortar, width=SS)
+        d.line([(x0, y1 - 1), (x1, y1 - 1)], fill=mortar, width=SS)
+    capy = bh * (1 - tiers * th)
+    caph = bw / 2 * (1 - tiers * th)
+    d.polygon([(bw / 2, 0), (bw / 2 + caph, capy), (bw / 2 - caph, capy)], fill=(250, 205, 70, 255))
+    d.polygon([(bw / 2, 0), (bw / 2 + caph, capy), (bw / 2, capy)], fill=(215, 165, 40, 255))
+    if stage:
+        rnd = random.Random(stage * 7 + 3)
+        for _ in range(stage * 7):
+            # a chip out of a step's edge
+            i = rnd.randrange(tiers)
+            y0 = bh * (1 - (i + 1) * th)
+            half = bw / 2 * (1 - (i + 1) * th)
+            side = rnd.choice((-1, 1))
+            cx = bw / 2 + side * (half - rnd.uniform(0, half * 0.7))
+            r = SS * rnd.uniform(4, 6 + stage * 2.5)
+            d.ellipse([cx - r, y0 - r * 0.6, cx + r, y0 + r * 0.9], fill=(0, 0, 0, 0))
+        for _ in range(stage * 4):
+            # cracks
+            x = rnd.uniform(bw * 0.2, bw * 0.8)
+            y = rnd.uniform(bh * 0.3, bh * 0.95)
+            pts = [(x, y)]
+            for _ in range(4):
+                x += rnd.uniform(-SS * 9, SS * 9)
+                y += rnd.uniform(-SS * 7, SS * 4)
+                pts.append((x, y))
+            d.line(pts, fill=(90, 62, 30, 255), width=SS * (1 + stage // 2))
+        if stage >= 3:
+            # the capstone loosened and tipped
+            d.polygon([(bw / 2, 0), (bw / 2 + caph, capy), (bw / 2 - caph, capy)], fill=(0, 0, 0, 0))
+            off = SS * 6 * (stage - 2)
+            d.polygon([(bw / 2 + off, SS * 4 * (stage - 2)), (bw / 2 + caph + off, capy), (bw / 2 - caph + off * 0.6, capy)], fill=(225, 175, 55, 255))
+    return img
+
+
+def web_img(size, fill=0.7):
+    big = size * SS
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = big / 2
+    r = big * fill / 2
+    col = (225, 228, 240, 235)
+    w = max(1, SS)
+    spokes = 8
+    for k in range(spokes):
+        a = k * 2 * math.pi / spokes + 0.2
+        d.line([(c, c), (c + math.cos(a) * r, c + math.sin(a) * r)], fill=col, width=w)
+    for ring in (0.28, 0.5, 0.72, 0.95):
+        pts = []
+        for k in range(spokes + 1):
+            a = k * 2 * math.pi / spokes + 0.2
+            rr = r * ring * (0.92 if k % 2 else 1.0)
+            pts.append((c + math.cos(a) * rr, c + math.sin(a) * rr))
+        d.line(pts, fill=col, width=w)
+    d.ellipse([c - SS * 2, c - SS * 2, c + SS * 2, c + SS * 2], fill=col)
+    return img
+
+
+def dust_img(size):
+    import random
+    rnd = random.Random(11)
+    big = size * SS
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    for _ in range(46):
+        r = rnd.uniform(0.1, 0.24) * big
+        a = rnd.uniform(0, 6.283)
+        dd = rnd.uniform(0, 0.28) * big
+        cx, cy = big / 2 + math.cos(a) * dd, big / 2 + math.sin(a) * dd * 0.8
+        blob = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+        ImageDraw.Draw(blob).ellipse([cx - r, cy - r, cx + r, cy + r],
+                                     fill=(int(rnd.uniform(190, 230)), int(rnd.uniform(160, 195)), int(rnd.uniform(105, 135)), int(rnd.uniform(40, 80))))
+        img = Image.alpha_composite(img, blob)
+    from PIL import ImageFilter
+    img = img.filter(ImageFilter.GaussianBlur(SS * 3))
+    d = ImageDraw.Draw(img)
+    for _ in range(40):
+        x, y = rnd.uniform(0.15, 0.85) * big, rnd.uniform(0.2, 0.85) * big
+        r = rnd.uniform(1, 2.5) * SS
+        d.ellipse([x - r, y - r, x + r, y + r], fill=(150, 112, 62, 230))
+    return img
+
+
 def bucket_img(w, h, color=(70, 86, 110), lip=(190, 205, 230)):
     bw, bh = w * SS, h * SS
     img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
@@ -819,7 +924,11 @@ def make_all(slots, only, from_base):
     put("dot", dot_img(32))
     put("star", star_img(32))
     put("blast", burst(128))
-    put("pyramid", pyramid_img(256, 32))
+    put("pyramid", step_pyramid_img(256, 128))
+    for i in range(1, 5):
+        put("pyramid_crumble%d" % i, step_pyramid_img(256, 128, i))
+    put("pyramid_dust", dust_img(128))
+    put("web", web_img(64))
     put("icon", addon_icon())
 
     for c, (body, hi) in COLORS.items():
