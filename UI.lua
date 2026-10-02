@@ -3142,8 +3142,9 @@ function UI:Render(now)
 
     if E.PyramidUp(st) and st.phase ~= E.PHASE.OVER then
         -- whole, then four stages of crumbling, one per strike
-        local stage = E.PYRAMID_STRIKES - st.pyramidHits
-        ART:Set(self.pyramidTex, stage <= 0 and "pyramid" or ("pyramid_crumble" .. math.min(4, stage)))
+        local used = E.PYRAMID_STRIKES - st.pyramidHits
+        local stage = math.min(4, math.ceil(used * 4 / E.PYRAMID_STRIKES))
+        ART:Set(self.pyramidTex, stage <= 0 and "pyramid" or ("pyramid_crumble" .. stage))
         self.pyramidTex:Show()
         -- the bucket is parked under it, out of sight
         if self.bucket:IsShown() then self.bucket:Hide() end

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Pyramid lasts three strikes, and a ball over its bare corners past the bottom step falls through.
 - **Temporary host tuning panel** left of the window: Height and Zoom sliders for each of the four hosts (arrows pick the host), and a Boss tilt slider. Values save on the spot; they will be written into the game and the panel removed.
 - **Lit bricks always leave after two seconds,** Super Slide rails included. A lit rail brick no longer catches the ball or gives it the speed boost.
 - **Eggs sit in different cradles:** a V, a shallow V, a flat ledge or a three-brick cup.
@@ -14,7 +15,7 @@
 - The right column names the level's host above the Power line.
 - The Golden Gear shop is a two-by-two grid, so it no longer runs into the level buttons.
 
-- **The Pyramid is a step pyramid as wide as the board,** so no ball drops past it while it stands. A strike even at its foot throws the ball up to the middle of the board. It covers the bucket, which is parked and hidden under it. Both sides throw the ball up and back toward the wall on that side. It lasts five strikes over any number of shots, crumbles a little at each one, and turns to dust on the last.
+- **The Pyramid is a step pyramid as wide as the board.** Only its bare corners, past the bottom step, let a ball fall. A strike even at its foot throws the ball up to the middle of the board. It covers the bucket, which is parked and hidden under it. Both sides throw the ball up and back toward the wall on that side. It lasts three strikes over any number of shots, crumbles a little at each one, and turns to dust on the last.
 - **Each boss fights its own way.** Steel scrap is now only the Tin Drake's. The Gyro Spider spins two webs after every shot, anywhere in the open. A ball that touches a web is caught, and the web and the ball are both gone. A fireball burns webs away.
 - The Gyro Spider uses the Mechano-Tank spider mech model.
 - The Get Golden Gears button reads "Get Golden Gears" over "1g each".

@@ -923,7 +923,7 @@ function pyramid_probe()
   for k, v in pairs(st.balls[1]) do template[k] = v end
   st.pyramidHits = E.PYRAMID_STRIKES
   local out = { strikes = 0, dust = 0, sideOk = true, upOk = true, bucketHidden = true }
-  local offsets = { -220, 200, -20, 25, 0, -40, 40 }
+  local offsets = { -150, 140, -20, 25, 0 }
   for i, off in ipairs(offsets) do
     local b = {}
     for k, v in pairs(template) do b[k] = v end
@@ -951,13 +951,28 @@ function pyramid_probe()
     if i == 2 and math.abs(st.bucket.x - E.FIELD_W / 2) > 0.5 then out.bucketHidden = false end
   end
   out.up = E.PyramidUp(st)
+  -- a fresh pyramid: a ball over a bare corner falls past it
+  st.pyramidHits = E.PYRAMID_STRIKES
+  local b = {}
+  for k, v in pairs(template) do b[k] = v end
+  b.x, b.y, b.vx, b.vy = E.FIELD_W / 2 + E.PYRAMID_W / 2 - 10, E.PYRAMID_BASE - 60, 0, 60
+  st.balls = { b }
+  st.phase = E.PHASE.FLIGHT
+  out.cornerStrike = false
+  for _ = 1, 40 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "pyramid" then out.cornerStrike = true end end
+    wipe(events)
+  end
+  out.cornerFalls = not out.cornerStrike and (st.balls[1] == nil or st.balls[1].y > E.PYRAMID_BASE - 20)
   return out
 end
 """)
 pr = dict(ev("pyramid_probe")())
 check("each pyramid strike throws the ball up and toward the wall on that side", pr["upOk"] and pr["sideOk"], str(pr))
-check("the pyramid stands five strikes, then turns to dust once and is gone",
-      pr["strikes"] == 5 and pr["dust"] == 1 and not pr["up"], str(pr))
+check("the pyramid stands three strikes, then turns to dust once and is gone",
+      pr["strikes"] == 3 and pr["dust"] == 1 and not pr["up"], str(pr))
+check("a ball over the pyramid's bare corners falls past it", pr["cornerFalls"], str(pr))
 check("the bucket is parked under the pyramid while it stands", pr["bucketHidden"], str(pr))
 check("the pyramid spans the whole bottom and a strike at its foot climbs to mid-board",
       ev("E.PYRAMID_W") == ev("E.FIELD_W") and ev("E.PYRAMID_KICK") ** 2 / (2 * ev("E.GRAVITY")) >= ev("E.PYRAMID_BASE") - ev("E.FIELD_H") / 2)

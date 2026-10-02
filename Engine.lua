@@ -102,7 +102,8 @@ E.BLAST_RADIUS = 45         -- about an inch on screen
 E.GUIDE_SHOTS = 3
 E.CHAIN_LINKS = 6           -- Chain Lightning: pieces after the green one
 E.CHAIN_REACH = 120
-E.PYRAMID_STRIKES = 5       -- a step pyramid over the bucket stands for this many strikes
+E.PYRAMID_STRIKES = 3       -- a step pyramid over the bucket stands for this many strikes
+E.PYRAMID_SOLID   = 0.84    -- share of its half-width that is stone: the bare corners past the bottom step let a ball fall
 E.PYRAMID_SIDE    = 260     -- the ball leaves it at least this fast toward the wall on its side
 E.PYRAMID_W       = E.FIELD_W  -- base width: the whole bottom, nothing drops past it
 E.PYRAMID_H       = 122     -- base to the tip of its peak
@@ -154,7 +155,7 @@ E.POWERS = {
     { id = "blast",     name = "Space Blast",     blurb = "A huge explosion hits every piece near the green one." },
     { id = "fireball",  name = "Fireball",        blurb = "The ball burns straight through pegs." },
     { id = "spooky",    name = "Spooky Ball",     blurb = "A lost ball comes back in from the top." },
-    { id = "pyramid",   name = "Pyramid",         blurb = "A step pyramid over the bucket throws the ball back up toward the walls, for five strikes." },
+    { id = "pyramid",   name = "Pyramid",         blurb = "A step pyramid over the bucket throws the ball back up toward the walls, for three strikes." },
     { id = "lightning", name = "Chain Lightning", blurb = "A bolt leaps from the green peg through six more pieces." },
     { id = "frenzy",    name = "Free Ball Frenzy", blurb = "Three extra balls and 5,000 points on the spot." },
 }
@@ -1137,7 +1138,7 @@ local function collidePyramid(state, ball, events)
     local R = E.BALL_R
     local cx, base, hw, ph = W / 2, E.PYRAMID_BASE, E.PYRAMID_W / 2, E.PYRAMID_H
     local top = base - ph
-    if ball.y + R < top or ball.y > base or abs(ball.x - cx) > hw + R then return end
+    if ball.y + R < top or ball.y > base or abs(ball.x - cx) > hw * E.PYRAMID_SOLID then return end
     local side = (ball.x < cx) and -1 or 1
     if ball.x == cx then side = (ball.vx < 0) and -1 or 1 end
     -- the face from the peak (cx, top) down to the base corner on this side
