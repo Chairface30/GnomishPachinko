@@ -121,8 +121,8 @@ section("Launcher and bucket")
 slot("launcher_barrel", 32, 64, { note = "the cannon nozzle, drawn pointing down; rotates with the aim" })
 slot("launcher_hub",    64, 64, { note = "the pivot plate at the top centre" })
 slot("launcher_flash",  64, 64, { tint = true, note = "the muzzle flash on launch" })
-slot("bucket",          128, 64, { note = "the free-ball bucket (a nest, a pot, whatever the world wants)" })
-for i = 1, 4 do slot("bucket_splash" .. i, 128, 64, { tint = true, note = "a catch: splash frame " .. i .. " of 4" }) end
+slot("bucket",          128, 128, { note = "the free-ball bucket (a nest, a pot, whatever the world wants); its rim at the top third" })
+for i = 1, 4 do slot("bucket_splash" .. i, 128, 128, { note = "a catch: splash frame " .. i .. " of 4, drawn over the bucket" }) end
 slot("fever_bucket",     128, 32, { note = "one Fever cup; the game writes the letter and value on it" })
 slot("fever_bucket_lit", 128, 32, { note = "a Fever cup already scored" })
 

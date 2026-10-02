@@ -384,13 +384,13 @@ function UI:CreateFrame()
     self.bossName = bossName
 
     local bucket = field:CreateTexture(nil, "OVERLAY", nil, 1)
-    bucket:SetSize(E.BUCKET_W + 8, (E.BUCKET_W + 8) / 2)
+    bucket:SetSize(E.BUCKET_W + 16, E.BUCKET_W + 16)
     ART:Set(bucket, "bucket")
     self.bucket = bucket
     -- the catch: four splash frames over the bucket
     local splash = field:CreateTexture(nil, "OVERLAY", nil, 3)
-    splash:SetSize(E.BUCKET_W + 8, (E.BUCKET_W + 8) / 2)
-    ART:Set(splash, "bucket_splash1", 0.8, 0.9, 1)
+    splash:SetSize(E.BUCKET_W + 16, E.BUCKET_W + 16)
+    ART:Set(splash, "bucket_splash1")
     splash:Hide()
     self.splashTex = splash
 
@@ -2463,7 +2463,7 @@ function UI:Render(now)
 
     if st.phase ~= E.PHASE.FEVER and st.phase ~= E.PHASE.OVER and not st.noBucket then
         self.bucket:ClearAllPoints()
-        self.bucket:SetPoint("TOP", field, "TOPLEFT", st.bucket.x, -(E.BucketTop() - 4))
+        self.bucket:SetPoint("TOP", field, "TOPLEFT", st.bucket.x, -(E.BucketTop() - 22))
     end
     -- the catch splash plays its four frames over the bucket
     if self.splashAt then
@@ -2473,9 +2473,9 @@ function UI:Render(now)
             self.splashTex:Hide()
         else
             local idx = math.min(4, math.floor(age / SPLASH_SECS * 4) + 1)
-            ART:Set(self.splashTex, "bucket_splash" .. idx, 0.8, 0.9, 1)
+            ART:Set(self.splashTex, "bucket_splash" .. idx)
             self.splashTex:ClearAllPoints()
-            self.splashTex:SetPoint("BOTTOM", self.bucket, "TOP", 0, -8)
+            self.splashTex:SetPoint("CENTER", self.bucket, "CENTER", 0, 0)
             self.splashTex:Show()
         end
     end

@@ -877,9 +877,9 @@ def make_all(slots, only, from_base):
         dh.ellipse([x - SS * 2, y - SS * 2, x + SS * 2, y + SS * 2], fill=rgb(TRIM))
     put("launcher_hub", hub)
     put("launcher_flash", burst(64, spikes=7, inner=0.4))
-    put("bucket", bucket_img(128, 64, (150, 82, 40), (220, 160, 90)))
+    put("bucket", bucket_img(128, 128, (150, 82, 40), (220, 160, 90)))
     for i in range(1, 5):
-        put("bucket_splash%d" % i, splash(128, 64, i - 1))
+        put("bucket_splash%d" % i, splash(128, 128, i - 1))
     put("fever_bucket", bucket_img(128, 32, (45, 60, 110), (120, 150, 220)))
     put("fever_bucket_lit", bucket_img(128, 32, (200, 150, 40), (255, 230, 140)))
 

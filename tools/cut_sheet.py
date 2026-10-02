@@ -9,7 +9,9 @@ art slots of Gnomish Pachinko.
 
 2. Say which sprite is which slot, in a JSON map (see tools/sheets/ for
    one): {"1": "peg_blue", "2": "peg_orange", ...}. A number not in the
-   map is skipped; a slot named twice takes the last.
+   map is skipped; a slot named for several numbers takes the union of
+   their boxes (a callout in two words). --alpha, --merge and --clean tune
+   what counts as a sprite when the sheet has stray lines.
 
        python tools/cut_sheet.py sheet.png --map tools/sheets/pegs.json
 
@@ -36,7 +38,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from make_textures import read_slots  # noqa: E402
 
 
-def islands(img, alpha_min=16, merge=10):
+def islands(img, alpha_min=16, merge=10, min_size=12):
     """Bounding boxes of the opaque islands, close ones merged (a sparkle
     is many specks), sorted into rows top to bottom, left to right."""
     w, h = img.size
@@ -73,6 +75,8 @@ def islands(img, alpha_min=16, merge=10):
             else:
                 out.append(b)
         boxes = out
+    # specks and stray lines are not sprites
+    boxes = [b for b in boxes if (b[2] - b[0] + 1) >= min_size and (b[3] - b[1] + 1) >= min_size]
     # rows: boxes whose vertical centres are within half a box of each other
     boxes.sort(key=lambda b: (b[1] + b[3]) / 2)
     rows = []
@@ -105,6 +109,39 @@ def draw_boxes(img, boxes, path):
         d.rectangle(b, outline=(255, 80, 80, 255), width=2)
         d.text((b[0] + 3, b[1] + 2), str(i), fill=(255, 255, 120, 255), font=font)
     back.save(path)
+
+
+def clean_crop(img, box, clean=0):
+    """The sprite inside a box; pixels fainter than `clean` alpha (stray
+    guide lines, export halos) are made fully transparent."""
+    sprite = img.crop((box[0], box[1], box[2] + 1, box[3] + 1))
+    if clean > 0:
+        a = sprite.split()[-1].point(lambda v: v if v >= clean else 0)
+        sprite.putalpha(a)
+    return sprite
+
+
+def boxes_by_slot(mapping, boxes, slots):
+    """{slot: box} from the number->slot map. Several numbers naming one
+    slot give the union of their boxes (a callout in two words)."""
+    out = {}
+    for num, name in mapping.items():
+        if name.startswith("_"):
+            continue
+        if name not in slots:
+            print(f"  skip {num}: no slot named {name}")
+            continue
+        idx = int(num) - 1
+        if idx < 0 or idx >= len(boxes):
+            print(f"  skip {num}: no such sprite")
+            continue
+        b = boxes[idx]
+        if name in out:
+            o = out[name]
+            out[name] = [min(o[0], b[0]), min(o[1], b[1]), max(o[2], b[2]), max(o[3], b[3])]
+        else:
+            out[name] = list(b)
+    return out
 
 
 def base_of(name):
@@ -142,9 +179,11 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--alpha", type=int, default=16, help="alpha a pixel needs to count as part of a sprite")
     ap.add_argument("--merge", type=int, default=10, help="gap in pixels under which two islands are one sprite")
+    ap.add_argument("--clean", type=int, default=None, help="pixels fainter than this alpha are dropped from a cut sprite (default: the --alpha value)")
     args = ap.parse_args()
 
     img = Image.open(args.sheet).convert("RGBA")
+    clean = args.alpha if args.clean is None else args.clean
     boxes = islands(img, args.alpha, args.merge)
     base, _ = os.path.splitext(args.sheet)
     draw_boxes(img, boxes, base + "_boxes.png")
@@ -158,23 +197,12 @@ def main():
     mapping = json.load(open(args.map, encoding="utf-8"))
     slots = {s["name"]: s for s in read_slots()}
     # the base sprites first, so their states can borrow the scale
-    plan = []
-    for num, name in mapping.items():
-        if name.startswith("_"):
-            continue
-        if name not in slots:
-            print(f"  skip {num}: no slot named {name}")
-            continue
-        idx = int(num) - 1
-        if idx < 0 or idx >= len(boxes):
-            print(f"  skip {num}: no such sprite")
-            continue
-        plan.append((name, boxes[idx]))
+    plan = list(boxes_by_slot(mapping, boxes, slots).items())
     plan.sort(key=lambda p: (base_of(p[0]) is not None, p[0]))
     scales = {}
     for name, b in plan:
         slot = slots[name]
-        sprite = img.crop((b[0], b[1], b[2] + 1, b[3] + 1))
+        sprite = clean_crop(img, b, clean)
         parent = base_of(name)
         scale = scales.get(parent) if parent else None
         out, used = fit(sprite, slot, scale)

@@ -1,7 +1,19 @@
 {
  "characters": {
   "ball": "cmur6f3g20019oqycgm5rqjlc",
-  "egg": "cmur6f0ar0012oqychqq6x2tu"
+  "egg": "cmur6f0ar0012oqychqq6x2tu",
+  "peg_blue": "cmurcb18i000h9dp2jqbfknt0",
+  "peg_blue_gone": "cmurcb5m4000g3hj4kkgdbg72",
+  "peg_blue_lit": "cmurcb3f1000r9dp2tvx95l2q",
+  "peg_green": "cmurcbgjb00189dp213l41vri",
+  "peg_green_gone": "cmurcblpr000hxtbwok1lcjwq",
+  "peg_green_lit": "cmurcbj0b000dxtbw8ao69wv3",
+  "peg_orange": "cmurcb8fp00017wftp2qbz06t",
+  "peg_orange_gone": "cmurcbdwq0003lkzk56bgwtxu",
+  "peg_orange_lit": "cmurcbb1l000n3hj4yvzgj1nd",
+  "peg_purple": "cmurcayo400029dp23ei4hm6d",
+  "peg_purple_gone": "cmurccomx0007vm5fx8f7912h",
+  "peg_purple_lit": "cmurcbqe9000zlkzk0utgi07o"
  },
  "slots": {
   "ball": {
@@ -81,11 +93,117 @@
    "done": true,
    "how": "asset"
   },
+  "brick_blue": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_13970174-19f3-40c7-8841-c3f08989f803"
+  },
+  "brick_blue_gone": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_d5bb55eb-07e8-458b-8e49-36e192e4f3dc"
+  },
+  "brick_blue_lit": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_1f86bc25-7c7e-4d55-a78c-7c6f7016b696"
+  },
+  "brick_green": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_d159e54a-49e4-460d-a7eb-5538769ccbee"
+  },
+  "brick_green_gone": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_27b15c2b-910e-4a00-864f-8ce1cac4bf35"
+  },
+  "brick_green_lit": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_5c71bd8a-2f32-4eba-82a8-d795866c9887"
+  },
+  "brick_orange": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_478b962d-c823-4f6d-b9a3-454eb02c2572"
+  },
+  "brick_orange_gone": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_3ff7e0aa-cdbd-45ca-aefd-11594cc1230f"
+  },
+  "brick_orange_lit": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_8f737169-ccbf-450c-aae5-0162ecad1c65"
+  },
+  "brick_purple": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_360be81c-4804-4610-a46c-fd12a7798366"
+  },
+  "brick_purple_gone": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_706959de-3826-408b-8174-c416cb6811e9"
+  },
+  "brick_purple_lit": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_3dbabd24-02d8-4c46-9702-5658f4360b95"
+  },
+  "bucket": {
+   "done": true,
+   "how": "sheet"
+  },
+  "bucket_splash1": {
+   "done": true,
+   "how": "sheet"
+  },
+  "bucket_splash2": {
+   "done": true,
+   "how": "derive"
+  },
+  "bucket_splash3": {
+   "done": true,
+   "how": "derive"
+  },
+  "bucket_splash4": {
+   "done": true,
+   "how": "derive"
+  },
   "bumper": {
    "assetId": "cmur5t0im0005i1b35gpcofa4",
    "bgRemoved": true,
    "done": true,
    "how": "asset"
+  },
+  "button_green": {
+   "assetId": "cmurcdrn4002j3ax6dgohe49i",
+   "bgRemoved": true,
+   "done": true,
+   "how": "sheet"
+  },
+  "button_green_down": {
+   "done": true,
+   "how": "derive"
+  },
+  "button_grey": {
+   "done": true,
+   "how": "derive"
+  },
+  "button_grey_down": {
+   "done": true,
+   "how": "derive"
+  },
+  "button_orange": {
+   "done": true,
+   "how": "derive"
+  },
+  "button_orange_down": {
+   "done": true,
+   "how": "derive"
   },
   "cage_gold": {
    "assetId": "cmur5uho60002kw8d4chap06j",
@@ -96,6 +214,10 @@
   "cage_silver": {
    "done": true,
    "how": "derive"
+  },
+  "callout_fever": {
+   "done": true,
+   "how": "sheet"
   },
   "card": {
    "assetId": "cmur68ny0000jqpwagkkywecw",
@@ -236,6 +358,10 @@
    "done": true,
    "how": "asset"
   },
+  "launcher_flash": {
+   "done": true,
+   "how": "derive"
+  },
   "launcher_hub": {
    "assetId": "cmur5z49e000c10j6f6jt5r75",
    "bgRemoved": true,
@@ -276,6 +402,59 @@
    "bgRemoved": true,
    "done": true,
    "how": "asset"
+  },
+  "peg_blue": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_blue_gone": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_blue_lit": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_green": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_green_gone": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_green_lit": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_orange": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_orange_gone": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_orange_lit": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_purple": {
+   "done": true,
+   "how": "sheet"
+  },
+  "peg_purple_gone": {
+   "done": true,
+   "how": "pose",
+   "jobId": "cf_ad33b746-79d4-4cc5-97a9-e6f1fa4fc900"
+  },
+  "peg_purple_lit": {
+   "done": true,
+   "how": "sheet"
+  },
+  "plate": {
+   "done": true,
+   "how": "sheet"
   },
   "power_blast": {
    "assetId": "cmur60ycu000110f5bgxcy3rh",
@@ -330,6 +509,22 @@
    "bgRemoved": true,
    "done": true,
    "how": "asset"
+  },
+  "spark1": {
+   "done": true,
+   "how": "sheet"
+  },
+  "spark2": {
+   "done": true,
+   "how": "sheet"
+  },
+  "spark3": {
+   "done": true,
+   "how": "derive"
+  },
+  "spark4": {
+   "done": true,
+   "how": "derive"
   }
  }
 }

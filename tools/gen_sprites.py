@@ -45,7 +45,7 @@ TOOLS = os.path.dirname(os.path.abspath(__file__))
 RECORD = os.path.join(TOOLS, "generated_sprites.json")
 sys.path.insert(0, TOOLS)
 from make_textures import read_slots  # noqa: E402
-from cut_sheet import islands, fit, base_of  # noqa: E402
+from cut_sheet import islands, fit, base_of, clean_crop, boxes_by_slot  # noqa: E402
 
 MCP_URL = "https://www.autosprite.io/api/mcp"
 KEY_FILE = os.path.expanduser("~/.autosprite_key")
@@ -87,7 +87,9 @@ def tool(*names):
 sheet("peg_blue", "peg_orange", "peg_green", "peg_purple",
       "peg_blue_lit", "peg_orange_lit", "peg_green_lit", "peg_purple_lit",
       "peg_blue_gone", "peg_orange_gone", "peg_green_gone",
-      "bucket", "bucket_splash1", "spark1", "spark2", "button_green", "plate", "callout_fever")
+      "bucket", "bucket_splash1", "spark1", "spark2", "plate", "callout_fever")
+# the sheet's button says START; the game writes its own labels, so the button is drawn blank
+asset("button_green", "prop", "wide rounded glossy green button with a dark green bevelled edge, blank, no text, four times as wide as tall, " + STYLE)
 pose("peg_purple_gone", "peg_purple", "the same purple orb shattering into flying shards and sparks, mid-burst, transparent background")
 for c in ("blue", "orange", "green", "purple"):
     pose("brick_%s" % c, "peg_%s" % c, "the same %s glossy material shaped as a wide rounded rectangular bar, twice as wide as tall, lit from the top, no orb" % c)
@@ -387,6 +389,9 @@ def main():
     ap.add_argument("--stage", choices=["sheet", "derive", "pose", "asset", "all"], default="all")
     ap.add_argument("--force", action="store_true", help="redo slots already recorded")
     ap.add_argument("--quality", choices=["turbo", "ultra"], default="ultra")
+    ap.add_argument("--alpha", type=int, default=16, help="alpha a sheet pixel needs to count as part of a sprite")
+    ap.add_argument("--merge", type=int, default=10, help="gap in pixels under which two islands are one sprite")
+    ap.add_argument("--clean", type=int, default=None, help="sheet pixels fainter than this alpha are dropped (default: --alpha)")
     args = ap.parse_args()
 
     slots = {s["name"]: s for s in read_slots()}
@@ -415,13 +420,13 @@ def main():
         return 0
 
     sheet_img = Image.open(args.sheet).convert("RGBA") if args.sheet else None
-    boxes = islands(sheet_img) if sheet_img else []
+    boxes = islands(sheet_img, args.alpha, args.merge) if sheet_img else []
+    clean = args.alpha if args.clean is None else args.clean
     mapping = json.load(open(args.map, encoding="utf-8")) if sheet_img else {}
     sprite_of = {}
-    for num, name in mapping.items():
-        if not name.startswith("_") and name in slots and int(num) - 1 < len(boxes):
-            b = boxes[int(num) - 1]
-            sprite_of[name] = sheet_img.crop((b[0], b[1], b[2] + 1, b[3] + 1))
+    if sheet_img:
+        for name, b in boxes_by_slot(mapping, boxes, slots).items():
+            sprite_of[name] = clean_crop(sheet_img, b, clean)
 
     # ---- 1. the sheet
     scales = {}
