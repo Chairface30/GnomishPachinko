@@ -1614,8 +1614,10 @@ local function integrateBall(state, ball, dt, events)
 end
 
 -- Stage two of a duel: build it from the stage-two spec, carrying the
--- player's score and stats over. A coin flip says who shoots first.
-function E:StartDuel(state, spec2)
+-- player's score and stats over. A coin flip says who shoots first: `coin`
+-- (0..1) is a fresh random draw from the window. The level's own stream is
+-- seeded by the level number, so it gave the same flip every time.
+function E:StartDuel(state, spec2, coin)
     local st = self:NewLevel(spec2)
     st.score = state.score
     st.stage1Score = state.score
@@ -1623,7 +1625,7 @@ function E:StartDuel(state, spec2)
     st.bestCombo = state.bestCombo
     st.duel = { name = (state.duel and state.duel.name) or E.RIVAL.name, blurb = (state.duel and state.duel.blurb) or E.RIVAL.blurb,
         stage = 2, balls = { you = E.DUEL_BALLS, rival = E.DUEL_BALLS }, scores = { you = 0, rival = 0 } }
-    st.duel.turn = (st.rng() < 0.5) and "you" or "rival"
+    st.duel.turn = ((coin or st.rng()) < 0.5) and "you" or "rival"
     st.ballsLeft = st.duel.balls[st.duel.turn]
     st.duelCoin = st.duel.turn
     return st

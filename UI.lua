@@ -2756,7 +2756,7 @@ function UI:BeginDuel(now)
     self.duelCarry = self.duelCarry or {}
     self.duelCarry[st.level] = { score = st.score, freeBallIdx = st.freeBallIdx, bestCombo = st.bestCombo }
     local spec2 = L:Build(st.level, (self.attempts and self.attempts[st.level] or 0) * 7 + 50, { stage2 = true })
-    self.state = E:StartDuel(st, spec2)
+    self.state = E:StartDuel(st, spec2, math.random())
     st = self.state
     self:LayoutPegs()
     self.bucket:Show()

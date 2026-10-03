@@ -1849,6 +1849,21 @@ check("a duel retry skips the cleared board and plays only the duel, score carri
       ev("__duelStage") == 2 and ev("__retryStage") == 2 and ev("__retryScore") == 12345 and ev("__freshStage") == 1,
       f'{ev("__duelStage")} {ev("__retryStage")} {ev("__retryScore")} {ev("__freshStage")}')
 
+# the duel's coin flip is a fresh draw each time, not the level's seed
+# (level 90 used to hand Cogwhistle the first shot every time)
+lua(r"""
+GnomishPachinkoDB.unlocked = 400
+__youFirst = 0
+for k = 1, 40 do
+  UI:StartLevel(90, k > 1)
+  if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+  UI.duelCarry = {}
+  UI:BeginDuel(GetTime())
+  if UI.state.duel.turn == "you" then __youFirst = __youFirst + 1 end
+end
+""")
+check("the duel's coin flip varies from one go to the next (level 90, 40 goes)", 10 <= ev("__youFirst") <= 30, str(ev("__youFirst")))
+
 # Fever's balloons are drawn once, by their own pictures: no leftover piece
 # texture from a bigger board shows up as a stray balloon
 lua(r"""
