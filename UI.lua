@@ -1631,22 +1631,31 @@ function UI:CreateLevelSelect()
     self.levelPanel = panel
 
     panel.title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    panel.title:SetPoint("TOP", 0, -14)
-    panel.title:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
-    panel.subtitle = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    panel.subtitle:SetPoint("TOP", panel.title, "BOTTOM", 0, -4)
-    panel.subtitle:SetTextColor(0.7, 0.7, 0.85)
+    -- the chapter's name under the row of buttons, big
+    panel.title:SetPoint("TOP", 0, -54)
+    panel.title:SetFont("Fonts\\FRIZQT__.TTF", 22, "OUTLINE")
+    panel.title:SetWidth(FW - 20)
+    panel.subtitle = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    panel.subtitle:SetPoint("TOP", panel.title, "BOTTOM", 0, -5)
+    panel.subtitle:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
+    panel.subtitle:SetTextColor(0.85, 0.85, 0.95)
 
-    panel.prev10 = makeButton(panel, 36, 24, "<<")
+    -- the chapter buttons: tall, with big words
+    local function navButton(w, text)
+        local b = makeButton(panel, w, 38, text)
+        b.text:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
+        return b
+    end
+    panel.prev10 = navButton(58, "<<")
     panel.prev10:SetPoint("TOPLEFT", 10, -10)
     panel.prev10:SetScript("OnClick", function() UI:LevelPage(UI.levelPage - 10) end)
-    panel.prev = makeButton(panel, 60, 24, "< Prev")
+    panel.prev = navButton(92, "Prev")
     panel.prev:SetPoint("LEFT", panel.prev10, "RIGHT", 4, 0)
     panel.prev:SetScript("OnClick", function() UI:LevelPage(UI.levelPage - 1) end)
-    panel.next10 = makeButton(panel, 36, 24, ">>")
+    panel.next10 = navButton(58, ">>")
     panel.next10:SetPoint("TOPRIGHT", -10, -10)
     panel.next10:SetScript("OnClick", function() UI:LevelPage(UI.levelPage + 10) end)
-    panel.next = makeButton(panel, 60, 24, "Next >")
+    panel.next = navButton(92, "Next")
     panel.next:SetPoint("RIGHT", panel.next10, "LEFT", -4, 0)
     panel.next:SetScript("OnClick", function() UI:LevelPage(UI.levelPage + 1) end)
 

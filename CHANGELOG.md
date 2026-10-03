@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The map reads better:** taller chapter buttons with bigger words (<<, Prev, Next, >>) along the top, and the chapter's name (22) and its levels line (15) larger, beneath them.
+- **Boss health rebalanced** for oranges that zap and double-damage direct hits: it starts at 12 and climbs a little under half a point a chapter (29 by the last boss). In simulated play a careful player needs most of an early boss level's balls and beats late bosses about two times in three. The hand-set 8 for the first Gyro Spider is gone; it has 13 like its chapter.
+
 - The special balls (and the Extra Green Peg) are handed over on the line where the host says so, "Here's one of each", with a chime; until then their buttons show none. Skipping the talk still hands them over.
 - Closing the result card stops everything it set playing: the tally, the rockets, the fanfare and the host's line.
 - A bank shot now needs the ball to go off the wall and straight onto an orange peg; touching anything else first (a blue peg, a brick, a balloon, a bumper, the pyramid) spoils it.
