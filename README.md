@@ -50,7 +50,7 @@ Every cleared level earns one to three stars by score. The marks come from the l
 
 ### Plays
 
-Losing a level (running out of balls) spends one of the day's plays, and so does a Retry (starting a level over, or replaying one you just cleared). Clearing a level never costs one. Every 24 hours you can claim five free plays with the Claim button beside your plays (they are never added on their own, and a missed day is not made up). Free plays build up to 50; at 50 no claim comes, and the 24 hours start again once you fall below. Bought plays have no limit and never expire; free plays are spent first. The minimap tooltip shows your plays and when the next claim is ready.
+Losing a level (running out of balls) spends one of the day's plays, and so does a Retry (starting a level over, or replaying one you just cleared). Clearing a level never costs one. Each day at noon, server time, you can claim five free plays with the Claim button beside your plays (they are never added on their own, and a missed day is not made up). Free plays build up to 50; at 50 no claim comes until you fall below, and then the next comes at the following noon. Bought plays have no limit and never expire; free plays are spent first. The minimap tooltip shows your plays and when the next claim is ready.
 
 ### Golden Gears
 

@@ -45,7 +45,7 @@ Proud of one? Press **Export code** and post the code in the **comments here on 
 
 ## Plays and Golden Gears
 
-You get **free plays every day.** Clearing a level costs you nothing; losing one spends a play. Every 24 hours, open the machine and press **Claim** for 5 more free plays (come by each day: a missed day isn't saved up). You can bank up to 50 free plays; at 50 the daily plays wait until you dip below.
+You get **free plays every day.** Clearing a level costs you nothing; losing one spends a play. Every day at noon (server time), open the machine and press **Claim** for 5 more free plays (come by each day: a missed day isn't saved up). You can bank up to 50 free plays; at 50 the daily plays wait until you dip below.
 
 Want more? That's what **Golden Gears** are for, the machine's own coin. **One gold buys one gear.** Walk up to any mailbox and press **Get Golden Gears**, and I'll fill the mail out for you.
 

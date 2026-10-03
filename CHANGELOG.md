@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- **Daily plays are claimed:** every 24 hours a **Claim 5 daily plays** button appears beside your plays (and a banner says so when you open the game). Nothing is added until you press it, and a missed day is not made up. Free plays build up to 50; at 50 no claim comes, and the 24 hours start again once you drop below. Free plays are spent first.
+- **Daily plays are claimed:** each day at noon, server time, a **Claim 5 daily plays** button appears beside your plays (and a banner says so when you open the game). Nothing is added until you press it, and a missed day is not made up. Free plays build up to 50; at 50 no claim comes until you drop below, then the next comes at the following noon. Free plays are spent first.
 - **Bought plays never expire** (they lasted 24 hours) and have no limit.
 - The minimap tooltip is short: your level and how many are cleared, plays left, when the next daily plays are ready, and the clicks. No stars, gears or mail text.
 

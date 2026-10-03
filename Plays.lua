@@ -1,11 +1,11 @@
 --[[
     Gnomish Pachinko - Plays.lua
     Plays. Losing a level (out of balls) or retrying one spends a play;
-    clearing one never does. Free plays are a balance: every 24 hours the
-    player may claim FREE_PER_DAY more (a Claim button in the game; they
-    are never added on their own, and a missed day is not made up). The
-    free balance tops out at FREE_CAP: at the cap no claim comes, and the
-    24 hours start again once it falls below. Bought plays (Golden Gears
+    clearing one never does. Free plays are a balance: each day at noon,
+    server time, the player may claim FREE_PER_DAY more (a Claim button in
+    the game; they are never added on their own, and a missed day is not
+    made up). The free balance tops out at FREE_CAP: at the cap no claim
+    comes, and the next comes at the noon after it falls below. Bought plays (Golden Gears
     in the shop) have no limit and never expire. Free plays are spent first.
 
     THE PLAYS VAULT
@@ -149,6 +149,35 @@ local function now()
     return time()
 end
 P.Now = now
+
+-- The daily reset: noon on the realm's clock. The seconds past midnight on
+-- that clock come from the calendar (or the game clock; the computer's own
+-- clock only as a last resort).
+P.RESET_HOUR = 12
+local function serverClock()
+    if type(C_DateAndTime) == "table" and type(C_DateAndTime.GetCurrentCalendarTime) == "function" then
+        local ok, d = pcall(C_DateAndTime.GetCurrentCalendarTime)
+        if ok and type(d) == "table" and type(d.hour) == "number" and type(d.minute) == "number" then
+            return d.hour, d.minute
+        end
+    end
+    if type(GetGameTime) == "function" then
+        local ok, h, m = pcall(GetGameTime)
+        if ok and type(h) == "number" and type(m) == "number" then return h, m end
+    end
+    local d = date("*t")
+    return d.hour, d.min
+end
+-- When the next reset is, from time t (now): the coming noon, or tomorrow's
+-- if it is noon this minute.
+local function nextReset(t)
+    local h, m = serverClock()
+    local sinceMidnight = (h * 60 + m) * 60
+    local wait = (P.RESET_HOUR * 3600 - sinceMidnight) % P.WINDOW
+    if wait <= 0 then wait = P.WINDOW end
+    return t + wait
+end
+P.NextReset = function(_, t) return nextReset(t or now()) end
 
 -- ---------------------------------------------------------------------
 -- Encryption: a keyed stream cipher over the record, a keyed checksum
@@ -427,7 +456,7 @@ local function migrate(rec, t)
         end
     end
     rec.free = math.max(0, P.FREE_PER_DAY - used)
-    rec.claimAt = oldest and (oldest + P.WINDOW) or (t + P.WINDOW)
+    rec.claimAt = nextReset(t)
 end
 
 function P:Load()
@@ -444,7 +473,7 @@ function P:Load()
         -- an edited copy: every play is gone, and the next claim is a day off
         rec.fails = {}
         rec.free = 0
-        rec.claimAt = t + self.WINDOW
+        rec.claimAt = nextReset(t)
         rec.lots = {}
         self.tampered = true
     end
@@ -601,7 +630,7 @@ function P:ClaimDaily()
     local r = rec(self)
     local add = math.min(self.FREE_PER_DAY, self.FREE_CAP - floor(r.free or 0))
     r.free = floor(r.free or 0) + add
-    r.claimAt = now() + self.WINDOW
+    r.claimAt = nextReset(now())
     self:Save()
     if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
     return add
@@ -614,14 +643,14 @@ function P:NextFreeIn()
 end
 
 -- A lost level: a free play first, then the oldest bought lot. Falling
--- below the cap starts the 24 hours to the next claim.
+-- below the cap sets the next claim at the coming noon.
 function P:RecordFail()
     local r = rec(self)
     migrate(r, now())
     if (r.free or 0) > 0 then
         local wasCapped = r.free >= self.FREE_CAP
         r.free = r.free - 1
-        if wasCapped and r.free < self.FREE_CAP then r.claimAt = now() + self.WINDOW end
+        if wasCapped and r.free < self.FREE_CAP then r.claimAt = nextReset(now()) end
     elseif r.lots[1] then
         r.lots[1].left = r.lots[1].left - 1
         if r.lots[1].left <= 0 then table.remove(r.lots, 1) end
@@ -730,7 +759,7 @@ function P:ClaimText()
     local ready, wait = self:ClaimState()
     if ready then return ("Daily plays ready: open Gnomish Pachinko and claim %d."):format(self.FREE_PER_DAY) end
     if not wait then return ("Daily plays wait while you hold %d free plays."):format(self.FREE_CAP) end
-    return "Next daily plays in " .. self:FormatWait(wait) .. "."
+    return "Next daily plays in " .. self:FormatWait(wait) .. " (noon, server time)."
 end
 
 function P:StatusText()

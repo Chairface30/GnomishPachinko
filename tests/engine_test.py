@@ -45,6 +45,8 @@ __now = 0
 __clock = 1700000000
 function GetTime() return __now end
 function time() return __clock + math.floor(__now) end
+-- the realm's clock: the test clock's own time of day
+function GetGameTime() local s = (__clock + math.floor(__now)) % 86400 return math.floor(s / 3600), math.floor((s % 3600) / 60) end
 UIParent = nil
 UISpecialFrames = {}
 tinsert = table.insert
@@ -1617,8 +1619,12 @@ function claim_probe()
   __clock = __clock + 72 * 3600          -- three days away
   out.noStack = P:ClaimDaily() == 5 and P:FreeLeft() == 8
   out.onceADay = P:ClaimDaily() == 0
+  -- the next claim is at the coming noon on the realm's clock
   local _, wait = P:ClaimState()
-  out.dayWait = wait and wait > 23 * 3600 and wait <= 24 * 3600
+  local h, m = GetGameTime()
+  local toNoon = (12 * 3600 - (h * 3600 + m * 60)) % 86400
+  if toNoon <= 0 then toNoon = 86400 end
+  out.dayWait = wait and math.abs(wait - toNoon) <= 60
   -- near the cap a claim only tops up to 50
   r.free, r.claimAt = 48, __clock - 1
   out.topUp = P:ClaimDaily() == 2 and P:FreeLeft() == 50
@@ -1629,7 +1635,10 @@ function claim_probe()
   -- falling under 50 starts the 24 hours again
   P:RecordFail()
   local ready2, w2 = P:ClaimState()
-  out.restart = P:FreeLeft() == 49 and not ready2 and w2 and w2 > 23 * 3600
+  local h2, m2 = GetGameTime()
+  local toNoon2 = (12 * 3600 - (h2 * 3600 + m2 * 60)) % 86400
+  if toNoon2 <= 0 then toNoon2 = 86400 end
+  out.restart = P:FreeLeft() == 49 and not ready2 and w2 and math.abs(w2 - toNoon2) <= 60
   __clock = __clock + 24 * 3600 + 1
   out.afterDay = P:ClaimDaily() == 1 and P:FreeLeft() == 50
   -- bought plays have no limit, never expire, and are spent after the free ones
@@ -1645,7 +1654,18 @@ function claim_probe()
 end
 """)
 cl = dict(ev("claim_probe")())
-check("daily plays: never added on their own, a missed day is not made up, one claim a day, a claim tops out at 50, the clock stops at 50 and restarts 24 hours after falling under",
+# the reset is noon on the realm's clock: at 11:59 a claim is a minute away, at 12:01 the next is tomorrow's
+lua(r"""
+local base = __clock - (__clock % 86400)
+__clock = base + 11 * 3600 + 59 * 60
+__noonA = P:NextReset(time()) - time()
+__clock = base + 12 * 3600 + 60
+__noonB = P:NextReset(time()) - time()
+__clock = base + 86400 * 3
+""")
+check("the daily reset is noon on the realm's clock (a minute away at 11:59, almost a day away at 12:01)",
+      ev("__noonA") == 60 and abs(ev("__noonB") - (86400 - 60)) <= 60, f'{ev("__noonA")} {ev("__noonB")}')
+check("daily plays: never added on their own, a missed day is not made up, one claim a day, the next at noon server time, a claim tops out at 50, the clock stops at 50 and the next comes the noon after falling under",
       cl["notAuto"] and cl["noStack"] and cl["onceADay"] and cl["dayWait"] and cl["topUp"] and cl["capped"] and cl["restart"] and cl["afterDay"], str(cl))
 check("bought plays have no limit, never expire, and are spent after the free ones", cl["boughtKept"] and cl["freeFirst"], str(cl))
 check("the banker name decodes", ev("P:BankerName()") == "Chairface Chippendale", ev("P:BankerName()"))
