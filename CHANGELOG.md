@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The boss tutorials have no arrow or sample piece.
 - **The tutorials show what they talk about:** while the host speaks, a big sample of the piece in question is put up in the middle above the talk box (only for the talk: gone before the level card shows) with a soft glow and the goofy arrow jabbing and wobbling at it (the purple peg, bricks, balloons, rails, every moving setup, keys, eggs, gems, the bosses and the rest).
 - **Gems (and eggs) move like real bodies when hit:** the shove goes along the line from the ball through the face it struck, as strong as the ball closed on that face. A square hit drives a gem straight on; a glancing one barely nudges it.
 - **FULL CLEAR!** Lighting every piece on the board that can light (pegs, bricks, eggs, the purple) pays a 100,000 bonus, once, with a banner, fireworks and the fanfare.

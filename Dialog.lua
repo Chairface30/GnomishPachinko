@@ -274,23 +274,23 @@ D.SCRIPTS = {
         { "razzle", "These eggs are tougher: three hits to hatch one now." },
     } },
     -- the adversaries, the first time each one turns up
-    { key = "boss_drake", when = function(st) return st.boss and st.boss.ability == "drake" end, point = function(st) return st.boss end, lines = {
+    { key = "boss_drake", when = function(st) return st.boss and st.boss.ability == "drake" end, lines = {
         { "drake", "Hssss! Intruder! Tin Drake online. Dent me, and I only fly faster!" },
         { "tink", "A rogue drake from the workshop! Get the ball down past the pegs and keep hitting it." },
     } },
-    { key = "boss_golem", when = function(st) return st.boss and st.boss.ability == "golem" end, point = function(st) return st.boss end, lines = {
+    { key = "boss_golem", when = function(st) return st.boss and st.boss.ability == "golem" end, lines = {
         { "golem", "BOLT GOLEM. SHIELD CYCLE ARMED." },
         { "razzle", "It raises a shield every third shot. Two hits break it. And watch for the scrap it throws!" },
     } },
-    { key = "boss_spider", when = function(st) return st.boss and st.boss.ability == "spider" end, point = function(st) return st.boss end, lines = {
+    { key = "boss_spider", when = function(st) return st.boss and st.boss.ability == "spider" end, lines = {
         { "spider", "Skitter skitter. You will never pin the Gyro Spider down." },
         { "razzle", "It jumps when you hit it. Keep the ball low and keep it busy." },
     } },
-    { key = "boss_boar", when = function(st) return st.boss and st.boss.ability == "boar" end, point = function(st) return st.boss end, lines = {
+    { key = "boss_boar", when = function(st) return st.boss and st.boss.ability == "boar" end, lines = {
         { "boar", "SNORT. CHARGE. SNORT." },
         { "razzle", "The Mechano-Boar turns tail every time it's hit. Learn its charge and lead your shots." },
     } },
-    { key = "boss_yeti", when = function(st) return st.boss and st.boss.ability == "yeti" end, point = function(st) return st.boss end, lines = {
+    { key = "boss_yeti", when = function(st) return st.boss and st.boss.ability == "yeti" end, lines = {
         { "yeti", "Cog Yeti repairs. Cog Yeti always repairs." },
         { "tink", "Miss it and it heals. Every shot has to count!" },
     } },
