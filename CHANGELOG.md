@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **The Tin Drake's iron draws the lightning:** while any of its scrap barricades are up, an orange's zap strikes the nearest piece instead of the drake, destroying it. Hit the drake directly, or clear the iron first.
+- The Tin Drake now throws its iron the moment a shot is fired (on every second shot, one piece at a time, at most 4 up), so it can't be aimed around. To make up for the iron, the drake carries 60% of a boss's usual health (7 on level 10, 10 on level 130).
 - The boss tutorials have no arrow or sample piece.
 - **The tutorials show what they talk about:** while the host speaks, a big sample of the piece in question is put up in the middle above the talk box (only for the talk: gone before the level card shows) with a soft glow and the goofy arrow jabbing and wobbling at it (the purple peg, bricks, balloons, rails, every moving setup, keys, eggs, gems, the bosses and the rest).
 - **Gems (and eggs) move like real bodies when hit:** the shove goes along the line from the ball through the face it struck, as strong as the ball closed on that face. A square hit drives a gem straight on; a glancing one barely nudges it.

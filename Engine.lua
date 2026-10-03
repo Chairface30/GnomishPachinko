@@ -157,8 +157,9 @@ E.BOSS_BAND   = { y0 = 590, y1 = 700, y = 640 }     -- in Levels' design space: 
 E.SCRAP_R        = 11        -- a boss's scrap block
 E.SCRAP_PER_SHOT = 2         -- thrown after a shot that hit it
 E.SCRAP_MAX      = 6         -- on the board at once
-E.SCRAP_PER_SHOT_DRAKE = 2   -- the Tin Drake throws after every shot ...
-E.SCRAP_MAX_DRAKE      = 40  -- ... up to this many
+E.SCRAP_PER_SHOT_DRAKE = 1   -- the Tin Drake throws as a shot is fired ...
+E.SCRAP_MAX_DRAKE      = 4   -- ... up to this many
+E.DRAKE_SCRAP_EVERY    = 2   -- on every second shot
 E.SCRAP_ROW1           = 5   -- the Drake's first row: blocks in its middle before it takes the ends and climbs
 E.SCRAP_ROW_GAP        = 34  -- between the Drake's rows of scrap
 E.WEB_R          = 13        -- a Gyro Spider web
@@ -645,6 +646,11 @@ function E:Launch(state, events)
         b.shield = E.GOLEM_SHIELD
         push(events, { type = "boss_shield", x = b.x, y = b.y })
     end
+    -- the Tin Drake throws its iron the moment the ball leaves the cannon,
+    -- so it cannot be aimed around and is up for the whole shot
+    if b and not b.lit and not b.gone and b.ability == "drake" and state.shots % E.DRAKE_SCRAP_EVERY == 0 then
+        E.DrakeScrap(state, b, events)
+    end
     state.phase = E.PHASE.FLIGHT
     return true
 end
@@ -950,6 +956,22 @@ lightPeg = function(state, p, ball, events, quiet, at)
     local boss = state.boss
     if p.kind == "orange" and boss and boss ~= p and not boss.lit and not boss.gone and state.objective == "boss" then
         state.bossHitThisShot = true
+        -- the Tin Drake's iron draws the lightning: while any of its scrap is
+        -- up, a zap strikes the nearest piece instead, destroys it and stops
+        local iron, best
+        if boss.ability == "drake" then
+            for _, q in ipairs(state.pegs) do
+                if q.scrap and not q.gone then
+                    local d = (q.x - p.x) ^ 2 + (q.y - p.y) ^ 2
+                    if not best or d < best then iron, best = q, d end
+                end
+            end
+        end
+        if iron then
+            iron.gone = true
+            iron.goneAt = state.time
+            push(events, { type = "scrap_zap", x = p.x, y = p.y, bx = iron.x, by = iron.y })
+        else
         push(events, { type = "boss_zap", x = p.x, y = p.y, bx = boss.x, by = boss.y })
         do       -- a zap goes past a shield: the shield only stops the ball
             boss.hp = (boss.hp or 1) - E.BOSS_ZAP_DAMAGE
@@ -960,6 +982,7 @@ lightPeg = function(state, p, ball, events, quiet, at)
                 boss.hp = 0
                 lightPeg(state, boss, nil, events, true)
             end
+        end
         end
     end
     -- a Super Slide: bricks lit one after another along a ride
@@ -1886,7 +1909,7 @@ local function updateLastPeg(state, dt, events)
     end
 end
 
--- The Tin Drake's scrap: two blocks after every shot. First the row just
+-- The Tin Drake's scrap: thrown as every shot is fired. First the row just
 -- above it, SCRAP_ROW1 blocks in its middle; then that row's two open ends
 -- by the walls (easy bank shots); then rows higher up, only where the
 -- pattern has been cleared. Every row keeps a column clear (the first row
@@ -1959,6 +1982,7 @@ local function drakeScrap(state, boss, events)
     end
     if made > 0 then push(events, { type = "boss_scrap", count = made, x = boss.x, y = boss.y }) end
 end
+E.DrakeScrap = drakeScrap
 
 -- The Gyro Spider's webs: two after every shot, anywhere in the open
 -- between the pattern's pieces. A ball that touches one is caught: the web
@@ -2052,13 +2076,11 @@ local function substep(state, dt, events)
     if #state.balls == 0 and not rolling and not (state.phoenixes and #state.phoenixes > 0) then
         state.looseWait = 0
         clearLitPegs(state, events)
-        -- each boss fights back its own way: the Tin Drake throws steel
-        -- scrap, the Gyro Spider spins webs (the Bolt Golem's shield and the
-        -- Cog Yeti's healing are below, the boar's charge in its movement)
+        -- each boss fights back its own way: the Gyro Spider spins webs (the
+        -- Tin Drake's scrap comes as the ball is fired, the Bolt Golem's shield
+        -- and the Cog Yeti's healing are below, the boar's charge in its movement)
         local boss = state.boss
-        if boss and not boss.lit and not boss.gone and boss.ability == "drake" then
-            drakeScrap(state, boss, events)
-        elseif boss and not boss.lit and not boss.gone and boss.ability == "spider" then
+        if boss and not boss.lit and not boss.gone and boss.ability == "spider" then
             spiderWebs(state, boss, events)
         end
         -- the Cog Yeti heals after a shot that never touched it

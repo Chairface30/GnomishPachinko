@@ -2762,6 +2762,32 @@ __showGone = not UI.showcase:IsShown()
 """)
 check("while the purple peg's tutorial is spoken the peg is shown above the talk box, gone after", ev("__showPurple") and ev("__showGone"))
 
+# the Tin Drake's iron draws an orange's lightning: the nearest piece goes, the boss is spared
+lua(r"""
+function iron_probe()
+  local st = E:NewLevel(L:Build(10))
+  local boss = st.boss
+  local orange
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" then orange = p break end end
+  local near = { shape = "peg", x = orange.x + 30, y = orange.y + 30, r = E.SCRAP_R, kind = "block", scrap = true, row = 1, col = 1 }
+  local far  = { shape = "peg", x = orange.x + 200, y = orange.y + 60, r = E.SCRAP_R, kind = "block", scrap = true, row = 1, col = 2 }
+  st.pegs[#st.pegs + 1] = near; st.pegs[#st.pegs + 1] = far
+  local hp0 = boss.hp
+  local events = {}
+  E.HitPeg(st, orange, { vx = 0, vy = 100 }, events)
+  local spared = boss.hp == hp0 and near.gone and not far.gone
+  -- with the iron all gone, the next orange zaps the drake
+  far.gone = true
+  local orange2
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" and not p.lit then orange2 = p break end end
+  st.time = st.time + 1
+  E.HitPeg(st, orange2, { vx = 0, vy = 100 }, events)
+  return spared, boss.hp == hp0 - E.BOSS_ZAP_DAMAGE
+end
+""")
+spared, zapped = ev("iron_probe")()
+check("the Tin Drake's iron takes an orange's lightning (nearest piece destroyed, boss spared); without iron the drake is zapped", spared and zapped, f"{spared} {zapped}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
@@ -2883,7 +2909,8 @@ end
 gap = ev("guide_touch_probe")()
 check("the guide's ghost ball touches the piece edge to edge, not inside it", 0 <= gap < 0.5, str(gap))
 
-# the Tin Drake throws scrap after every shot, and scrap never walls the boss off
+# the Tin Drake's scrap fills rows in order, and scrap never walls the boss off
+# (the layout, with the cap lifted so the rows can fill)
 lua(r"""
 function drake_probe()
   local spec
@@ -2891,13 +2918,10 @@ function drake_probe()
   local st = E:NewLevel(spec)
   local events = {}
   local counts = {}
+  local cap, per = E.SCRAP_MAX_DRAKE, E.SCRAP_PER_SHOT_DRAKE
+  E.SCRAP_MAX_DRAKE, E.SCRAP_PER_SHOT_DRAKE = 40, 2
   for shot = 1, 14 do
-    st.phase = E.PHASE.FLIGHT
-    st.balls = {}
-    st.shots = shot
-    st.bossHitThisShot = false
-    st.ballsLeft = 10
-    for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+    E.DrakeScrap(st, st.boss, events)
     local n = 0
     for _, p in ipairs(st.pegs) do if p.scrap then n = n + 1 end end
     counts[#counts + 1] = n
@@ -2913,13 +2937,8 @@ function drake_probe()
   local endsTaken = r1[1] and r1[cols]
   -- now the pattern is cleared: the Drake climbs into the space
   for _, p in ipairs(st.pegs) do if not p.scrap and p ~= st.boss then p.gone = true end end
-  for shot = 15, 40 do
-    st.phase = E.PHASE.FLIGHT
-    st.balls = {}
-    st.shots = shot
-    st.ballsLeft = 10
-    for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
-  end
+  for shot = 15, 40 do E.DrakeScrap(st, st.boss, events) end
+  E.SCRAP_MAX_DRAKE, E.SCRAP_PER_SHOT_DRAKE = cap, per
   local t = rows()
   local upper, wall = 0, false
   for r, cs in pairs(t) do
@@ -2931,7 +2950,7 @@ function drake_probe()
 end
 """)
 first, last, r1n, ends, upper, wall = ev("drake_probe")()
-check("the Tin Drake throws scrap after every shot, fills its first row, then takes the two bank ends",
+check("the Tin Drake's scrap fills its first row, then takes the two bank ends",
       first == 2 and last > first and r1n == 7 and ends, f"{first} {last} {r1n} {ends}")
 check("then it climbs into cleared space above, and no row is ever a wall",
       upper > 0 and not wall, f"{upper} {wall}")
@@ -3209,16 +3228,17 @@ function round_probe()
     E.HitPeg(st, b, { vx = 0, vy = 100 }, events)
   end
   out.bossThree = hp0 - b.hp == 3 * E.BOSS_HIT_DAMAGE
-  -- after a shot that hit it, the boss throws scrap
+  -- the Tin Drake throws its iron the moment a shot is fired, every second shot
+  for n = 10, 400, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "drake" then break end end
+  st = E:NewLevel(spec)
+  local function scrapCount() local c = 0 for _, p in ipairs(st.pegs) do if p.scrap and not p.gone then c = c + 1 end end return c end
   wipe(events)
-  st.phase = E.PHASE.FLIGHT
-  st.bossHitThisShot = true
-  st.balls = {}
-  st.shots = 1
-  for _ = 1, 30 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
-  local scrap = 0
-  for _, p in ipairs(st.pegs) do if p.scrap then scrap = scrap + 1 end end
-  out.scrap = scrap
+  E:Launch(st, events)
+  local afterFirst = scrapCount()
+  for _ = 1, 60 * 30 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+  local afterEnd = scrapCount()
+  E:Launch(st, events)
+  out.scrap = { afterFirst, afterEnd, scrapCount() }
   -- a hatched egg's phoenix lights the pieces above it
   st = E:NewLevel(L:Build(1))
   st.pegs = {
@@ -3267,7 +3287,10 @@ end
 r = ev("round_probe")()
 check("a bucket catch is never a Total Miss", r["bucketNoMiss"])
 check("a boss counts every strike of a quick bank shot", r["bossThree"])
-check("a boss hit in a shot throws scrap blocks", r["scrap"] >= 1, str(r["scrap"]))
+sc = list(r["scrap"].values())
+E_PER = ev("E.SCRAP_PER_SHOT_DRAKE")
+check("the Tin Drake throws iron as a shot is fired, every second shot, and none when a shot ends",
+      sc[0] == 0 and sc[1] == 0 and sc[2] == E_PER, str(sc))
 check("a hatched egg's phoenix lights the pieces in its column and no others", r["phoenix"])
 check("a lost egg ends the level even while aiming", r["eggAim"])
 check("a gem on a slope rolls off instead of sticking", r["rolls"])

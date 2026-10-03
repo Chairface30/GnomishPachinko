@@ -3330,6 +3330,13 @@ function UI:HandleEvents(now)
             GP:PlaySfx("clear.ogg")
             GP:PlayVoice("duel_start")
             self.duelStartAt = now + 2.6
+        elseif t == "scrap_zap" then
+            -- the Tin Drake's iron took the lightning: a bolt to it, and it bursts
+            self:ShowBolt({ { x = ev.x, y = ev.y }, { x = ev.bx, y = ev.by } }, now)
+            self:Sparks(ev.bx, ev.by, { 0.7, 0.8, 1 }, 8, 24)
+            self:Popup(ev.bx, ev.by - 18, "IRON!", 0.75, 0.85, 1)
+            GP:PlaySfx("zap.ogg")
+            GP:PlaySfx("clink.ogg")
         elseif t == "boss_zap" then
             -- an orange lit on a boss level: a bolt from it to the boss
             self:ShowBolt({ { x = ev.x, y = ev.y }, { x = ev.bx, y = ev.by } }, now)

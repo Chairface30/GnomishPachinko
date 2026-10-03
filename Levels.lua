@@ -1023,7 +1023,10 @@ function L:BossFor(n)
     local k = floor((chapter + 1) / 2)
     if n > self.TINK_DUEL_LEVEL then k = k - 1 end
     local def = E.BOSSES[self.BOSS_ORDER[((k - 1) % #self.BOSS_ORDER) + 1]]
-    return def, self.BOSS_HP[n] or (self.BOSS_HP_BASE + floor(chapter * self.BOSS_HP_STEP))
+    local hp = self.BOSS_HP[n] or (self.BOSS_HP_BASE + floor(chapter * self.BOSS_HP_STEP))
+    -- the Tin Drake's iron soaks the oranges' lightning, so it carries less health
+    if def.id == "drake" and not self.BOSS_HP[n] then hp = floor(hp * self.DRAKE_HP_SHARE + 0.5) end
+    return def, hp
 end
 L.BOSS_ZAPPERS_EXTRA = 4     -- a boss level's oranges: its health and this many more
 -- set by hand where the formula played too tough
@@ -1032,6 +1035,7 @@ L.BOSS_ZAPPERS_EXTRA = 4     -- a boss level's oranges: its health and this many
 L.BOSS_HP_BASE = 12
 L.BOSS_HP_STEP = 0.45
 L.BOSS_HP = {}               -- set by hand per level where needed
+L.DRAKE_HP_SHARE = 0.6
 
 -- Star marks come from the level itself: what its pieces are worth at a
 -- middling multiplier, one Fever bin, and the bins of the balls a good
