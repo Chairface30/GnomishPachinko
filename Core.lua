@@ -7,7 +7,7 @@
 
 GnomishPachinko = GnomishPachinko or {}
 local GP = GnomishPachinko
-GP.version = "0.7.0"
+GP.version = "0.7.1"
 
 local ADDON_NAME, ns = ...
 ns = ns or {}
@@ -33,7 +33,7 @@ end
 
 -- The version comes from the TOC, so the window and the addon list agree.
 GP.AUTHOR = "Chairface Chippendale"
-GP.VERSION_FALLBACK = "0.7.0"
+GP.VERSION_FALLBACK = "0.7.1"
 function GP:Version()
     local get = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
     if get then

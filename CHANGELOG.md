@@ -1,6 +1,6 @@
 # Gnomish Pachinko — Changelog
 
-## Unreleased
+## Gnomish Pachinko v0.7.1 (2026-10-03)
 
 - **Daily plays are claimed:** each day at noon, server time, a **Claim 5 daily plays** button appears beside your plays (and a banner says so when you open the game). Nothing is added until you press it, and a missed day is not made up. Free plays build up to 50; at 50 no claim comes until you drop below, then the next comes at the following noon. Free plays are spent first.
 - A claim time saved before the noon reset (a day after the last claim) moves back to the noon it falls after, so the switch to noon takes effect at once; the reset lands exactly on noon in the realm's time zone.
