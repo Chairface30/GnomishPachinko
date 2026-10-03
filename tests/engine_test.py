@@ -2048,6 +2048,56 @@ cb = dict(ev("__cb"))
 check("Colorblind mode: off by default; on (slash command), orange pieces wear a triangle, green a plus, the purple a star that follows it, blue none; a lit piece drops it; the box turns it off",
       all(cb.values()), str(cb))
 
+# the owner arranges the map: drag a level node, it is saved per chapter; others never see it; a hardcoded layout is used by all
+lua(r"""
+local isOwner = GP.Plays.IsOwner
+GP.Plays.IsOwner = function() return true end
+GnomishPachinkoDB.mapLayout = nil
+UI:ShowLevelSelect()
+UI:LevelPage(1)
+local panel = UI.levelPanel
+local out = { button = panel.arrange:IsShown() }
+UI:ToggleMapArrange()
+out.resetShown = panel.layoutReset:IsShown()
+-- drag node 3 to (200, 300) on the map
+local node = panel.nodes[3]
+node:GetScript("OnMouseDown")(node, "LeftButton")
+__cursor.x, __cursor.y = 200, 600 - 300
+__advance(0.1)
+node:GetScript("OnMouseUp")(node, "LeftButton")
+local saved = GnomishPachinkoDB.mapLayout and GnomishPachinkoDB.mapLayout[1]
+out.saved = saved and saved[3].x == 200 and saved[3].y == 300 and #saved == 10
+local p = { node:GetPoint() }
+out.moved = p[4] == 200 and p[5] == -300
+-- a click while arranging starts no level
+local before = UI.state
+node:Click()
+out.noStart = UI.state == before and panel:IsShown()
+-- Reset chapter puts it back
+UI:ResetMapLayout()
+out.reset = GnomishPachinkoDB.mapLayout[1] == nil and select(4, node:GetPoint()) ~= 200
+UI:ToggleMapArrange()
+-- another player: no button, and the owner's saved layout is not theirs
+GnomishPachinkoDB.mapLayout = { [1] = saved }
+GP.Plays.IsOwner = function() return false end
+UI:LevelPage(1)
+out.othersNoButton = not panel.arrange:IsShown()
+out.othersGenerated = select(4, panel.nodes[3]:GetPoint()) ~= 200
+-- a layout hardcoded in MapLayout.lua is everyone's
+UI.MAP_PATHS[1] = saved
+UI:LevelPage(1)
+out.hardcoded = select(4, panel.nodes[3]:GetPoint()) == 200
+UI.MAP_PATHS[1] = nil
+GnomishPachinkoDB.mapLayout = nil
+GP.Plays.IsOwner = isOwner
+UI:LevelPage(1)
+UI:HideLevelSelect()
+__mapArrange = out
+""")
+ma = dict(ev("__mapArrange"))
+check("Map arranging (owner): drag a level node and it stays, saved per chapter; clicks start no level; Reset chapter; others never see the button or the owner's layout; a hardcoded layout is everyone's",
+      all(ma.values()), str(ma))
+
 # the boss's bar and name sit below it, and a hurt boss shows no cracks
 lua(r"""
 UI:StartLevel(10, true)
