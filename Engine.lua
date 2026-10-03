@@ -30,6 +30,10 @@
 ]]
 
 local GP = GnomishPachinko
+local _, ns = ...
+ns = ns or {}
+-- results the engine itself produced (weakly kept); only these can be recorded
+ns.issued = ns.issued or setmetatable({}, { __mode = "k" })
 GP.Engine = GP.Engine or {}
 local E = GP.Engine
 
@@ -1318,6 +1322,7 @@ local function finishLevel(state, events)
         ballsLeft = state.ballsLeft,
         level = state.level,
     }
+    ns.issued[state.result] = true
     state.phase = E.PHASE.OVER
     push(events, { type = "level_over", result = state.result })
 end

@@ -25,6 +25,18 @@ local GP = GnomishPachinko
 GP.Plays = GP.Plays or {}
 local P = GP.Plays
 
+-- The addon's private namespace (only its own files get it): everything
+-- that makes or spends gears, special balls, plays or progress lives
+-- there, out of reach of a /run line or another addon. The vault record
+-- itself is a local of this file.
+local _, ns = ...
+ns = ns or {}
+local VAULT
+-- the player's name is read through the client function as it was when
+-- the addon loaded: a /run that swaps UnitName out cannot become the owner
+local UnitName = UnitName
+local S              -- the namespace's secure functions (filled in below)
+
 P.FAILS_PER_DAY  = 5
 P.WINDOW         = 24 * 60 * 60
 P.PLAYS_PER_LOT  = 5
@@ -105,7 +117,7 @@ end
 P.OWNER_GEARS = 10
 function P:GrantFree()
     if not self:IsOwner() then return false, "Not available on this character" end
-    self:AddGears(self.OWNER_GEARS)
+    S.AddGears(self.OWNER_GEARS)
     GP:Print(("|cff00ff00Owner top-up:|r %d Golden Gears. Gears: |cffffd700%d|r"):format(self.OWNER_GEARS, self:Gears()))
     GP:PlaySfx("free_ball.ogg")
     if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
@@ -399,7 +411,7 @@ function P:Load()
         self.tampered = true
     end
     prune(rec, t)
-    self.rec = rec
+    VAULT = rec
     self.loaded = true
     self:Unseal()
     self:Save()
@@ -417,7 +429,7 @@ end
 -- settings into the vault: the progress from before it was sealed).
 function P:Unseal()
     local db = GP:GetDB()
-    local r = self.rec
+    local r = VAULT
     r.gears = math.max(0, floor(tonumber(r.gears) or 0))
     if type(r.items) ~= "table" then
         r.items = copy(type(db.items) == "table" and db.items or self.START_ITEMS)
@@ -431,14 +443,60 @@ function P:Unseal()
     end
     GP:GetDB()      -- defaults for anything missing
     db.items = nil
+    r.gifted = type(r.gifted) == "table" and r.gifted or {}
+    -- the progress as the vault (or the first unsealing) has it: what is
+    -- sealed comes from here, so an edit to the live settings is undone
+    ns.auth = {}
+    for k in pairs(P.PROTECTED) do ns.auth[k] = copy(db[k]) end
 end
 
--- The settings' progress into the vault.
+-- The settings' progress into the vault. The protected keys (levels,
+-- stars, best scores, the Crazy Guide) are sealed from the addon's own
+-- record of them, and the live settings are put back to match: a change
+-- made to them from outside the addon does not survive the next save.
+P.PROTECTED = { unlocked = true, cleared = true, best = true, stars = true, crazyGuide = true }
 function P:Seal()
     local db = GP.db or GP:GetDB()
-    local r = self.rec
+    local r = VAULT
     r.prog = r.prog or {}
-    for _, k in ipairs(self.SEALED) do r.prog[k] = copy(db[k]) end
+    ns.auth = ns.auth or {}
+    for _, k in ipairs(self.SEALED) do
+        if self.PROTECTED[k] and not ns.trustPlain then
+            r.prog[k] = copy(ns.auth[k])
+            db[k] = copy(ns.auth[k])
+        else
+            r.prog[k] = copy(db[k])
+            if self.PROTECTED[k] then ns.auth[k] = copy(db[k]) end
+        end
+    end
+end
+
+-- The only ways progress changes: a level's genuine result, the owner's
+-- unlock-all, and a reset. Each writes the addon's record and the settings.
+ns.Progress = {}
+function ns.Progress.Record(n, cleared, stars, score, crazy, count)
+    local db = GP:GetDB()
+    local a = ns.auth or {}
+    ns.auth = a
+    a.cleared = a.cleared or {}; a.stars = a.stars or {}; a.best = a.best or {}
+    if cleared then
+        a.cleared[n] = true
+        if n + 1 <= count and (a.unlocked or 1) < n + 1 then a.unlocked = n + 1 end
+        if stars > (a.stars[n] or 0) then a.stars[n] = stars end
+    end
+    if score > (a.best[n] or 0) then a.best[n] = score end
+    if crazy then a.crazyGuide = true end
+    for k in pairs(P.PROTECTED) do db[k] = copy(a[k]) end
+end
+function ns.Progress.UnlockAll(count)
+    ns.auth = ns.auth or {}
+    ns.auth.unlocked = count
+    GP:GetDB().unlocked = count
+end
+function ns.Progress.FromSettings()
+    local db = GP:GetDB()
+    ns.auth = {}
+    for k in pairs(P.PROTECTED) do ns.auth[k] = copy(db[k]) end
 end
 
 -- At logout the sealed keys leave the plain file: only the vault has them.
@@ -450,11 +508,11 @@ function P:StripPlain()
 end
 
 function P:Save()
-    if not self.rec then return end
+    if not VAULT then return end
     self:Seal()
-    self.rec.ts = now()
-    self.rec.rev = (self.rec.rev or 0) + 1
-    local text = self:Encode(self.rec)
+    VAULT.ts = now()
+    VAULT.rev = (VAULT.rev or 0) + 1
+    local text = self:Encode(VAULT)
     for _, m in ipairs(mirrors()) do m.set(text) end
     if type(C_CVar) == "table" and type(C_CVar.RegisterCVar) == "function" then
         pcall(C_CVar.RegisterCVar, self.CVAR, "")
@@ -462,9 +520,9 @@ function P:Save()
 end
 
 local function rec(self)
-    if not self.rec then self:Load() end
-    prune(self.rec, now())
-    return self.rec
+    if not VAULT then P:Load() end
+    prune(VAULT, now())
+    return VAULT
 end
 
 function P:FreeLeft()
@@ -505,36 +563,71 @@ function P:RecordFail()
     return self:Remaining()
 end
 
-function P:AddLots(lots)
-    local r = rec(self)
-    r.lots[#r.lots + 1] = { ts = now(), left = lots * self.PLAYS_PER_LOT }
-    self:Save()
-    return self:Remaining()
+S = {}
+ns.Secure = S
+function S.AddLots(lots)
+    local r = rec(P)
+    r.lots[#r.lots + 1] = { ts = now(), left = lots * P.PLAYS_PER_LOT }
+    P:Save()
+    return P:Remaining()
 end
 
 function P:Gears()
     return floor(rec(self).gears or 0)
 end
 
-function P:AddGears(n)
-    local r = rec(self)
+function S.AddGears(n)
+    local r = rec(P)
     r.gears = math.max(0, floor((r.gears or 0) + n))
-    self:Save()
+    P:Save()
     return r.gears
 end
 
-function P:Items()
-    local r = rec(self)
-    if type(r.items) ~= "table" then r.items = copy(self.START_ITEMS) end
+local function items()
+    local r = rec(P)
+    if type(r.items) ~= "table" then r.items = copy(P.START_ITEMS) end
     return r.items
 end
 
-function P:AddItem(item, n)
-    local items = self:Items()
-    items[item] = math.max(0, (items[item] or 0) + n)
-    self:Save()
-    return items[item]
+-- A copy: changing it changes nothing.
+function P:Items()
+    return copy(items())
 end
+
+function P:ItemOf(item)
+    return items()[item] or 0
+end
+
+function S.AddItem(item, n)
+    local it = items()
+    it[item] = math.max(0, (it[item] or 0) + n)
+    P:Save()
+    return it[item]
+end
+
+-- Back to what a new player starts with; the tutorials may hand theirs out again.
+function S.ResetItems()
+    local r = rec(P)
+    r.items = copy(P.START_ITEMS)
+    r.gifted = {}
+    P:Save()
+end
+
+-- A tutorial's gift, once per player (the vault remembers it).
+function S.Gift(key, gift)
+    local r = rec(P)
+    r.gifted = r.gifted or {}
+    if r.gifted[key] or type(gift) ~= "table" then return false end
+    r.gifted[key] = true
+    local it = items()
+    for item, n in pairs(gift) do it[item] = math.max(0, (it[item] or 0) + n) end
+    P:Save()
+    return true
+end
+
+-- test hooks into the record (the test harness only)
+function ns.VaultGet() return VAULT end
+function ns.VaultSet(v) VAULT = v end
 
 -- Spends gears in the shop. Returns ok, message.
 function P:Buy(what)
@@ -549,8 +642,8 @@ function P:Buy(what)
     if what == "plays" then
         r.lots[#r.lots + 1] = { ts = now(), left = offer.n }
     else
-        local items = self:Items()
-        items[what] = (items[what] or 0) + offer.n
+        local it = items()
+        it[what] = (it[what] or 0) + offer.n
     end
     self:Save()
     if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
@@ -640,11 +733,12 @@ function P:FillPurchaseMail(gears)
     return true
 end
 
--- Credits a confirmed purchase (also what the mail hook calls): a gear a gold.
-function P:OnPurchase(copper)
+-- Credits a confirmed purchase (only the mail hook calls it): a gear a gold.
+function S.OnPurchase(copper)
+    local self = P
     local gears = floor(copper / self.GEAR_COPPER)
     if gears <= 0 then return 0 end
-    local total = self:AddGears(gears)
+    local total = S.AddGears(gears)
     GP:Print(string.format("|cff00ff00Golden Gears!|r %s mailed to the banker: |cffffd700%d|r gears. You have |cffffd700%d|r.",
         self:PriceText(gears), gears, total))
     GP:PlaySfx("free_ball.ogg")
@@ -719,6 +813,6 @@ do
         if not pendingPurchase then return end
         local money = pendingPurchase.money
         pendingPurchase = nil
-        P:OnPurchase(money)
+        S.OnPurchase(money)
     end)
 end

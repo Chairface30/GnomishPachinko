@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Cheat-proofing pass.** Everything that makes or spends Golden Gears, special balls, plays or progress now lives in the addon's private namespace, out of reach of a `/run` line or another addon. Only results the game itself produced are recorded (once each); tutorial gifts are the ones written in the addon and are remembered in the vault; the item counts handed out are copies; levels, stars, best scores and the Crazy Guide are sealed from the addon's own record, so an edit to the live settings is undone at the next save; and the owner check reads the player's name through the client function as it was at login.
+- The cheer at the end of a three-star clear fades out naturally instead of stopping dead.
+
 - The opening talk runs in a new order (Tinkmaster's welcome and how to play first, then the work-in-progress note and the call for ideas), and ends with him ushering the player up to the machine and sending them off.
 - **New players start with no special balls and no green pegs,** and those buttons stay hidden until Tinkmaster explains them: the special balls on level 2 (with one of each to try), the Extra Green Peg in a new voiced talk on level 3 (with one to try). Players past those levels hear the talk on their next level.
 

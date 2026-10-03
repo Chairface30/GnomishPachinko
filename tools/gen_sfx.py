@@ -92,7 +92,7 @@ EFFECTS = {
     "click_soft": ("A single soft, quiet mechanical click, like a small brass toggle switch, very short.", 0.3, {}),
     "star_ramp": ("A bright rising tally sound, a fast ticking counter climbing in pitch with a building synth whoosh, tension rising, no music, about two seconds.", 2.2, {"keep_tail": True}),
     "star_rocket": ("A single bottle rocket: a short rising whistle and a sharp crackling pop, celebratory, short.", 1.2, {"keep_tail": True}),
-    "star_fanfare": ("A big triumphant brass fanfare with fireworks bursting and a cheering crowd, a grand win, short.", 3.5, {"keep_tail": True}),
+    "star_fanfare": ("A big triumphant brass fanfare with fireworks bursting and a cheering crowd, the cheers slowly dying away at the end, a grand win.", 6.0, {"keep_tail": True, "fade_out": 2.0}),
     "last_ahh": ("A crowd's hushed, held 'ahhhhhh' of suspense, rising steadily in pitch and growing louder and louder, building tension, no words.", 5.0, {"keep_tail": True}),
     "last_aww": ("A crowd's disappointed 'awwwww', the pitch falling away in sympathy, a sad sigh, short, no words.", 1.6, {"keep_tail": True}),
     "mumble1": ("A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 1.", 1.2, {}),
@@ -307,6 +307,11 @@ def main():
             data = make_loop(level(data))
         else:
             data = level(trim(data, keep_tail=opts.get("keep_tail", False)))
+            if opts.get("fade_out"):
+                # the tail falls away gently instead of stopping dead
+                n = min(len(data), int(opts["fade_out"] * RATE))
+                curve = np.linspace(1, 0, n) ** 2
+                data[-n:] = data[-n:] * (curve[:, None] if data.ndim > 1 else curve)
         if name == "note_base":
             for p in make_scale(data):
                 print("      wrote", os.path.basename(p))

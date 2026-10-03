@@ -11,6 +11,9 @@
 ]]
 
 local GP = GnomishPachinko
+local _, ns = ...
+ns = ns or {}
+local GIFTS = {}     -- the tutorials' gifts, private to this file (filled once SCRIPTS is written)
 GP.Dialog = GP.Dialog or {}
 local D = GP.Dialog
 
@@ -234,6 +237,20 @@ function D:PlayOnce(key, done)
     return false
 end
 
+-- The tutorials' gifts as this file wrote them, copied when it loaded: a
+-- script added or changed later gives nothing.
+do
+    local gifts = {}
+    for _, sc in ipairs(D.SCRIPTS) do
+        if type(sc.gift) == "table" then
+            local g = {}
+            for k, v in pairs(sc.gift) do g[k] = v end
+            gifts[sc.key] = g
+        end
+    end
+    GIFTS = gifts
+end
+
 -- The conversations this level brings that have not been shown yet.
 function D:For(st)
     local seen = db()
@@ -356,10 +373,10 @@ function D:Play(list, done)
     end
     self.queue = {}
     for _, sc in ipairs(list) do
-        -- a script's gift comes with it, the once it is played
-        if sc.gift and not db()[sc.key] and GP.Plays and GP.Plays.AddItem then
-            for item, n in pairs(sc.gift) do GP.Plays:AddItem(item, n) end
-            if GP.Plays.Save then GP.Plays:Save() end
+        -- a tutorial's gift comes with it, once per player: the gifts are the
+        -- ones written in this file, kept apart, and the vault remembers them
+        local gift = GIFTS[sc.key]
+        if gift and ns.Secure and ns.Secure.Gift(sc.key, gift) then
             if GP.UI and GP.UI.UpdateCounters and GP.UI.state then pcall(GP.UI.UpdateCounters, GP.UI) end
             if GP.UI and GP.UI.UpdateItemSlots then pcall(GP.UI.UpdateItemSlots, GP.UI) end
         end

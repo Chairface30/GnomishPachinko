@@ -138,10 +138,22 @@ end
 
 rt = lupa.LuaRuntime(unpack_returned_tuples=True)
 rt.execute(MOCK)
+rt.execute("__ns = {}")
 for f in ("Core.lua", "Art.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua", "Mascot.lua", "Dialog.lua"):
     src = open(os.path.join(ADDON_DIR, f), encoding="utf-8").read()
-    rt.execute(f"local function chunk(...) {src} end chunk('GnomishPachinko')")
+    rt.execute(f"local function chunk(...) {src} end chunk('GnomishPachinko', __ns)")
 rt.execute("GP = GnomishPachinko; E = GP.Engine; L = GP.Levels; UI = GP.UI; P = GP.Plays; ART = GP.Art")
+# test shims: the secure functions under their old names, hand-made results
+# accepted as genuine, and the live settings trusted (tests set them up directly)
+rt.execute("""
+P.AddGears = function(_, n) return __ns.Secure.AddGears(n) end
+P.AddItem = function(_, i, n) return __ns.Secure.AddItem(i, n) end
+P.AddLots = function(_, l) return __ns.Secure.AddLots(l) end
+P.OnPurchase = function(_, c) return __ns.Secure.OnPurchase(c) end
+__recordResultReal = GP.RecordResult
+GP.RecordResult = function(self, r) __ns.issued[r] = true; return __recordResultReal(self, r) end
+__ns.trustPlain = true
+""")
 ev, lua = rt.eval, rt.execute
 
 # ------------------------------------------------------------------ levels
@@ -1532,7 +1544,7 @@ lua(r"""
 function vault_probe()
   local out = {}
   GnomishPachinkoSaved, GnomishPachinkoChar = nil, nil
-  P.rec, P.loaded, P.tampered = nil, nil, nil
+  __ns.VaultSet(nil); P.loaded, P.tampered = nil, nil
   P:Load()
   out.fresh = P:Remaining()
   out.canPlay = P:CanPlay()
@@ -1555,7 +1567,7 @@ function vault_probe()
   -- a reinstall: the per-character copy is deleted, the account copy stands
   local keep = GnomishPachinkoSaved.plays
   GnomishPachinkoChar = nil
-  P.rec = nil
+  __ns.VaultSet(nil)
   P:Load()
   out.afterReinstall = P:Remaining()
   out.healed = GnomishPachinkoChar.plays == GnomishPachinkoSaved.plays
@@ -1563,23 +1575,23 @@ function vault_probe()
   local old = P:Decode(keep)
   table.remove(old.fails)
   GnomishPachinkoChar.plays = P:Encode(old)
-  P.rec = nil
+  __ns.VaultSet(nil)
   P:Load()
-  out.mergedFails = #P.rec.fails
+  out.mergedFails = #__ns.VaultGet().fails
   -- a day later the free plays are back and the lot has expired
   __clock = __clock + 24 * 3600 + 1
-  P.rec = nil
+  __ns.VaultSet(nil)
   P:Load()
   out.nextDay = P:Remaining()
   -- an edited copy locks the day
   local hacked = keep:sub(1, 20) .. "A" .. keep:sub(22)
   GnomishPachinkoSaved.plays = hacked
   GnomishPachinkoChar.plays = nil
-  P.rec = nil
+  __ns.VaultSet(nil)
   P:Load()
   out.tampered = P.tampered and P:Remaining() == 0
   __clock = __clock + 24 * 3600 + 1
-  P.rec = nil
+  __ns.VaultSet(nil)
   P:Load()
   out.unlockedAgain = P:Remaining()
   return out
@@ -1634,14 +1646,14 @@ __plainGone = GnomishPachinkoDB.unlocked == nil and GnomishPachinkoDB.stars == n
 -- a player edits the plain file while logged out: it changes nothing
 GnomishPachinkoDB.unlocked = 400
 GnomishPachinkoDB.items = { suction = 999 }
-P.rec = nil
+__ns.VaultSet(nil)
 P:Load()
 __restored = GnomishPachinkoDB.unlocked == 37 and GnomishPachinkoDB.stars[5] == 3 and P:Items().suction < 999 and P:Gears() == __sealedGears
 -- an old copy put back (more gears than now) loses to the newer one
 local old = GnomishPachinkoSaved.plays
 P:AddGears(-1)
 GnomishPachinkoChar.plays = old
-P.rec = nil
+__ns.VaultSet(nil)
 P:Load()
 __oldLoses = P:Gears() == __sealedGears - 1
 """)
@@ -1649,7 +1661,7 @@ check("at logout the progress, gears and special balls leave the plain file", ev
 check("edits to the plain file change nothing: the sealed vault restores progress, gears and balls", ev("__restored"))
 check("an older copy of the vault put back cannot restore spent gears", ev("__oldLoses"))
 lua("GnomishPachinkoDB.unlocked = 1; GnomishPachinkoDB.stars[5] = nil; P:Save()")
-lua("P.rec = nil; GnomishPachinkoSaved, GnomishPachinkoChar = nil, nil; P:Load()")
+lua("__ns.VaultSet(nil); GnomishPachinkoSaved, GnomishPachinkoChar = nil, nil; P:Load()")
 
 # ------------------------------------------------------------------ window
 lua(r"""
@@ -2032,6 +2044,7 @@ check("Cogwhistle shows in the green-lit model frame, everyone else in the plain
 # the special-ball tutorial gives one of each to try, once
 lua(r"""
 GnomishPachinkoDB.dialogs.items = nil
+__ns.VaultGet().gifted = {}
 local function n(k) return P:Items()[k] or 0 end
 local r0, b0, s0 = n("ring"), n("rainbow"), n("suction")
 local items
@@ -2305,6 +2318,44 @@ d.items, d.green_peg = saved.items or true, saved.green_peg or true
 check("a new player starts with no special balls or green pegs", ev("__startZero"))
 check("the special-ball and green peg buttons stay hidden until Tinkmaster explains each", ev("__hiddenBefore") and ev("__ballsShown") and ev("__greenShown"),
       f'{ev("__hiddenBefore")} {ev("__ballsShown")} {ev("__greenShown")}')
+
+# anti-cheat: what a /run line or another addon could try
+lua(r"""
+__ns.trustPlain = false
+P:Save()
+-- 1. editing the live settings: undone by the next save
+local u0 = GnomishPachinkoDB.unlocked
+GnomishPachinkoDB.unlocked = 400
+GnomishPachinkoDB.stars[7] = 3
+P:Save()
+__plainEdit = GnomishPachinkoDB.unlocked == u0 and GnomishPachinkoDB.stars[7] ~= 3
+-- 2. a made-up result: ignored
+local before = GnomishPachinkoDB.unlocked
+__recordResultReal(GP, { level = before, cleared = true, score = 1, objective = "boss", goals = 1, goalTotal = 1 })
+__fakeResult = GnomishPachinkoDB.unlocked == before
+-- 3. a made-up tutorial with a gift: gives nothing
+local r0 = P:ItemOf("rainbow")
+GP.Dialog:Play({ { key = "cheat_gift", gift = { rainbow = 99 }, lines = { { "tink", "x" } } } })
+GP.Dialog:Finish()
+__fakeGift = P:ItemOf("rainbow") == r0
+-- 4. the items handed out are a copy
+local it = P:Items(); it.rainbow = 999
+__itemsCopy = P:ItemOf("rainbow") == r0
+-- 5. pretending to be the owner by swapping UnitName out
+local realName = UnitName
+UnitName = function() return "Chairface", "Chippendale" end
+__unitName, __unitSurname = "Thrall", "Frostwolf"
+__ownerFake = not P:IsOwner()
+UnitName = realName
+-- 6. the money makers are not on the public table
+__noPublic = rawget(P, "AddGears") ~= nil   -- (only the test shim puts it there)
+__ns.trustPlain = true
+""")
+check("an edit to the live settings (levels, stars) is undone by the next save", ev("__plainEdit"))
+check("a made-up level result records nothing", ev("__fakeResult"))
+check("a made-up tutorial with a gift gives nothing", ev("__fakeGift"))
+check("the special-ball counts handed out are a copy: changing them changes nothing", ev("__itemsCopy"))
+check("swapping out UnitName does not make a player the owner", ev("__ownerFake"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

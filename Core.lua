@@ -9,7 +9,8 @@ GnomishPachinko = GnomishPachinko or {}
 local GP = GnomishPachinko
 GP.version = "1.1.0"
 
-local ADDON_NAME = ...
+local ADDON_NAME, ns = ...
+ns = ns or {}
 
 local DEFAULTS = {
     unlocked = 1,          -- highest level the player may start
@@ -93,32 +94,29 @@ end
 -- Records a finished level. Returns the stars earned this time and the
 -- plays left for the day (a lost level spends one).
 function GP:RecordResult(result)
+    -- only a result the engine itself produced counts, and only once
+    if not (type(result) == "table" and ns.issued and ns.issued[result]) then
+        return 0, self.Plays:Remaining()
+    end
+    ns.issued[result] = nil
     local db = self:GetDB()
     local n = result.level
     local stars = self.Levels:StarsFor(n, result.score, result.cleared)
-    if result.cleared then
-        db.cleared[n] = true
-        if n + 1 <= self.Levels.COUNT and (db.unlocked or 1) < n + 1 then db.unlocked = n + 1 end
-        if stars > (db.stars[n] or 0) then db.stars[n] = stars end
-    else
-        self.Plays:RecordFail()
-    end
-    if result.score > (db.best[n] or 0) then db.best[n] = result.score end
+    if not result.cleared then self.Plays:RecordFail() end
     -- rewards come from bosses (and duels) only: special balls, a suction
     -- tube and an Extra Green Peg; everything else is bought with gears
     local rewards = {}
     if result.cleared and (result.objective == "boss" or result.duel) then
         for _, r in ipairs({ { item = "ring", n = 2 }, { item = "rainbow", n = 1 }, { item = "suction", n = 2 }, { item = "green", n = 1 } }) do
-            self.Plays:AddItem(r.item, r.n)
+            ns.Secure.AddItem(r.item, r.n)
             rewards[#rewards + 1] = r
         end
     end
     result.rewards = rewards
     -- Tinkmaster's own duel won: the Super Guide becomes the Crazy Guide
-    if result.cleared and n == self.Levels.TINK_DUEL_LEVEL and not db.crazyGuide then
-        db.crazyGuide = true
-        result.crazyGuide = true
-    end
+    local crazy = result.cleared and n == self.Levels.TINK_DUEL_LEVEL and not db.crazyGuide
+    if crazy then result.crazyGuide = true end
+    ns.Progress.Record(n, result.cleared, stars, result.score or 0, crazy, self.Levels.COUNT)
     self.Plays:Save()
     return stars, self.Plays:Remaining()
 end
@@ -143,15 +141,13 @@ end
 
 function GP:ItemCount(item)
     if self:Unlimited() then return 99 end
-    return self.Plays:Items()[item] or 0
+    return self.Plays:ItemOf(item)
 end
 
 function GP:SpendItem(item)
     if self:Unlimited() then return true end
-    local items = self.Plays:Items()
-    if (items[item] or 0) <= 0 then return false end
-    items[item] = items[item] - 1
-    self.Plays:Save()
+    if self.Plays:ItemOf(item) <= 0 then return false end
+    ns.Secure.AddItem(item, -1)
     return true
 end
 
@@ -211,7 +207,7 @@ function GP:UnlockAll()
         self:Print("Unlock all is for the owner's characters only.")
         return false
     end
-    self:GetDB().unlocked = self.Levels.COUNT
+    ns.Progress.UnlockAll(self.Levels.COUNT)
     self.Plays:Save()
     self:Print(("All %d levels unlocked for testing."):format(self.Levels.COUNT))
     if self.UI and self.UI.levelPanel and self.UI.levelPanel:IsShown() then self.UI:LevelPage(self.UI.levelPage) end
@@ -221,13 +217,12 @@ end
 function GP:ResetProgress()
     -- keep the settings, wipe the progress; the special balls and green
     -- pegs go back to what a new player starts with (gears and plays stay)
-    local items = self.Plays:Items()
-    for k in pairs(items) do items[k] = nil end
-    for k, v in pairs(self.Plays.START_ITEMS) do items[k] = v end
+    ns.Secure.ResetItems()
     local keep = GnomishPachinkoDB or {}
     GnomishPachinkoDB = { sound = keep.sound, music = keep.music, voice = keep.voice, minimap = keep.minimap, mascot = keep.mascot }
     self.db = nil
     self:GetDB()
+    ns.Progress.FromSettings()
     self.Plays:Save()
     if self.Levels then self.Levels.starCache = nil end
     self:Print("Progress wiped: back to level 1, special balls and green pegs back to a new player's. (Gears and the day's plays are kept.)")
