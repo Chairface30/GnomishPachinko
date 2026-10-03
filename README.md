@@ -4,6 +4,10 @@ A peg-shooting puzzle game for World of Warcraft (WoW Forever). No gold is ever 
 
 Open it with `/pachinko` (or `/gp`).
 
+## Level editor
+
+Every player can build levels: the **Level editor** button under the map, or `/pachinko editor`. Place every kind of piece, select pieces (click, Shift+click, drag a box) and move, turn, mirror, copy or delete them as a group, draw Super Slides, set colors, tough pieces, rails, keys and cages, moving groups and any mix of goals, then test-play the level. Levels are saved on the account, and **Export code** gives a text code to share. Players post their codes in the CurseForge comments; the owner imports them, and approved levels ship in the addon (`CustomLevels.lua`, written by `tools/import_levels.py`), replacing that level number for everyone with the builder credited on the level card and in the info panel.
+
 ## How it plays
 
 The board is a portrait column, 490 by 700, with the pegs in its upper two thirds and a long fall to the bucket.

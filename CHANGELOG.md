@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Players' levels credit their builders:** a level from the editor that goes into the game shows "Level by <name>" on its level card and in the info panel. The CurseForge page and README now invite players to post their level codes in the CurseForge comments.
 - Level editor: **any mix of goals.** Oranges and Long Shots (1 to 5) switch on and off, and every egg and gem placed is a goal, so a level can ask for oranges, eggs, gems and Long Shots together. The info panel lists each goal with its count.
 - Level editor: **piece colors.** A peg or brick can be dealt at random on every attempt (as before) or set to orange, blue or green for good, and Never orange / Never green / Never purple keep a dealt piece from ever being that color.
 - Level editor: exact turns. Type a number of degrees in the box and press - or + to turn the selection by exactly that much, or Set angle to put every selected bar at that angle (0 level, 90 upright). The selection line shows the bars' angle.

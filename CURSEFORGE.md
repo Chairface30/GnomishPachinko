@@ -33,6 +33,10 @@ It fits right inside your game. Point with the mouse, click, and a polished stee
 
 > **Fair warning:** the bosses are still a work in progress. They may change completely in a later version!
 
+**Build your own levels!** My workshop is open to everyone. Press **Level editor** under the map (or type **/pachinko editor**) and lay out a board of your own: pegs, bricks, Super Slides, balloons, bumpers, keys and cages, eggs, gems and moving parts. Pick the goals, test-play it on the spot, and save as many as you like.
+
+Proud of one? Press **Export code** and post the code in the **comments here on CurseForge**. I try out every one I'm sent, and the best go into the machine itself for everybody to play, with **your name on the level card** as its builder.
+
 **Fully voiced.** Every one of us talks to you, and the bosses grumble and hiss and boom in voices all their own. There's music, a crowd that holds its breath on the last peg, and bottle rockets when you earn your stars.
 
 ---
@@ -62,7 +66,7 @@ Your progress, gears and special balls are sealed up tight in my vault, so no ti
 ## Getting started
 
 - Type **/pachinko** to open the machine, or click the little minimap button.
-- **/pachinko levels** opens the map. **/pachinko sound**, **/pachinko music** and **/pachinko voice** switch things on and off.
+- **/pachinko levels** opens the map. **/pachinko editor** opens the level editor. **/pachinko sound**, **/pachinko music** and **/pachinko voice** switch things on and off.
 - Hold the **right mouse button** to zoom in and line up a tricky shot.
 
 I'll walk you through the rest myself the first time round. Special balls, green pegs, the lot!
@@ -71,7 +75,7 @@ I'll walk you through the rest myself the first time round. Special balls, green
 
 ## Got ideas?
 
-New gnome hosts with new powers? New obstacles? New bosses for my workshop? Leave them in the comments here on CurseForge. I read every one. Well, Bink reads them to me. Same thing!
+New gnome hosts with new powers? New obstacles? New bosses for my workshop? Built a level you're proud of? Leave them in the comments here on CurseForge, level codes and all. I read every one. Well, Bink reads them to me. Same thing!
 
 Now, enough chatter! Step right up, grab the lever, and give her a whirl. Off you go, and **mind the sparks!**
 

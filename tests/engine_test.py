@@ -3908,6 +3908,27 @@ check("the window's credit line names the author and the version from the TOC (b
       ev("GP:Version()") == toc_version and toc_version.startswith("0.")
       and ev("UI.creditText:GetText()").endswith("by Chairface Chippendale"), ev("UI.creditText:GetText()"))
 
+# a player's level shipped in the game credits its builder on the level card and in the info panel
+lua(r"""
+local d = { name = "Jaina's Garden", author = "Jaina Proudmoore", goals = { oranges = true }, pieces = {}, movers = {} }
+for k = 1, 12 do d.pieces[#d.pieces + 1] = { t = "peg", x = 40 + k * 34, y = 380 } end
+L.CUSTOM[39] = d
+GnomishPachinkoDB.unlocked = 400
+UI:StartLevel(39)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:ShowStartCard()
+__cardCredit = (UI.card.line3:GetText() or ""):find("Level by Jaina Proudmoore", 1, true) ~= nil
+UI:UpdateDisplay()
+__panelCredit = (UI.layoutText:GetText() or ""):find("Level by Jaina Proudmoore", 1, true) ~= nil
+L.CUSTOM[39] = nil
+UI:StartLevel(39)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:UpdateDisplay()
+__noCredit = not (UI.layoutText:GetText() or ""):find("Level by", 1, true)
+""")
+check("a player's level in the game shows \"Level by <builder>\" on the level card and in the info panel (a generated one does not)",
+      ev("__cardCredit") and ev("__panelCredit") and ev("__noCredit"))
+
 # the map's two buttons sit in the window's footer under the board (not on the map), only while the map is open
 lua(r"""
 UI:ShowLevelSelect()

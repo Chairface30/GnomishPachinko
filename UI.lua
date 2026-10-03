@@ -1263,6 +1263,7 @@ function UI:ShowStartCard()
     local s2, s3 = L:StarScores(st.level)
     card.line2:SetText(("|cffffd7002 stars|r at %s   |cffffd7003 stars|r at %s"):format(fmtBig(s2), fmtBig(s3)))
     local extra = {}
+    if st.author then extra[#extra + 1] = "|cff88ddffLevel by " .. st.author .. "|r" end
     if st.gimmick then extra[#extra + 1] = st.gimmick end
     local best = GP:GetDB().best[st.level]
     card.best:SetText(best and ("Best score  |cffffd700%s|r"):format(fmtBig(best)) or "|cff9999aaNo score yet|r")
@@ -4587,8 +4588,8 @@ function UI:UpdateDisplay()
     if st then
         self.levelText:SetText(("Level %d / %d"):format(st.level, L.COUNT))
         self.chapterText:SetText("|cffaaddff" .. (st.name or "") .. "|r")
-        self.layoutText:SetText(("Chapter %d  -  %s%s"):format(st.chapter, st.layout or "",
-            st.gimmick and ("  +  " .. st.gimmick) or ""))
+        self.layoutText:SetText(("Chapter %d  -  %s%s"):format(st.chapter,
+            st.author and ("Level by " .. st.author) or (st.layout or ""), st.gimmick and ("  +  " .. st.gimmick) or ""))
         local objective = self:ObjectiveText(st)
         if st.boss then
             local def
