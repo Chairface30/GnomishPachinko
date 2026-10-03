@@ -104,6 +104,8 @@ local function new(name)
 end
 function Obj:CreateTexture() return new() end
 function Obj:CreateLine() return new() end
+function Obj:SetPoint(...) rawset(self, "_point", { ... }) end
+function Obj:GetPoint() local p = rawget(self, "_point") if p then return table.unpack(p) end end
 function Obj:CreateFontString() return new() end
 function CreateFrame(kind, name, parent)
   local f = new(name)
@@ -1905,6 +1907,20 @@ __cornersCovered = corner <= UI.portraitRingFrame:GetWidth() / 2 and half >= UI.
 """)
 check("the host is one model (copies drift out of step)", ev("__oneModel"))
 check("the host's square clip lies under the ring band: corners inside its rim, edges past its opening", ev("__cornersCovered"))
+
+# the boss's bar and name sit below it, and a hurt boss shows no cracks
+lua(r"""
+UI:StartLevel(10, true)
+local b = UI.state.boss
+b.hp = b.maxhp - 2
+__advance(0.1)
+local t = UI.pegTex[UI.pegIndex[b]]
+__bossCrack = t.crack:IsShown()
+local pts = { UI.bossBg:GetPoint() }
+__barY = -(pts[5] or 0)
+__bossY = b.y
+""")
+check("the boss's bar sits below it and a hurt boss shows no cracks", ev("__barY") > ev("__bossY") and not ev("__bossCrack"), f'{ev("__barY")} {ev("__bossY")} {ev("__bossCrack")}')
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

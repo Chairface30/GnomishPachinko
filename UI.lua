@@ -3111,8 +3111,8 @@ function UI:Render(now)
                         t.hpShown = p.hp
                     end
                 end
-                -- cracks on a damaged piece
-                if (p.maxhp or 1) > 1 and p.hp < p.maxhp and not p.lit then
+                -- cracks on a damaged piece (not the boss: its bar shows the damage)
+                if (p.maxhp or 1) > 1 and p.hp < p.maxhp and not p.lit and p.kind ~= "boss" then
                     if t.crackHp ~= p.hp then
                         t.crackHp = p.hp
                         t.crack:SetVertexColor(1, 1, 1, 1)
@@ -3167,13 +3167,16 @@ function UI:Render(now)
     -- the boss's bar follows it
     local b = st.boss
     if b and not b.gone then
-        local y = b.y - (self.bossModelReady and (E.BOSS_R * 1.6 + 8) or (E.BOSS_R + 12))
+        -- below the boss: the bar, and its name under the bar
+        local view = self.bossViewCache or {}
+        local below = (self.bossModelReady and E.BOSS_R * 1.6 * (view.size or 1) or E.BOSS_R) + 10
+        local y = b.y + below
         placeAt(self.bossBg, field, b.x, y)
         self.bossFill:ClearAllPoints()
         self.bossFill:SetPoint("LEFT", self.bossBg, "LEFT", 1, 0)
         self.bossFill:SetWidth(math.max(1, 70 * math.max(0, b.hp) / b.maxhp))
         self.bossName:ClearAllPoints()
-        self.bossName:SetPoint("BOTTOM", self.bossBg, "TOP", 0, 1)
+        self.bossName:SetPoint("TOP", self.bossBg, "BOTTOM", 0, -1)
     elseif b and self.bossBg:IsShown() then
         self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
     end

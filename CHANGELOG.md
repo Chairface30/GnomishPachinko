@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The boss's health bar and name sit below it, and a hurt boss no longer shows cracks.
 - Hosts and bosses show their whole model, head to feet. They used the client's portrait camera, which crops to the head. The boss tuning has a Size slider for the model's frame.
 - Fixed: the boss Model turn slider did nothing. The camera now circles the boss to turn it.
 - **The host stays inside the ring however far it is zoomed.** The model is clipped to a square that lies wholly under the ring's band, so it shows only through the round opening. A try with nine model copies in strips was dropped: the copies drifted out of step.
