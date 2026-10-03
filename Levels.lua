@@ -1899,7 +1899,7 @@ function L:BuildCustom(data, n, attempt)
         custom = true,
         -- only a submitted level (imported from a player's code) names its
         -- builder; the author's own levels, and a level being tested, do not
-        author = data.imported and data.author or nil,
+        author = (data.imported and not (GP.Plays and GP.Plays.IsOwnerName and GP.Plays:IsOwnerName(data.author))) and data.author or nil,
         objective = objective,
         -- Long Shots alongside other goals (a Long Shots level alone counts them as its goal)
         longshots = (objective ~= "longshots") and longshots or nil,

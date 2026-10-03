@@ -267,7 +267,8 @@ end
 -- Returns the level, or nil and why not.
 function ED:Decode(code)
     if type(code) ~= "string" then return nil, "No code." end
-    code = code:gsub("^%s+", ""):gsub("%s+$", "")
+    -- a code shown as a block comes back with its line breaks: they are not part of it
+    code = code:gsub("[\r\n]", ""):gsub("^%s+", ""):gsub("%s+$", "")
     local prefix, n, sum, body = code:match("^(%w+):(%d+):(%d+):(.*)$")
     if prefix ~= self.CODE_PREFIX then return nil, "That is not a Gnomish Pachinko level code." end
     if #body ~= tonumber(n) then return nil, "The code is cut short or has extra text: copy all of it." end
@@ -1125,7 +1126,10 @@ function ED:Import(code)
     local name, k = base, 1
     while self:DB().levels[name] do k = k + 1; name = base .. " " .. k end
     d.name = name
-    d.imported = true
+    -- a code made on one of the owner's own characters is not a submission
+    local own = GP.Plays.IsOwnerName and GP.Plays:IsOwnerName(d.author)
+    d.imported = (not own) or nil
+    if own then d.author = nil end
     self:DB().levels[name] = d
     self:SetData(copy(d))
     self:Status("Imported as \"" .. name .. "\". Test it, then approve it for a level number.")
@@ -1577,9 +1581,42 @@ function ED:ListPage(page)
 end
 
 -- the code box: export shows this level's code to copy; import takes one
+-- A code laid out as a block: lines of CODE_LINE characters (Decode drops
+-- the line breaks again).
+ED.CODE_LINE = 56
+function ED:FormatCode(code)
+    local out = {}
+    for i = 1, #code, self.CODE_LINE do out[#out + 1] = code:sub(i, i + self.CODE_LINE - 1) end
+    return table.concat(out, "\n")
+end
+
+-- Copy: straight to the clipboard where the client lets an addon do that;
+-- otherwise the whole code is selected, ready for Ctrl+C.
+function ED:CopyCode()
+    local p = self.codePanel
+    local code = p and p.code
+    if not code then return end
+    local copied = false
+    for _, fn in ipairs({ rawget(_G, "CopyToClipboard"), C_Clipboard and C_Clipboard.SetText }) do
+        if not copied and type(fn) == "function" then
+            local ok = pcall(fn, code)
+            if ok then copied = true end
+        end
+    end
+    p.box:SetFocus()
+    p.box:HighlightText()
+    if copied then
+        self:Status("The level code is on the clipboard: paste it in a comment on CurseForge.")
+        p.hint:SetText("|cff88ff88Copied to the clipboard.|r Paste it in a comment on the Gnomish Pachinko page on CurseForge.")
+    else
+        p.hint:SetText("|cffffd700The whole code is selected: press Ctrl+C to copy it|r (the game won't let an addon copy for you), then paste it in a comment on CurseForge.")
+    end
+    return copied
+end
+
 function ED:CreateCodePanel()
     local p = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
-    p:SetSize(460, 220)
+    p:SetSize(470, 380)
     p:SetPoint("CENTER", self.field, "CENTER")
     p:SetFrameLevel(self.frame:GetFrameLevel() + 20)
     p.skin = ART:NewSkin(p, "card", "BACKGROUND", 0)
@@ -1591,11 +1628,39 @@ function ED:CreateCodePanel()
     p.hint:SetPoint("TOP", 0, -44)
     p.hint:SetWidth(400)
     p.hint:SetJustifyH("CENTER")
-    local eb = editBox(p, 400, 24)
-    eb:SetPoint("CENTER", 0, 4)
+    -- the code in a block: a scrolling, many-line box on a dark ground
+    local bg = CreateFrame("Frame", nil, p, "BackdropTemplate")
+    bg:SetSize(410, 220)
+    bg:SetPoint("TOP", 0, -84)
+    if bg.SetBackdrop then
+        bg:SetBackdrop({ bgFile = WHITE, edgeFile = WHITE, edgeSize = 1 })
+        bg:SetBackdropColor(0, 0, 0, 0.75)
+        bg:SetBackdropBorderColor(0.6, 0.5, 0.3, 1)
+    end
+    local ok, sf = pcall(CreateFrame, "ScrollFrame", nil, bg, "UIPanelScrollFrameTemplate")
+    if not ok or not sf then sf = CreateFrame("ScrollFrame", nil, bg) end
+    sf:SetPoint("TOPLEFT", 8, -6)
+    sf:SetPoint("BOTTOMRIGHT", -28, 6)
+    local eb = CreateFrame("EditBox", nil, sf)
+    eb:SetMultiLine(true)
+    eb:SetAutoFocus(false)
+    eb:SetWidth(370)
+    eb:SetHeight(200)
     if eb.SetMaxLetters then eb:SetMaxLetters(0) end
-    eb:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    if eb.SetFont then eb:SetFont("Fonts\\ARIALN.TTF", 12, "") end
+    eb:SetTextColor(0.85, 0.95, 0.85)
+    eb:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    eb:SetScript("OnEditFocusGained", function(self) if p.code then self:HighlightText() end end)
+    -- the export is for reading and copying: typing in it puts it back
+    eb:SetScript("OnTextChanged", function(self, user)
+        if user and p.code then self:SetText(ED:FormatCode(p.code)); self:HighlightText() end
+    end)
+    if sf.SetScrollChild then sf:SetScrollChild(eb) end
+    bg:EnableMouse(true)
+    bg:SetScript("OnMouseDown", function() eb:SetFocus() end)
     p.box = eb
+    p.copy = button(p, 120, 26, "Copy", function() ED:CopyCode() end, "Copy the code, to paste in a comment on CurseForge.")
+    p.copy:SetPoint("BOTTOM", -66, 20)
     p.go = button(p, 120, 26, "Import", function() if ED:Import(p.box:GetText()) then p:Hide() end end)
     p.go:SetPoint("BOTTOM", -66, 20)
     local close = button(p, 120, 26, "Close", function() p:Hide() end)
@@ -1609,15 +1674,19 @@ function ED:ShowCode(export)
     if export then
         if #self.data.pieces == 0 then return self:Status("Nothing to export yet.") end
         p.title:SetText("Level code")
-        p.hint:SetText("Press Ctrl+C to copy the whole code, then send it to the game's owner (Discord, mail, a forum post). Chat links are not used.")
-        p.box:SetText(self:ExportCode())
+        p.hint:SetText("Press Copy, then paste the whole code in a comment on the Gnomish Pachinko page on CurseForge.")
+        p.code = self:ExportCode()
+        p.box:SetText(self:FormatCode(p.code))
         p.go:Hide()
+        p.copy:Show()
     else
         if not self:IsOwner() then return self:Status("Importing levels is for the game's owner.") end
         p.title:SetText("Import a level code")
-        p.hint:SetText("Paste the code with Ctrl+V, then press Import. It is checked and saved as a level here.")
+        p.hint:SetText("Click in the box, paste the code with Ctrl+V (as a block or one line), then press Import. It is checked and saved as a level here.")
+        p.code = nil
         p.box:SetText("")
         p.go:Show()
+        p.copy:Hide()
     end
     p:Show()
     p.box:SetFocus()

@@ -4479,6 +4479,42 @@ check("Star scores set in the editor: kept and built (1, 2 and 3), a clear below
       ev("__marksSaved") and ev("__specMarks") and c == [0, 1, 2, 3, 1] and ev("__blank") and ev("__cardMarks"),
       f'{ev("__marksSaved")} {ev("__specMarks")} {c} {ev("__blank")} {ev("__cardMarks")}')
 
+# the code panel: the code shown as a block of lines, read back from a block, and a Copy button
+lua(r"""
+ED:NewLevel()
+for k = 1, 30 do ED:AddPiece("peg", 30 + k * 14, 300 + (k % 4) * 30) end
+ED.nameBox:SetText("Block Test")
+ED:ShowCode(true)
+local shown = ED.codePanel.box:GetText()
+__block = shown:find("\n", 1, true) ~= nil and ED.codePanel.copy:IsShown()
+local back = ED:Decode(shown)
+__fromBlock = back ~= nil and #back.pieces == 30 and back.name == "Block Test"
+-- Copy: the client's clipboard where it has one, else the code selected for Ctrl+C
+local got
+CopyToClipboard = function(t) got = t end
+__copied = ED:CopyCode() == true and got == ED.codePanel.code
+CopyToClipboard = nil
+__selected = ED:CopyCode() == false and ED.codePanel.hint:GetText():find("Ctrl+C", 1, true) ~= nil
+ED.codePanel:Hide()
+-- a code made on one of the owner's characters, imported: not a submission, no credit
+local isOwner, nameOf = GP.Plays.IsOwner, GP.Plays.IsOwnerName
+GP.Plays.IsOwner = function() return true end
+GP.Plays.IsOwnerName = function(_, n) return n == "Chairface Chippendale" end
+ED.data.author = "Chairface Chippendale"
+local own = ED:ExportCode()
+ED:Import(own)
+__ownImport = ED.data.imported == nil and ED.data.author == nil
+ED.data.author = "Jaina Proudmoore"
+local theirs = ED:ExportCode()
+ED:Import(theirs)
+__theirImport = ED.data.imported == true and ED.data.author == "Jaina Proudmoore"
+GP.Plays.IsOwner, GP.Plays.IsOwnerName = isOwner, nameOf
+""")
+check("Export shows the code as a block (read back fine) with a Copy button: to the clipboard where the client allows, else selected for Ctrl+C",
+      ev("__block") and ev("__fromBlock") and ev("__copied") and ev("__selected"))
+check("Importing a code made on one of the owner's characters is not a submission (no credit); a player's code is",
+      ev("__ownImport") and ev("__theirImport"))
+
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
 ED:NewLevel()

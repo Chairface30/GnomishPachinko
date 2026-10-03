@@ -113,6 +113,15 @@ function P:IsOwner()
     return false
 end
 
+-- Is this "First Last" one of the owner's characters? (A level code made on
+-- one is the author's own, not a player's submission.)
+function P:IsOwnerName(name)
+    if type(name) ~= "string" or name == "" then return false end
+    local lower = name:lower()
+    for k in pairs(OWNERS) do if k:lower() == lower then return true end end
+    return false
+end
+
 -- The owner's free top-up: Golden Gears, no mail.
 P.OWNER_GEARS = 10
 function P:GrantFree()
