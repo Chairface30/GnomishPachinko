@@ -39,10 +39,10 @@ CAST = {
     "bink":   ("cgSgspJ2msm6clMCkdW9", "[bright, playful gnome apprentice]", False),    # Jessica
     "cog":    ("N2lVS1w4EtoT3dr4eOWO", "[smug, condescending older brother]", False),  # Callum
     "drake":  ("2EiwWnXFnvU5JabPnv8n", "[snarling, hissing, raspy little dragon]", "dragon"),  # Clyde
-    "golem":  ("pNInz6obpgDQGcFmaJgB", "[booming, robotic, shouting]", True),          # Adam
-    "spider": ("SOYHLrjzK2X1ezoPC6cr", "[creepy, whispering, hissing]", True),         # Harry
-    "boar":   ("IKne3meq5aSn9XLyUdCD", "[gruff, snorting, aggressive]", True),         # Charlie
-    "yeti":   ("nPczCjzI2devNBz1zQrb", "[deep, slow, menacing]", True),                # Brian
+    "golem":  ("pNInz6obpgDQGcFmaJgB", "[booming, robotic, shouting]", "golem"),       # Adam
+    "spider": ("SOYHLrjzK2X1ezoPC6cr", "[creepy, whispering, hissing]", "spider"),     # Harry
+    "boar":   ("IKne3meq5aSn9XLyUdCD", "[gruff, snorting, aggressive]", "boar"),       # Charlie
+    "yeti":   ("nPczCjzI2devNBz1zQrb", "[deep, slow, menacing]", "yeti"),              # Brian
 }
 
 
@@ -93,6 +93,67 @@ def dragon(data):
     return (out / peak * 0.89).astype(np.float32)
 
 
+def _shift(data, rate):
+    """Resample: rate > 1 raises the pitch (and quickens), < 1 lowers it."""
+    n = int(len(data) / rate)
+    return np.interp(np.arange(n) * rate, np.arange(len(data)), data)
+
+
+def _echo(data, taps):
+    out = np.copy(data)
+    for delay, gain in taps:
+        k = int(delay * RATE)
+        if k < len(out):
+            out[k:] += gain * data[:-k]
+    return out
+
+
+def _norm(out):
+    peak = np.max(np.abs(out)) or 1
+    return (out / peak * 0.89).astype(np.float32)
+
+
+def golem(data):
+    """A big iron golem: pitched down, a heavy low ring, crushed bits, a
+    metal-room echo."""
+    d = _shift(data, 0.82)
+    t = np.arange(len(d)) / RATE
+    ring = d * np.sin(2 * np.pi * 38 * t)
+    mixed = 0.5 * d + 0.7 * ring
+    crushed = np.round(mixed * 24) / 24
+    return _norm(_echo(0.6 * mixed + 0.4 * crushed, [(0.07, 0.35), (0.14, 0.18)]))
+
+
+def spider(data):
+    """An electric spider: a little higher, a fast flutter, a breathy hiss
+    under it and a crackle of electricity."""
+    d = _shift(data, 1.1)
+    t = np.arange(len(d)) / RATE
+    env = np.convolve(np.abs(d), np.ones(400) / 400, mode="same")
+    rng = np.random.default_rng(7)
+    hiss = rng.normal(0, 1, len(d)) * env * 0.9
+    crackle = (rng.random(len(d)) < 0.002) * rng.normal(0, 1, len(d)) * env * 6
+    flutter = d * (1 + 0.45 * np.sin(2 * np.pi * 13 * t))
+    return _norm(flutter + hiss + crackle)
+
+
+def boar(data):
+    """A great armored boar: lower, a rough snorting growl, driven hard."""
+    d = _shift(data, 0.9)
+    t = np.arange(len(d)) / RATE
+    growl = d * (1 + 0.5 * np.sin(2 * np.pi * 22 * t))
+    return _norm(np.tanh(growl * 3.0))
+
+
+def yeti(data):
+    """A yeti in an ice cave: deep and slow, a long cold echo."""
+    d = _shift(data, 0.78)
+    return _norm(_echo(d, [(0.12, 0.45), (0.26, 0.3), (0.41, 0.18)]))
+
+
+EFFECTS = {"dragon": None, "golem": golem, "spider": spider, "boar": boar, "yeti": yeti}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--go", action="store_true")
@@ -129,6 +190,8 @@ def main():
         data = finish(tts(key, voice, f"{tag} {text}"))
         if is_machine == "dragon":
             data = dragon(data)
+        elif isinstance(is_machine, str) and EFFECTS.get(is_machine):
+            data = EFFECTS[is_machine](data)
         elif is_machine:
             data = machine(data)
         sf.write(os.path.join(OUT, name + ".ogg"), data, RATE, format="OGG", subtype="VORBIS")
