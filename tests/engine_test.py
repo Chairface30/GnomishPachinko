@@ -1980,6 +1980,32 @@ GnomishPachinkoDB.mascot.dialogTune = nil
 """)
 check("the dialog tuner previews a speaker and saves its zoom and height", ev("__dlgId") == "cog" and ev("__dlgShown") and abs(ev("__dlgW") - 2) < 0.01 and ev("__dlgSaved"))
 
+# the balloons follow the picture: mirrored pairs, an odd one only on the centre line
+lua(r"""
+function balloon_symmetry_probe()
+  local bad, levels = {}, 0
+  for n = 11, 400, 7 do
+    local spec = L:Build(n)
+    local list = {}
+    for _, p in pairs(spec.pegs) do if p.balloon and not p.post then list[#list + 1] = p end end
+    if #list > 0 then levels = levels + 1 end
+    local mid = E.FIELD_W / 2
+    for _, p in ipairs(list) do
+      if math.abs(p.x - mid) > 1 then
+        local twin = false
+        for _, q in ipairs(list) do
+          if q ~= p and math.abs((q.x - mid) + (p.x - mid)) < 1.5 and math.abs(q.y - p.y) < 1.5 and q.r == p.r then twin = true end
+        end
+        if not twin then bad[#bad + 1] = n end
+      end
+    end
+  end
+  return #bad, levels, table.concat(bad, ",")
+end
+""")
+nbad, nlev, which = ev("balloon_symmetry_probe")()
+check("level balloons come in mirrored pairs or sit on the centre line", nbad == 0 and nlev > 10, f"{nbad} unpaired on {which}; {nlev} levels with balloons")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
@@ -2083,7 +2109,7 @@ function balloon_probe()
 end
 """)
 levels, nsizes, early, soft = ev("balloon_probe")()
-check("balloons stand in most levels from chapter 2, in several sizes, with the soft bounce", levels > 300 and nsizes >= 3 and early == 0 and soft, f"{levels} {nsizes} {early} {soft}")
+check("balloons stand in most levels from chapter 2, in several sizes, with the soft bounce", levels > 270 and nsizes >= 3 and early == 0 and soft, f"{levels} {nsizes} {early} {soft}")
 
 # the guide's ghost ball touches the piece it meets, edge to edge
 lua(r"""

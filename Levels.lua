@@ -192,23 +192,47 @@ local function placeRails(rng, add, n, count)
     end
 end
 
-local function placeBalloons(rng, add, n, count)
-    local placed = 0
-    for k = 1, count * 12 do
-        if placed >= count then break end
-        local r = L.BALLOON_SIZES[rng(1, #L.BALLOON_SIZES)]
-        local x
-        if (placed % 2) == 0 then
-            -- a ricochet: near one of the walls
-            local side = (rng() < 0.5) and 1 or -1
-            x = CX + side * (W / 2 - 70 - rng() * 60)
-        else
-            -- a blocker: somewhere in the pattern's open space
-            x = 90 + rng() * (W - 180)
+-- The balloons follow the picture: always in mirrored pairs (the same
+-- size at the same height either side of the middle), with an odd one only
+-- ever on the centre line. A level picks one arrangement and keeps to it:
+-- ricochets by the walls, a pair on the flanks, or a centre balloon with
+-- its pairs beside it. A pair that does not fit tries the next height down;
+-- half a pair is never left behind.
+L.BALLOON_DESIGNS = {
+    walls  = { dx = W / 2 - 80 },
+    flanks = { dx = 150 },
+    centre = { dx = 120, middle = true },
+}
+L.BALLOON_DESIGN_ORDER = { "walls", "flanks", "centre" }
+local function placeBalloons(rng, add, n, count, pegs)
+    if count <= 0 then return 0 end
+    local design = L.BALLOON_DESIGNS[L.BALLOON_DESIGN_ORDER[rng(1, #L.BALLOON_DESIGN_ORDER)]]
+    local r = L.BALLOON_SIZES[rng(1, #L.BALLOON_SIZES)]
+    local placed, k = 0, 0
+    local function try(x, y)
+        k = k + 1
+        return add(balloon(x, y, r), "balloon" .. k)
+    end
+    local y0 = 200 + rng(0, 3) * 30
+    -- the centre one first, if the design has one or the count is odd
+    if design.middle or count % 2 == 1 then
+        for y = y0, 500, 30 do
+            if try(CX, y) then placed = placed + 1 break end
         end
-        local y = 190 + rng() * 300
-        local b = balloon(x, y, r)
-        if add(b, "balloon" .. k) then placed = placed + 1 end
+    end
+    local y = y0 + (placed > 0 and 0 or 0)
+    while count - placed >= 2 and y <= 500 do
+        if try(CX - design.dx, y) then
+            if try(CX + design.dx, y) then
+                placed = placed + 2
+                y = y + 110
+            else
+                pegs[#pegs] = nil          -- no half pairs
+                y = y + 30
+            end
+        else
+            y = y + 30
+        end
     end
     return placed
 end
@@ -1177,7 +1201,7 @@ function L:Build(n, attempt, opts)
     end
     if not opts.stage2 then placeRails(rng, add, n, self:RailCount(n)) end
     family.build(rng, add, d, dens)
-    if not opts.stage2 then placeBalloons(rng, add, n, self:BalloonCount(n)) end
+    if not opts.stage2 then placeBalloons(rng, add, n, self:BalloonCount(n), pegs) end
     return pegs, movers, gimmickNames, rng
     end
 
@@ -1440,6 +1464,21 @@ function L:Build(n, attempt, opts)
         p.maxhp = p.hp
     end
 
+    -- a balloon whose twin was cleared away (for an egg's cradle, say)
+    -- goes too: balloons only ever stand in mirrored pairs or on the middle
+    do
+        local mid = E.FIELD_W / 2
+        for i = #pegs, 1, -1 do
+            local p = pegs[i]
+            if p.balloon and not p.post and math.abs(p.x - mid) > 1 then
+                local twin = false
+                for _, q in ipairs(pegs) do
+                    if q ~= p and q.balloon and math.abs((q.x - mid) + (p.x - mid)) < 1.5 and math.abs(q.y - p.y) < 1.5 and q.r == p.r then twin = true break end
+                end
+                if not twin then table.remove(pegs, i) end
+            end
+        end
+    end
     local spec = {
         level = n,
         chapter = chapter,
