@@ -21,7 +21,7 @@ local WHITE = ART.WHITE
 -- box under it straddling the board's top edge; a column left of the board
 -- for the special-ball buttons; a column right of it with the info block at
 -- the top and the level and plays buttons at the bottom.
-local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 84, 110, 16, 240, 270   -- EDGE: content keeps this far from the window's edge, past the riveted band and the brass corners
+local EDGE, LEFT_W, GAP, SIDE_W, TOP_H = 84, 140, 16, 240, 270   -- EDGE: content keeps this far from the window's edge, past the riveted band and the brass corners
 local PAD = EDGE
 local PORTRAIT = 2 * (E.LAUNCH_R - 12)      -- the host's box: the launcher slides round its rim
 local BARREL_W, BARREL_L = 38, 76           -- the bore is half the barrel's width: room for the ball
@@ -415,18 +415,22 @@ function UI:CreateFrame()
     lastGlow:Hide()
     self.lastGlow = lastGlow
 
-    -- balls left: a column of balls down the left column, off the board
+    -- balls left: two columns of five big balls down the left column, off
+    -- the board (the second column empties first)
     self.ballStrip = {}
+    local BS = UI.BALL_STRIP_SIZE
     for i = 1, 10 do
         local b = frame:CreateTexture(nil, "OVERLAY", nil, 2)
-        b:SetSize(26, 26)
+        b:SetSize(BS, BS)
         ART:Set(b, "ball_small")
-        b:SetPoint("TOP", frame, "TOPLEFT", EDGE + LEFT_W / 2, -(TOP_H + 4 + (i - 1) * 30))
+        local col, row = math.floor((i - 1) / 5), (i - 1) % 5
+        b:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE + (LEFT_W - 2 * BS - 6) / 2 + col * (BS + 6), -(TOP_H + 4 + row * (BS + 5)))
         b:Hide()
         self.ballStrip[i] = b
     end
     self.ballStripMore = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.ballStripMore:SetPoint("TOP", self.ballStrip[10], "BOTTOM", 0, -4)
+    self.ballStripMore:SetPoint("TOP", frame, "TOPLEFT", EDGE + LEFT_W / 2, -(TOP_H + 4 + 5 * (BS + 5)))
+    self.ballStripMore:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
     self.ballStripMore:SetText("")
 
     -- the boss in 3D: its creature model riding a round hover platform that
@@ -1088,6 +1092,8 @@ function UI:CreateCard()
 end
 
 function UI:HideCard()
+    self.startCardUp = nil
+    if self.UpdateItemSlots then self:UpdateItemSlots() end
     self.card:Hide()
     self.cardSheet:Hide()
     self.card.fillAnim = nil
@@ -1132,6 +1138,7 @@ function UI:ShowStartCard()
     card.left:ClearAllPoints()
     card.left:SetPoint("BOTTOM", card, "BOTTOM", 0, 52)       -- alone: centred
     self.greenBoost = false
+    self.startCardUp = true
     self:RefreshCardChoices()
     card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.powerIcon:Show(); card.powerBlurb:Show()
     self.cardSheet:Show()
@@ -1163,24 +1170,16 @@ function UI:CyclePower(dir)
     self:UpdateDisplay()
 end
 
--- The Extra Green Peg from the left column: before a level (the card is
--- up) it is the boost added at Play; during a level it adds a green peg now.
-function UI:UseGreenPeg()
+-- The Extra Green Peg from the left column: only before a level, while
+-- the level card is up, where it is the boost added when Play is pressed.
+-- Once the level has started its button stands greyed out.
+function UI:GreenPegOpen()
     local st = self.state
-    if not st then return end
-    if self.card and self.card:IsShown() and st.phase == E.PHASE.AIM and (st.shots or 0) == 0 then
-        return self:ToggleGreenBoost()
-    end
-    if st.phase ~= E.PHASE.AIM or GP:ItemCount("green") <= 0 then return end
-    if GP:SpendItem("green") then
-        local p = E:AddGreen(st)
-        if p then
-            self:LayoutPegs(true)
-            self:Popup(p.x, p.y - 16, "EXTRA GREEN", 0.6, 1, 0.6)
-            GP:PlaySfx("free_ball.ogg")
-        end
-        self:UpdateItemSlots()
-    end
+    return st and self.startCardUp and st.phase == E.PHASE.AIM and (st.shots or 0) == 0
+end
+
+function UI:UseGreenPeg()
+    if self:GreenPegOpen() then return self:ToggleGreenBoost() end
 end
 
 function UI:ToggleGreenBoost()
@@ -1294,7 +1293,8 @@ UI.HEAD_H = 20               -- the word-art headings' height
 UI.CARD_W, UI.CARD_H = 450, 560   -- the level card
 UI.CARD_POWER_Y = 290                 -- the card's power row, from its top
 UI.ITEM_H = 48                        -- a special-ball button in the left column
-UI.ITEMS_Y = 330                      -- under the column of balls
+UI.BALL_STRIP_SIZE = 65               -- the balls left, two columns of five
+UI.ITEMS_Y = 4 + 5 * (65 + 5) + 26     -- under the balls
 
 -- After the level: stars, score, what happened, and where to go next.
 function UI:ShowResultCard(result, stars)
@@ -1943,8 +1943,10 @@ function UI:UpdateItemSlots()
     for _, b in ipairs(self.itemSlots or {}) do
         local n = GP:ItemCount(b.item)
         local armed = st and ((b.item == "green") and self.greenBoost or st.armed == b.item)
+        local usable = (n > 0 or armed) and st ~= nil
+        if b.item == "green" then usable = usable and self:GreenPegOpen() end
         b.text:SetText(armed and ("x%d\n|cff88ff88%s|r"):format(n, b.item == "green" and "ON" or "ARMED") or ("x%d"):format(n))
-        styleButton(b, (n > 0 or armed) and st ~= nil, 0.35, 0.3, 0.45)
+        styleButton(b, usable, 0.35, 0.3, 0.45)
         if armed and b.skin then ART:TintSkin(b.skin, 0.6, 1, 0.6, 1) end
     end
 end

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The balls left are two and a half times bigger, in two columns of five; the left column is a little wider to hold them.
+- The Extra Green Peg can only be used before a level starts, from the level card; once the level is under way its button is greyed out.
 - A soft click going into the shop and back out.
 - **The result card, redesigned:** three big bevelled stars span the whole card, the middle one larger and higher, sitting over the card's own border. They fill with gold left to right as the score, big and without a label, spins up beneath them. All the text comes below.
 - **Every button wears the logo plate** (gold words on the blank logo plate), across the game, apart from the map's nodes and the pictures that have their own art.

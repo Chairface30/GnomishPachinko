@@ -2209,17 +2209,13 @@ UI.itemSlots[4]:Click()
 __boostOn = UI.greenBoost == true
 UI.itemSlots[4]:Click()
 UI:HideCard()
-local before = 0
-for _, q in ipairs(UI.state.pegs) do if q.kind == "green" then before = before + 1 end end
 local n0 = GP:ItemCount("green")
 UI.itemSlots[4]:Click()
-local after = 0
-for _, q in ipairs(UI.state.pegs) do if q.kind == "green" then after = after + 1 end end
-__greenNow = after == before + 1 and GP:ItemCount("green") == n0 - 1
+__greenNow = GP:ItemCount("green") == n0 and not UI.greenBoost and not UI.itemSlots[4]:IsEnabled()
 """)
 check("the level card's buttons wear the logo plate and it shows the best score", ev("__cardLogo") and ev("__cardBest"))
 check("the left column holds Ring, Rainbow, Suction and the Extra Green Peg, under the balls", ev("__slots") == "ring,rainbow,suction,green" and ev("__slotsTop"), ev("__slots"))
-check("the Extra Green Peg slot is the boost on the level card and a green peg at once in play", ev("__boostOn") and ev("__greenNow"))
+check("the Extra Green Peg works only on the level card; once the level starts it greys out", ev("__boostOn") and ev("__greenNow"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
