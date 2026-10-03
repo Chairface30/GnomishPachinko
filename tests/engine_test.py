@@ -4224,6 +4224,46 @@ sl = dict(ev("__slide"))
 check("the Super Slide tool lays a dragged curve as one rail of full bricks (the last cut to fit) that builds in order",
       sl["n"] >= 8 and sl["rail"] and sl["full"] == sl["n"] - sl["cut"] and sl["cut"] <= 1 and sl["ordered"] and sl["railBricks"] == sl["n"], str(sl))
 
+# the arc and circle tools: smooth curves, no wobble
+lua(r"""
+ED:NewLevel()
+local function at(x, y) __cursor.x, __cursor.y = x, 600 - y end
+ED:SetTool("arc")
+at(150, 300); ED:OnMouseDown("LeftButton"); ED:OnMouseUp("LeftButton")
+at(350, 300); ED:OnMouseDown("LeftButton"); ED:OnMouseUp("LeftButton")
+at(250, 400); ED:OnUpdate(); ED:OnMouseDown("LeftButton"); ED:OnMouseUp("LeftButton")
+-- the arc through (150,300), (250,400), (350,300): centre (250,300), radius 100
+local onArc, n, rail = true, 0, nil
+for _, pc in ipairs(ED.data.pieces) do
+  n = n + 1
+  local dist = math.sqrt((pc.x - 250) ^ 2 + (pc.y - 300) ^ 2)
+  -- a brick's middle sits on the chord, just inside the circle
+  if dist > 100.01 or dist < 98.5 or pc.y < 299 then onArc = false end
+  rail = rail or pc.rail
+  if pc.rail ~= rail then onArc = false end
+end
+__arc = { n = n, onArc = onArc, cancelled = ED.arc == nil }
+ED:NewLevel()
+ED:SetTool("circle")
+at(245, 320); ED:OnMouseDown("LeftButton"); at(245 + 80, 320); ED:OnUpdate(); ED:OnMouseUp("LeftButton")
+local ring, top = true, 0
+for _, pc in ipairs(ED.data.pieces) do
+  local dist = math.sqrt((pc.x - 245) ^ 2 + (pc.y - 320) ^ 2)
+  if dist > 80.01 or dist < 78 then ring = false end
+  if pc.y < 320 - 75 and math.abs(pc.x - 245) < 12 then top = top + 1 end
+end
+__circle = { n = #ED.data.pieces, ring = ring, gapAtTop = top == 0 }
+-- right-click drops a half-drawn arc
+ED:SetTool("arc")
+at(150, 300); ED:OnMouseDown("LeftButton"); ED:OnMouseUp("LeftButton")
+ED:OnMouseDown("RightButton")
+__arcCancel = ED.arc == nil
+""")
+ac, ci = dict(ev("__arc")), dict(ev("__circle"))
+check("Slide arc: three clicks lay one rail of bricks exactly on the arc through them", ac["n"] >= 8 and ac["onArc"] and ac["cancelled"], str(ac))
+check("Slide circle: a dragged ring of bricks on the circle, open at the top; right-click cancels an arc",
+      ci["n"] >= 12 and ci["ring"] and ci["gapAtTop"] and ev("__arcCancel"), str(ci))
+
 # test play: no play spent, nothing recorded, and back to the editor at the end
 lua(r"""
 GnomishPachinkoDB.unlocked = 400
@@ -4260,11 +4300,18 @@ ED.data.level = 37
 ED:Approve(37)
 __approveRefused = GnomishPachinkoDB.editor.approved[37] == nil
 GP.Plays.IsOwner = function() return true end
+-- the owner's own level, approved: no builder named
+ED.data.imported = nil
+ED.data.author = "Chairface Chippendale"
+ED.data.level = 37
+ED:Approve(37)
+__ownNoCredit = GnomishPachinkoDB.editor.approved[37].author == nil and L:Build(37).author == nil
+-- a submitted level, imported and approved: its builder is named
 __imported = ED:Import(code) == true
 ED.data.level = 37
 ED:Approve(37)
 local spec = L:Build(37)
-__replaced = spec.custom == true and #spec.pegs >= 3
+__replaced = spec.custom == true and #spec.pegs >= 3 and spec.author ~= nil
 -- another player's client never uses the owner's saved approvals
 GP.Plays.IsOwner = function() return false end
 __othersGenerated = L:Build(37).custom == nil
@@ -4280,6 +4327,7 @@ check("every player can export a level code; importing and approving are for the
       ev("__exported") and ev("__importRefused") and ev("__approveRefused") and ev("__imported"))
 check("an approved level replaces the generated level on the owner's client, and a shipped one for everyone",
       ev("__replaced") and ev("__othersGenerated") and ev("__shipped"))
+check("only a submitted (imported) level credits its builder; the owner's own approved levels name no one", ev("__ownNoCredit") and ev("__replaced"))
 
 print()
 if failures:

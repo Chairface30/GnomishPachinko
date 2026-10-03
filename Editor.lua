@@ -27,8 +27,8 @@ ED.MAX_PIECES = 500
 ED.MAX_MOVERS = 20
 ED.UNDO_MAX = 60
 ED.SNAPS = { 0, 5, 10, 20 }
-ED.TOOLS = { "select", "slide", "peg", "brick", "block", "rblock", "balloon", "bumper", "key", "cage", "egg", "gem" }
-ED.TOOL_NAMES = { select = "Select / move", slide = "Super Slide" }
+ED.TOOLS = { "select", "slide", "arc", "circle", "peg", "brick", "block", "rblock", "balloon", "bumper", "key", "cage", "egg", "gem" }
+ED.TOOL_NAMES = { select = "Select / move", slide = "Super Slide", arc = "Slide arc", circle = "Slide circle" }
 -- Bricks come in standard sizes: a full brick and a half one. A row or a
 -- Super Slide is laid in full bricks end to end along the path, and the
 -- last one is cut to fit.
@@ -94,6 +94,7 @@ function ED:Sanitize(d)
     local out = { v = 1 }
     out.name = str(d.name, 40) or ""
     out.author = str(d.author, 40)
+    out.imported = d.imported and true or nil     -- came in as a player's code: its author is credited in the game
     local g = L:CustomGoals(type(d.goals) == "table" and { goals = d.goals } or d)
     out.goals = { oranges = g.oranges and true or nil, longshots = g.longshots and floor(num(g.longshots, 1, 20, 3)) or nil }
     out.oranges = d.oranges and floor(num(d.oranges, 0, 200, 0)) or nil
@@ -681,6 +682,54 @@ function ED:AddSlide(pts, plain)
     return made
 end
 
+-- Arcs and circles for slides, as fine polylines that AddSlide lays bricks
+-- along. An arc runs from (x0, y0) to (x1, y1) through (x2, y2); three
+-- points in a line give a straight row.
+ED.CIRCLE_MIN_R = 24
+function ED:ArcPoints(x0, y0, x1, y1, x2, y2)
+    local d = 2 * (x0 * (y1 - y2) + x1 * (y2 - y0) + x2 * (y0 - y1))
+    if abs(d) < 1e-6 then return { { x0, y0 }, { x1, y1 } } end
+    local s0, s1, s2 = x0 * x0 + y0 * y0, x1 * x1 + y1 * y1, x2 * x2 + y2 * y2
+    local cx = (s0 * (y1 - y2) + s1 * (y2 - y0) + s2 * (y0 - y1)) / d
+    local cy = (s0 * (x2 - x1) + s1 * (x0 - x2) + s2 * (x1 - x0)) / d
+    local r = sqrt((x0 - cx) ^ 2 + (y0 - cy) ^ 2)
+    if r > 4000 then return { { x0, y0 }, { x1, y1 } } end
+    local a0, a1, a2 = atan2(y0 - cy, x0 - cx), atan2(y1 - cy, x1 - cx), atan2(y2 - cy, x2 - cx)
+    local function norm(v) v = v % (2 * pi) return v end
+    -- going the way that passes the bend point
+    local sweep = norm(a1 - a0)
+    if norm(a2 - a0) > sweep then sweep = sweep - 2 * pi end
+    local steps = math.max(8, floor(abs(sweep) * r / 3))
+    local pts = {}
+    for k = 0, steps do
+        local a = a0 + sweep * k / steps
+        pts[#pts + 1] = { cx + r * cos(a), cy + r * sin(a) }
+    end
+    return pts
+end
+
+-- a ring round (cx, cy), open at the top by about one brick: its mouth
+function ED:CirclePoints(cx, cy, r)
+    if not r or r < 1 then return {} end
+    local gap = math.min(pi / 2, (E.BRICK_W * 1.2) / r)
+    local a0 = -pi / 2 + gap / 2
+    local sweep = 2 * pi - gap
+    local steps = math.max(16, floor(sweep * r / 3))
+    local pts = {}
+    for k = 0, steps do
+        local a = a0 + sweep * k / steps
+        pts[#pts + 1] = { cx + r * cos(a), cy + r * sin(a) }
+    end
+    return pts
+end
+
+function ED:CancelArc()
+    if self.arc then
+        self.arc = nil
+        if self.field then self:DrawSlidePath(nil) end
+    end
+end
+
 function ED:DrawSlidePath(pts)
     self.slideDots = self.slideDots or {}
     local even = pts and self:SlidePoints(pts) or {}
@@ -891,6 +940,7 @@ function ED:Import(code)
     local name, k = base, 1
     while self:DB().levels[name] do k = k + 1; name = base .. " " .. k end
     d.name = name
+    d.imported = true
     self:DB().levels[name] = d
     self:SetData(copy(d))
     self:Status("Imported as \"" .. name .. "\". Test it, then approve it for a level number.")
@@ -906,7 +956,8 @@ function ED:Approve(n)
     self:CompactMovers()
     local d = self:Sanitize(self.data)
     d.level = n
-    d.author = d.author or playerName()
+    -- only a submitted level names its builder; the owner's own carry no credit
+    if not d.imported then d.author = nil end
     self:DB().approved[n] = d
     self:Status(("Approved for level %d. It replaces that level on this account now; ask for the approved levels to be imported into the addon to ship it."):format(n))
 end
@@ -1364,7 +1415,7 @@ function ED:CreateHelp()
     t:SetWidth(396)
     t:SetJustifyV("TOP")
     t:SetText(table.concat({
-        "|cffffd700Placing|r  Pick a piece on the left and click the board. Bars (bricks, steel bars, cage bars): click for a short one, or drag to draw one from end to end. Super Slide: drag a path and a rail of bricks is laid along it; a ball that meets it from the inside of the curve rides it.",
+        "|cffffd700Placing|r  Pick a piece on the left and click the board. Bars (bricks, steel bars, cage bars): click for a short one, or drag to draw one from end to end. Super Slide: drag a path and a rail of bricks is laid along it; a ball that meets it from the inside of the curve rides it. Slide arc: click the start, click the end, move to bend it, click to lay it. Slide circle: press at the middle and drag out the size (it opens at the top). Right-click or Escape cancels an arc.",
         "",
         "|cffffd700Selecting|r  With Select: click a piece, Shift+click to add or remove, or drag a box. Drag a selected piece to move the whole selection. Right-drag turns it round its middle; the mouse wheel turns it 5 degrees (Shift: 1).",
         "",
@@ -1389,7 +1440,10 @@ end
 
 function ED:SetTool(id)
     self.tool = id
+    self:CancelArc()
     self:RefreshTools()
+    if id == "arc" then self:Status("Slide arc: click where it starts, click where it ends, then move the mouse to bend it and click to lay it.")
+    elseif id == "circle" then self:Status("Slide circle: press at the middle and drag out the size. The ring opens at the top.") end
 end
 
 function ED:RefreshTools()
@@ -1676,6 +1730,10 @@ local function ctrl() return IsControlKeyDown and IsControlKeyDown() end
 function ED:OnMouseDown(btn)
     local x, y = self:Cursor()
     if not x then return end
+    if btn == "RightButton" and self.arc then
+        self:CancelArc()
+        return
+    end
     if btn == "RightButton" then
         if self:SelCount() == 0 then
             local hit = self:PieceAt(x, y)
@@ -1692,6 +1750,27 @@ function ED:OnMouseDown(btn)
     local tool = self.tool
     if tool == "slide" then
         self.drag = { mode = "slide", pts = { { x, y } } }
+        return
+    end
+    if tool == "arc" then
+        local px, py = self:Snap(x), self:Snap(y)
+        local a = self.arc
+        if not a then
+            self.arc = { x0 = px, y0 = py }
+        elseif not a.x1 then
+            if (px - a.x0) ^ 2 + (py - a.y0) ^ 2 < 400 then return end
+            a.x1, a.y1 = px, py
+        else
+            local pts = self:ArcPoints(a.x0, a.y0, a.x1, a.y1, px, py)
+            self:CancelArc()
+            local made = self:AddSlide(pts)
+            self:Status(made and ("A slide arc of %d bricks."):format(made) or "Too short for a slide arc.")
+            self:Refresh()
+        end
+        return
+    end
+    if tool == "circle" then
+        self.drag = { mode = "circle", cx = self:Snap(x), cy = self:Snap(y) }
         return
     end
     if tool ~= "select" then
@@ -1727,6 +1806,15 @@ function ED:OnMouseDown(btn)
 end
 
 function ED:OnUpdate()
+    local a = self.arc
+    if a and not self.drag then
+        local x, y = self:Cursor()
+        if x then
+            local px, py = self:Snap(x), self:Snap(y)
+            if a.x1 then self:DrawSlidePath(self:ArcPoints(a.x0, a.y0, a.x1, a.y1, px, py))
+            else self:DrawSlidePath({ { a.x0, a.y0 }, { px, py } }) end
+        end
+    end
     local dr = self.drag
     if not dr then return end
     local x, y = self:Cursor()
@@ -1764,6 +1852,10 @@ function ED:OnUpdate()
         self.boxTex:SetPoint("TOPLEFT", self.field, "TOPLEFT", x0, -y0)
         self.boxTex:SetSize(math.max(1, bw), math.max(1, bh))
         self.boxTex:Show()
+    elseif dr.mode == "circle" then
+        local r = sqrt((x - dr.cx) ^ 2 + (y - dr.cy) ^ 2)
+        dr.r = self:Snap(r)
+        self:DrawSlidePath(self:CirclePoints(dr.cx, dr.cy, dr.r))
     elseif dr.mode == "slide" then
         local last = dr.pts[#dr.pts]
         if (x - last[1]) ^ 2 + (y - last[2]) ^ 2 >= 16 and #dr.pts < 400 then
@@ -1808,6 +1900,12 @@ function ED:OnMouseUp(btn)
                 end
             end
         end
+        self:Refresh()
+    elseif dr.mode == "circle" then
+        self:DrawSlidePath(nil)
+        local made = (dr.r or 0) >= self.CIRCLE_MIN_R and self:AddSlide(self:CirclePoints(dr.cx, dr.cy, dr.r))
+        self:Status(made and ("A slide circle of %d bricks, open at the top."):format(made)
+            or ("Drag out a bigger circle (at least %d pixels across)."):format(self.CIRCLE_MIN_R * 2))
         self:Refresh()
     elseif dr.mode == "slide" then
         self:DrawSlidePath(nil)
@@ -1855,6 +1953,8 @@ function ED:OnKey(key)
     local n = self:SelCount()
     if key == "DELETE" or key == "BACKSPACE" then
         self:DeleteSelected()
+    elseif key == "ESCAPE" and self.arc then
+        self:CancelArc()
     elseif key == "ESCAPE" then
         if n > 0 or self.drag then self.sel = {}; self.drag = nil; self:Refresh() else handled = false end
     elseif key == "LEFT" or key == "RIGHT" or key == "UP" or key == "DOWN" then
