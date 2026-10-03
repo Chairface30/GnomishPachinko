@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The level card for a duel level (20, 40, 60 and on) no longer prints the rival's long description under the goal; the duel's rules are still in the map tooltip.
 - **The Tin Drake's iron draws the lightning:** while any of its scrap barricades are up, an orange's zap strikes the nearest piece instead of the drake, destroying it. Hit the drake directly, or clear the iron first.
 - The Tin Drake now throws its iron the moment a shot is fired (on every second shot, one piece at a time, at most 4 up), so it can't be aimed around. To make up for the iron, the drake carries 60% of a boss's usual health (7 on level 10, 10 on level 130).
 - The boss tutorials have no arrow or sample piece.

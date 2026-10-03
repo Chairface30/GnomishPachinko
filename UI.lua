@@ -1216,7 +1216,6 @@ function UI:ShowStartCard()
     card.line2:SetText(("|cffffd7002 stars|r at %s   |cffffd7003 stars|r at %s"):format(fmtBig(s2), fmtBig(s3)))
     local extra = {}
     if st.gimmick then extra[#extra + 1] = st.gimmick end
-    if st.duel then extra[#extra + 1] = st.duel.blurb end
     local best = GP:GetDB().best[st.level]
     card.best:SetText(best and ("Best score  |cffffd700%s|r"):format(fmtBig(best)) or "|cff9999aaNo score yet|r")
     card.best:Show()
