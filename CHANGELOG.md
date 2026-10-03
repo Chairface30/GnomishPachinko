@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The plays counter reads simply PLAYS LEFT, in word-art; bought plays are not shown apart.
+- Over ten balls, one extra ball sits at the top of the left column with the total written in it (11, 15, ...); at ten or fewer it disappears.
+
 - **Plays left are a brass play token and a framed number,** with a short note beside them (bought plays, or the wait for the next free one).
 - Reset progress now also puts the special balls and green pegs back to what a new player starts with; gears and the day's plays are kept.
 

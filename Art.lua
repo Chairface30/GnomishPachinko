@@ -99,6 +99,7 @@ slot("star_big_r",       256, 256, { note = "the result card's right star, tippe
 slot("star_big_empty",   256, 256, { note = "the middle star's empty slate socket (tools/word_art.py)" })
 slot("star_big_l_empty", 256, 256, { note = "the left star's empty socket (tools/word_art.py)" })
 slot("star_big_r_empty", 256, 256, { note = "the right star's empty socket (tools/word_art.py)" })
+slot("word_plays_left", 512, 64, { note = "PLAYS LEFT in brass word-art beside the plays counter (tools/word_art.py)" })
 slot("play_token",   128, 128, { note = "a play: a brass pachinko token with a cog rim and a silver ball set in it (tools/word_art.py)" })
 slot("number_frame", 128, 64,  { note = "a riveted brass frame with a dark window for a number (tools/word_art.py)" })
 slot("shop_gear", 128, 128, { note = "the shop button: a shiny golden gear (tools/word_art.py)" })

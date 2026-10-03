@@ -39,6 +39,7 @@ WORDS = {
     "word_goal_longshots": "LONG SHOTS LEFT",
     "word_goal_mixed": "GOALS LEFT",
     "word_shop": "GOLDEN GEAR SHOP",
+    "word_plays_left": "PLAYS LEFT",
 }
 
 BRASS_TOP = (255, 236, 160)

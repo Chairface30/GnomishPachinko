@@ -448,9 +448,18 @@ function UI:CreateFrame()
         b:Hide()
         self.ballStrip[i] = b
     end
+    -- more than ten: one extra ball over the top of the left column, with
+    -- the whole count written in it; gone again at ten or fewer
+    local extra = frame:CreateTexture(nil, "OVERLAY", nil, 2)
+    extra:SetSize(BS, BS)
+    ART:Set(extra, "ball_small")
+    extra:SetPoint("BOTTOMLEFT", self.ballStrip[1], "TOPLEFT", 0, 5)
+    extra:Hide()
+    self.ballExtra = extra
     self.ballStripMore = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    self.ballStripMore:SetPoint("TOP", frame, "TOPLEFT", EDGE + LEFT_W / 2, -(TOP_H + 4 + 5 * (BS + 5)))
-    self.ballStripMore:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+    self.ballStripMore:SetPoint("CENTER", extra, "CENTER", 0, 0)
+    self.ballStripMore:SetFont("Fonts\\FRIZQT__.TTF", 22, "THICKOUTLINE")
+    self.ballStripMore:SetTextColor(1, 0.95, 0.6)
     self.ballStripMore:SetText("")
 
     -- the boss in 3D: its creature model riding a round hover platform that
@@ -851,11 +860,14 @@ function UI:CreateFrame()
     self.playsNum:SetPoint("CENTER", frameTex, "CENTER", 0, 0)
     self.playsNum:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
     self.playsNum:SetTextColor(1, 0.9, 0.5)
+    local playsWord = side:CreateTexture(nil, "ARTWORK")
+    ART:Set(playsWord, "word_plays_left")
+    playsWord:SetSize(18 * 8, 18)
+    playsWord:SetPoint("LEFT", frameTex, "RIGHT", 6, 0)
+    self.playsWord = playsWord
     self.playsText:ClearAllPoints()
     self.playsText:SetPoint("LEFT", frameTex, "RIGHT", 8, 0)
-    self.playsText:SetWidth(SIDE_W - 110)
-    self.playsText:SetJustifyH("LEFT")
-    self.playsText:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+    self.playsText:Hide()        -- the word says it
     self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears\n1g each")   -- placed in the shop below
     self.buyBtn.text:SetWidth(SIDE_W - 16)
     self.buyBtn.text:SetWordWrap(true)
@@ -1620,7 +1632,7 @@ function UI:SetBoardChrome(shown)
     local function set(obj) if obj then if shown then obj:Show() else obj:Hide() end end end
     set(self.portraitBox); set(self.portraitRingFrame); set(self.barrelFrame)
     for _, b in ipairs(self.ballStrip or {}) do if shown then b:Show() else b:Hide() end end
-    if not shown then self.ballStripMore:SetText("") end
+    if not shown then self.ballStripMore:SetText(""); self.ballExtra:Hide() end
     for _, b in ipairs(self.itemSlots or {}) do set(b) end
     if shown then
         if self.state and not self.state.noBucket and self.state.phase ~= E.PHASE.FEVER then self.bucket:Show() end
@@ -3696,7 +3708,13 @@ function UI:UpdateCounters()
     for i, b in ipairs(self.ballStrip) do
         if i <= strip then b:Show() else b:Hide() end
     end
-    self.ballStripMore:SetText(strip > 10 and ("+" .. (strip - 10)) or "")
+    if strip > 10 then
+        self.ballExtra:Show()
+        self.ballStripMore:SetText(tostring(strip))
+    else
+        self.ballExtra:Hide()
+        self.ballStripMore:SetText("")
+    end
     ART:Set(self.goalIcon, ART:Goal(st.objective))
     if st.boss then
         self.goalText:SetText(math.max(0, st.boss.hp) .. " / " .. st.boss.maxhp)
@@ -3769,10 +3787,7 @@ function UI:UpdateDisplay()
     local P = GP.Plays
     local free, bought = P:FreeLeft(), P:BoughtLeft()
     self.playsNum:SetText(tostring(free + bought))
-    local plays = "plays left"
-    if bought > 0 then plays = plays .. ("\n|cffffd700%d bought|r"):format(bought) end
-    if free == 0 and bought == 0 then plays = "|cffff8080next free play\nin " .. P:FormatWait(P:NextFreeIn()) .. "|r" end
-    self.playsText:SetText(plays)
+    self.playsText:SetText("")
     styleButton(self.buyBtn, true, 0.5, 0.38, 0.1)
     self.gearsText:SetText(("|cffffd700Golden Gears: %d|r"):format(P:Gears()))
     for _, b in ipairs(self.shopBtns) do

@@ -2145,7 +2145,7 @@ UI.shopOpenBtn:Click()
 __shopIn = UI.shopPanel:IsShown() and not UI.infoPanel:IsShown() and UI.buyBtn:GetParent() == UI.shopPanel
 __gearSprite = UI.shopOpenBtn.tex.slot == "shop_gear"
 UI.shopLeaveBtn:Click()
-__shopOut = UI.infoPanel:IsShown() and not UI.shopPanel:IsShown() and UI.playsText:IsShown()
+__shopOut = UI.infoPanel:IsShown() and not UI.shopPanel:IsShown() and UI.playsNum:IsShown()
 """)
 check("the shop button swaps the info for the Golden Gear shop, Leave shop swaps it back", ev("__shopIn") and ev("__shopOut"))
 check("the shop button is the golden gear and Get Golden Gears sits in the shop", ev("__gearSprite"))
@@ -2257,6 +2257,23 @@ GnomishPachinkoDB.unlocked = u0
 """)
 check("reset progress also puts green pegs and special balls back to a new player's, keeping gears", ev("__resetItems"))
 check("the plays left show as a play token and a framed number", ev("__playsRow"))
+
+# more than ten balls: one extra ball at the top of the left column, the total inside
+lua(r"""
+UI:StartLevel(3, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+local st = UI.state
+st.ballsLeft = 15
+UI:UpdateCounters()
+__extra15 = UI.ballExtra:IsShown() and UI.ballStripMore:GetText() == "15"
+st.ballsLeft = 11
+UI:UpdateCounters()
+__extra11 = UI.ballExtra:IsShown() and UI.ballStripMore:GetText() == "11"
+st.ballsLeft = 10
+UI:UpdateCounters()
+__extra10 = not UI.ballExtra:IsShown()
+""")
+check("over ten balls an extra ball shows the total (11, or 15); at ten it is gone", ev("__extra15") and ev("__extra11") and ev("__extra10"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
