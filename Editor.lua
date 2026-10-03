@@ -468,8 +468,8 @@ end
 -- copy set gets its own rail names and lock ids, so a mirrored slide is a
 -- slide of its own and a mirrored key opens only its own cage; moving
 -- groups are not copied. Copies land in the same undo step.
-function ED:MirrorCopies()
-    local mode = self.mirrorMode or "off"
+function ED:MirrorCopies(mode)
+    mode = mode or self.mirrorMode or "off"
     if mode == "off" then return end
     local flips = {}
     if mode == "lr" or mode == "quad" then flips[#flips + 1] = { x = true } end
@@ -635,22 +635,17 @@ function ED:MirrorSelected(vertical)
 end
 
 -- a mirrored copy across the board's middle line: symmetric boards in one go
-function ED:MirrorCopyAcross()
-    local list = self:Selected()
-    if #list == 0 then return end
+-- Mirrored copies of the selection across the board's middle lines:
+-- "lr" left-right, "tb" top-bottom, "quad" into all four quarters.
+function ED:MirrorCopyAcross(mode)
+    if self:SelCount() == 0 then return self:Status("Select some pieces first.") end
     self:PushUndo()
-    local new = {}
-    for _, i in ipairs(list) do
-        local pc = copy(self.data.pieces[i])
-        pc.x = W - pc.x
-        if isBar(pc) then pc.a = pi - (pc.a or 0) end
-        pc.mv = nil
-        if #self.data.pieces < self.MAX_PIECES then
-            self.data.pieces[#self.data.pieces + 1] = pc
-            new[#self.data.pieces] = true
-        end
+    local before = #self.data.pieces
+    self:MirrorCopies(mode or "lr")
+    if #self.data.pieces == before then
+        table.remove(self.undo)
+        return self:Status("Those pieces sit on the mirror line: nothing to copy.")
     end
-    self.sel = new
     self:Refresh()
 end
 
@@ -1441,7 +1436,7 @@ local function editBox(parent, w, h)
 end
 
 ED.FIELD_X, ED.FIELD_Y = 176, -96
-ED.FRAME_W, ED.FRAME_H = 1010, 980
+ED.FRAME_W, ED.FRAME_H = 1010, 1005
 
 function ED:Create()
     if self.frame then return end
@@ -1655,14 +1650,17 @@ function ED:Create()
         "Set every selected bar (brick, steel bar, cage bar) to the angle in the box, in degrees: 0 is level, 90 upright. Each turns where it stands.")
     rbtn(0, -443, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
     rbtn(97, -443, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
-    rbtn(194, -443, 92, "Mirror copy", function() ED:MirrorCopyAcross() end, "A mirrored copy on the other side of the middle line.")
-    rbtn(0, -468, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
-    rbtn(97, -468, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
-    rbtn(194, -468, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
-    rbtn(0, -493, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
-    rbtn(146, -493, 140, "Unrail", function() ED:ClearRail() end)
-    rbtn(0, -518, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
-    rbtn(146, -518, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
+    rbtn(194, -443, 92, "Flip both", function() ED:MirrorSelected(false); ED:MirrorSelected(true) end, "Mirror the selection left to right and top to bottom (half a turn).")
+    rbtn(0, -468, 92, "Copy L-R", function() ED:MirrorCopyAcross("lr") end, "A mirrored copy on the other side of the up-and-down middle line.")
+    rbtn(97, -468, 92, "Copy T-B", function() ED:MirrorCopyAcross("tb") end, "A mirrored copy on the other side of the across middle line.")
+    rbtn(194, -468, 92, "Copy quad", function() ED:MirrorCopyAcross("quad") end, "Mirrored copies in all four quarters of the board.")
+    rbtn(0, -493, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
+    rbtn(97, -493, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
+    rbtn(194, -493, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
+    rbtn(0, -518, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
+    rbtn(146, -518, 140, "Unrail", function() ED:ClearRail() end)
+    rbtn(0, -543, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
+    rbtn(146, -543, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
 
     -- each colour for the selected pegs and bricks: orange and green go
     -- dealt -> never -> always -> dealt; purple (it hops every shot) can land or never
@@ -1673,40 +1671,40 @@ function ED:Create()
         purple = "Purple hops to a new peg every shot: let it land here, or never.",
     }
     for k, which in ipairs({ "orange", "green", "purple" }) do
-        local b = rbtn((k - 1) * 97, -543, 92, "", function() ED:CycleColorState(which) end, tips[which])
+        local b = rbtn((k - 1) * 97, -568, 92, "", function() ED:CycleColorState(which) end, tips[which])
         self.colorBtns[which] = b
     end
-    rtext(-575, "Moving parts", 14)
-    self.moverText = rtext(-597, "")
-    self.moverBtn = rbtn(0, -617, 286, "Make them move", function() ED:CycleMover() end,
+    rtext(-600, "Moving parts", 14)
+    self.moverText = rtext(-622, "")
+    self.moverBtn = rbtn(0, -642, 286, "Make them move", function() ED:CycleMover() end,
         "The selected pieces move together: slide side to side, lift up and down, wheel round their middle, or swing like a pendulum. Click again for the next kind; after Swing they stop moving.")
-    rbtn(0, -642, 68, "Range -", function() ED:TuneMover("amp", -1) end)
-    rbtn(73, -642, 68, "Range +", function() ED:TuneMover("amp", 1) end)
-    rbtn(146, -642, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
-    rbtn(218, -642, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
-    rbtn(0, -667, 140, "Reverse direction", function() ED:TuneMover("reverse") end)
-    self.previewBtn = rbtn(146, -667, 140, "Preview motion", function() ED:TogglePreview() end,
+    rbtn(0, -667, 68, "Range -", function() ED:TuneMover("amp", -1) end)
+    rbtn(73, -667, 68, "Range +", function() ED:TuneMover("amp", 1) end)
+    rbtn(146, -667, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
+    rbtn(218, -667, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
+    rbtn(0, -692, 140, "Reverse direction", function() ED:TuneMover("reverse") end)
+    self.previewBtn = rbtn(146, -692, 140, "Preview motion", function() ED:TogglePreview() end,
         "Watch the moving parts move, here in the editor. Any change to the board stops it.")
 
-    rtext(-701, "Files", 14)
-    rbtn(0, -723, 92, "New", function() ED:NewLevel() end)
-    rbtn(97, -723, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
-    rbtn(194, -723, 92, "Load", function() ED:ShowList() end)
-    rbtn(0, -748, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
-    self.testBtn = rbtn(146, -748, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
-    self.importBtn = rbtn(0, -773, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
-    self.approveBtn = rbtn(146, -773, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
+    rtext(-726, "Files", 14)
+    rbtn(0, -748, 92, "New", function() ED:NewLevel() end)
+    rbtn(97, -748, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
+    rbtn(194, -748, 92, "Load", function() ED:ShowList() end)
+    rbtn(0, -773, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
+    self.testBtn = rbtn(146, -773, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
+    self.importBtn = rbtn(0, -798, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
+    self.approveBtn = rbtn(146, -798, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
         "Owner: this level replaces the level number above.")
-    self.unapproveBtn = rbtn(0, -798, 140, "Remove approval", function() ED:Unapprove(ED.data.level) end,
+    self.unapproveBtn = rbtn(0, -823, 140, "Remove approval", function() ED:Unapprove(ED.data.level) end,
         "Owner: the level number above goes back to its generated layout.")
-    self.approvedBtn = rbtn(146, -798, 140, "Approved levels", function() ED:ShowList("approved") end,
+    self.approvedBtn = rbtn(146, -823, 140, "Approved levels", function() ED:ShowList("approved") end,
         "Owner: every approved level waiting to ship, to load or remove.")
 
-    self.statusText = rtext(-831, "", 11)
+    self.statusText = rtext(-856, "", 11)
     self.statusText:SetWidth(286)
     self.statusText:SetJustifyV("TOP")
     self.statusText:SetTextColor(0.75, 1, 0.75)
-    self.problemText = rtext(-891, "", 11)
+    self.problemText = rtext(-916, "", 11)
     self.problemText:SetWidth(286)
     self.problemText:SetJustifyV("TOP")
     self.problemText:SetTextColor(1, 0.55, 0.45)
@@ -1976,14 +1974,15 @@ function ED:RefreshTools()
     end
 end
 
--- the snap grid, faint, inside the zone (at 5 pixels a line every 10, to stay readable)
+-- the snap grid, faint, inside the zone, at the snap's own spacing (every
+-- fourth line a little stronger, so a fine grid stays easy to count)
 function ED:DrawGrid()
     if not self.field then return end
     self.gridLines = self.gridLines or {}
     local g = self.snap or 0
     local n = 0
     if g > 0 then
-        local step = math.max(g, 10)
+        local step = g
         local z = self.ZONE
         local function line(x0, y0, w, h)
             n = n + 1
@@ -1998,10 +1997,15 @@ function ED:DrawGrid()
             t:SetPoint("TOPLEFT", self.field, "TOPLEFT", x0, -y0)
             t:SetSize(w, h)
             t:Show()
+            return t
+        end
+        local function strength(t, v)
+            local k = floor((v - (v < 0 and -0.5 or 0)) / step + 0.5)
+            t:SetVertexColor(0.7, 0.75, 1, (k % 4 == 0) and 0.16 or 0.07)
         end
         -- lines run from the board's middle outward, so the middle lines are grid lines
-        for x = W / 2 - floor((W / 2 - z.x0) / step) * step, z.x1, step do line(x, z.y0, 1, z.y1 - z.y0) end
-        for y = H / 2 - floor((H / 2 - z.y0) / step) * step, z.y1, step do line(z.x0, y, z.x1 - z.x0, 1) end
+        for x = W / 2 - floor((W / 2 - z.x0) / step) * step, z.x1, step do strength(line(x, z.y0, 1, z.y1 - z.y0), x - W / 2) end
+        for y = H / 2 - floor((H / 2 - z.y0) / step) * step, z.y1, step do strength(line(z.x0, y, z.x1 - z.x0, 1), y - H / 2) end
     end
     for k = n + 1, #self.gridLines do self.gridLines[k]:Hide() end
 end

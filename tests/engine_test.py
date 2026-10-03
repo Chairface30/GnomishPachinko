@@ -4677,14 +4677,24 @@ ED:Refresh()
 local n = 0
 for _ in pairs(ED.overlapSet) do n = n + 1 end
 out.overlap = n == 2 and (ED.problemText:GetText() or ""):find("overlap", 1, true) ~= nil
--- snap grid
-ED.snap = 5; ED:CycleSnap()      -- 5 -> 10
-local shown = 0
-for _, t in ipairs(ED.gridLines) do if t:IsShown() then shown = shown + 1 end end
-ED:CycleSnap(); ED:CycleSnap()   -- 20 -> off
+-- snap grid: the lines sit at the snap's own spacing, 5, 10 or 20
+local function gridGap()
+  local xs = {}
+  for _, t in ipairs(ED.gridLines) do
+    if t:IsShown() and t:GetWidth() == 1 then xs[#xs + 1] = select(4, t:GetPoint()) end
+  end
+  table.sort(xs)
+  return #xs, xs[2] and (xs[2] - xs[1]) or 0
+end
+ED.snap = 0
+ED:CycleSnap(); local n5, g5 = gridGap()
+ED:CycleSnap(); local n10, g10 = gridGap()
+ED:CycleSnap(); local n20, g20 = gridGap()
+ED:CycleSnap()
 local still = 0
 for _, t in ipairs(ED.gridLines) do if t:IsShown() then still = still + 1 end end
-out.grid = shown > 20 and still == 0
+out.grid = g5 == 5 and g10 == 10 and g20 == 20 and n5 > n10 and n10 > n20 and still == 0
+out.gridInfo = ("%d@%g %d@%g %d@%g"):format(n5, g5, n10, g10, n20, g20)
 -- mirror while placing
 local function placed(mode, x, y)
   ED:NewLevel()
@@ -4720,6 +4730,20 @@ out.mirrorRail = nr == 2
 ED:Undo()
 out.mirrorUndo = #ED.data.pieces == 0
 ED.mirrorMode = "off"
+-- the Copy L-R / T-B / quad buttons on a selection
+local function copied(mode)
+  ED:NewLevel()
+  local i = ED:AddPiece("peg", 100, 250)
+  ED.sel = { [i] = true }
+  ED:MirrorCopyAcross(mode)
+  local pts = {}
+  for _, pc in ipairs(ED.data.pieces) do pts[#pts + 1] = ("%g,%g"):format(pc.x, pc.y) end
+  table.sort(pts)
+  return table.concat(pts, " ")
+end
+out.copyLR = copied("lr") == "100,250 390,250"
+out.copyTB = copied("tb") == "100,250 100,450"
+out.copyQuad = copied("quad") == "100,250 100,450 390,250 390,450"
 -- approved levels list (owner only)
 local isOwner = GP.Plays.IsOwner
 GP.Plays.IsOwner = function() return true end
@@ -4744,7 +4768,8 @@ __qol = out
 q = dict(ev("__qol"))
 check("Editor: Redo brings back what Undo took, and a new change clears it", q["redo"] and q["redoCleared"], str(q))
 check("Editor: Preview motion moves the moving pieces on the board; a click stops it and puts them back", q["previewMoves"] and q["previewStops"], str(q))
-check("Editor: overlapping pieces are reported (a rail's own joints are not); a snap grid shows while snapping", q["overlap"] and q["grid"], str(q))
+check("Editor: overlapping pieces are reported (a rail's own joints are not); the snap grid sits at the snap's own spacing (5, 10, 20)", q["overlap"] and q["grid"], str(q))
+check("Editor: Copy L-R, Copy T-B and Copy quad mirror a selection across one middle line, the other, or both", q["copyLR"] and q["copyTB"] and q["copyQuad"], str(q))
 check("Editor: mirror while placing makes 2 (left-right), 2 (top-bottom) or 4 (quad) at the mirrored spots, none on the line; bars' angles mirror; a mirrored slide is its own rail; one Undo takes the lot",
       q["mirrorCounts"] and q["mirrorSpots"] and q["barAngle"] and q["mirrorRail"] and q["mirrorUndo"], str(q))
 check("Editor: the owner's Approved levels list loads and removes approved levels, and is hidden for everyone else",

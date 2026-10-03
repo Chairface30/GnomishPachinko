@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Level editor: the snap grid sits at the snap's own spacing, 5, 10 or 20 pixels (5 and 10 both drew a 10-pixel grid), every fourth line a little stronger.
+- Level editor: **Copy L-R, Copy T-B and Copy quad** make mirrored copies of the selection across one middle line, the other, or into all four quarters (Mirror copy only went left-right). Flip both turns the selection half a turn.
 - **Colorblind mode** (a Colorblind box beside Sound and Music, or /pachinko colorblind; off by default): every unlit orange piece wears a white triangle, green a plus and the purple a star (blue has none), so no color has to be told apart by hue. The level editor shows the same marks on pieces set to a color.
 - Level editor: **Redo** (button and Ctrl+Y) beside Undo.
 - Level editor: **mirror while placing**, left-right, top-bottom or quad: every piece placed (pegs, bars, rows, Super Slides, arcs, circles) gets copies across the board's middle lines. A mirrored slide is a rail of its own and a mirrored key opens only its own cage.
