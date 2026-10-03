@@ -2300,6 +2300,31 @@ end
 open_avg, best_avg = ev("rival_open_probe")()
 check("level 90: Cogwhistle's opening shot is a warm-up, well under his best lane", open_avg < best_avg * 0.6, f"opening {open_avg:.0f} best {best_avg:.0f}")
 
+# most generated spirals open like level 8's: from the mouth the outer arm
+# runs down, so a falling ball can be laid into it
+lua(r"""
+function spiral_mouth_probe()
+  local down, total = 0, 0
+  for n = 11, 400 do
+    local spec = L:Build(n)
+    local rails = {}
+    for _, p in ipairs(spec.pegs) do
+      if p.rail and p.railIdx then rails[p.rail] = rails[p.rail] or {}; table.insert(rails[p.rail], p) end
+    end
+    for _, list in pairs(rails) do
+      if #list >= 13 then
+        table.sort(list, function(a, b) return a.railIdx < b.railIdx end)
+        total = total + 1
+        if list[3].y > list[1].y then down = down + 1 end
+      end
+    end
+  end
+  return down, total
+end
+""")
+sd, stot = ev("spiral_mouth_probe")()
+check("most generated spirals open with the arm running down from the mouth (some stay hard)", stot > 10 and 0.6 <= sd / stot < 1.0, f"{sd} of {stot}")
+
 # the Long Shots tutorial: two angled walls of orange pegs and nothing else,
 # and plenty of plain shots make a Long Shot
 lua(r"""

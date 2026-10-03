@@ -166,9 +166,22 @@ local function railBowl(add, rng, cx, cy, r, id)
         return cx + r * cos(a), cy + r * sin(a) * 0.85
     end, 10, id, rng, nil, { rail = id, railCx = cx, railCy = cy })
 end
+-- Most spirals open like level 8's: the mouth on the upper flank with the
+-- outer arm running down from it, so a falling ball can be laid into it
+-- and ride it round; the mouth sits somewhere between the side and the
+-- top. One in L.SPIRAL_HARD opens the other way (the arm climbing from the
+-- mouth), only to be ridden by a ball coming up from below.
+L.SPIRAL_HARD = 0.2
 local function railSpiral(add, rng, cx, cy, r1, id)
     local dir = (rng() < 0.5) and 1 or -1
-    local a0 = (dir > 0) and -0.15 or (pi + 0.15)
+    local a0
+    if rng() < L.SPIRAL_HARD then
+        a0 = (dir > 0) and -0.15 or (pi + 0.15)
+    else
+        -- dir 1 winds with falling angles: the mouth on the left, arm going down
+        local lift = 0.14 + rng() * 0.6
+        a0 = (dir > 0) and (-pi + lift) or (-lift)
+    end
     brickCurve(add, function(t)
         local a = a0 - dir * t * 1.15 * 2 * pi
         local r = r1 - (r1 - r1 * 0.32) * t

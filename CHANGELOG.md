@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Spirals can be ridden:** most generated spirals now open like level 8's, with the mouth on the upper flank and the outer arm running down from it, so a falling ball can be laid into it for a Super Slide. Before, nearly every spiral's arm climbed away from its mouth. One in five still opens the hard way.
 - Fixed: the goal's count in the info panel ("20 / 20") ran into the end of its heading ("ORANGE PEGS LEFT"). The heading now shrinks to leave room for the count.
 - **Free Ball Frenzy gives 1 extra ball** (was 3), still with its 5,000 points. Razzle's line is re-voiced to match.
 - **Fewer tutorials:** the Wheel, Twin Wheels, Bumpers, Bumper Gate, Key Gate (level 111) and Sliding Block (level 121) no longer stop for a talk.
