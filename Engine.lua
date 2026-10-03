@@ -165,6 +165,7 @@ E.SCRAP_ROW_GAP        = 34  -- between the Drake's rows of scrap
 E.WEB_R          = 13        -- a Gyro Spider web
 E.WEB_PER_ORANGE = 2         -- spun every time an orange is lit ...
 E.WEB_BALL_CLEAR = 60        -- never spun this close to a ball in flight
+E.WEB_SPOT_SHARE = 0.5       -- the chance a web tries a cleared peg's spot rather than open space
 E.WEB_MAX        = 10        -- ... up to this many on the board
 E.WEB_CLEAR      = 14        -- the gap kept between a web and any piece
 E.SCRAP_COL_W    = 44        -- scrap sits on columns this wide (a ball passes between neighbours)
@@ -2006,26 +2007,42 @@ end
 E.DrakeScrap = drakeScrap
 
 -- The Gyro Spider's webs: two every time an orange is lit, anywhere in the
--- open between the pattern's pieces (and clear of any ball in flight). A ball that touches one is caught: the web
+-- open between the pattern's pieces or right where a peg has been cleared
+-- (and clear of any ball in flight). A ball that touches one is caught: the web
 -- and the ball are both gone. A fireball burns a web away and flies on.
 local function spiderWebs(state, boss, events)
     local count = 0
     for _, p in ipairs(state.pegs) do if p.web and not p.gone then count = count + 1 end end
     local yTop, yBot = E.PEG_TOP + 30, boss.y - E.BOSS_R - 30
     if yBot <= yTop then return end
+    -- the spots where pegs were: a web there needs only to touch nothing
+    local spots = {}
+    for _, q in ipairs(state.pegs) do
+        if q.gone and q.shape == "peg" and not q.web and not q.scrap and not q.loose and not q.post
+            and q.kind ~= "boss" and q.y < yBot then
+            spots[#spots + 1] = q
+        end
+    end
     local made = 0
     for _ = 1, 120 do
         if made >= E.WEB_PER_ORANGE or count + made >= E.WEB_MAX then break end
-        local x = 34 + state.rng() * (W - 68)
-        local y = yTop + state.rng() * (yBot - yTop)
+        local x, y, gap
+        if #spots > 0 and state.rng() < E.WEB_SPOT_SHARE then
+            local q = spots[state.rng(1, #spots)]
+            x, y, gap = q.x, q.y, 1
+        else
+            x = 34 + state.rng() * (W - 68)
+            y = yTop + state.rng() * (yBot - yTop)
+            gap = E.WEB_CLEAR
+        end
         local clear = true
         for _, q in ipairs(state.pegs) do
             if not q.gone then
                 if q.shape == "brick" then
-                    if pegContact(q, x, y, E.WEB_R + E.WEB_CLEAR) then clear = false break end
+                    if pegContact(q, x, y, E.WEB_R + gap) then clear = false break end
                 else
                     local dx, dy = q.x - x, q.y - y
-                    local rr = (q.r or E.PEG_R) + E.WEB_R + E.WEB_CLEAR
+                    local rr = (q.r or E.PEG_R) + E.WEB_R + gap
                     if dx * dx + dy * dy < rr * rr then clear = false break end
                 end
             end

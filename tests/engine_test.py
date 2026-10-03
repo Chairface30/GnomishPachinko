@@ -2890,6 +2890,34 @@ end
 check("the Slider and Sliding Block tutorials show the piece gliding side to side",
       ev("glide_probe")(21, "gim_slider") and ev("glide_probe")(121, "gim_sliding_block"))
 
+# the Gyro Spider's webs also go where pegs have been cleared
+lua(r"""
+function web_spot_probe()
+  local spec
+  for n = 10, 400, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "spider" then break end end
+  local st = E:NewLevel(spec)
+  local cleared = {}
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "blue" and p.shape == "peg" and not p.moving then p.gone = true; cleared[#cleared + 1] = p end
+  end
+  local onSpot, total = 0, 0
+  for k = 1, 30 do
+    for _, p in ipairs(st.pegs) do if p.web then p.gone = true end end
+    E.SpiderWebs(st, st.boss, {})
+    for _, p in ipairs(st.pegs) do
+      if p.web and not p.gone then
+        total = total + 1
+        for _, q in ipairs(cleared) do if q.x == p.x and q.y == p.y then onSpot = onSpot + 1 break end end
+      end
+    end
+  end
+  return onSpot, total
+end
+""")
+on_spot, web_total = ev("web_spot_probe")()
+check("the Gyro Spider's webs also pop up where pegs have been cleared, not only in open space",
+      on_spot > 0 and on_spot < web_total, f"{on_spot} of {web_total}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

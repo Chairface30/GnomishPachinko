@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The Gyro Spider's webs can also pop up right where a peg has been cleared, as well as in the open spaces.
 - The phoenix egg tutorials show an egg being hit: it cracks, hatches on the last hit (two, or three for the tougher eggs), and the phoenix climbs out of it and away, over and over while the host talks.
 - The moving-piece tutorials (Slider, Lifts, Wheel, Pendulum, Twin Wheels) show a plain moving piece instead of whatever moved first (the Lifts talk showed the purple peg), and show it moving: lifts bob, sliders glide, wheels circle, pendulums swing.
 - The steel and gold rim tutorials now show the pieces themselves: a steel-rimmed and a gold-rimmed peg (just the gold one for the gold tutorial) above the talk box, a ball bouncing on each, cracking it hit by hit until it lights, then starting over.
