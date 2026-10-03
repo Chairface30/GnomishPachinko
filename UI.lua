@@ -3322,8 +3322,8 @@ function UI:OnLevelOver(result)
             end
         end
         local extra = result.score > prevBest and prevBest > 0 and "  |cff88ff88New best!|r" or ""
-        self:ShowBanner("|cffffd700LEVEL CLEARED!|r",
-            ("Score %s  (bins %s)%s"):format(fmtBig(result.score), fmtBig(result.feverTotal or 0), extra), 0)
+        -- just the banner: the score comes on the result card
+        self:ShowBanner("|cffffd700LEVEL CLEARED!|r", "", 0)
         -- the stars are revealed on the card, filling as the score counts up
         GP:PlaySfx("clear.ogg")
         GP:PlayVoice(result.duel and "duel_won" or (stars >= 3 and "three_stars" or "level_cleared"))
