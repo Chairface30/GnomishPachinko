@@ -1836,53 +1836,29 @@ check("no stray balloon pictures in Fever: the balloons are drawn only by the Fe
 # the boss stands as its creature model on a platform that rides with it
 lua(r"""
 UI:StartLevel(10, true)
-__bmShown = UI.bossModel:IsShown() and UI.bossPlatform:IsShown()
+__bmShown = UI.bossModel:IsShown() and (UI.bossPlatform:IsShown() ~= (UI:BossView(UI.state.boss.ability).noPlatform == true))
 __bmNpc = UI.bossModelNpc
 UI:StartLevel(11, true)
 __bmGone = not UI.bossModel:IsShown() and not UI.bossPlatform:IsShown()
 """)
-check("a boss level shows the boss's creature model on its platform; other levels do not",
+check("a boss level shows the boss's creature model (on its platform unless set without); other levels do not",
       ev("__bmShown") and ev("__bmNpc") == 8615 and ev("__bmGone"), f'{ev("__bmShown")} {ev("__bmNpc")} {ev("__bmGone")}')
 
-# TEMPORARY: the host tuning panel saves height and zoom per host
+# the hosts and bosses keep the framing the user set by eye
 lua(r"""
+GnomishPachinkoDB.mascot = { custom = nil, tune = { tink = { z = 1 } }, bossView = { drake = { y = 0 } } }
 UI:StartLevel(1, true)
-GnomishPachinkoDB.mascot.custom = nil
-UI:TuneHost(1)
-__tuneId = UI:TuneHostDef().id
-UI:SetTune("z", -0.25); UI:SetTune("scale", 1.4)
-local t = GnomishPachinkoDB.mascot.tune[__tuneId]
-__tuneOk = t and t.z == -0.25 and t.scale == 1.4
-__zoomW = GP.Mascot.model:GetWidth() / GP.Mascot.baseW
-UI:SetTune(nil)
-__tuneReset = GnomishPachinkoDB.mascot.tune[__tuneId] == nil
-""")
-check("the tuning panel saves a host's height and zoom, and resets them",
-      ev("__tuneId") == "mekka" and ev("__tuneOk") and ev("__tuneReset"))
-lua(r"""
-GnomishPachinkoDB.mascot.bossView = nil
+__hostScale = GP.Mascot.model:GetWidth() / GP.Mascot.baseW
+__hostId = GP:HostFor(1).id
+__oldTuneGone = GnomishPachinkoDB.mascot.tune == nil and GnomishPachinkoDB.mascot.bossView == nil
 UI:StartLevel(10, true)
-UI.tuner.boss.x:GetScript("OnValueChanged")(UI.tuner.boss.x, 12)
-UI.tuner.boss.view:GetScript("OnValueChanged")(UI.tuner.boss.view, 0.5)
-UI.tuner.boss.yaw:GetScript("OnValueChanged")(UI.tuner.boss.yaw, 1.3)
-UI:RefreshTuner()
-__yawSaved = UI:BossView("drake").yaw == 1.3 and UI.bossViewCache.yaw == 1.3
-local v = UI:BossView("drake")
-__bossViewOk = v.x == 12 and v.view == 0.5 and v.pitch == UI.BOSS_VIEW.pitch and UI.bossViewCache.x == 12
-  and UI:BossView("golem").x == 0
--- the platform hides for one boss only
-UI.tuner.platBtn:Click()
-__platHidden = not UI.bossPlatform:IsShown() and UI:BossView("drake").noPlatform == true and not UI:BossView("golem").noPlatform
--- the arrows show the next boss's model on the board
-UI:TuneBoss(1)
-__nextBoss = UI.bossModelFor
-GnomishPachinkoDB.mascot.bossView = nil
+__drakeView = UI:BossView("drake")
+__noTuner = UI.tuner == nil and UI.CreateMascotTuner == nil
 """)
-check("the boss sliders save view angle, distance, turn, tilt, x and y per boss", ev("__bossViewOk"))
-check("the platform can be hidden for one boss", ev("__platHidden"))
-check("the boss turn slider saves its value", ev("__yawSaved"))
-check("the boss arrows show the next boss's model to set it", ev("__nextBoss") == "golem")
-check("the zoom slider resizes the host's model frame (the client undoes SetModelScale)", abs(ev("__zoomW") - 1.4) < 0.01, str(ev("__zoomW")))
+check("each host keeps its set zoom (the frame is resized)", ev("__hostId") == "tink" and abs(ev("__hostScale") - 1.02) < 0.01, str(ev("__hostScale")))
+check("each boss keeps its set view; the Tin Drake stands without a platform",
+      ev("__drakeView").y == 60 and ev("__drakeView").noPlatform == True and not ev("UI.bossPlatform:IsShown()"))
+check("the tuning panel and its saved values are gone", ev("__noTuner") and ev("__oldTuneGone"))
 
 # a power is announced by the host it belongs to, whoever hosts the level
 lua(r"""

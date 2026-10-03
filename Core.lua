@@ -147,10 +147,11 @@ end
 -- from the game, a voice of their own (Sounds/Voice/<voiceDir>) and two
 -- powers, the ones on offer while they host.
 GP.HOSTS = {
-    { id = "tink",   name = "Tinkmaster Overspark",    npc = 7406, voiceDir = "",        powers = { "multiball", "guide" } },
-    { id = "mekka",  name = "High Tinker Mekkatorque", npc = 7937, voiceDir = "mekka\\",  powers = { "blast", "lightning" }, z = -0.08, scale = 0.85 },
-    { id = "razzle", name = "Razzle Sprysprocket",     npc = 1269, voiceDir = "razzle\\", powers = { "pyramid", "frenzy" } },
-    { id = "bink",   name = "Bink",                    npc = 5144, voiceDir = "bink\\",   powers = { "fireball", "spooky" } },
+    -- z: the model's height in its ring (a share of the frame); scale: its zoom
+    { id = "tink",   name = "Tinkmaster Overspark",    npc = 7406, voiceDir = "",        powers = { "multiball", "guide" },    z = -0.09, scale = 1.02 },
+    { id = "mekka",  name = "High Tinker Mekkatorque", npc = 7937, voiceDir = "mekka\\",  powers = { "blast", "lightning" },   z = -0.14, scale = 1.10 },
+    { id = "razzle", name = "Razzle Sprysprocket",     npc = 1269, voiceDir = "razzle\\", powers = { "pyramid", "frenzy" },     z = -0.16, scale = 1.16 },
+    { id = "bink",   name = "Bink",                    npc = 5144, voiceDir = "bink\\",   powers = { "fireball", "spooky" },    z = -0.31, scale = 1.49 },
 }
 
 -- The host a power belongs to.

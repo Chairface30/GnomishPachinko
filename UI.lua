@@ -756,7 +756,6 @@ function UI:CreateFrame()
     self:CreatePlaysPanel()
     self:CreateCard()
     if GP.Dialog then GP.Dialog:Create(frame, view, field:GetFrameLevel() + 30) end
-    self:CreateMascotTuner(frame)
     -- the host's box: a round frame centred over the field's top edge, the model inside it
     local box = CreateFrame("Frame", nil, frame)
     box:SetSize(PORTRAIT, PORTRAIT)
@@ -1241,178 +1240,6 @@ end
 -- copy picks its own idle fidgets.)
 UI.PORTRAIT_STRIPS = 1
 
--- TEMPORARY: a panel left of the window to set each host's height (z) and
--- zoom (scale) by eye. Values save to GnomishPachinkoDB.mascot.tune[hostId];
--- once set they are copied into GP.HOSTS and this panel is removed.
-function UI:CreateMascotTuner(frame)
-    local panel = CreateFrame("Frame", nil, frame)
-    panel:SetSize(230, 606)
-    panel:SetPoint("TOPRIGHT", frame, "TOPLEFT", -8, -40)
-    local bg = panel:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetTexture(WHITE)
-    bg:SetVertexColor(0.05, 0.06, 0.1, 0.92)
-    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", panel, "TOP", 0, -8)
-    title:SetText("Host tuning (temporary)")
-    local name = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    name:SetPoint("TOP", panel, "TOP", 0, -30)
-    name:SetWidth(150)
-    panel.name = name
-    local prev = makeButton(panel, 26, 22, "<")
-    prev:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -26)
-    prev:SetScript("OnClick", function() UI:TuneHost(-1) end)
-    local nxt = makeButton(panel, 26, 22, ">")
-    nxt:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -26)
-    nxt:SetScript("OnClick", function() UI:TuneHost(1) end)
-
-    local function slider(key, label, lo, hi, y)
-        local sname = "GnomishPachinkoTune" .. key
-        local sl = CreateFrame("Slider", sname, panel, "OptionsSliderTemplate")
-        sl:SetPoint("TOP", panel, "TOP", 0, y)
-        sl:SetWidth(190)
-        sl:SetMinMaxValues(lo, hi)
-        sl:SetValueStep(0.01)
-        if sl.SetObeyStepOnDrag then sl:SetObeyStepOnDrag(true) end
-        local low, high, text = _G[sname .. "Low"], _G[sname .. "High"], _G[sname .. "Text"]
-        if low and low.SetText then low:SetText(tostring(lo)) end
-        if high and high.SetText then high:SetText(tostring(hi)) end
-        sl.label, sl.textFs, sl.key = label, text, key
-        sl:SetScript("OnValueChanged", function(self, v)
-            if UI.tuneLoading then return end
-            UI:SetTune(self.key, math.floor(v * 100 + 0.5) / 100)
-        end)
-        return sl
-    end
-    panel.z = slider("z", "Height (z)", -1, 1, -72)
-    panel.scale = slider("scale", "Zoom (scale)", 0.3, 5, -122)
-    -- the boss view, shared by every boss (seen on a boss level)
-    -- each boss has its own view; the arrows show another boss's model in
-    -- place of the board's boss, so all five can be set on one boss level
-    local bossTitle = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    bossTitle:SetPoint("TOP", panel, "TOP", 0, -154)
-    bossTitle:SetWidth(150)
-    panel.bossTitle = bossTitle
-    local bprev = makeButton(panel, 26, 22, "<")
-    bprev:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -150)
-    bprev:SetScript("OnClick", function() UI:TuneBoss(-1) end)
-    local bnext = makeButton(panel, 26, 22, ">")
-    bnext:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -150)
-    bnext:SetScript("OnClick", function() UI:TuneBoss(1) end)
-    panel.boss = {}
-    local function bossSlider(key, lo, hi, y)
-        local sl = slider("boss" .. key, key, lo, hi, y)
-        sl:SetScript("OnValueChanged", function(_, v)
-            if UI.tuneLoading then return end
-            local db = GP:GetDB()
-            db.mascot = db.mascot or {}
-            db.mascot.bossView = db.mascot.bossView or {}
-            local id = UI:TuneBossId()
-            db.mascot.bossView[id] = db.mascot.bossView[id] or {}
-            db.mascot.bossView[id][key] = math.floor(v * 100 + 0.5) / 100
-            UI:PoseBossModel()
-            UI:RefreshTuner()
-        end)
-        panel.boss[key] = sl
-    end
-    bossSlider("view", 0, 1.55, -180)
-    bossSlider("dist", 0.3, 3, -230)
-    bossSlider("yaw", -3.14, 3.14, -280)
-    bossSlider("pitch", -3.14, 3.14, -330)
-    bossSlider("x", -60, 60, -380)
-    bossSlider("y", -60, 60, -430)
-    bossSlider("size", 0.5, 4, -480)
-    local plat = makeButton(panel, 214, 22, "Platform: shown")
-    plat:SetPoint("TOP", panel, "TOP", 0, -522)
-    plat:SetScript("OnClick", function()
-        local db = GP:GetDB()
-        db.mascot = db.mascot or {}
-        db.mascot.bossView = db.mascot.bossView or {}
-        local id = UI:TuneBossId()
-        local t = db.mascot.bossView[id] or {}
-        t.noPlatform = not t.noPlatform or nil
-        db.mascot.bossView[id] = t
-        UI:PoseBossModel()
-        UI:RefreshTuner()
-    end)
-    panel.platBtn = plat
-    local reset = makeButton(panel, 100, 22, "Reset host")
-    reset:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 8, 8)
-    reset:SetScript("OnClick", function() UI:SetTune(nil) end)
-    local back = makeButton(panel, 100, 22, "Level's host")
-    back:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -8, 8)
-    back:SetScript("OnClick", function() UI:TuneHost(0, true) end)
-    self.tuner = panel
-end
-
-function UI:TuneHostDef()
-    return GP.HOSTS[self.tuneIndex or 1]
-end
-
--- Step the host being tuned (dir -1/1), or go back to the level's own host.
-function UI:TuneHost(dir, levelHost)
-    local n = #GP.HOSTS
-    if levelHost or not self.tuneIndex then
-        local h = GP:HostFor((self.state and self.state.level) or GP:GetDB().current or 1)
-        for i, x in ipairs(GP.HOSTS) do if x == h then self.tuneIndex = i end end
-    end
-    if not levelHost and dir ~= 0 then self.tuneIndex = ((self.tuneIndex or 1) - 1 + dir) % n + 1 end
-    local h = self:TuneHostDef()
-    if GP.Mascot.SetHost then GP.Mascot:SetHost(h.npc, h) end
-    GP.Mascot:Pose()
-    self:RefreshTuner()
-end
-
--- The current values: the saved tune, else the host's built-in pose.
-function UI:TuneValues(h)
-    local m = GP:GetDB().mascot or {}
-    local t = m.tune and m.tune[h.id] or {}
-    return t.z or h.z or 0, t.scale or h.scale or 1
-end
-
-function UI:SetTune(key, v)
-    local h = self:TuneHostDef()
-    if not h then return end
-    local db = GP:GetDB()
-    db.mascot = db.mascot or {}
-    db.mascot.tune = db.mascot.tune or {}
-    if key == nil then
-        db.mascot.tune[h.id] = nil
-    else
-        local t = db.mascot.tune[h.id] or {}
-        local z, scale = self:TuneValues(h)
-        t.z, t.scale = z, scale
-        t[key] = v
-        db.mascot.tune[h.id] = t
-    end
-    GP.Mascot:Pose()
-    self:RefreshTuner()
-end
-
-function UI:RefreshTuner()
-    local p = self.tuner
-    if not p then return end
-    local h = self:TuneHostDef()
-    if not h then return end
-    local z, scale = self:TuneValues(h)
-    p.name:SetText(h.name)
-    self.tuneLoading = true
-    p.z:SetValue(z)
-    p.scale:SetValue(scale)
-    local view = self:BossView(self:TuneBossId())
-    for key, sl in pairs(p.boss) do sl:SetValue(view[key]) end
-    local def = self:TuneBossDef()
-    p.bossTitle:SetText(def and def.name or "")
-    p.platBtn.text:SetText(view.noPlatform and "Platform: hidden" or "Platform: shown")
-    self.tuneLoading = false
-    local names = { view = "View angle (up = from above)", dist = "Camera distance", pitch = "Model tilt", yaw = "Model turn", x = "Boss x", y = "Boss y", size = "Boss size (frame)" }
-    for key, sl in pairs(p.boss) do
-        if sl.textFs then sl.textFs:SetText(("%s: %.2f"):format(names[key], view[key])) end
-    end
-    if p.z.textFs then p.z.textFs:SetText(("Height (z): %.2f"):format(z)) end
-    if p.scale.textFs then p.scale.textFs:SetText(("Zoom (scale): %.2f"):format(scale)) end
-end
-
 -- The board's chrome: the host's box, the balls-left strip, the special-ball
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
 function UI:SetBoardChrome(shown)
@@ -1689,7 +1516,6 @@ function UI:StartLevel(n, retry)
     self:HideGuide()
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
     if GP.Mascot.SetHost then GP.Mascot:SetHost(GP:HostFor(n).npc, GP:HostFor(n)) end
-    if self.tuner then self:TuneHost(0, true) end
     self.startVoice = spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start")
     GP.Mascot:React("start")
     self:UpdateDisplay()
@@ -1908,11 +1734,7 @@ function UI:LayoutPegs(midLevel)
     if st.boss then
         self.bossName:SetText(st.boss.bossName or "Boss")
         self.bossBg:Show(); self.bossFill:Show(); self.bossName:Show()
-        if not midLevel then
-            self:LoadBossModel(st.boss.ability)
-            for i, d in ipairs(E.BOSSES) do if d.id == st.boss.ability then self.tuneBossIndex = i end end
-            if self.tuner then self:RefreshTuner() end
-        end
+        if not midLevel then self:LoadBossModel(st.boss.ability) end
     else
         self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
         self:HideBossModel()
@@ -1962,37 +1784,28 @@ function UI:BossModelLoaded()
     return ok and id ~= nil
 end
 
--- The board is seen from above, so the boss is too: the model is tilted
--- (pitch), turned (yaw) and rolled toward the camera, and nudged off the
--- boss's centre by x, y pixels. TEMPORARY: the tuning panel's boss sliders
--- override BOSS_VIEW until the values are hardcoded.
+-- The board is seen from above, so the boss is too. Per boss, as the user
+-- set them by eye (2026-10-02): view, the camera's angle up over the model
+-- (1.55 = straight down on its head); dist, the camera's distance against
+-- the client's own framing; yaw, the camera's turn round the model; pitch,
+-- the model's own tilt; x, y, the model's offset from the boss's centre in
+-- pixels; size, its frame against BOSS_R * 3.2; noPlatform hides the disc.
 UI.BOSS_VIEW = { view = 1.2, dist = 1, pitch = 0, yaw = 0, x = 0, y = 0, size = 1 }
-UI.BOSS_VIEWS = {}      -- per boss id: overrides of BOSS_VIEW, plus noPlatform
+UI.BOSS_VIEWS = {
+    drake  = { view = 1.55, dist = 1.31, yaw = 3.14, pitch = -0.20, x = 1.14, y = 60,     size = 4, noPlatform = true },
+    golem  = { view = 1.48, dist = 1.53, yaw = 3.05, pitch = 0,     x = 24,   y = -29.57, size = 4 },
+    spider = { view = 1.2,  dist = 3,    yaw = 3.14, pitch = -0.91, x = 0,    y = -0.29,  size = 3.39 },
+    boar   = { view = 1.2,  dist = 3,    yaw = 3.14, pitch = 0,     x = 0,    y = -0.29,  size = 4 },
+    yeti   = { view = 1.55, dist = 1.29, yaw = 3.09, pitch = 0.02,  x = 0,    y = 11.14,  size = 4 },
+}
 function UI:BossView(id)
-    local m = GP:GetDB().mascot
-    local saved = (id and m and m.bossView and m.bossView[id]) or {}
     local fixed = (id and self.BOSS_VIEWS[id]) or {}
     local v = {}
     for k, d in pairs(self.BOSS_VIEW) do
-        if saved[k] ~= nil then v[k] = saved[k] elseif fixed[k] ~= nil then v[k] = fixed[k] else v[k] = d end
+        if fixed[k] ~= nil then v[k] = fixed[k] else v[k] = d end
     end
-    if saved.noPlatform ~= nil then v.noPlatform = saved.noPlatform else v.noPlatform = fixed.noPlatform end
+    v.noPlatform = fixed.noPlatform
     return v
-end
-
--- TEMPORARY: which boss the tuning panel is setting
-function UI:TuneBossDef()
-    return E.BOSSES[self.tuneBossIndex or 1]
-end
-function UI:TuneBossId()
-    local d = self:TuneBossDef()
-    return d and d.id
-end
-function UI:TuneBoss(dir)
-    local n = #E.BOSSES
-    self.tuneBossIndex = ((self.tuneBossIndex or 1) - 1 + dir) % n + 1
-    if self.state and self.state.boss then self:LoadBossModel(self:TuneBossId()) end
-    self:RefreshTuner()
 end
 
 function UI:PoseBossModel()

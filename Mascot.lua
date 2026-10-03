@@ -58,7 +58,10 @@ M.REACTIONS = {
 local function settings()
     local db = GP:GetDB()
     db.mascot = db.mascot or {}
-    return db.mascot
+    local m = db.mascot
+    -- the old tuning panel's values now live in GP.HOSTS and UI.BOSS_VIEWS
+    if m.tune or m.bossView or m.bossPitch then m.tune, m.bossView, m.bossPitch = nil, nil, nil end
+    return m
 end
 
 -- The looks to try, in order: the saved display id, the saved creature,
@@ -89,11 +92,8 @@ function M:Pose()
     local model, s = self.model, settings()
     if not model then return end
     local h = (not s.custom) and self.hostPose or {}
-    -- TEMPORARY: the tuning panel's per-host values, read back and
-    -- hardcoded into GP.HOSTS once the user has set them
-    local tune = (not s.custom) and s.tune and h.id and s.tune[h.id] or {}
-    local z = tune.z or s.z or h.z or 0
-    local scale = tune.scale or s.scale or h.scale or 1
+    local z = s.z or h.z or 0
+    local scale = s.scale or h.scale or 1
     -- the zoom is the frame's size too: the client refits the model to its
     -- frame on load and on every camera change, undoing SetModelScale
     if self.anchor and self.baseW then
