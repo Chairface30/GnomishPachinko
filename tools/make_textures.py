@@ -140,6 +140,24 @@ def glow(size, radius=0.7, width=0.16, color=(1, 1, 1)):
     return img
 
 
+def half_shield(w, h, color=(1, 1, 1)):
+    """A glowing half dome, open side down: a bright arc with a faint fill."""
+    bw, bh = w * SS, h * SS
+    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    px = img.load()
+    cx, cy, r = bw / 2, bh - 0.5, min(bw / 2, bh) * 0.94
+    for y in range(bh):
+        for x in range(bw):
+            dd = math.hypot(x + 0.5 - cx, (y + 0.5 - cy)) / r
+            if dd > 1.04:
+                continue
+            edge = math.exp(-((dd - 0.94) ** 2) / (2 * 0.04 * 0.04))
+            fill = 0.22 * dd ** 3 if dd < 0.94 else 0.0
+            a = min(1.0, edge + fill)
+            px[x, y] = rgb(color)[:3] + (int(round(255 * a)),)
+    return img
+
+
 def soft_glow(size, color=(1, 1, 1), sigma=0.33):
     big = size * SS
     img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
@@ -967,6 +985,7 @@ def make_all(slots, only, from_base):
         put("boss", boss_base)
     put("ring", glow(64))
     put("rim", rim_img(64))
+    put("boss_shield", half_shield(128, 64))
     put("crack", crack_img(64))
     put("dot", dot_img(32))
     put("star", star_img(32))

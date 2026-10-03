@@ -287,7 +287,7 @@ D.SCRIPTS = {
     } },
     { key = "boss_golem", when = function(st) return st.boss and st.boss.ability == "golem" end, lines = {
         { "golem", "BOLT GOLEM. SHIELD CYCLE ARMED." },
-        { "razzle", "It raises a shield every third shot. Two hits break it. And watch for the scrap it throws!" },
+        { "razzle", "Its shield is up from the start and comes back every third shot. It stops your lightning too: two hits or two bolts break it." },
     } },
     { key = "boss_spider", when = function(st) return st.boss and st.boss.ability == "spider" end, lines = {
         { "spider", "Skitter skitter. You will never pin the Gyro Spider down." },

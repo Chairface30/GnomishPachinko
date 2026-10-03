@@ -509,6 +509,13 @@ function UI:CreateFrame()
     bossCharge:SetTextColor(0.55, 0.85, 1)
     bossCharge:Hide()
     self.bossCharge = bossCharge
+    -- the Bolt Golem's shield: a half dome over the top of its body, the side
+    -- the ball and the bolts come from
+    local bossShield = barFrame:CreateTexture(nil, "OVERLAY", nil, 4)
+    ART:Set(bossShield, "boss_shield", 0.5, 0.8, 1, 1)
+    bossShield:SetSize(E.BOSS_R * 2 + 24, E.BOSS_R + 12)
+    bossShield:Hide()
+    self.bossShield = bossShield
 
     local bucket = field:CreateTexture(nil, "OVERLAY", nil, 1)
     bucket:SetSize(E.BUCKET_W + 16, E.BUCKET_W + 16)
@@ -3434,7 +3441,7 @@ function UI:HandleEvents(now)
             GP:PlaySfx("shield.ogg")
             self:Popup(ev.x, ev.y - 30, "BLOCKED", 0.6, 0.8, 1)
         elseif t == "boss_shield" then
-            self:ShowBanner("|cff88ccffSHIELD UP|r", "The boss blocks the next two hits", 1.4)
+            self:ShowBanner("|cff88ccffSHIELD UP|r", "The boss blocks the next two hits or bolts", 1.4)
             GP:PlayVoice("boss_shield")
         elseif t == "boss_hop" then
             GP:PlaySfx("hop.ogg")
@@ -4064,13 +4071,7 @@ function UI:Render(now)
                     elseif not flashing then
                         t.flashed = nil
                     end
-                    if (p.shield or 0) > 0 then
-                        t.rim:SetVertexColor(0.5, 0.8, 1, 1)
-                        t.rim:SetAlpha(0.6 + 0.4 * pulse)
-                        t.rim:Show()
-                    else
-                        t.rim:Hide()
-                    end
+                    t.rim:Hide()     -- the shield is the half dome on the bar frame
                     t.ring:SetVertexColor(1, 0.5, 0.5, 1)
                     if flashing then t.ring:SetAlpha(1); t.ring:Show() else t.ring:Hide() end
                     t.shown = "boss"
@@ -4162,6 +4163,15 @@ function UI:Render(now)
         self.bossFill:SetWidth(math.max(1, 70 * math.max(0, b.hp) / b.maxhp))
         self.bossName:ClearAllPoints()
         self.bossName:SetPoint("TOP", self.bossBg, "BOTTOM", 0, -1)
+        if (b.shield or 0) > 0 and not b.lit then
+            -- its bottom edge across the boss's middle; dimmer with one hit left
+            placeAt(self.bossShield, field, b.x, b.y - (E.BOSS_R + 12) / 2 + 2)
+            local pulse = 0.5 + 0.5 * math.sin(now * 5)
+            self.bossShield:SetAlpha((b.shield >= E.GOLEM_SHIELD and 0.75 or 0.4) + 0.25 * pulse)
+            self.bossShield:Show()
+        elseif self.bossShield:IsShown() then
+            self.bossShield:Hide()
+        end
         if (b.charge or 0) > 0 and not b.lit then
             placeAt(self.bossCharge, field, b.x, math.max(b.y - E.BOSS_R - 12, 8))
             self.bossCharge:SetText("CHARGE " .. b.charge)
@@ -4170,7 +4180,7 @@ function UI:Render(now)
             self.bossCharge:Hide()
         end
     elseif b and self.bossBg:IsShown() then
-        self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide(); self.bossCharge:Hide()
+        self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide(); self.bossCharge:Hide(); self.bossShield:Hide()
     end
 
     self.ballAura = self.ballAura or {}

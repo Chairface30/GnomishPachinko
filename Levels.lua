@@ -670,6 +670,22 @@ end }
 
 L.STARTERS = STARTERS
 
+-- The Long Shots tutorial (the first Long Shot level): two angled walls of
+-- pegs, a V opening to the top, every peg orange. A ball that strikes one
+-- wall is thrown across at the other, so the far-apart pairs come easily.
+-- Nothing else goes on the board: no gimmick, rail, balloon, green or rim.
+L.LONGSHOT_TUTORIAL = 66
+L.LONGSHOT_WALLS = { x0 = 70, y0 = 170, x1 = 245, y1 = 470, count = 12 }
+local LONGSHOT_WALLS = { name = "Long Shot Walls", build = function(rng, add)
+    local w = L.LONGSHOT_WALLS
+    for k = 0, w.count - 1 do
+        local f = k / (w.count - 1)
+        local x, y = w.x0 + (w.x1 - w.x0) * f, w.y0 + (w.y1 - w.y0) * f
+        add(peg(x, y))
+        add(peg(W - x, y))
+    end
+end }
+
 -- ---------------------------------------------------------------------
 -- Gimmicks: the moving and solid pieces of later chapters. Each builder
 -- gets (rng, add, mover, exclude, d). Moving pieces keep base positions
@@ -1140,6 +1156,8 @@ function L:Build(n, attempt, opts)
     local d = self:Difficulty(n)
     local objective = self:Objective(n)
     local family = (n <= 10) and STARTERS[n] or FAMILIES[((n + chapter) % #FAMILIES) + 1]
+    local lsTutorial = n == self.LONGSHOT_TUTORIAL and not opts.stage2
+    if lsTutorial then family = LONGSHOT_WALLS end
     local dens = self:Density(n)
     if opts.stage2 then
         family = FAMILIES[((n + chapter + 3) % #FAMILIES) + 1]
@@ -1217,15 +1235,15 @@ function L:Build(n, attempt, opts)
         end
     end
 
-    local gimmicks = allowGimmicks and self:GimmicksFor(n, rng, objective) or {}
+    local gimmicks = (allowGimmicks and not lsTutorial) and self:GimmicksFor(n, rng, objective) or {}
     local gimmickNames = {}
     for _, g in ipairs(gimmicks) do
         g.build(rng, add, mover, exclude, d)
         gimmickNames[#gimmickNames + 1] = g.name
     end
-    if not opts.stage2 then placeRails(rng, add, n, self:RailCount(n)) end
+    if not opts.stage2 and not lsTutorial then placeRails(rng, add, n, self:RailCount(n)) end
     family.build(rng, add, d, dens)
-    if not opts.stage2 then placeBalloons(rng, add, n, self:BalloonCount(n), pegs) end
+    if not opts.stage2 and not lsTutorial then placeBalloons(rng, add, n, self:BalloonCount(n), pegs) end
     return pegs, movers, gimmickNames, rng
     end
 
@@ -1482,8 +1500,17 @@ function L:Build(n, attempt, opts)
         end
     end
 
+    -- the Long Shots tutorial's walls are orange from end to end
+    if lsTutorial then
+        orange = 0
+        for _, p in ipairs(pegs) do
+            if not E.IsSolid(p) and not p.special then p.kind = "orange"; p.goal = false; orange = orange + 1 end
+        end
+    end
+
     -- tough pieces: a steel rim and two (or three) hits to light
     local toughShare, heavyShare = self:ToughShare(n), self:HeavyShare(n)
+    if lsTutorial then toughShare = 0 end
     local tough = 0
     if toughShare > 0 then
         for _, idx in ipairs(order) do

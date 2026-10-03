@@ -248,7 +248,7 @@ for n in range(1, 401):
     if counts["goal"] != spec.goal and spec.objective != "longshots":
         problems.append((n, "goal flags", counts["goal"], spec.goal))
     if counts["green"] != 2:
-        if not (n == 8 and counts["green"] == 0):     # the Super Slide tutorial has none
+        if not (n in (8, 66) and counts["green"] == 0):     # the Super Slide and Long Shots tutorials have none
             problems.append((n, "greens", counts["green"]))
     if n < 31 and counts["tough"] > 0:
         problems.append((n, "tough too early"))
@@ -283,7 +283,7 @@ for n in range(1, 401):
     if n == 200:
         sig1 = [(p.x, p.y, p.kind, p.shape, p.maxhp) for p in spec.pegs.values()]
 check("all 400 levels build with the published goals, 2 greens, nothing overlapping", not problems, str(problems[:5]))
-check("every layout family appears", len(families) == len(ev("L.FAMILIES")), str(sorted(families)))
+check("every layout family appears", len(families - {"Long Shot Walls"}) == len(ev("L.FAMILIES")), str(sorted(families)))
 check("every power is assigned somewhere", len(powers) == 8, str(powers))
 pieces_by_level = {n: report(n)[1]["total"] for n in (1, 5, 11, 30, 61, 81)}
 check("the board fills in as the levels climb", pieces_by_level[1] < pieces_by_level[5] <= pieces_by_level[11] + 10 and pieces_by_level[11] < pieces_by_level[81], str(pieces_by_level))
@@ -1043,7 +1043,7 @@ function lit_expires()
   p.lit = true; p.hitAt = st.time
   st.phase = E.PHASE.FLIGHT
   st.balls[1] = { x = 270, y = 20, vx = 0, vy = 0, slow = 0 }
-  local function hold() st.balls[1].y = 20; st.balls[1].vy = 0 end  -- keep the ball parked
+  local function hold() st.balls[1].y = 20; st.balls[1].vy = 0; st.balls[1].still = 0 end  -- keep the ball parked (and not retired as wedged)
   for _ = 1, 60 do E:Step(st, 1 / 60); hold() end
   local goneAt1 = p.gone
   for _ = 1, 70 do E:Step(st, 1 / 60); hold() end
@@ -2121,6 +2121,102 @@ end
 """)
 zap, hit, zapEv = ev("boss_zap_probe")()
 check("on a boss level an orange lit zaps the boss for 1, a direct hit does 2", zap == 1 and hit == 2 and zapEv, f"{zap} {hit} {zapEv}")
+
+# a ball wedged in place for a second leaves the board as if it fell off
+lua(r"""
+function wedged_probe()
+  local st = E:NewLevel(L:Build(1))
+  for _, p in ipairs(st.pegs) do p.gone = true end
+  st.pegs[#st.pegs + 1] = { shape = "brick", x = 245, y = 400, angle = 0, w = 120, h = E.BRICK_H, kind = "block", hp = 1, maxhp = 1, lit = false, gone = false }
+  st.aim = 0
+  local events = {}
+  assert(E:Launch(st, events))
+  local b = st.balls[1]
+  b.x, b.y, b.vx, b.vy = 245, 400 - E.BRICK_H / 2 - E.BALL_R - 0.5, 0, 0
+  local t, lostAt = 0, nil
+  for _ = 1, 60 * 3 do
+    E:Step(st, 1 / 60, events)
+    t = t + 1 / 60
+    for _, e in ipairs(events) do if e.type == "lost" and e.stuck then lostAt = lostAt or t end end
+    if lostAt then break end
+  end
+  return lostAt or -1
+end
+""")
+lost_at = ev("wedged_probe")()
+check("a ball that stops dead for a second is taken off the board (lost, stuck)", 0.9 < lost_at < 1.4, f"{lost_at:.2f}s")
+
+# a ball that runs off the end of a Super Slide flies on: it is not taken
+# straight back onto the same rail (level 8's spiral, shot straight down,
+# used to re-take it over a hundred times and sit at its end)
+lua(r"""
+function rail_end_probe()
+  local st = E:NewLevel(L:Build(8))
+  st.aim = -80 * math.pi / 180
+  local events = {}
+  assert(E:Launch(st, events))
+  for _ = 1, 60 * 20 do
+    E:Step(st, 1 / 60, events)
+    if st.phase ~= E.PHASE.FLIGHT then break end
+  end
+  local stuck = false
+  for _, e in ipairs(events) do if e.type == "lost" and e.stuck then stuck = true end end
+  return st.rideSeq or 0, stuck
+end
+""")
+rides, stuck_end = ev("rail_end_probe")()
+check("a ball leaving a Super Slide is not pulled back onto the same rail and does not stick at its end", rides <= 4 and not stuck_end, f"rides {rides} stuck {stuck_end}")
+
+# the Bolt Golem starts behind its shield, and the shield blocks an orange's bolt
+lua(r"""
+function golem_zap_probe()
+  local spec
+  for n = 10, 400, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "golem" then break end end
+  local st = E:NewLevel(spec)
+  local b = st.boss
+  local out = { start = b.shield, hp0 = b.hp }
+  local events = {}
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "orange" and not p.lit then st.time = st.time + 1 E.HitPeg(st, p, nil, events, true) break end
+  end
+  out.afterZap, out.hp1 = b.shield, b.hp
+  for _, e in ipairs(events) do if e.type == "shield" and e.zap then out.blocked = true end end
+  return out
+end
+""")
+gz = dict(ev("golem_zap_probe")())
+check("the Bolt Golem starts behind a full shield, and an orange's bolt only knocks a layer off it",
+      gz["start"] == ev("E.GOLEM_SHIELD") and gz["afterZap"] == gz["start"] - 1 and gz["hp1"] == gz["hp0"] and gz.get("blocked"), str(gz))
+
+# the Long Shots tutorial: two angled walls of orange pegs and nothing else,
+# and plenty of plain shots make a Long Shot
+lua(r"""
+function longshot_tutorial_probe()
+  local spec = L:Build(L.LONGSHOT_TUTORIAL)
+  local out = { objective = spec.objective, pegs = #spec.pegs, orange = 0, other = 0, tough = spec.tough, gimmick = spec.gimmick or false, movers = #spec.movers }
+  for _, p in ipairs(spec.pegs) do
+    if p.kind == "orange" and p.shape == "peg" and p.maxhp == 1 then out.orange = out.orange + 1 else out.other = out.other + 1 end
+  end
+  -- fire one ball at each of 33 aims across the arc and count the shots that make a Long Shot
+  out.aims, out.longs = 0, 0
+  for k = 0, 32 do
+    local st = E:NewLevel(L:Build(L.LONGSHOT_TUTORIAL))
+    st.aim = (k / 32 - 0.5) * 2 * (E.MAX_AIM_DEG - 2) * math.pi / 180
+    local events = {}
+    if E:Launch(st, events) then
+      out.aims = out.aims + 1
+      for _ = 1, 60 * 12 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+      for _, e in ipairs(events) do if e.type == "longshot_goal" or e.type == "longshot" then out.longs = out.longs + 1 break end end
+    end
+  end
+  return out
+end
+""")
+lt = dict(ev("longshot_tutorial_probe")())
+check("level 66 (the Long Shots tutorial) is two angled walls of plain orange pegs, nothing else on the board",
+      lt["objective"] == "longshots" and lt["pegs"] == 24 and lt["orange"] == 24 and lt["other"] == 0
+      and lt["tough"] == 0 and not lt["gimmick"] and lt["movers"] == 0, str(lt))
+check("on the Long Shots tutorial plenty of plain shots make a Long Shot", lt["longs"] >= lt["aims"] // 3, str(lt))
 
 # the Gyro Spider only stores an orange's lightning: a strike in the same
 # shot lets it loose, a shot that ends without one loses it

@@ -71,6 +71,7 @@ slot("key",     64, 64,  { tint = true, fill = 0.8, source = true, note = "a whi
 slot("boss",    64, 64,  { tint = true, fill = 0.7, source = true, note = "a white round mechanical face with gear teeth" })
 slot("ring",    64, 64,  { tint = true, note = "the soft glow halo a lit piece wears" })
 slot("rim",     64, 64,  { tint = true, note = "a thin metal band at the edge: steel and gold tough pieces, the boss's shield, the minimap ring" })
+slot("boss_shield", 128, 64, { tint = true, note = "a glowing half dome, open side down: the Bolt Golem's shield over the top of its body" })
 slot("crack",   64, 64,  { tint = true, note = "white crack lines, transparent elsewhere, over a damaged piece" })
 slot("word_objective", 512, 64, { note = "side panel heading in brass word-art (tools/word_art.py): cog for O, piston for I" })
 slot("word_power", 512, 64, { note = "side panel heading in brass word-art (tools/word_art.py): cog for O, piston for I" })

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Level 66, the Long Shots tutorial, is redesigned:** just two angled walls of orange pegs in a V, nothing else on the board (no gimmick, rail, balloon, green or rimmed piece). A ball off one wall flies across to the other, so Long Shots come easily.
+- **A wedged ball leaves the board:** a ball that stays in the same spot for a second (stuck between pieces, jittering in place) is taken off as if it had fallen off the bottom.
+- **The Bolt Golem starts behind its shield,** shown as a glowing half dome over the top of it (dimmer with one hit left). The shield now blocks lightning as well: an orange's bolt knocks off a layer instead of hurting him. He still raises it again every third shot. Razzle's golem line is re-voiced to match.
+- Fixed: a ball running off the end of a Super Slide could be taken straight back onto the same rail, over and over, and sit at its end. It now flies on along the rail's last stretch.
+- Rail (Super Slide) bricks bounce a ball like any other brick: a touch that doesn't take the rail no longer kills the ball's bounce, and a contact that can't start a ride is an ordinary bounce instead of leaving the ball stopped. On the rail the ball keeps its speed.
 - **The Cog Yeti heals 3 health** (was 1) after a shot that lights no orange and never touches it, more than a direct hit's 2, so a wasted shot costs more than a good one earns. The popup shows the amount.
 - **The Gyro Spider soaks up the lightning:** a lit orange no longer hurts it, it only charges it (the count shows over its body). Strike the spider with the ball in the same shot and the whole charge hits it on top of the strike's own 2; if the shot ends without a strike, the charge fizzles. Lighting oranges and then finding the spider (which jumps when hit, past webs that catch the ball) is the fight now.
 - **Play On is gone,** and **a retry uses a play**: starting a level over (the Retry button beside the board, or on the result card after a clear) spends one of the day's plays. A lost level still costs one play, and retrying it after the loss does not cost a second.

@@ -65,6 +65,8 @@ E.MAX_AIM_DEG  = 82
 E.STUCK_SPEED  = 35
 E.STUCK_SECS   = 1.5
 E.MAX_FLIGHT   = 25         -- seconds a ball may stay in play
+E.STILL_SECS   = 1.0        -- a ball that stays within STILL_RADIUS of one spot this long is wedged ...
+E.STILL_RADIUS = 4          -- ... and leaves the board as if it fell off
 E.LIT_SECS     = 2.0        -- a lit piece vanishes this long after the hit
 E.HIT_COOLDOWN = 0.2        -- one ball cannot hit the same piece twice within this
 E.BOSS_COOLDOWN = 0.05      -- a boss counts every real strike, even three in a quick bank shot
@@ -145,8 +147,8 @@ E.BOSS_BOUNCE = 1.0
 E.BOSS_KICK   = 220
 -- A boss is worn down by good play, not one lucky bounce: a direct hit
 -- does BOSS_HIT_DAMAGE, and every orange peg lit on a boss level zaps it
--- for BOSS_ZAP_DAMAGE (a shield stops only the ball, not a zap; the Gyro
--- Spider only stores it, see below).
+-- for BOSS_ZAP_DAMAGE (the Bolt Golem's shield blocks a zap as it blocks
+-- the ball; the Gyro Spider only stores it, see below).
 E.BOSS_HIT_DAMAGE = 2
 -- the Tin Drake's speed-up: at its last point of health it flies (1 + gain)
 -- times as fast as it started; gain grows with the chapter, up to a cap
@@ -261,7 +263,7 @@ E.AIM_SWING    = 5.0        -- radians a second the launcher swings toward the c
 -- with it; the names and blurbs are for the panel.
 E.BOSSES = {
     { id = "drake",  name = "Tin Drake",    blurb = "Speeds up as it weakens.",                         speed = 0.6 },
-    { id = "golem",  name = "Bolt Golem",   blurb = "Raises a two-hit shield every third shot.",        speed = 0.7 },
+    { id = "golem",  name = "Bolt Golem",   blurb = "Starts behind a two-hit shield and raises it again every third shot. The shield blocks lightning too.",        speed = 0.7 },
     { id = "spider", name = "Gyro Spider",  blurb = "Lit oranges only charge it: strike it in the same shot to turn the charge into damage. Jumps when hit, and spins two webs every time an orange is lit: a ball that touches one is caught with it.", speed = 1.0 },
     { id = "boar",   name = "Mechano-Boar", blurb = "Charges fast and turns around when hit.",          speed = 1.8 },
     { id = "yeti",   name = "Cog Yeti",     blurb = "Heals 3 health after any shot that lights no orange and misses it.",   speed = 0.8 },
@@ -420,7 +422,11 @@ function E:NewLevel(spec)
         p.hp = p.maxhp
         p.lit, p.gone, p.freed, p.collected = false, false, false, false
         p.cooldown, p.shield = nil, 0
-        if p.kind == "boss" then state.boss = p end
+        if p.kind == "boss" then
+            state.boss = p
+            -- the Bolt Golem starts the fight behind its shield
+            if p.ability == "golem" then p.shield = E.GOLEM_SHIELD end
+        end
         if p.loose then
             state.hasLoose = true
             p.vx, p.vy, p.resting, p.settling = 0, 0, false, true
@@ -992,7 +998,12 @@ lightPeg = function(state, p, ball, events, quiet, at)
             push(events, { type = "boss_charge", x = p.x, y = p.y, bx = boss.x, by = boss.y, charge = boss.charge })
         else
         push(events, { type = "boss_zap", x = p.x, y = p.y, bx = boss.x, by = boss.y })
-        do       -- a zap goes past a shield: the shield only stops the ball
+        if (boss.shield or 0) > 0 then
+            -- the Bolt Golem's shield takes the bolt as it takes a ball
+            boss.shield = boss.shield - 1
+            boss.crackAt = state.time
+            push(events, { type = "shield", peg = boss, x = boss.x, y = boss.y, left = boss.shield, zap = true })
+        else
             boss.hp = (boss.hp or 1) - E.BOSS_ZAP_DAMAGE
             if boss.hp > 0 then
                 boss.crackAt = state.time
@@ -1097,6 +1108,7 @@ end
 -- ends or the ball is too slow to hold on.
 E.RAIL_MIN_SPEED = 60
 E.RAIL_ENGAGE    = 0.7     -- away from a mouth, a ball takes the rail only this grazing (into the face < 0.7 x along it, ~35 degrees)
+E.RAIL_REENTRY   = 0.3     -- seconds after running off a rail's end before the ball can take that rail again
 local function brickFrame(q)
     local c, s = cos(q.angle or 0), sin(q.angle or 0)
     local nx, ny = -s, c
@@ -1222,6 +1234,11 @@ local function railStep(state, ball, events, dt)
     end
     local x, y, tx, ty = railAt(pts, math.max(0, math.min(endS, ride.s)))
     ball.x, ball.y = x, y
+    if tx == 0 and ty == 0 then
+        -- a zero-length stretch has no direction: keep the ball's own
+        local v = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
+        if v > 0.001 then tx, ty = ball.vx / v * ride.dir, ball.vy / v * ride.dir else tx, ty = 0, 1 end
+    end
     ball.vx, ball.vy = tx * speed * ride.dir, ty * speed * ride.dir
     if ride.s <= 0 or ride.s >= endS then
         -- off the end: away along the rail's last stretch (only the bricks
@@ -1257,7 +1274,10 @@ collideBall = function(state, ball, events, light)
             end
             if depth then
                 local onto = false
-                if p.rail and light and not ball.fire and p.railCx and not p.lit then
+                -- (never the rail just run off: at its end the ball would be
+                -- taken straight back on and sit there, riding nowhere)
+                local justOff = ball.railLost == p.rail and state.time - (ball.railLostAt or -1) < E.RAIL_REENTRY
+                if p.rail and light and not ball.fire and p.railCx and not p.lit and not justOff then
                     -- from the centre side, the ball takes the rail instead of
                     -- bouncing, but only in at a mouth (either end brick of
                     -- the chain) or coming in grazing along the face; any
@@ -1280,9 +1300,12 @@ collideBall = function(state, ball, events, light)
                     ball.railSpeed = math.max(E.RAIL_MIN_SPEED * 3, now)
                     ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
                     startRide(state, ball, p, events)
-                    if ball.rail then railStep(state, ball, events, 0) end
-                    return
-                elseif ball.fire and light and not isSolid(p) and p.kind ~= "boss" and not p.loose then
+                    if ball.rail then railStep(state, ball, events, 0) return end
+                    -- no ride after all (too little of the rail left): an
+                    -- ordinary brick hit, already pushed clear of the face
+                    depth = 0
+                end
+                if ball.fire and light and not isSolid(p) and p.kind ~= "boss" and not p.loose then
                     -- a fireball burns through: hit it, keep flying
                     hitPeg(state, p, ball, events)
                 else
@@ -1293,7 +1316,7 @@ collideBall = function(state, ball, events, light)
                     if p.loose then ball.hitNx, ball.hitNy, ball.hitClose = -nx, -ny, math.max(0, -vn) end
                     if vn < 0 then
                         local e = p.bounce or E.RESTITUTION
-                        if p.shape == "brick" and not isSolid(p) and light then
+                        if p.shape == "brick" and not isSolid(p) and light and not p.rail then
                             -- a grazing touch on a brick rides along it (Super Slide)
                             local tx, ty = -ny, nx
                             local vt = ball.vx * tx + ball.vy * ty
@@ -1563,6 +1586,18 @@ local function integrateBall(state, ball, dt, events)
     if ball.age > E.MAX_FLIGHT then
         push(events, { type = "lost", x = ball.x, stuck = true })
         return false
+    end
+    -- a ball wedged in place (jittering on the spot, however fast) is
+    -- taken off the board as if it had fallen off the bottom
+    local ax, ay = ball.stillX, ball.stillY
+    if not ax or (ball.x - ax) ^ 2 + (ball.y - ay) ^ 2 > E.STILL_RADIUS * E.STILL_RADIUS then
+        ball.stillX, ball.stillY, ball.still = ball.x, ball.y, 0
+    else
+        ball.still = (ball.still or 0) + dt
+        if ball.still > E.STILL_SECS then
+            push(events, { type = "lost", x = ball.x, stuck = true })
+            return false
+        end
     end
     if ball.slow > E.STUCK_SECS then
         if clearLitPegs(state, events) > 0 then
