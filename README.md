@@ -89,3 +89,7 @@ Every picture is a named slot in `Art.lua` with a generated placeholder in `Text
 ## Development
 
 Pure Lua, no build step. `tests/engine_test.py` (needs `pip install lupa`) builds all 400 levels, plays scripted ones through the engine, checks the plays vault, drives the window headless and checks `Textures/` against `Art.lua`. `tools/make_textures.py` (needs Pillow and lupa) regenerates a placeholder for every art slot (`--from-base` derives the coloured sets from a painted white peg, brick, key or boss; `--sheet out.png` writes a contact sheet); `tools/make_notes.py` (needs numpy and soundfile) synthesizes the combo notes and the placeholder effects.
+
+## License
+
+Copyright (c) 2026 Chairface. All Rights Reserved. See [LICENSE](LICENSE): you may play it, but no part of it may be copied, changed or redistributed without permission.

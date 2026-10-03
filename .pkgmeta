@@ -2,8 +2,8 @@
 # to load it.
 package-as: GnomishPachinko
 
-# Kept in the repository, left out of the download: tests, build tools, notes.
+# Kept in the repository, left out of the download: tests and the tools that
+# make the art, sounds and voices.
 ignore:
   - tests
   - tools
-  - README.md
