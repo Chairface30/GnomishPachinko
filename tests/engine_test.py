@@ -3932,14 +3932,14 @@ __hostile = ED:Decode(("GPL1:%d:%d:%s"):format(#body, cs(body), body))
 back = ev("__back")
 check("an exported level code reads back as the same level",
       back.name == "Two Walls" and back.oranges == 5 and back.level == 12 and len(list(back.pieces.values())) == 7
-      and back.pieces[2].x == 150.25 and abs(back.pieces[2].a - 0.5) < 1e-6 and back.pieces[1].o and back.pieces[1].hp == 2
-      and back.pieces[5].s and back.pieces[6].mv == 1 and back.movers[1].k == "slide", str(ev("__code"))[:120])
+      and back.pieces[2].x == 150.25 and abs(back.pieces[2].a - 0.5) < 1e-6 and back.pieces[1].hp == 2
+      and back.pieces[5].s and back.pieces[1].c == "orange" and back.pieces[6].mv == 1 and back.movers[1].k == "slide", str(ev("__code"))[:120])
 check("a cut-short, changed or foreign code is refused with a reason",
       bool(ev("__cut")) and bool(ev("__changed")) and bool(ev("__junk")), f'{ev("__cut")} / {ev("__changed")} / {ev("__junk")}')
 h = ev("__hostile")
-check("a hostile code is cleaned: unknown pieces dropped, numbers kept on the board, odd ids stripped, unknown goal is classic",
+check("a hostile code is cleaned: unknown pieces dropped, numbers kept on the board, odd ids stripped, unknown goal means oranges",
       len(list(h.pieces.values())) == 2 and h.pieces[1].x == ev("E.FIELD_W") and h.pieces[1].y == 0
-      and h.pieces[2].id == "abc" and h.objective == "classic", str(dict(h)))
+      and h.pieces[2].id == "abc" and h.goals.oranges, str(dict(h)))
 
 # an editor level builds into a playable board: pinned oranges, dealt colors,
 # a key and its cage, a moving group, a rail in order round its middle
@@ -3979,6 +3979,60 @@ b = dict(ev("__built"))
 check("an editor level builds: its name, 5 oranges dealt (pinned one kept, tough), 2 greens, key and silver cage linked, one moving group, a rail in order, and it plays",
       b["custom"] and b["title"] == "Two Walls" and b["orange"] == 5 and b["green"] == 2 and b["pinned"] and b["cageLock"] and b["keyOpens"]
       and b["movers"] == 1 and b["moving"] == 2 and b["rails"] == 6 and b["railOrdered"] and b["played"], str(b))
+
+# any mix of goals: oranges, eggs, gems and Long Shots together
+lua(r"""
+local d = { name = "Everything", goals = { oranges = true, longshots = 2 }, oranges = 4,
+  pieces = { { t = "egg", x = 150, y = 300 }, { t = "gem", x = 330, y = 260 } }, movers = {} }
+for k = 1, 12 do d.pieces[#d.pieces + 1] = { t = "peg", x = 40 + k * 34, y = 420 } end
+d.pieces[3].c = "orange"; d.pieces[14].c = "orange"     -- two oranges far apart, for the Long Shot
+local spec = L:BuildCustom(d, 30, 0)
+local st = E:NewLevel(spec)
+local out = { objective = spec.objective, goal = spec.goal, longLeft = st.longShotsLeft, text = UI:ObjectiveText(st) }
+-- a Long Shot counts toward the mix: two oranges far apart lit in one shot
+local far1, far2
+for _, p in ipairs(st.pegs) do if p.kind == "orange" then if not far1 or p.x < far1.x then far1 = p end; if not far2 or p.x > far2.x then far2 = p end end end
+local before = st.goalLeft
+E:Launch(st, {})
+local events = {}
+E.HitPeg(st, far1, { vx = 0, vy = 100 }, events)
+st.time = st.time + 0.1
+E.HitPeg(st, far2, { vx = 0, vy = 100 }, events)
+out.afterShot = before - st.goalLeft
+out.longAfter = st.longShotsLeft
+__mix = out
+""")
+mx = dict(ev("__mix"))
+check("an editor level can mix goals: 4 oranges, an egg, a gem and 2 Long Shots make 8 goals, and a Long Shot counts toward them",
+      mx["objective"] == "mixed" and mx["goal"] == 8 and mx["longLeft"] == 2 and mx["afterShot"] == 3 and mx["longAfter"] == 1
+      and "Long Shots" in mx["text"] and "egg" in mx["text"] and "gem" in mx["text"], str(mx))
+
+# colours: a set colour holds on every attempt; an excluded colour is never dealt
+lua(r"""
+local d = { goals = { oranges = true }, oranges = 6, pieces = {}, movers = {} }
+for k = 1, 16 do d.pieces[#d.pieces + 1] = { t = "peg", x = 30 + k * 26, y = 380 } end
+d.pieces[1].c = "blue"; d.pieces[2].c = "green"; d.pieces[3].c = "orange"
+d.pieces[4].no = "o"; d.pieces[5].no = "og"; d.pieces[6].no = "p"
+local ok = { blue = true, green = true, orange = true, noOrange = true, noGreen = true, noPurple = true, greens = true }
+for attempt = 0, 30 do
+  local spec = L:BuildCustom(d, 30, attempt)
+  local by = {}
+  local greens = 0
+  for _, p in ipairs(spec.pegs) do by[p.editIdx] = p; if p.kind == "green" then greens = greens + 1 end end
+  if by[1].kind ~= "blue" then ok.blue = false end
+  if by[2].kind ~= "green" then ok.green = false end
+  if by[3].kind ~= "orange" then ok.orange = false end
+  if by[4].kind == "orange" or by[5].kind == "orange" then ok.noOrange = false end
+  if by[5].kind == "green" then ok.noGreen = false end
+  if greens ~= 2 then ok.greens = false end
+  local st = E:NewLevel(spec)
+  for _ = 1, 20 do E:MovePurple(st); for _, p in ipairs(st.pegs) do if p.kind == "purple" and (p.editIdx == 6 or p.editIdx == 1) then ok.noPurple = false end end end
+end
+__colors = ok
+""")
+co = dict(ev("__colors"))
+check("piece colors: set blue / green / orange hold on every attempt, never-orange / never-green / never-purple are kept, still two greens",
+      all(co.values()), str(co))
 
 # an egg level: eggs in their cradles, the eggs are the goal
 lua(r"""

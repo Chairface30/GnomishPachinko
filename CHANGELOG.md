@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Level editor: **any mix of goals.** Oranges and Long Shots (1 to 5) switch on and off, and every egg and gem placed is a goal, so a level can ask for oranges, eggs, gems and Long Shots together. The info panel lists each goal with its count.
+- Level editor: **piece colors.** A peg or brick can be dealt at random on every attempt (as before) or set to orange, blue or green for good, and Never orange / Never green / Never purple keep a dealt piece from ever being that color.
 - Level editor: exact turns. Type a number of degrees in the box and press - or + to turn the selection by exactly that much, or Set angle to put every selected bar at that angle (0 level, 90 upright). The selection line shows the bars' angle.
 - Level editor: a **Super Slide** tool. Drag a path and a rail of bricks is laid along it, ready to ride. Bricks come in standard sizes (full and half): a dragged row or slide is full bricks end to end with the last one cut to fit, and Smaller / Bigger steps a brick between the sizes.
 - The map's buttons: **Level editor** and **Return to current level** (was Back to the game) sit side by side under the map, with Reset progress just above them. The map's path sits a little higher to leave them room.

@@ -94,11 +94,9 @@ function ED:Sanitize(d)
     local out = { v = 1 }
     out.name = str(d.name, 40) or ""
     out.author = str(d.author, 40)
-    local obj = "classic"
-    for _, o in ipairs(L.EDIT_OBJECTIVES) do if d.objective == o then obj = o end end
-    out.objective = obj
+    local g = L:CustomGoals(type(d.goals) == "table" and { goals = d.goals } or d)
+    out.goals = { oranges = g.oranges and true or nil, longshots = g.longshots and floor(num(g.longshots, 1, 20, 3)) or nil }
     out.oranges = d.oranges and floor(num(d.oranges, 0, 200, 0)) or nil
-    out.goal = d.goal and floor(num(d.goal, 1, 20, 3)) or nil
     out.noBucket = d.noBucket and true or nil
     out.level = floor(num(d.level, 1, L.COUNT, 1))
     out.movers = {}
@@ -128,7 +126,10 @@ function ED:Sanitize(d)
                 if p.w then q.w = num(p.w, 8, 300, 30) end
                 if p.r then q.r = num(p.r, 6, 40, 12) end
                 if p.hp then q.hp = floor(num(p.hp, 1, 3, 1)) end
-                if p.o then q.o = true end
+                local c = (p.c == "orange" or p.c == "blue" or p.c == "green") and p.c or (p.o and "orange") or nil
+                if c and (q.t == "peg" or q.t == "brick") then q.c = c end
+                local no = str(p.no, 3, "[^ogp]")
+                if no and no ~= "" and (q.t == "peg" or q.t == "brick") then q.no = no end
                 if p.s then q.s = true end
                 q.id = str(p.id, 16, "[^%w_]")
                 q.rail = str(p.rail, 16, "[^%w_]")
@@ -308,7 +309,7 @@ end
 -- The level being edited
 
 function ED:NewData()
-    return { v = 1, name = "", objective = "classic", level = 1, pieces = {}, movers = {} }
+    return { v = 1, name = "", goals = { oranges = true }, level = 1, pieces = {}, movers = {} }
 end
 
 function ED:SetData(d, keepUndo)
@@ -543,11 +544,53 @@ function ED:SetHp(hp)
     end)
 end
 
-function ED:ToggleOrange()
-    local any = false
-    for _, i in ipairs(self:Selected()) do if self.data.pieces[i].o then any = true end end
+-- A peg's or brick's colour: dealt at random (nil), or set for good.
+ED.COLORS = { false, "orange", "blue", "green" }
+ED.COLOR_NAMES = { orange = "Orange", blue = "Blue", green = "Green" }
+function ED:SelColor()
+    local c, first = nil, true
+    for _, i in ipairs(self:Selected()) do
+        local pc = self.data.pieces[i]
+        if pc.t == "peg" or pc.t == "brick" then
+            local this = pc.c or false
+            if first then c, first = this, false elseif c ~= this then return "mixed" end
+        end
+    end
+    if first then return nil end
+    return c
+end
+
+function ED:CycleColor()
+    local cur = self:SelColor()
+    if cur == nil then return self:Status("Select pegs or bricks to set their color.") end
+    local k = 0
+    for i, c in ipairs(self.COLORS) do if c == cur then k = i end end
+    local nextC = self.COLORS[(k % #self.COLORS) + 1]
     self:ForSelected(function(pc)
-        if pc.t == "peg" or pc.t == "brick" then pc.o = (not any) or nil end
+        if pc.t == "peg" or pc.t == "brick" then pc.c = nextC or nil; pc.o = nil end
+    end)
+end
+
+-- Never dealt this colour on any attempt ("o" orange, "g" green, "p" purple).
+function ED:SelExcludes(letter)
+    local any, all = false, true
+    for _, i in ipairs(self:Selected()) do
+        local pc = self.data.pieces[i]
+        if pc.t == "peg" or pc.t == "brick" then
+            if pc.no and pc.no:find(letter, 1, true) then any = true else all = false end
+        end
+    end
+    return any and all
+end
+
+function ED:ToggleExclude(letter)
+    local on = not self:SelExcludes(letter)
+    self:ForSelected(function(pc)
+        if pc.t == "peg" or pc.t == "brick" then
+            local no = (pc.no or ""):gsub(letter, "")
+            if on then no = no .. letter end
+            pc.no = (no ~= "") and no or nil
+        end
     end)
 end
 
@@ -752,11 +795,10 @@ function ED:FromSpec(spec)
     local d = self:NewData()
     d.name = ""
     d.level = spec.level or 1
-    local obj = "classic"
-    for _, o in ipairs(L.EDIT_OBJECTIVES) do if spec.objective == o then obj = o end end
-    d.objective = obj
-    if obj == "longshots" then d.goal = spec.goal end
-    if obj == "classic" or obj == "longshots" then d.oranges = spec.orange end
+    local o = spec.objective
+    d.goals = { oranges = (o ~= "eggs" and o ~= "gems" and o ~= "longshots") or nil,
+        longshots = (o == "longshots") and spec.goal or nil }
+    if o ~= "eggs" and o ~= "gems" then d.oranges = spec.orange end
     d.noBucket = spec.noBucket
     local index = {}
     for _, p in ipairs(spec.pegs) do
@@ -766,7 +808,7 @@ function ED:FromSpec(spec)
             if p.shape == "brick" then
                 if p.kind == "block" and p.lock then pc = { t = "cage", w = p.w, id = p.lock, s = p.silver }
                 elseif p.kind == "block" then pc = { t = "block", w = p.w }
-                else pc = { t = "brick", w = p.w, rail = p.rail, o = p.forceOrange } end
+                else pc = { t = "brick", w = p.w, rail = p.rail, c = p.forceOrange and "orange" or nil } end
                 pc.a = a
             elseif p.kind == "block" then pc = { t = "rblock", r = p.r }
             elseif p.kind == "bumper" and p.balloon then pc = { t = "balloon", r = p.r }
@@ -774,7 +816,7 @@ function ED:FromSpec(spec)
             elseif p.kind == "key" then pc = { t = "key", id = p.unlocks, s = p.silver }
             elseif p.kind == "egg" then pc = { t = "egg", hp = p.maxhp or p.hp }
             elseif p.kind == "gem" then pc = { t = "gem" }
-            else pc = { t = "peg", o = p.forceOrange } end
+            else pc = { t = "peg", c = p.forceOrange and "orange" or nil } end
             pc.x, pc.y = x, y
             local hp = p.maxhp or p.hp or 1
             if hp > 1 and (pc.t == "peg" or pc.t == "brick") then pc.hp = hp end
@@ -904,14 +946,15 @@ function ED:Problems()
         if pc.y + r + E.BALL_R < L:ReachFloor(pc.x) - 2 then unreach = unreach + 1 end
     end
     if unreach > 0 then out[#out + 1] = unreach .. " out of the ball's reach (red)" end
-    local obj = self.data.objective
-    if (obj == "classic" or obj == "longshots") and lit < 3 then out[#out + 1] = "needs pegs or bricks to light" end
+    local goals = self.data.goals or {}
+    if (goals.oranges or goals.longshots) and lit < 3 then out[#out + 1] = "needs pegs or bricks to light" end
     local eggs, gems = 0, 0
     for _, pc in ipairs(pieces) do
         if pc.t == "egg" then eggs = eggs + 1 elseif pc.t == "gem" then gems = gems + 1 end
     end
-    if obj == "eggs" and eggs == 0 then out[#out + 1] = "an Eggs level needs eggs" end
-    if obj == "gems" and gems == 0 then out[#out + 1] = "a Gems level needs gems" end
+    if not goals.oranges and not goals.longshots and eggs == 0 and gems == 0 then
+        out[#out + 1] = "no goal: turn on oranges or Long Shots, or place eggs or gems"
+    end
     local keys, cages = {}, {}
     for _, pc in ipairs(pieces) do
         if pc.t == "key" then keys[pc.id or "lock1"] = true elseif pc.t == "cage" then cages[pc.id or "lock1"] = true end
@@ -965,7 +1008,7 @@ local function editBox(parent, w, h)
 end
 
 ED.FIELD_X, ED.FIELD_Y = 176, -96
-ED.FRAME_W, ED.FRAME_H = 1010, 880
+ED.FRAME_W, ED.FRAME_H = 1010, 900
 
 function ED:Create()
     if self.frame then return end
@@ -1102,8 +1145,12 @@ function ED:Create()
     self.nameBox = editBox(frame, 230, 20)
     self.nameBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -114)
     self.nameBox:SetScript("OnTextChanged", function(eb, user) if user then ED.data.name = str(eb:GetText(), 40) or "" end end)
-    self.objBtn = rbtn(0, -142, 150, "Goal: Orange pegs", function() ED:CycleObjective() end)
-    self.bucketBtn = rbtn(156, -142, 130, "Bucket: yes", function() ED:ToggleBucket() end)
+    -- the goals, any mix: oranges, Long Shots, and every egg and gem placed
+    self.objBtn = rbtn(0, -142, 96, "Oranges: on", function() ED:ToggleGoal("oranges") end,
+        "Lighting every orange is a goal. Eggs and gems on the board are always goals too.")
+    self.longBtn = rbtn(100, -142, 96, "Long Shots: off", function() ED:ToggleGoal("longshots") end,
+        "Long Shots wanted: off, 1 to 5. A Long Shot is two oranges far apart lit in one shot.")
+    self.bucketBtn = rbtn(200, -142, 86, "Bucket: yes", function() ED:ToggleBucket() end)
     self.orangeText = rtext(-170, "")
     rbtn(156, -166, 40, "-", function() ED:Tune("oranges", -1) end)
     rbtn(200, -166, 40, "+", function() ED:Tune("oranges", 1) end)
@@ -1120,7 +1167,8 @@ function ED:Create()
     rbtn(0, -292, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
     rbtn(97, -292, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
     rbtn(194, -292, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
-    rbtn(0, -317, 140, "Always orange", function() ED:ToggleOrange() end, "Pinned orange on every attempt; the rest are dealt at random.")
+    self.colorBtn = rbtn(0, -317, 140, "Color: dealt", function() ED:CycleColor() end,
+        "Pegs and bricks: dealt at random on every attempt, or set to orange, blue or green for good.")
     rbtn(146, -317, 68, "Smaller", function() ED:Resize(-1) end, "Bars shorter, balloons and studs smaller.")
     rbtn(218, -317, 68, "Bigger", function() ED:Resize(1) end)
     -- turning by an exact number of degrees, or setting a bar's angle outright
@@ -1144,32 +1192,41 @@ function ED:Create()
     rbtn(0, -442, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
     rbtn(146, -442, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
 
-    rtext(-474, "Moving parts", 14)
-    self.moverText = rtext(-496, "")
-    self.moverBtn = rbtn(0, -516, 286, "Make them move", function() ED:CycleMover() end,
+    -- colours a dealt piece never gets on any attempt
+    self.excludeBtns = {}
+    for k, spec in ipairs({ { "o", "Never orange" }, { "g", "Never green" }, { "p", "Never purple" } }) do
+        local letter, label = spec[1], spec[2]
+        local b = rbtn((k - 1) * 97, -467, 92, label, function() ED:ToggleExclude(letter) end,
+            "Pegs and bricks: never dealt this color on any attempt.")
+        b.label = label
+        self.excludeBtns[letter] = b
+    end
+    rtext(-499, "Moving parts", 14)
+    self.moverText = rtext(-521, "")
+    self.moverBtn = rbtn(0, -541, 286, "Make them move", function() ED:CycleMover() end,
         "The selected pieces move together: slide side to side, lift up and down, wheel round their middle, or swing like a pendulum. Click again for the next kind; after Swing they stop moving.")
-    rbtn(0, -541, 68, "Range -", function() ED:TuneMover("amp", -1) end)
-    rbtn(73, -541, 68, "Range +", function() ED:TuneMover("amp", 1) end)
-    rbtn(146, -541, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
-    rbtn(218, -541, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
-    rbtn(0, -566, 286, "Reverse direction", function() ED:TuneMover("reverse") end)
+    rbtn(0, -566, 68, "Range -", function() ED:TuneMover("amp", -1) end)
+    rbtn(73, -566, 68, "Range +", function() ED:TuneMover("amp", 1) end)
+    rbtn(146, -566, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
+    rbtn(218, -566, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
+    rbtn(0, -591, 286, "Reverse direction", function() ED:TuneMover("reverse") end)
 
-    rtext(-600, "Files", 14)
-    rbtn(0, -622, 92, "New", function() ED:NewLevel() end)
-    rbtn(97, -622, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
-    rbtn(194, -622, 92, "Load", function() ED:ShowList() end)
-    rbtn(0, -647, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
-    self.testBtn = rbtn(146, -647, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
-    self.importBtn = rbtn(0, -672, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
-    self.approveBtn = rbtn(146, -672, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
+    rtext(-625, "Files", 14)
+    rbtn(0, -647, 92, "New", function() ED:NewLevel() end)
+    rbtn(97, -647, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
+    rbtn(194, -647, 92, "Load", function() ED:ShowList() end)
+    rbtn(0, -672, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
+    self.testBtn = rbtn(146, -672, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
+    self.importBtn = rbtn(0, -697, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
+    self.approveBtn = rbtn(146, -697, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
         "Owner: this level replaces the level number above.")
-    self.unapproveBtn = rbtn(0, -697, 286, "Remove approval for level", function() ED:Unapprove(ED.data.level) end)
+    self.unapproveBtn = rbtn(0, -722, 286, "Remove approval for level", function() ED:Unapprove(ED.data.level) end)
 
-    self.statusText = rtext(-730, "", 11)
+    self.statusText = rtext(-755, "", 11)
     self.statusText:SetWidth(286)
     self.statusText:SetJustifyV("TOP")
     self.statusText:SetTextColor(0.75, 1, 0.75)
-    self.problemText = rtext(-790, "", 11)
+    self.problemText = rtext(-815, "", 11)
     self.problemText:SetWidth(286)
     self.problemText:SetJustifyV("TOP")
     self.problemText:SetTextColor(1, 0.55, 0.45)
@@ -1313,7 +1370,9 @@ function ED:CreateHelp()
         "",
         "|cffffd700Keys|r (mouse over the board)  Delete removes, arrows nudge (Shift: 10), Q / E turn 5 degrees (Shift: 15), M mirrors, Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste at the mouse, Ctrl+A selects all, Ctrl+Z undoes, Escape clears the selection.",
         "",
-        "|cffffd700Colors|r  Pegs and bricks are dealt orange, green and blue at random on every attempt, as on the normal levels. Pin a piece as Always orange to keep it orange. Set the number of oranges on the right.",
+        "|cffffd700Colors|r  Pegs and bricks are dealt orange, green and blue at random on every attempt, as on the normal levels. Color sets a piece to orange, blue or green for good; Never orange / green / purple keeps a dealt piece from ever being that color. Set the number of oranges on the right.",
+        "",
+        "|cffffd700Goals|r  Any mix: oranges, Long Shots, and every egg and gem you place.",
         "",
         "|cffffd700Red pieces|r  are out of the ball's reach from the cannon.",
         "",
@@ -1353,12 +1412,18 @@ function ED:CycleSnap()
 end
 
 local OBJ_NAMES = { classic = "Orange pegs", eggs = "Eggs", gems = "Gems", longshots = "Long Shots" }
-function ED:CycleObjective()
+function ED:ToggleGoal(which)
     self:PushUndo()
-    local list = L.EDIT_OBJECTIVES
-    local k = 1
-    for i, o in ipairs(list) do if o == self.data.objective then k = i end end
-    self.data.objective = list[(k % #list) + 1]
+    local g = self.data.goals or {}
+    self.data.goals = g
+    if which == "oranges" then
+        g.oranges = (not g.oranges) or nil
+    else
+        local n = g.longshots or 0
+        n = n + 1
+        if n > 5 then n = 0 end
+        g.longshots = (n > 0) and n or nil
+    end
     self:Refresh()
 end
 
@@ -1443,8 +1508,8 @@ function ED:DrawPiece(i, pc)
     local made = L:CustomPieces(pc)
     local p = made[1]
     if not p then return end
-    p.kind = p.kind or ((pc.o and "orange") or "blue")
-    if pc.o then p.kind = "orange" end
+    p.kind = p.kind or "blue"
+    if pc.c then p.kind = pc.c end
     local slot = GP.UI.PieceSlot(p, "")
     ART:Set(t.body, slot)
     local sel = self.sel[i]
@@ -1531,13 +1596,11 @@ function ED:Refresh()
     if not self.frame then return end
     local d = self.data
     if self.nameBox and not (self.nameBox.HasFocus and self.nameBox:HasFocus()) then self.nameBox:SetText(d.name or "") end
-    self.objBtn.text:SetText("Goal: " .. (OBJ_NAMES[d.objective] or "Orange pegs"))
+    local goals = d.goals or {}
+    self.objBtn.text:SetText(goals.oranges and "Oranges: on" or "Oranges: off")
+    self.longBtn.text:SetText(goals.longshots and ("Long Shots: " .. goals.longshots) or "Long Shots: off")
     self.bucketBtn.text:SetText(d.noBucket and "Bucket: no" or "Bucket: yes")
-    if d.objective == "longshots" then
-        self.orangeText:SetText(("Oranges: %s  (Long Shots: %d)"):format(d.oranges and tostring(d.oranges) or ("auto " .. self:AutoOranges()), d.goal or 3))
-    else
-        self.orangeText:SetText("Oranges: " .. (d.oranges and tostring(d.oranges) or ("auto " .. self:AutoOranges())))
-    end
+    self.orangeText:SetText("Oranges dealt: " .. (d.oranges and tostring(d.oranges) or ("auto " .. self:AutoOranges())))
     local approved = self:DB().approved[d.level or 1]
     self.levelText:SetText(("Level number: %d%s"):format(d.level or 1, approved and "  |cff88ff88(approved)|r" or ""))
     ART:Set(self.fieldBg, ART:FieldBackdrop(d.level or 1))
@@ -1559,6 +1622,13 @@ function ED:Refresh()
     end
     local angleText = angle and ((angle == "mixed") and "  (angles differ)" or ("  (angle " .. angle .. ")")) or ""
     self.selText:SetText(n == 0 and "Nothing selected" or (n .. " selected: " .. table.concat(parts, ", ") .. angleText))
+    local sc = self:SelColor()
+    self.colorBtn.text:SetText(sc == nil and "Color: -" or (sc == "mixed" and "Color: mixed") or
+        (sc and ("Color: " .. self.COLOR_NAMES[sc]) or "Color: dealt"))
+    for letter, b in pairs(self.excludeBtns or {}) do
+        local on = self:SelExcludes(letter)
+        b.text:SetText((on and "|cff88ff88" or "") .. b.label .. (on and "|r" or ""))
+    end
     local mv = self:SelMover()
     if mv then
         local m = d.movers[mv]

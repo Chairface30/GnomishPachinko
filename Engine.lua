@@ -218,6 +218,7 @@ E.OBJECTIVES = {
     gems    = { name = "Gems",    goalWord = "gems",        text = "Knock every gem loose and catch it in the bucket" },
     mixed_eggs = { name = "Oranges and Eggs", goalWord = "goals", text = "Light the orange pegs and hatch the eggs" },
     mixed_gems = { name = "Oranges and Gems", goalWord = "goals", text = "Light the orange pegs and drop the gems" },
+    mixed   = { name = "Mixed",   goalWord = "goals",       text = "Clear every goal" },
     boss    = { name = "Boss",    goalWord = "boss health", text = "Beat the boss: hit it until its health is gone" },
     duel    = { name = "Duel",    goalWord = "orange pegs", text = "Light every orange peg while the boss takes its turns" },
     longshots = { name = "Long Shots", goalWord = "long shots", text = "Make Long Shots: light two orange pegs far apart in one shot" },
@@ -381,6 +382,7 @@ function E:NewLevel(spec)
         pegs = spec.pegs,
         movers = spec.movers or {},
         gimmick = spec.gimmick,
+        longShotsLeft = spec.longshots,
         goalTotal = spec.goal or spec.orange or 0,
         goalLeft = spec.goal or spec.orange or 0,
         goalHit = 0,
@@ -486,7 +488,7 @@ function E:MovePurple(state)
         if p.kind == "purple" and not p.lit and not p.gone then p.kind = "blue" end
     end
     for _, p in ipairs(state.pegs) do
-        if p.kind == "blue" and not p.lit and not p.gone then pool[#pool + 1] = p end
+        if p.kind == "blue" and not p.lit and not p.gone and not p.noPurple then pool[#pool + 1] = p end
     end
     if #pool > 0 then pool[state.rng(1, #pool)].kind = "purple" end
 end
@@ -935,7 +937,9 @@ lightPeg = function(state, p, ball, events, quiet, at)
             if dx * dx + dy * dy >= E.LONG_SHOT * E.LONG_SHOT then
                 local before = state.shotStyles["LONG SHOT" .. E.STYLE_POINTS]
                 style(state, "LONG SHOT", events, p.x, p.y)
-                if not before and state.objective == "longshots" and state.goalLeft > 0 then
+                local counts = state.objective == "longshots" or (state.longShotsLeft or 0) > 0
+                if not before and counts and state.goalLeft > 0 then
+                    if state.longShotsLeft then state.longShotsLeft = state.longShotsLeft - 1 end
                     state.goalHit = state.goalHit + 1
                     state.goalLeft = state.goalLeft - 1
                     state.goalHitThisShot = state.goalHitThisShot + 1

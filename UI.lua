@@ -236,6 +236,24 @@ function UI:ObjectiveText(st)
         return ("Light all %d orange pegs and drop all %d gems"):format(oranges, specials)
     end
     if o == "longshots" then return ("Make %d Long Shots: two orange pegs far apart in one shot"):format(st.goalTotal) end
+    if o == "mixed" then
+        -- an editor level's mix of goals, each with its count
+        local oranges, eggs, gems = 0, 0, 0
+        for _, p in ipairs(st.pegs) do
+            if p.goal then
+                if p.kind == "egg" then eggs = eggs + 1 elseif p.kind == "gem" then gems = gems + 1 else oranges = oranges + 1 end
+            end
+        end
+        local parts = {}
+        if oranges > 0 then parts[#parts + 1] = ("light all %d orange pegs"):format(oranges) end
+        if eggs > 0 then parts[#parts + 1] = ("hatch all %d eggs"):format(eggs) end
+        if gems > 0 then parts[#parts + 1] = ("drop all %d gems"):format(gems) end
+        local ls = st.longShotsLeft and (st.goalTotal - oranges - eggs - gems) or 0
+        if ls > 0 then parts[#parts + 1] = ("make %d Long Shots"):format(ls) end
+        local text = table.concat(parts, ", ")
+        text = text:gsub(", ([^,]*)$", " and %1")
+        return (text:gsub("^%l", string.upper))
+    end
     local text
     if o == "boss" and st.boss then text = ("Beat the %s (%d health)"):format(st.boss.bossName or "boss", st.boss.maxhp)
     elseif o == "duel" and st.duel and st.duel.stage == 2 then text = ("Duel with %s: five balls each, turn and turn about, highest score wins. A shot that lights no orange costs a quarter of your score"):format(st.duel.name)
@@ -246,9 +264,9 @@ function UI:ObjectiveText(st)
 end
 
 local GOAL_WORD = { classic = "word_goal_classic", eggs = "word_goal_eggs", gems = "word_goal_gems", boss = "word_goal_boss",
-    duel = "word_goal_classic", longshots = "word_goal_longshots", mixed_eggs = "word_goal_mixed", mixed_gems = "word_goal_mixed" }
+    duel = "word_goal_classic", longshots = "word_goal_longshots", mixed_eggs = "word_goal_mixed", mixed_gems = "word_goal_mixed", mixed = "word_goal_mixed" }
 local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to drop", boss = "Boss health", duel = "Orange pegs left", longshots = "Long Shots left",
-    mixed_eggs = "Goals left", mixed_gems = "Goals left" }
+    mixed_eggs = "Goals left", mixed_gems = "Goals left", mixed = "Goals left" }
 
 -- First-encounter tips, shown once each on the level card, in Tinkmaster's voice.
 local TIPS = {

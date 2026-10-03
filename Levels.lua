@@ -1596,10 +1596,12 @@ end
 -- Levels from the level editor (Editor.lua). A level is plain data in
 -- field pixels:
 --   { v = 1, name, author, objective = "classic"|"eggs"|"gems"|"longshots",
---     oranges (how many to deal; nil = a share of the pieces), goal (Long
---     Shots wanted), noBucket, power,
+--     goals = { oranges = true, longshots = n } (eggs and gems on the board
+--     are always goals; older levels have objective/goal instead),
+--     oranges (how many to deal; nil = a share of the pieces), noBucket, power,
 --     pieces = { { t = type, x, y, a (angle), w (width), r (radius),
---                  hp (1-3), o (always orange), id (key and cage), s (silver),
+--                  hp (1-3), c (a set colour: orange/blue/green), no (colours it
+--                  is never dealt: o, g, p for purple), id (key and cage), s (silver),
 --                  rail (rail name), mv (mover number) }, ... },
 --     movers = { { k = "slide"|"lift"|"wheel"|"swing", amp, speed, phase }, ... } }
 -- Colours are dealt on every attempt as on a generated level; pieces
@@ -1663,7 +1665,11 @@ function L:CustomPieces(pc)
     end
     local p = out[1]
     if p then
-        if pc.o and (t == "peg" or t == "brick") then p.forceOrange = true end
+        if t == "peg" or t == "brick" then
+            local c = pc.c or (pc.o and "orange") or nil
+            if c then p.fixedColor = c end
+            if pc.no and pc.no ~= "" then p.noColors = pc.no end
+        end
         if (pc.hp or 1) > 1 and t ~= "egg" and t ~= "gem" then p.hp = math.min(3, pc.hp) end
         if pc.rail and t == "brick" then p.rail = pc.rail end
         for _, q in ipairs(out) do q.mapped = true end
@@ -1700,12 +1706,26 @@ local function orderRail(list)
 end
 L.OrderRail = orderRail
 
+-- What an editor level asks for: oranges (a flag), eggs and gems (any on
+-- the board are goals), Long Shots (how many). Older levels name one
+-- objective instead.
+function L:CustomGoals(data)
+    local g = data.goals
+    if type(g) == "table" then
+        return { oranges = g.oranges and true or false, longshots = g.longshots }
+    end
+    local o = data.objective or "classic"
+    if o == "longshots" then return { oranges = false, longshots = data.goal or 3 } end
+    if o == "eggs" or o == "gems" then return { oranges = false } end
+    return { oranges = true }
+end
+
 function L:BuildCustom(data, n, attempt)
     n = math.max(1, math.min(self.COUNT, floor(n or 1)))
     attempt = attempt or 0
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local seed = self:Seed(n)
-    local objective = data.objective or "classic"
+    local goals = self:CustomGoals(data)
     local pegs, byMover, rails = {}, {}, {}
     for i, pc in ipairs(data.pieces or {}) do
         local made = self:CustomPieces(pc)
@@ -1739,47 +1759,75 @@ function L:BuildCustom(data, n, attempt)
         end
     end
 
-    -- colours: dealt on every attempt as on a generated level, pinned oranges first
+    -- the eggs and gems on the board are goals
+    local eggs, gems = 0, 0
+    for _, p in ipairs(pegs) do
+        if p.kind == "egg" then eggs = eggs + 1 elseif p.kind == "gem" then gems = gems + 1 end
+    end
+    local longshots = goals.longshots
+    if not goals.oranges and eggs == 0 and gems == 0 and not longshots then goals.oranges = true end
+
+    -- colours: dealt on every attempt as on a generated level. A piece with
+    -- a set colour keeps it; one that excludes a colour is never dealt it.
     local rng = E.NewRng(seed * 31 + attempt * 101 + 7)
-    local order = {}
+    local order, fixedGreen, pinned = {}, 0, 0
     for i, p in ipairs(pegs) do
-        if not E.IsSolid(p) and not p.special and not p.cradle then order[#order + 1] = i end
+        if not E.IsSolid(p) and not p.special and not p.cradle then
+            local fc = p.fixedColor
+            if fc == "orange" then p.kind = "orange"; pinned = pinned + 1; p.noPurple = true
+            elseif fc == "green" then p.kind = "green"; fixedGreen = fixedGreen + 1; p.noPurple = true
+            elseif fc == "blue" then p.kind = "blue"; p.noPurple = true
+            else order[#order + 1] = i end
+            if p.noColors and p.noColors:find("p", 1, true) then p.noPurple = true end
+        end
     end
     for i = #order, 2, -1 do
         local j = rng(1, i)
         order[i], order[j] = order[j], order[i]
     end
-    local goal = 0
-    local orange = data.oranges or math.max(1, floor(#order * 0.3 + 0.5))
-    if objective == "longshots" then
-        goal = data.goal or 3
-    elseif objective == "eggs" or objective == "gems" then
-        local want = (objective == "eggs") and "egg" or "gem"
-        for _, p in ipairs(pegs) do if p.kind == want then goal = goal + 1 end end
-        if goal == 0 then objective = "classic" else orange = data.oranges or 0 end
-    end
-    local floorBlue = math.min(#order, 2)
-    if orange > #order - floorBlue then orange = math.max(0, #order - floorBlue) end
-    local isGoal = objective == "classic"
-    local given = 0
+    local wantOranges = goals.oranges or longshots
+    local orange = data.oranges or (wantOranges and math.max(1, floor((#order + pinned) * 0.3 + 0.5)) or 0)
+    local toDeal = math.max(0, orange - pinned)
+    local greens = math.max(0, 2 - fixedGreen)
+    local function allows(p, letter) return not (p.noColors and p.noColors:find(letter, 1, true)) end
+    -- keep a couple blue where there are enough pieces
+    local spare = math.max(0, #order - math.min(#order, 2))
+    if toDeal > spare then toDeal = spare end
+    local dealt = {}
     for _, idx in ipairs(order) do
+        if toDeal <= 0 then break end
         local p = pegs[idx]
-        if p.forceOrange then p.kind = "orange"; p.goal = isGoal; given = given + 1 end
+        if allows(p, "o") then p.kind = "orange"; dealt[idx] = true; toDeal = toDeal - 1 end
     end
-    local greens, coloured = 2, 0
     for _, idx in ipairs(order) do
+        if greens <= 0 then break end
         local p = pegs[idx]
-        if not p.forceOrange then
-            coloured = coloured + 1
-            if coloured <= orange - given then p.kind = "orange"; p.goal = isGoal
-            elseif coloured <= orange - given + greens then p.kind = "green"
-            else p.kind = "blue" end
+        if not dealt[idx] and allows(p, "g") then p.kind = "green"; dealt[idx] = true; greens = greens - 1 end
+    end
+    for _, idx in ipairs(order) do if not dealt[idx] then pegs[idx].kind = "blue" end end
+    orange = 0
+    for _, p in ipairs(pegs) do
+        if p.kind == "orange" then
+            orange = orange + 1
+            p.goal = goals.oranges or nil
         end
     end
-    if isGoal then
-        goal = 0
-        for _, p in ipairs(pegs) do if p.goal then goal = goal + 1 end end
-    end
+
+    -- what the level is called by: one kind of goal, or a mix
+    local kinds = {}
+    if goals.oranges then kinds[#kinds + 1] = "oranges" end
+    if eggs > 0 then kinds[#kinds + 1] = "eggs" end
+    if gems > 0 then kinds[#kinds + 1] = "gems" end
+    if longshots then kinds[#kinds + 1] = "longshots" end
+    local objective = "mixed"
+    if #kinds == 1 then
+        objective = ({ oranges = "classic", eggs = "eggs", gems = "gems", longshots = "longshots" })[kinds[1]]
+    elseif #kinds == 2 and goals.oranges and eggs > 0 then objective = "mixed_eggs"
+    elseif #kinds == 2 and goals.oranges and gems > 0 then objective = "mixed_gems" end
+    local goal = 0
+    for _, p in ipairs(pegs) do if p.goal then goal = goal + 1 end end
+    if longshots then goal = goal + longshots end
+
     local tough = 0
     for _, p in ipairs(pegs) do
         p.kind = p.kind or "blue"
@@ -1799,6 +1847,9 @@ function L:BuildCustom(data, n, attempt)
         custom = true,
         author = data.author,
         objective = objective,
+        -- Long Shots alongside other goals (a Long Shots level alone counts them as its goal)
+        longshots = (objective ~= "longshots") and longshots or nil,
+        goalKinds = { oranges = goals.oranges, eggs = eggs, gems = gems, longshots = longshots },
         pegs = pegs,
         movers = movers,
         goal = goal,

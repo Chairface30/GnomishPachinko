@@ -256,7 +256,7 @@ function ART:Power(id) return self.SLOTS["power_" .. tostring(id)] and ("power_"
 function ART:Item(id) return self.SLOTS["item_" .. tostring(id)] and ("item_" .. id) or "item_ring" end
 function ART:Goal(objective)
     local map = { classic = "orange", eggs = "egg", gems = "gem", boss = "boss", duel = "duel", longshots = "longshot",
-        mixed_eggs = "egg", mixed_gems = "gem" }
+        mixed_eggs = "egg", mixed_gems = "gem", mixed = "orange" }
     return "goal_" .. (map[objective] or "orange")
 end
 function ART:Chapter(level)
