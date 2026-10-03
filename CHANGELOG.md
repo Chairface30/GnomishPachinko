@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Level editor: **positions count from the middle of the board.** X is 0 on the middle line, minus to the left and plus to the right; Y is 0 on a new dotted line across the middle, plus upward and minus downward.
+- Level editor: the **oranges total** counts the always orange pieces and shows the split ("Oranges: 5 (3 always orange, 2 random)"); it can't be set below the always orange count.
 - Level editor: **bigger pieces.** Pegs grow to 40 pixels round, bumpers 60, keys 30, eggs 50, gems 46, steel studs 70 and balloons 70 (past the game's own sizes, 3 pixels a click); bars run up to the board's whole width; bricks come in half, full, one and a half and double.
 - Level editor: a ring or arc set **turning** spins round its own centre (its gap no longer pulls the turn off to one side, which made it wobble).
 - Level editor: slides on a **tight bend** (tighter than about 67 pixels round) are laid in half bricks, and bricks on a bend overlap a little at their joints, so the wall stays closed.

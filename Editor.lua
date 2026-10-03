@@ -436,7 +436,9 @@ function ED:TypedXY()
         if not v or v ~= v or abs(v) > 10000 then return nil end
         return v
     end
-    return read(self.xBox), read(self.yBox)
+    local x, y = read(self.xBox), read(self.yBox)
+    -- the boxes count from the middle of the board: X to the right, Y upward
+    return x and (x + W / 2), y and (H / 2 - y)
 end
 
 function ED:MoveTo()
@@ -1292,7 +1294,9 @@ function ED:Create()
     line(z.x0, z.y1, z.x1, z.y1, 0.6, 0.6, 1, 0.35)
     line(z.x0, z.y0, z.x0, z.y1, 0.6, 0.6, 1, 0.35)
     line(z.x1, z.y0, z.x1, z.y1, 0.6, 0.6, 1, 0.35)
+    -- the middle lines, where X and Y count from
     for y = z.y0, z.y1, 12 do line(W / 2, y, W / 2, y + 5, 1, 1, 1, 0.18) end
+    for x = z.x0, z.x1, 12 do line(x, H / 2, x + 5, H / 2, 1, 1, 1, 0.18) end
     -- the cannon at the top and the bucket at the bottom, for reference
     local cannon = field:CreateTexture(nil, "BACKGROUND", nil, 3)
     ART:Set(cannon, "ball")
@@ -1405,7 +1409,7 @@ function ED:Create()
     self.yBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 94, -292)
     self.yBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:MoveTo() end)
     rbtn(156, -292, 130, "Move", function() ED:MoveTo() end,
-        "One piece: put it at X, Y. Several: move the group so its middle is at X, Y. Enter in a box does the same. Field pixels: X 0 to 490 left to right, Y 0 to 700 top to bottom.")
+        "One piece: put it at X, Y. Several: move the group so its middle is at X, Y. Enter in a box does the same. Pixels from the middle of the board (the dotted lines): X is minus to the left and plus to the right, Y plus upward and minus downward.")
     rbtn(0, -317, 68, "Line up X", function() ED:LineUp("x") end, "Every selected piece to the X in the box (a column).")
     rbtn(73, -317, 68, "Line up Y", function() ED:LineUp("y") end, "Every selected piece to the Y in the box (a row).")
     rbtn(146, -317, 68, "Spread X", function() ED:Spread("x") end, "Space the selected pieces evenly from left to right, between the outermost two.")
@@ -1688,18 +1692,32 @@ end
 function ED:Tune(what, step)
     local d = self.data
     if what == "oranges" then
+        -- the total, always orange pieces included: never fewer than those
         if step == 0 then d.oranges = nil
-        else d.oranges = math.max(0, math.min(200, (d.oranges or self:AutoOranges()) + step)) end
+        else d.oranges = math.max(self:PinnedOranges(), math.min(200, (d.oranges or self:AutoOranges()) + step)) end
     elseif what == "level" then
         d.level = math.max(1, math.min(L.COUNT, (d.level or 1) + step))
     end
     self:Refresh()
 end
 
+-- pegs and bricks set always orange
+function ED:PinnedOranges()
+    local n = 0
+    for _, pc in ipairs(self.data.pieces) do
+        if (pc.t == "peg" or pc.t == "brick") and (pc.c == "orange" or pc.o) then n = n + 1 end
+    end
+    return n
+end
+
+-- the automatic total, as the game works it out: about a third of the
+-- pieces that can be orange (dealt ones and the always orange)
 function ED:AutoOranges()
     local n = 0
-    for _, pc in ipairs(self.data.pieces) do if pc.t == "peg" or pc.t == "brick" then n = n + 1 end end
-    return math.max(1, floor(n * 0.3 + 0.5))
+    for _, pc in ipairs(self.data.pieces) do
+        if (pc.t == "peg" or pc.t == "brick") and (not pc.c or pc.c == "orange") then n = n + 1 end
+    end
+    return math.max(1, floor(n * 0.3 + 0.5), self:PinnedOranges())
 end
 
 function ED:CopyLevel()
@@ -1852,7 +1870,10 @@ function ED:Refresh()
     self.objBtn.text:SetText(goals.oranges and "Oranges: on" or "Oranges: off")
     self.longBtn.text:SetText(goals.longshots and ("Long Shots: " .. goals.longshots) or "Long Shots: off")
     self.bucketBtn.text:SetText(d.noBucket and "Bucket: no" or "Bucket: yes")
-    self.orangeText:SetText("Oranges dealt: " .. (d.oranges and tostring(d.oranges) or ("auto " .. self:AutoOranges())))
+    local total = math.max(d.oranges or self:AutoOranges(), self:PinnedOranges())
+    local pinned = self:PinnedOranges()
+    local split = (pinned > 0) and (" (%d always orange, %d random)"):format(pinned, total - pinned) or ""
+    self.orangeText:SetText((d.oranges and "Oranges: " or "Oranges: auto ") .. total .. split)
     local approved = self:DB().approved[d.level or 1]
     self.levelText:SetText(("Level number: %d%s"):format(d.level or 1, approved and "  |cff88ff88(approved)|r" or ""))
     ART:Set(self.fieldBg, ART:FieldBackdrop(d.level or 1))
@@ -1878,8 +1899,8 @@ function ED:Refresh()
     if n > 0 then
         local cx, cy = self:Centre(list)
         local function fmt(v) return (("%.1f"):format(v):gsub("%.0$", "")) end
-        if not (self.xBox.HasFocus and self.xBox:HasFocus()) then self.xBox:SetText(fmt(cx)) end
-        if not (self.yBox.HasFocus and self.yBox:HasFocus()) then self.yBox:SetText(fmt(cy)) end
+        if not (self.xBox.HasFocus and self.xBox:HasFocus()) then self.xBox:SetText(fmt(cx - W / 2)) end
+        if not (self.yBox.HasFocus and self.yBox:HasFocus()) then self.yBox:SetText(fmt(H / 2 - cy)) end
     end
     local WORDS = { dealt = "dealt", never = "|cffff8866never|r", always = "|cff88ff88always|r", mixed = "mixed", may = "can land" }
     for which, b in pairs(self.colorBtns or {}) do

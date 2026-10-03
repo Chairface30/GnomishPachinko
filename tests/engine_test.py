@@ -4232,20 +4232,21 @@ local b = ED:AddPiece("peg", 170, 320)
 local c = ED:AddPiece("peg", 400, 350)
 ED.sel = { [a] = true }
 ED:Refresh()
-__shown = ED.xBox:GetText() == "100" and ED.yBox:GetText() == "300"
-ED.xBox:SetText("123.5"); ED.yBox:SetText("250")
+-- X and Y count from the middle of the board: X to the right, Y upward
+__shown = ED.xBox:GetText() == tostring(100 - 245) and ED.yBox:GetText() == tostring(350 - 300)
+ED.xBox:SetText("-121.5"); ED.yBox:SetText("100")
 ED:MoveTo()
 local pa = ED.data.pieces[a]
 __single = pa.x == 123.5 and pa.y == 250
 -- a group: its middle goes to X, Y
 ED.sel = { [b] = true, [c] = true }
-ED.xBox:SetText("300"); ED.yBox:SetText("")
+ED.xBox:SetText("55"); ED.yBox:SetText("")
 ED:MoveTo()
 local pb, pc = ED.data.pieces[b], ED.data.pieces[c]
 __group = math.abs((pb.x + pc.x) / 2 - 300) < 1e-6 and pb.y == 320 and pc.y == 350 and pc.x - pb.x == 230
 -- a row on one Y, then evenly spaced
 ED.sel = { [a] = true, [b] = true, [c] = true }
-ED.yBox:SetText("280")
+ED.yBox:SetText("70")
 ED:LineUp("y")
 __row = ED.data.pieces[a].y == 280 and ED.data.pieces[b].y == 280 and ED.data.pieces[c].y == 280
 ED:Spread("x")
@@ -4359,6 +4360,25 @@ sp = dict(ev("__spin"))
 check("Slides: half bricks on a tight ring, full bricks on a wide one; a turning ring spins round its true centre",
       ev("__tight") > 0.8 and ev("__wide") > 0.8 and sp["kind"] == "wheel" and abs(sp["cx"] - 245) < 1 and abs(sp["cy"] - 330) < 1,
       f'{ev("__tight")} {ev("__wide")} {sp}')
+
+# the oranges total counts the always orange ones, and can't go below them
+lua(r"""
+ED:NewLevel()
+for k = 1, 20 do ED:AddPiece("peg", 40 + k * 20, 380) end
+for k = 1, 3 do ED.data.pieces[k].c = "orange" end
+ED.data.oranges = 5
+ED:Refresh()
+__split = ED.orangeText:GetText()
+for _ = 1, 10 do ED:Tune("oranges", -1) end
+__floor = ED.data.oranges
+local spec = L:BuildCustom(ED:Sanitize(ED.data), 5, 0)
+local n = 0
+for _, p in ipairs(spec.pegs) do if p.kind == "orange" then n = n + 1 end end
+__dealt = n
+""")
+check("Oranges: the total counts the always orange pieces (shown as the split), can't go below them, and the game deals that total",
+      ev("__split") == "Oranges: 5 (3 always orange, 2 random)" and ev("__floor") == 3 and ev("__dealt") == 3,
+      f'{ev("__split")} / {ev("__floor")} / {ev("__dealt")}')
 
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
