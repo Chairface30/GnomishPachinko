@@ -1157,6 +1157,48 @@ local function surfaceDist(p, q)
 end
 L.SurfaceDist = surfaceDist
 
+-- Eggs' and gems' cradles (see L:Build), also used by the level editor's levels.
+-- a brick whose top face touches the body: `angle` along its length,
+-- `s` shifts the touch point along it (negative toward its start)
+local function cradleBrick(body, angle, w, s)
+    local h = E.BRICK_H
+    local c, sn = cos(angle), sin(angle)
+    local nx, ny = sn, -c                 -- the face normal pointing at the body
+    local d = body.r + h / 2 + 0.5
+    return { shape = "brick", x = body.x - nx * d + c * s, y = body.y - ny * d + sn * s,
+        angle = angle, w = w, h = h, mapped = true, cradle = true }
+end
+local function cradleFor(body, kind)
+    local r = body.r
+    local pair
+    if kind == "gem" then
+        local w = r + 12
+        pair = { cradleBrick(body, 0, w, -w / 2), cradleBrick(body, 0, w, w / 2) }
+    else
+        -- an egg's cradle, picked from where it sits (so a level's layout
+        -- never changes): a V, a shallow V, a flat ledge, or a cup
+        local style = (floor(body.x) * 7 + floor(body.y) * 13) % 4
+        if style == 0 then
+            local w = r + 18
+            pair = { cradleBrick(body, 0.5, w, -w * 0.3), cradleBrick(body, -0.5, w, w * 0.3) }
+        elseif style == 1 then
+            local w = r + 22
+            pair = { cradleBrick(body, 0.28, w, -w * 0.38), cradleBrick(body, -0.28, w, w * 0.38) }
+        elseif style == 2 then
+            local w = r + 12
+            pair = { cradleBrick(body, 0, w, -w / 2), cradleBrick(body, 0, w, w / 2) }
+        else
+            local w = r + 6
+            pair = { cradleBrick(body, 0, w, 0), cradleBrick(body, 1.0, w, 0), cradleBrick(body, -1.0, w, 0) }
+        end
+    end
+    -- the bricks touch end to end, like a brick chain
+    local group = ("cradle%d_%d"):format(floor(body.x), floor(body.y))
+    for _, b in ipairs(pair) do b.group = group end
+    return pair
+end
+L.CradleFor = cradleFor
+
 -- attempt (0, 1, 2...) reshuffles which pieces are orange, egg or gem on a
 -- retry; the picture itself never changes.
 -- opts.stage2: the duel's second board, sparser and with fewer oranges.
@@ -1164,6 +1206,9 @@ function L:Build(n, attempt, opts)
     n = math.max(1, math.min(self.COUNT, floor(n)))
     attempt = attempt or 0
     opts = opts or {}
+    -- a level built in the editor and approved replaces the generated one
+    local custom = not opts.stage2 and self:CustomFor(n)
+    if custom then return self:BuildCustom(custom, n, attempt) end
     local seed = self:Seed(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local d = self:Difficulty(n)
@@ -1279,45 +1324,6 @@ function L:Build(n, attempt, opts)
     -- its cradle would overlap is removed. Two passes: well spread out
     -- first, then closer together if the pattern has too few spots.
     local CRADLE_REACH = 46     -- how far a cradle's bricks can stick out from the body's centre
-    -- a brick whose top face touches the body: `angle` along its length,
-    -- `s` shifts the touch point along it (negative toward its start)
-    local function cradleBrick(body, angle, w, s)
-        local h = E.BRICK_H
-        local c, sn = cos(angle), sin(angle)
-        local nx, ny = sn, -c                 -- the face normal pointing at the body
-        local d = body.r + h / 2 + 0.5
-        return { shape = "brick", x = body.x - nx * d + c * s, y = body.y - ny * d + sn * s,
-            angle = angle, w = w, h = h, mapped = true, cradle = true }
-    end
-    local function cradleFor(body, kind)
-        local r = body.r
-        local pair
-        if kind == "gem" then
-            local w = r + 12
-            pair = { cradleBrick(body, 0, w, -w / 2), cradleBrick(body, 0, w, w / 2) }
-        else
-            -- an egg's cradle, picked from where it sits (so a level's layout
-            -- never changes): a V, a shallow V, a flat ledge, or a cup
-            local style = (floor(body.x) * 7 + floor(body.y) * 13) % 4
-            if style == 0 then
-                local w = r + 18
-                pair = { cradleBrick(body, 0.5, w, -w * 0.3), cradleBrick(body, -0.5, w, w * 0.3) }
-            elseif style == 1 then
-                local w = r + 22
-                pair = { cradleBrick(body, 0.28, w, -w * 0.38), cradleBrick(body, -0.28, w, w * 0.38) }
-            elseif style == 2 then
-                local w = r + 12
-                pair = { cradleBrick(body, 0, w, -w / 2), cradleBrick(body, 0, w, w / 2) }
-            else
-                local w = r + 6
-                pair = { cradleBrick(body, 0, w, 0), cradleBrick(body, 1.0, w, 0), cradleBrick(body, -1.0, w, 0) }
-            end
-        end
-        -- the bricks touch end to end, like a brick chain
-        local group = ("cradle%d_%d"):format(floor(body.x), floor(body.y))
-        for _, b in ipairs(pair) do b.group = group end
-        return pair
-    end
     local gridTried = false
     local function convert(kind, count, r, spread, lowest)
         spread, lowest = spread or 90, lowest or 420
@@ -1583,5 +1589,225 @@ function L:Build(n, attempt, opts)
     -- star marks set by hand where the formula misjudged a level
     local mark = self.STAR_MARKS[n]
     if mark then spec.stars = { mark[1] or spec.stars[1], mark[2] or spec.stars[2] } end
+    return spec
+end
+
+-- ---------------------------------------------------------------------
+-- Levels from the level editor (Editor.lua). A level is plain data in
+-- field pixels:
+--   { v = 1, name, author, objective = "classic"|"eggs"|"gems"|"longshots",
+--     oranges (how many to deal; nil = a share of the pieces), goal (Long
+--     Shots wanted), noBucket, power,
+--     pieces = { { t = type, x, y, a (angle), w (width), r (radius),
+--                  hp (1-3), o (always orange), id (key and cage), s (silver),
+--                  rail (rail name), mv (mover number) }, ... },
+--     movers = { { k = "slide"|"lift"|"wheel"|"swing", amp, speed, phase }, ... } }
+-- Colours are dealt on every attempt as on a generated level; pieces
+-- marked `o` are always orange. Approved levels ship in CustomLevels.lua
+-- (L.CUSTOM), and the owner's own approvals apply on the owner's client.
+L.CUSTOM = L.CUSTOM or {}
+L.EDIT_TYPES = {
+    peg     = { name = "Peg" },
+    brick   = { name = "Brick", w = E.BRICK_W },
+    block   = { name = "Steel bar", w = 64 },
+    rblock  = { name = "Steel stud", r = 11 },
+    balloon = { name = "Balloon", r = 16 },
+    bumper  = { name = "Bumper" },
+    key     = { name = "Key" },
+    cage    = { name = "Cage bar", w = 60 },
+    egg     = { name = "Egg" },
+    gem     = { name = "Gem" },
+}
+L.EDIT_OBJECTIVES = { "classic", "eggs", "gems", "longshots" }
+L.EDIT_MOVERS = { "slide", "lift", "wheel", "swing" }
+
+function L:CustomFor(n)
+    local c = self.CUSTOM[n]
+    if c then return c end
+    local db = GnomishPachinkoDB
+    if db and type(db.editor) == "table" and type(db.editor.approved) == "table"
+        and GP.Plays and GP.Plays.IsOwner and GP.Plays:IsOwner() then
+        return db.editor.approved[n]
+    end
+end
+
+-- The game pieces for one editor piece (an egg or gem brings its cradle).
+function L:CustomPieces(pc)
+    local t = pc.t
+    local x, y, a = pc.x or 0, pc.y or 0, pc.a or 0
+    local out = {}
+    if t == "peg" then
+        out[1] = peg(x, y)
+    elseif t == "brick" then
+        out[1] = brick(x, y, a, pc.w or E.BRICK_W, E.BRICK_H)
+    elseif t == "block" then
+        out[1] = barrier(x, y, a, pc.w or 64)
+    elseif t == "rblock" then
+        out[1] = { shape = "peg", x = x, y = y, r = pc.r or 11, kind = "block" }
+    elseif t == "balloon" then
+        out[1] = balloon(x, y, pc.r or 16)
+    elseif t == "bumper" then
+        out[1] = bumper(x, y)
+    elseif t == "key" then
+        out[1] = key(x, y, pc.id or "lock1")
+        out[1].silver = pc.s and true or nil
+    elseif t == "cage" then
+        out[1] = cageBar(x, y, a, pc.w or 60, pc.id or "lock1")
+        out[1].silver = pc.s and true or nil
+    elseif t == "egg" or t == "gem" then
+        local r = (t == "egg") and E.EGG_R or E.GEM_R
+        local body = { shape = "peg", x = x, y = y, r = r, kind = t, goal = true, special = true, loose = true,
+            hp = (t == "egg") and math.max(2, math.min(3, pc.hp or 2)) or 1 }
+        out[1] = body
+        for _, b in ipairs(cradleFor(body, t)) do out[#out + 1] = b end
+    end
+    local p = out[1]
+    if p then
+        if pc.o and (t == "peg" or t == "brick") then p.forceOrange = true end
+        if (pc.hp or 1) > 1 and t ~= "egg" and t ~= "gem" then p.hp = math.min(3, pc.hp) end
+        if pc.rail and t == "brick" then p.rail = pc.rail end
+        for _, q in ipairs(out) do q.mapped = true end
+    end
+    return out
+end
+
+-- Orders a rail's bricks along the chain (from the end farthest from their
+-- middle, always the nearest next) and turns them round that middle.
+local function orderRail(list)
+    local cx, cy = 0, 0
+    for _, b in ipairs(list) do cx, cy = cx + b.x, cy + b.y end
+    cx, cy = cx / #list, cy / #list
+    local first, fd = nil, -1
+    for _, b in ipairs(list) do
+        local d = (b.x - cx) ^ 2 + (b.y - cy) ^ 2
+        if d > fd then first, fd = b, d end
+    end
+    local used, cur = { [first] = true }, first
+    first.railIdx = 1
+    for k = 2, #list do
+        local nx, nd = nil, math.huge
+        for _, b in ipairs(list) do
+            if not used[b] then
+                local d = (b.x - cur.x) ^ 2 + (b.y - cur.y) ^ 2
+                if d < nd then nx, nd = b, d end
+            end
+        end
+        used[nx] = true
+        nx.railIdx = k
+        cur = nx
+    end
+    for _, b in ipairs(list) do b.railCx, b.railCy = cx, cy end
+end
+L.OrderRail = orderRail
+
+function L:BuildCustom(data, n, attempt)
+    n = math.max(1, math.min(self.COUNT, floor(n or 1)))
+    attempt = attempt or 0
+    local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
+    local seed = self:Seed(n)
+    local objective = data.objective or "classic"
+    local pegs, byMover, rails = {}, {}, {}
+    for i, pc in ipairs(data.pieces or {}) do
+        local made = self:CustomPieces(pc)
+        for _, p in ipairs(made) do
+            p.editIdx = i
+            pegs[#pegs + 1] = p
+        end
+        local p = made[1]
+        if p and pc.mv and data.movers and data.movers[pc.mv] then
+            byMover[pc.mv] = byMover[pc.mv] or {}
+            for _, q in ipairs(made) do
+                q.bx, q.by, q.bangle, q.moving = q.x, q.y, q.angle, true
+                table.insert(byMover[pc.mv], q)
+            end
+        end
+        if p and p.rail then
+            rails[p.rail] = rails[p.rail] or {}
+            table.insert(rails[p.rail], p)
+        end
+    end
+    for _, list in pairs(rails) do orderRail(list) end
+    local movers = {}
+    for i, mv in ipairs(data.movers or {}) do
+        local list = byMover[i]
+        if list and #list > 0 then
+            local cx, cy = 0, 0
+            for _, q in ipairs(list) do cx, cy = cx + q.x, cy + q.y end
+            cx, cy = cx / #list, cy / #list
+            movers[#movers + 1] = { kind = mv.k or "slide", pegs = list, amp = mv.amp or 60,
+                speed = mv.speed or 1, phase = mv.phase or 0, cx = mv.cx or cx, cy = mv.cy or cy }
+        end
+    end
+
+    -- colours: dealt on every attempt as on a generated level, pinned oranges first
+    local rng = E.NewRng(seed * 31 + attempt * 101 + 7)
+    local order = {}
+    for i, p in ipairs(pegs) do
+        if not E.IsSolid(p) and not p.special and not p.cradle then order[#order + 1] = i end
+    end
+    for i = #order, 2, -1 do
+        local j = rng(1, i)
+        order[i], order[j] = order[j], order[i]
+    end
+    local goal = 0
+    local orange = data.oranges or math.max(1, floor(#order * 0.3 + 0.5))
+    if objective == "longshots" then
+        goal = data.goal or 3
+    elseif objective == "eggs" or objective == "gems" then
+        local want = (objective == "eggs") and "egg" or "gem"
+        for _, p in ipairs(pegs) do if p.kind == want then goal = goal + 1 end end
+        if goal == 0 then objective = "classic" else orange = data.oranges or 0 end
+    end
+    local floorBlue = math.min(#order, 2)
+    if orange > #order - floorBlue then orange = math.max(0, #order - floorBlue) end
+    local isGoal = objective == "classic"
+    local given = 0
+    for _, idx in ipairs(order) do
+        local p = pegs[idx]
+        if p.forceOrange then p.kind = "orange"; p.goal = isGoal; given = given + 1 end
+    end
+    local greens, coloured = 2, 0
+    for _, idx in ipairs(order) do
+        local p = pegs[idx]
+        if not p.forceOrange then
+            coloured = coloured + 1
+            if coloured <= orange - given then p.kind = "orange"; p.goal = isGoal
+            elseif coloured <= orange - given + greens then p.kind = "green"
+            else p.kind = "blue" end
+        end
+    end
+    if isGoal then
+        goal = 0
+        for _, p in ipairs(pegs) do if p.goal then goal = goal + 1 end end
+    end
+    local tough = 0
+    for _, p in ipairs(pegs) do
+        p.kind = p.kind or "blue"
+        p.lit, p.gone = false, false
+        p.hp = p.hp or 1
+        p.maxhp = p.hp
+        if p.hp > 1 and p.kind ~= "egg" then tough = tough + 1 end
+    end
+    local spec = {
+        level = n,
+        chapter = chapter,
+        name = self:ChapterName(chapter),
+        title = (data.name and data.name ~= "") and data.name or self:Title(n, objective, "Custom"),
+        attempt = attempt,
+        seed = seed,
+        layout = "Custom",
+        custom = true,
+        author = data.author,
+        objective = objective,
+        pegs = pegs,
+        movers = movers,
+        goal = goal,
+        orange = orange,
+        tough = tough,
+        noBucket = data.noBucket and true or nil,
+        balls = data.balls or E.BALLS,
+        power = data.power or self:PowerFor(chapter),
+    }
+    spec.stars = { self:ParFor(spec) }
     return spec
 end

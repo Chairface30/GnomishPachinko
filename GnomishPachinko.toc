@@ -2,7 +2,7 @@
 ## Title: Gnomish Pachinko
 ## Notes: A peg-shooting puzzle game: 400 generated levels of pegs, bricks, eggs, gems and bosses to clear. No gold is ever won.
 ## Author: Chairface Chippendale
-## Version: 1.1.0
+## Version: 0.9.0
 ## IconTexture: Interface\AddOns\GnomishPachinko\Textures\icon.tga
 ## SavedVariables: GnomishPachinkoDB, GnomishPachinkoSaved
 ## SavedVariablesPerCharacter: GnomishPachinkoChar
@@ -12,8 +12,10 @@ Core.lua
 Art.lua
 Engine.lua
 Levels.lua
+CustomLevels.lua
 Plays.lua
 UI.lua
 Minimap.lua
 Mascot.lua
 Dialog.lua
+Editor.lua

@@ -140,7 +140,8 @@ end
 rt = lupa.LuaRuntime(unpack_returned_tuples=True)
 rt.execute(MOCK)
 rt.execute("__ns = {}")
-for f in ("Core.lua", "Art.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua", "Mascot.lua", "Dialog.lua"):
+TOC_FILES = [l.strip() for l in open(os.path.join(ADDON_DIR, "GnomishPachinko.toc"), encoding="utf-8") if l.strip().endswith(".lua")]
+for f in TOC_FILES:
     src = open(os.path.join(ADDON_DIR, f), encoding="utf-8").read()
     rt.execute(f"local function chunk(...) {src} end chunk('GnomishPachinko', __ns)")
 rt.execute("GP = GnomishPachinko; E = GP.Engine; L = GP.Levels; UI = GP.UI; P = GP.Plays; ART = GP.Art")
@@ -3890,6 +3891,246 @@ check(f"every one of the {len(slot_names)} art slots has its texture at the list
 check("no texture in Textures/ is outside the registry", not stray, str(stray))
 check("no Lua file names a texture path outside Art.lua",
       not any("Textures\\\\" in open(os.path.join(ADDON_DIR, f), encoding="utf-8").read() for f in ("Core.lua", "Engine.lua", "Levels.lua", "Plays.lua", "UI.lua", "Minimap.lua", "Mascot.lua")))
+
+# ------------------------------------------------------------------ the level editor
+
+# the credit line: the author and the version from the TOC
+toc_version = [l.split(":", 1)[1].strip() for l in open(os.path.join(ADDON_DIR, "GnomishPachinko.toc"), encoding="utf-8") if l.startswith("## Version")][0]
+lua(r"""
+C_AddOns = { GetAddOnMetadata = function(addon, field) if addon == "GnomishPachinko" and field == "Version" then return __tocVersion end end }
+""")
+lua(f"__tocVersion = \"{toc_version}\"")
+check("the window's credit line names the author and the version from the TOC (below 1.0.0)",
+      ev("GP:Version()") == toc_version and toc_version.startswith("0.")
+      and ev("UI.creditText:GetText()").endswith("by Chairface Chippendale"), ev("UI.creditText:GetText()"))
+
+# the code: what goes out comes back, and a cut-short, changed or hostile code is refused
+lua(r"""
+ED = GP.Editor
+__lvl = { name = "Two Walls", author = "Thrall Frostwolf", objective = "classic", oranges = 5, level = 12,
+  pieces = {
+    { t = "peg", x = 100, y = 200, o = true, hp = 2 },
+    { t = "brick", x = 150.25, y = 260, a = 0.5, w = 40 },
+    { t = "balloon", x = 245, y = 300, r = 21 },
+    { t = "key", x = 80, y = 220, id = "lock1" },
+    { t = "cage", x = 300, y = 350, a = 1.5708, w = 60, id = "lock1", s = true },
+    { t = "peg", x = 200, y = 400, mv = 1 },
+    { t = "peg", x = 230, y = 400, mv = 1 },
+  },
+  movers = { { k = "slide", amp = 50, speed = 1.2, phase = 0 } } }
+__code = ED:Encode(__lvl)
+__back = ED:Decode(__code)
+__cut = select(2, ED:Decode(__code:sub(1, -5)))
+local tampered = __code:gsub("Two Walls", "Two Halls")
+__changed = select(2, ED:Decode(tampered))
+__junk = select(2, ED:Decode("hello"))
+-- a code that tries to slip in code to run, or silly numbers, comes out as plain data
+local body = '{name="x",pieces={{t="peg",x=1e9,y=-5},{t="os.exit",x=1,y=1},{t="peg",x=100,y=200,id="a|b;c"}},objective="hack"}'
+local function cs(s) local sum = 0 for i = 1, #s do sum = (sum * 31 + s:byte(i)) % 65521 end return sum end
+__hostile = ED:Decode(("GPL1:%d:%d:%s"):format(#body, cs(body), body))
+""")
+back = ev("__back")
+check("an exported level code reads back as the same level",
+      back.name == "Two Walls" and back.oranges == 5 and back.level == 12 and len(list(back.pieces.values())) == 7
+      and back.pieces[2].x == 150.25 and abs(back.pieces[2].a - 0.5) < 1e-6 and back.pieces[1].o and back.pieces[1].hp == 2
+      and back.pieces[5].s and back.pieces[6].mv == 1 and back.movers[1].k == "slide", str(ev("__code"))[:120])
+check("a cut-short, changed or foreign code is refused with a reason",
+      bool(ev("__cut")) and bool(ev("__changed")) and bool(ev("__junk")), f'{ev("__cut")} / {ev("__changed")} / {ev("__junk")}')
+h = ev("__hostile")
+check("a hostile code is cleaned: unknown pieces dropped, numbers kept on the board, odd ids stripped, unknown goal is classic",
+      len(list(h.pieces.values())) == 2 and h.pieces[1].x == ev("E.FIELD_W") and h.pieces[1].y == 0
+      and h.pieces[2].id == "abc" and h.objective == "classic", str(dict(h)))
+
+# an editor level builds into a playable board: pinned oranges, dealt colors,
+# a key and its cage, a moving group, a rail in order round its middle
+lua(r"""
+local d = ED.Copy(__lvl)
+for k = 0, 5 do
+  d.pieces[#d.pieces + 1] = { t = "brick", x = 150 + 60 * math.cos(math.pi * (0.1 + 0.16 * k)), y = 300 + 50 * math.sin(math.pi * (0.1 + 0.16 * k)),
+    a = math.pi * (0.1 + 0.16 * k) + math.pi / 2, w = 28, rail = "rail1" }
+end
+for k = 1, 8 do d.pieces[#d.pieces + 1] = { t = "peg", x = 60 + k * 40, y = 450 } end
+local spec = L:BuildCustom(d, 12, 0)
+local out = { custom = spec.custom, objective = spec.objective, orange = 0, green = 0, pinned = false, cageLock = false,
+  keyOpens = false, movers = #spec.movers, moving = 0, railOrdered = true, title = spec.title }
+for _, p in ipairs(spec.pegs) do
+  if p.kind == "orange" then out.orange = out.orange + 1 end
+  if p.kind == "green" then out.green = out.green + 1 end
+  if p.editIdx == 1 and p.kind == "orange" and p.maxhp == 2 then out.pinned = true end
+  if p.lock == "lock1" and p.silver then out.cageLock = true end
+  if p.unlocks == "lock1" then out.keyOpens = true end
+  if p.moving then out.moving = out.moving + 1 end
+end
+local idx = {}
+for _, p in ipairs(spec.pegs) do if p.rail == "rail1" then idx[#idx + 1] = p.railIdx; if not p.railCx then out.railOrdered = false end end end
+table.sort(idx)
+for i, v in ipairs(idx) do if v ~= i then out.railOrdered = false end end
+out.rails = #idx
+-- it plays: a shot runs to its end without an error
+local st = E:NewLevel(spec)
+st.aim = 0.1
+local events = {}
+E:Launch(st, events)
+for _ = 1, 60 * 12 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+out.played = st.phase ~= E.PHASE.FLIGHT
+__built = out
+""")
+b = dict(ev("__built"))
+check("an editor level builds: its name, 5 oranges dealt (pinned one kept, tough), 2 greens, key and silver cage linked, one moving group, a rail in order, and it plays",
+      b["custom"] and b["title"] == "Two Walls" and b["orange"] == 5 and b["green"] == 2 and b["pinned"] and b["cageLock"] and b["keyOpens"]
+      and b["movers"] == 1 and b["moving"] == 2 and b["rails"] == 6 and b["railOrdered"] and b["played"], str(b))
+
+# an egg level: eggs in their cradles, the eggs are the goal
+lua(r"""
+local d = { name = "Eggs", objective = "eggs", pieces = { { t = "egg", x = 150, y = 300 }, { t = "egg", x = 330, y = 300, hp = 3 } }, movers = {} }
+for k = 1, 10 do d.pieces[#d.pieces + 1] = { t = "peg", x = 40 + k * 38, y = 420 } end
+local spec = L:BuildCustom(d, 15, 0)
+local eggs, cradles, tough3 = 0, 0, false
+for _, p in ipairs(spec.pegs) do
+  if p.kind == "egg" then eggs = eggs + 1; if p.maxhp == 3 then tough3 = true end end
+  if p.cradle then cradles = cradles + 1 end
+end
+__eggs = { eggs = eggs, cradles = cradles, goal = spec.goal, objective = spec.objective, tough3 = tough3 }
+""")
+eg = dict(ev("__eggs"))
+check("an editor egg level: each egg sits in a cradle, the eggs are the goal, a gold egg takes three hits",
+      eg["eggs"] == 2 and eg["cradles"] >= 4 and eg["goal"] == 2 and eg["objective"] == "eggs" and eg["tough3"], str(eg))
+
+# a generated level comes into the editor and builds back with the same pieces
+lua(r"""
+function roundtrip(n)
+  local spec = L:Build(n)
+  local d = ED:FromSpec(spec)
+  local again = L:BuildCustom(d, n, 0)
+  local function count(sp)
+    local c = 0
+    for _, p in ipairs(sp.pegs) do if not p.cradle and not p.post then c = c + 1 end end
+    return c
+  end
+  return count(spec), count(again), #spec.movers, #again.movers, spec.objective, again.objective
+end
+""")
+bad_rt = []
+for n in (8, 15, 21, 41, 66, 81, 111, 121, 133):
+    a, b2, ma, mb, oa, ob = ev("roundtrip")(n)
+    if a != b2 or ma != mb or (oa in ("classic", "eggs", "gems", "longshots") and oa != ob):
+        bad_rt.append((n, a, b2, ma, mb, oa, ob))
+check("a generated level brought into the editor builds back with the same pieces, moving groups and goal", not bad_rt, str(bad_rt))
+
+# the editor window: place, select, move, turn, undo, save and load, test play
+lua(r"""
+GnomishPachinkoDB.editor = nil
+ED:Show()
+ED:NewLevel()
+local function at(x, y) __cursor.x, __cursor.y = x, 600 - y end
+-- three pegs with the peg tool
+ED:SetTool("peg")
+for _, x in ipairs({ 150, 200, 250 }) do at(x, 300); ED:OnMouseDown("LeftButton"); ED:OnMouseUp("LeftButton") end
+__placed = #ED.data.pieces
+-- a brick drawn from end to end
+ED:SetTool("brick")
+at(100, 400); ED:OnMouseDown("LeftButton"); at(180, 400); ED:OnUpdate(); ED:OnMouseUp("LeftButton")
+local br = ED.data.pieces[4]
+__brick = br and br.t == "brick" and math.abs(br.w - 80) < 1 and math.abs(br.a) < 0.01 and math.abs(br.x - 140) < 1
+-- a box round the three pegs selects them
+ED:SetTool("select")
+at(130, 280); ED:OnMouseDown("LeftButton"); at(270, 320); ED:OnUpdate(); ED:OnMouseUp("LeftButton")
+__boxed = ED:SelCount()
+-- dragging one moves all three
+at(200, 300); ED:OnMouseDown("LeftButton"); at(200, 340); ED:OnUpdate(); ED:OnMouseUp("LeftButton")
+__moved = ED.data.pieces[1].y == 340 and ED.data.pieces[3].y == 340 and ED.data.pieces[4].y == 400
+-- a quarter turn round their middle stands the row upright
+ED:RotateSelected(math.pi / 2)
+local p1, p3 = ED.data.pieces[1], ED.data.pieces[3]
+__turned = math.abs(p1.x - 200) < 0.01 and math.abs(p3.x - 200) < 0.01 and math.abs(math.abs(p1.y - p3.y) - 100) < 0.01
+-- undo puts the row back
+ED:PushUndo(); ED:RotateSelected(0)   -- (the buttons push before turning; the call above did not)
+ED:Undo(); ED:Undo()
+__undone = ED.data.pieces[1].y == 340 or ED.data.pieces[1].y == 300
+-- Delete removes the selection
+ED.sel = { [4] = true }
+ED:OnKey("DELETE")
+__deleted = #ED.data.pieces == 3
+-- save and load by name
+ED.nameBox:SetText("My Row")
+ED:Save()
+ED:NewLevel()
+__blank = #ED.data.pieces == 0
+ED:Load("My Row")
+__loaded = #ED.data.pieces == 3 and ED.data.name == "My Row" and GnomishPachinkoDB.editor.levels["My Row"] ~= nil
+-- a rail needs bricks; a key needs a cage
+ED.sel = { [1] = true }
+ED:MakeRail()
+__railRefused = ED.data.pieces[1].rail == nil
+-- the selection moves together on a slide; the next click makes it a lift
+ED.sel = { [1] = true, [2] = true }
+ED:CycleMover()
+__slide = ED.data.pieces[1].mv == 1 and ED.data.movers[1].k == "slide"
+ED:CycleMover()
+__lift = ED.data.movers[1].k == "lift"
+""")
+check("the editor places pegs and draws a brick from end to end", ev("__placed") == 3 and ev("__brick"))
+check("a dragged box selects the pieces inside it, and dragging one moves the whole selection", ev("__boxed") == 3 and ev("__moved"))
+check("the selection turns round its middle, and Undo takes changes back", ev("__turned") and ev("__undone"))
+check("Delete removes the selection; a level saves and loads back by name", ev("__deleted") and ev("__blank") and ev("__loaded"))
+check("a rail is refused without bricks; selected pieces can be made to slide, then lift", ev("__railRefused") and ev("__slide") and ev("__lift"))
+
+# test play: no play spent, nothing recorded, and back to the editor at the end
+lua(r"""
+GnomishPachinkoDB.unlocked = 400
+local bestBefore = GnomishPachinkoDB.best[1]
+UI:ShowLevelSelect()      -- the editor is opened from the map
+ED:Test()
+__testing = UI.customTest ~= nil and UI.state.custom == true and not ED.frame:IsShown() and not UI.levelPanel:IsShown()
+UI:PlayFromCard()
+local st = UI.state
+for _, p in ipairs(st.pegs) do if p.goal then p.lit = true; p.gone = true end end
+st.goalLeft = 0
+local events = {}
+st.phase = E.PHASE.FLIGHT
+st.balls = {}
+st.ballsLeft = 0
+for _ = 1, 10 do E:Step(st, 1 / 30, UI.events) end
+UI:HandleEvents(GetTime())
+__overSeen = UI.customBackAt ~= nil
+__advance(4)
+__back = ED.frame:IsShown() and not ED.testing
+__noRecord = GnomishPachinkoDB.best[1] == bestBefore
+UI.customTest = nil
+""")
+check("Test play runs the level on the board (the map closes), records nothing, and returns to the editor", ev("__testing") and ev("__back") and ev("__noRecord"), f'{ev("__testing")} {ev("__back")} {ev("__noRecord")} {ev("__overSeen")}')
+
+# sharing: everyone exports; only the owner imports and approves, and an approved level replaces the generated one
+lua(r"""
+local isOwner = GP.Plays.IsOwner
+GP.Plays.IsOwner = function() return false end
+local code = ED:ExportCode()
+__exported = code:sub(1, 5) == "GPL1:"
+__importRefused = not ED:Import(code)
+ED.data.level = 37
+ED:Approve(37)
+__approveRefused = GnomishPachinkoDB.editor.approved[37] == nil
+GP.Plays.IsOwner = function() return true end
+__imported = ED:Import(code) == true
+ED.data.level = 37
+ED:Approve(37)
+local spec = L:Build(37)
+__replaced = spec.custom == true and #spec.pegs >= 3
+-- another player's client never uses the owner's saved approvals
+GP.Plays.IsOwner = function() return false end
+__othersGenerated = L:Build(37).custom == nil
+-- a level shipped in CustomLevels.lua replaces it for everyone
+L.CUSTOM[38] = GnomishPachinkoDB.editor.approved[37]
+__shipped = L:Build(38).custom == true
+L.CUSTOM[38] = nil
+GP.Plays.IsOwner = isOwner
+GnomishPachinkoDB.editor.approved[37] = nil
+ED:Hide()
+""")
+check("every player can export a level code; importing and approving are for the owner only",
+      ev("__exported") and ev("__importRefused") and ev("__approveRefused") and ev("__imported"))
+check("an approved level replaces the generated level on the owner's client, and a shipped one for everyone",
+      ev("__replaced") and ev("__othersGenerated") and ev("__shipped"))
 
 print()
 if failures:

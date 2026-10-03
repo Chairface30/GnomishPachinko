@@ -31,6 +31,18 @@ function GP:Print(msg)
     DEFAULT_CHAT_FRAME:AddMessage("|cffcc88ff[Gnomish Pachinko]|r " .. tostring(msg))
 end
 
+-- The version comes from the TOC, so the window and the addon list agree.
+GP.AUTHOR = "Chairface Chippendale"
+GP.VERSION_FALLBACK = "0.9.0"
+function GP:Version()
+    local get = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+    if get then
+        local ok, v = pcall(get, "GnomishPachinko", "Version")
+        if ok and type(v) == "string" and v ~= "" then return v end
+    end
+    return self.VERSION_FALLBACK
+end
+
 function GP:GetDB()
     GnomishPachinkoDB = GnomishPachinkoDB or {}
     local db = GnomishPachinkoDB
@@ -283,6 +295,8 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         if ok and GP.UI and GP.UI.frame then GP.UI:UpdateDisplay() end
     elseif msg == "gears" then
         GP:Print(("Golden Gears: %d. Shop: suction (1), green (1), ring (2), rainbow (3), plays (10). /pachinko shop <item>; /pachinko buy <n> fills the mail for n gears."):format(GP.Plays:Gears()))
+    elseif msg == "editor" or msg == "edit" then
+        GP.Editor:Toggle()
     elseif msg == "reset" then
         GP:ResetProgress()
     elseif msg == "unlockall" then
@@ -290,7 +304,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     elseif msg == "unlimited" then
         GP:ToggleUnlimited()
     else
-        GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. " ..
+        GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. /pachinko editor - the level editor. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
             "/pachinko sound - toggle sound. /pachinko music - toggle the music. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
     end

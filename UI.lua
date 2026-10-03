@@ -203,6 +203,8 @@ local function pieceSlot(p, state)
     return ART:Peg(color, state)
 end
 
+UI.MakeButton, UI.PieceSlot, UI.ToughLook = makeButton, pieceSlot, toughLook
+
 -- The ball's picture: fire, rainbow, spooky, electric, winged in Fever.
 local function ballSlot(ball, st, now, electricUntil)
     if ball.fire or ball.item == "ring" then return "ball_fire" end
@@ -301,6 +303,14 @@ function UI:CreateFrame()
     local closeBtn = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     closeBtn:SetPoint("TOPRIGHT", -12, -12)
     closeBtn:SetScript("OnClick", function() UI:Hide() end)
+
+    -- the author and the version, along the bottom
+    local credit = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    credit:SetFont(UI.FONT, 11, "OUTLINE")
+    credit:SetTextColor(0.95, 0.82, 0.5)
+    credit:SetPoint("BOTTOM", frame, "BOTTOM", 0, 48)
+    credit:SetText(("Gnomish Pachinko v%s  -  by %s"):format(GP:Version(), GP.AUTHOR))
+    self.creditText = credit
 
     -- ===== field =====
     -- The view clips the field so it can zoom in on the last goal piece.
@@ -1305,7 +1315,7 @@ end
 function UI:PlayFromCard()
     local st = self.state
     if self.cardTip then GP:GetDB().tips[self.cardTip] = true; self.cardTip = nil end
-    if self.greenBoost and not self.duelOnly and GP:SpendItem("green") then
+    if self.greenBoost and not self.duelOnly and not self.customTest and GP:SpendItem("green") then
         local p = E:AddGreen(st)
         if p then
             self:LayoutPegs()
@@ -2148,6 +2158,10 @@ function UI:CreateLevelSelect()
     -- wipes progress after a second click within a few seconds
     panel.reset = makeButton(panel, 120, 26, "Reset progress")
     panel.reset:SetPoint("BOTTOM", 66, 10)
+    -- the level editor, for everyone
+    panel.editor = makeButton(panel, 120, 26, "Level editor")
+    panel.editor:SetPoint("BOTTOM", -198, 10)
+    panel.editor:SetScript("OnClick", function() GP.Editor:Show() end)
     panel.reset:SetScript("OnClick", function(self)
         if self.armedUntil and GetTime() < self.armedUntil then
             self.armedUntil = nil
@@ -2490,33 +2504,39 @@ end
 -- Level flow
 
 -- retry=true deals the colours again (oranges land on other pegs).
-function UI:StartLevel(n, retry)
+-- opts.custom: a level from the editor, test-played: no play spent, no
+-- talk, no progress, no special balls, and back to the editor at the end.
+function UI:StartLevel(n, retry, opts)
     self:Initialize()
-    if not GP:IsUnlocked(n) then n = GP:GetDB().unlocked or 1 end
-    if not GP.Plays:CanPlay() then
+    local custom = opts and opts.custom
+    self.customTest = custom
+    if not custom and not GP:IsUnlocked(n) then n = GP:GetDB().unlocked or 1 end
+    if not custom and not GP.Plays:CanPlay() then
         self:ShowOutOfPlays()
         self:UpdateDisplay()
         return false
     end
     self.attempts = self.attempts or {}
-    if retry then self.attempts[n] = (self.attempts[n] or 0) + 1 else self.attempts[n] = 0 end
-    local spec = L:Build(n, self.attempts[n])
+    local akey = custom and "custom" or n
+    if retry then self.attempts[akey] = (self.attempts[akey] or 0) + 1 else self.attempts[akey] = 0 end
+    local spec = custom and L:BuildCustom(custom, n, self.attempts[akey]) or L:Build(n, self.attempts[n])
     -- a retry of a duel whose board was already cleared plays only the duel
     self.duelCarry = self.duelCarry or {}
     if not retry then self.duelCarry[n] = nil end
-    self.duelOnly = (retry and spec.objective == "duel") and self.duelCarry[n] or nil
+    self.duelOnly = (retry and not custom and spec.objective == "duel") and self.duelCarry[n] or nil
     local last = GP:GetDB().lastPower
     if last then
         for _, id in ipairs(GP:UnlockedPowers(n)) do if id == last then spec.power = last end end
     end
     self.state = E:NewLevel(spec)
+    self.state.custom = custom and true or nil
     self.state.crazyGuide = GP:GetDB().crazyGuide and true or nil
     if self.card then self:HideCard() end
     if self.shotText then self.shotText:SetText("") end
     self.duelStartAt, self.duelTurnAt, self.rivalShotAt = nil, nil, nil
     self.paused = false
     if self.duelYou then self:UpdateDuelHud() end
-    GP:GetDB().current = n
+    if not custom then GP:GetDB().current = n end
     self.guideAim = nil
     self:LayoutPegs()
     for i, bin in ipairs(self.bins) do
@@ -2553,7 +2573,7 @@ function UI:StartLevel(n, retry)
     self.startVoice = spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start")
     GP.Mascot:React("start")
     self:UpdateDisplay()
-    local talk = GP.Dialog and GP.Dialog:For(self.state) or {}
+    local talk = (not custom and GP.Dialog and GP.Dialog:For(self.state)) or {}
     self.spiralHintPending = nil
     if self.spiralArrow then self.spiralArrow:Hide() end
     self.boardHintScript = nil
@@ -2600,6 +2620,7 @@ end
 -- Power-ups
 
 function UI:ToggleItem(item)
+    if self.customTest then return end      -- an editor test keeps the special balls
     if item == "green" then return self:UseGreenPeg() end
     local st = self.state
     if not st or st.phase ~= E.PHASE.AIM then return end
@@ -3723,12 +3744,43 @@ function UI:HandleEvents(now)
     for i = #self.events, 1, -1 do self.events[i] = nil end
 end
 
+-- An editor level, test-played: the score and stars in a banner, then back
+-- to the editor. Nothing is recorded.
+function UI:OnCustomOver(result)
+    local spec = self.state
+    local stars = 0
+    local marks = self.customStars or {}
+    if result.cleared then
+        stars = 1
+        for _, m in ipairs(marks) do if result.score >= m then stars = stars + 1 end end
+    end
+    self:ShowBanner(result.cleared and "|cffffd700TEST: CLEARED|r" or "|cffff8060TEST: NOT CLEARED|r",
+        ("Score %s  -  %d star%s"):format(fmtBig(result.score), stars, stars == 1 and "" or "s"), 3)
+    GP:PlaySfx(result.cleared and "clear.ogg" or "lost.ogg")
+    self.customBackAt = GetTime() + 3
+end
+
+-- Test-play an editor level on the board.
+function UI:StartCustom(data, n)
+    self:Show()
+    -- the map (where the editor is opened from) gives way to the board
+    if self.levelPanel and self.levelPanel:IsShown() then self:HideLevelSelect() end
+    if self.playsPanel and self.playsPanel:IsShown() then self.playsPanel:Hide(); self:SetBoardChrome(true) end
+    local ok = self:StartLevel(n or 1, false, { custom = data })
+    self.customStars = self.state and self.state.stars
+    return ok
+end
+
 -- Retry (the button beside the board, or on the result card): a retry uses
 -- a play. A lost level has already paid for its attempt; starting over in
 -- the middle of one, or replaying one just cleared, spends a play here.
 function UI:Retry()
     local st = self.state
     local n = st and st.level or GP:GetDB().current or 1
+    if self.customTest then
+        if self.card then self:HideCard() end
+        return self:StartLevel(n, true, { custom = self.customTest })
+    end
     if not GP.Plays:CanPlay() then
         self:ShowOutOfPlays()
         self:UpdateDisplay()
@@ -3741,6 +3793,7 @@ function UI:Retry()
 end
 
 function UI:OnLevelOver(result)
+    if self.customTest then return self:OnCustomOver(result) end
     local db = GP:GetDB()
     local prevBest = db.best[result.level] or 0
     self.cardPrevBest = prevBest
@@ -3864,6 +3917,10 @@ function UI:OnUpdate(dt)
         end
     end
     GP.Mascot:Tick(now)
+    if self.customBackAt and now >= self.customBackAt then
+        self.customBackAt = nil
+        if GP.Editor and GP.Editor.ReturnFromTest then GP.Editor:ReturnFromTest() end
+    end
     if self.duelStartAt and now >= self.duelStartAt then
         self.duelStartAt = nil
         self:BeginDuel(now)
