@@ -291,7 +291,7 @@ D.SCRIPTS = {
     } },
     { key = "boss_spider", when = function(st) return st.boss and st.boss.ability == "spider" end, lines = {
         { "spider", "Skitter skitter. You will never pin the Gyro Spider down." },
-        { "razzle", "It jumps when you hit it. Keep the ball low and keep it busy." },
+        { "razzle", "Your oranges only charge it up. Strike it in the same shot to let the charge loose, and watch out: it jumps when you hit it." },
     } },
     { key = "boss_boar", when = function(st) return st.boss and st.boss.ability == "boar" end, lines = {
         { "boar", "SNORT. CHARGE. SNORT." },

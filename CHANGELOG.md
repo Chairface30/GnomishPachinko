@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The Gyro Spider soaks up the lightning:** a lit orange no longer hurts it, it only charges it (the count shows over its body). Strike the spider with the ball in the same shot and the whole charge hits it on top of the strike's own 2; if the shot ends without a strike, the charge fizzles. Lighting oranges and then finding the spider (which jumps when hit, past webs that catch the ball) is the fight now.
 - **Play On is gone,** and **a retry uses a play**: starting a level over (the Retry button beside the board, or on the result card after a clear) spends one of the day's plays. A lost level still costs one play, and retrying it after the loss does not cost a second.
 - The Gyro Spider's webs can also pop up right where a peg has been cleared, as well as in the open spaces.
 - The phoenix egg tutorials show an egg being hit: it cracks, hatches on the last hit (two, or three for the tougher eggs), and the phoenix climbs out of it and away, over and over while the host talks, with no arrow.

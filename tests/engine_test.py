@@ -2121,6 +2121,46 @@ end
 zap, hit, zapEv = ev("boss_zap_probe")()
 check("on a boss level an orange lit zaps the boss for 1, a direct hit does 2", zap == 1 and hit == 2 and zapEv, f"{zap} {hit} {zapEv}")
 
+# the Gyro Spider only stores an orange's lightning: a strike in the same
+# shot lets it loose, a shot that ends without one loses it
+lua(r"""
+function spider_charge_probe()
+  local spec
+  for n = 10, 400, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "spider" then break end end
+  local st = E:NewLevel(spec)
+  local b = st.boss
+  local hp0 = b.hp
+  local events = {}
+  local function lightOrange()
+    for _, p in ipairs(st.pegs) do
+      if p.kind == "orange" and not p.lit then st.time = st.time + 1 E.HitPeg(st, p, nil, events, true) return end
+    end
+  end
+  lightOrange(); lightOrange()
+  local out = { spared = b.hp == hp0, charge = b.charge }
+  st.time = st.time + 1
+  E.HitPeg(st, b, { vx = 0, vy = 100 }, events)
+  out.strike = hp0 - b.hp
+  out.emptied = b.charge == 0
+  for _, e in ipairs(events) do if e.type == "boss_discharge" then out.discharge = e.damage end end
+  -- charge built, then the shot ends without a strike
+  lightOrange()
+  local hp1 = b.hp
+  st.phase = E.PHASE.FLIGHT
+  st.balls = {}
+  st.shots = 1
+  st.ballsLeft = 10
+  for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+  out.lost = b.charge == 0 and b.hp == hp1
+  for _, e in ipairs(events) do if e.type == "boss_charge_lost" then out.lostEv = true end end
+  return out
+end
+""")
+sc = dict(ev("spider_charge_probe")())
+check("the Gyro Spider: oranges only charge it, a strike adds the charge to its 2, a shot without a strike loses it",
+      sc.get("spared") and sc.get("charge") == 2 and sc.get("strike") == 4 and sc.get("discharge") == 4
+      and sc.get("emptied") and sc.get("lost") and sc.get("lostEv"), str(sc))
+
 # settings: a box for the sound and one for the music
 lua(r"""
 UI:StartLevel(1, true)

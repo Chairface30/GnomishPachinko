@@ -145,7 +145,8 @@ E.BOSS_BOUNCE = 1.0
 E.BOSS_KICK   = 220
 -- A boss is worn down by good play, not one lucky bounce: a direct hit
 -- does BOSS_HIT_DAMAGE, and every orange peg lit on a boss level zaps it
--- for BOSS_ZAP_DAMAGE (a shield stops only the ball, not a zap).
+-- for BOSS_ZAP_DAMAGE (a shield stops only the ball, not a zap; the Gyro
+-- Spider only stores it, see below).
 E.BOSS_HIT_DAMAGE = 2
 -- the Tin Drake's speed-up: at its last point of health it flies (1 + gain)
 -- times as fast as it started; gain grows with the chapter, up to a cap
@@ -168,6 +169,10 @@ E.WEB_BALL_CLEAR = 60        -- never spun this close to a ball in flight
 E.WEB_SPOT_SHARE = 0.5       -- the chance a web tries a cleared peg's spot rather than open space
 E.WEB_MAX        = 10        -- ... up to this many on the board
 E.WEB_CLEAR      = 14        -- the gap kept between a web and any piece
+-- The Gyro Spider soaks up the lightning: an orange's zap only charges it
+-- (BOSS_ZAP_DAMAGE a time), and the charge turns into damage only when a
+-- ball strikes it in the same shot. A shot that ends without a strike
+-- loses the charge.
 E.SCRAP_COL_W    = 44        -- scrap sits on columns this wide (a ball passes between neighbours)
 E.SCRAP_FREE_COLS = 3        -- columns always left empty: scrap is never a wall
 E.GOLEM_SHIELD = 2
@@ -256,7 +261,7 @@ E.AIM_SWING    = 5.0        -- radians a second the launcher swings toward the c
 E.BOSSES = {
     { id = "drake",  name = "Tin Drake",    blurb = "Speeds up as it weakens.",                         speed = 0.6 },
     { id = "golem",  name = "Bolt Golem",   blurb = "Raises a two-hit shield every third shot.",        speed = 0.7 },
-    { id = "spider", name = "Gyro Spider",  blurb = "Jumps when hit, and spins two webs every time an orange is lit: a ball that touches one is caught with it.", speed = 1.0 },
+    { id = "spider", name = "Gyro Spider",  blurb = "Lit oranges only charge it: strike it in the same shot to turn the charge into damage. Jumps when hit, and spins two webs every time an orange is lit: a ball that touches one is caught with it.", speed = 1.0 },
     { id = "boar",   name = "Mechano-Boar", blurb = "Charges fast and turns around when hit.",          speed = 1.8 },
     { id = "yeti",   name = "Cog Yeti",     blurb = "Heals one point after any shot that misses it.",   speed = 0.8 },
 }
@@ -882,7 +887,14 @@ hitPeg = function(state, p, ball, events, quiet)
         push(events, { type = "shield", peg = p, x = p.x, y = p.y, left = p.shield })
         return true
     end
-    p.hp = (p.hp or 1) - ((p.kind == "boss") and E.BOSS_HIT_DAMAGE or 1)
+    local damage = (p.kind == "boss") and E.BOSS_HIT_DAMAGE or 1
+    -- a strike on the Gyro Spider lets loose the charge its oranges built
+    if p.kind == "boss" and (p.charge or 0) > 0 then
+        damage = damage + p.charge
+        push(events, { type = "boss_discharge", x = p.x, y = p.y, charge = p.charge, damage = damage })
+        p.charge = 0
+    end
+    p.hp = (p.hp or 1) - damage
     if p.hp > 0 then
         p.crackAt = state.time
         local pts = (E.CHIP_POINTS[p.kind] or 10) * E:ScoreMultiplier(E:Progress(state))
@@ -973,6 +985,10 @@ lightPeg = function(state, p, ball, events, quiet, at)
             iron.gone = true
             iron.goneAt = state.time
             push(events, { type = "scrap_zap", x = p.x, y = p.y, bx = iron.x, by = iron.y })
+        elseif boss.ability == "spider" then
+            -- the Gyro Spider only stores the zap until the ball strikes it
+            boss.charge = (boss.charge or 0) + E.BOSS_ZAP_DAMAGE
+            push(events, { type = "boss_charge", x = p.x, y = p.y, bx = boss.x, by = boss.y, charge = boss.charge })
         else
         push(events, { type = "boss_zap", x = p.x, y = p.y, bx = boss.x, by = boss.y })
         do       -- a zap goes past a shield: the shield only stops the ball
@@ -2115,6 +2131,11 @@ local function substep(state, dt, events)
         if b and not b.lit and b.ability == "yeti" and not state.bossHitThisShot and b.hp < b.maxhp then
             b.hp = b.hp + 1
             push(events, { type = "boss_heal", x = b.x, y = b.y, hp = b.hp })
+        end
+        -- the Gyro Spider's charge is lost if no strike let it loose
+        if b and not b.lit and (b.charge or 0) > 0 then
+            push(events, { type = "boss_charge_lost", x = b.x, y = b.y, charge = b.charge })
+            b.charge = 0
         end
         if state.shotHits > 0 or state.shotPegs > 0 then
             local n = math.max(1, state.shotPegs)

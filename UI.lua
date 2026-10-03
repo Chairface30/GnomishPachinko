@@ -251,7 +251,7 @@ local TIPS = {
     { key = "duel",      when = function(st) return st.objective == "duel" end, text = "Tinkmaster: \"My brother Cogwhistle again. Clear the board, then it's a duel: five balls each, and hit an orange every shot or he docks your score.\"" },
     { key = "longshots", when = function(st) return st.objective == "longshots" end, text = "Tinkmaster: \"Long Shots! Light two orange pegs far apart in one shot. Bounce it off the far wall and watch.\"" },
     { key = "tough",     when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, text = "Tinkmaster: \"Steel-rimmed pieces take two hits, gold-rimmed three. They crack first.\"" },
-    { key = "webs",      when = function(st) return st.boss and st.boss.ability == "spider" end, text = "Tinkmaster: \"The Gyro Spider spins two webs every time you light an orange. Touch one and the ball is caught, web and all. A fireball burns them away.\"" },
+    { key = "webs",      when = function(st) return st.boss and st.boss.ability == "spider" end, text = "Tinkmaster: \"Lit oranges only charge the Gyro Spider. Strike it with the ball in the same shot and the charge hits it, or it fizzles. It spins two webs every time you light an orange. Touch one and the ball is caught, web and all. A fireball burns them away.\"" },
     { key = "nobucket",  when = function(st) return st.noBucket end, text = "Tinkmaster: \"No bucket on this one. The only free balls are the score marks, so make every ball count.\"" },
     { key = "keys",      when = function(st) for _, p in ipairs(st.pegs) do if p.kind == "key" then return true end end end, text = "Tinkmaster: \"A key! Light it and its cage falls away. Sometimes the key is behind another lock.\"" },
     { key = "items",     when = function(st) return st.level == 2 end, text = "Tinkmaster: \"The slots at the bottom-left hold the special balls: Ring of Fire, Rainbow Ball and Suction Tube. Click one to arm it for your next shot. Here's one of each to try; bosses give more.\"" },
@@ -503,6 +503,12 @@ function UI:CreateFrame()
     bossName:SetFont("Fonts\\FRIZQT__.TTF", 10, "OUTLINE")
     bossName:Hide()
     self.bossName = bossName
+    -- the Gyro Spider's stored lightning, over its body
+    local bossCharge = barFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    bossCharge:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
+    bossCharge:SetTextColor(0.55, 0.85, 1)
+    bossCharge:Hide()
+    self.bossCharge = bossCharge
 
     local bucket = field:CreateTexture(nil, "OVERLAY", nil, 1)
     bucket:SetSize(E.BUCKET_W + 16, E.BUCKET_W + 16)
@@ -3471,6 +3477,18 @@ function UI:HandleEvents(now)
             -- an orange lit on a boss level: a bolt from it to the boss
             self:ShowBolt({ { x = ev.x, y = ev.y }, { x = ev.bx, y = ev.by } }, now)
             GP:PlaySfx("zap.ogg")
+        elseif t == "boss_charge" then
+            -- the Gyro Spider soaks the bolt up and stores it
+            self:ShowBolt({ { x = ev.x, y = ev.y }, { x = ev.bx, y = ev.by } }, now)
+            self:Sparks(ev.bx, ev.by, { 0.55, 0.85, 1 }, 4, 16)
+            GP:PlaySfx("zap.ogg")
+        elseif t == "boss_discharge" then
+            -- a strike lets the stored lightning loose
+            self:Sparks(ev.x, ev.y, { 0.55, 0.85, 1 }, 14, 40)
+            self:Popup(ev.x, ev.y - 44, "DISCHARGE -" .. ev.damage, 0.55, 0.85, 1)
+            GP:PlaySfx("zap.ogg")
+        elseif t == "boss_charge_lost" then
+            self:Popup(ev.x, ev.y - 44, "FIZZLED", 0.6, 0.6, 0.7)
         elseif t == "full_clear" then
             self:ShowBanner("|cffffd700FULL CLEAR!|r", ("Every piece lit: +%s"):format(fmtBig(ev.points)), 2.6)
             self:Celebrate()
@@ -4144,8 +4162,15 @@ function UI:Render(now)
         self.bossFill:SetWidth(math.max(1, 70 * math.max(0, b.hp) / b.maxhp))
         self.bossName:ClearAllPoints()
         self.bossName:SetPoint("TOP", self.bossBg, "BOTTOM", 0, -1)
+        if (b.charge or 0) > 0 and not b.lit then
+            placeAt(self.bossCharge, field, b.x, math.max(b.y - E.BOSS_R - 12, 8))
+            self.bossCharge:SetText("CHARGE " .. b.charge)
+            self.bossCharge:Show()
+        elseif self.bossCharge:IsShown() then
+            self.bossCharge:Hide()
+        end
     elseif b and self.bossBg:IsShown() then
-        self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
+        self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide(); self.bossCharge:Hide()
     end
 
     self.ballAura = self.ballAura or {}
