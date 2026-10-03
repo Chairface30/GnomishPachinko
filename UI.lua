@@ -326,7 +326,7 @@ function UI:CreateFrame()
     local credit = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     credit:SetFont(UI.FONT, 11, "OUTLINE")
     credit:SetTextColor(0.95, 0.82, 0.5)
-    credit:SetPoint("BOTTOM", frame, "BOTTOM", 0, 48)
+    credit:SetPoint("BOTTOM", frame, "BOTTOM", (LEFT_W + GAP - GAP - SIDE_W) / 2, 40)     -- centred under the board
     credit:SetText(("Gnomish Pachinko v%s  -  by %s"):format(GP:Version(), GP.AUTHOR))
     self.creditText = credit
 
@@ -2170,17 +2170,21 @@ function UI:CreateLevelSelect()
     panel.cells = panel.nodes
     panel:LayPath(1)
 
-    -- under the map, a centered pair: the level editor (for everyone) and
-    -- the way back to the level in play
-    panel.editor = makeButton(panel, 170, 26, "Level editor")
-    panel.editor:SetPoint("BOTTOM", -90, 10)
+    -- in the window's footer under the map, above the author and version: a
+    -- centred pair, the level editor (for everyone) and the way back to the
+    -- level in play. They are there only while the map is.
+    panel.editor = makeButton(self.frame, 170, 24, "Level editor")
+    panel.editor:SetPoint("TOP", self.view, "BOTTOM", -90, -2)
     panel.editor:SetScript("OnClick", function() GP.Editor:Show() end)
-    panel.back = makeButton(panel, 170, 26, "Return to current level")
-    panel.back:SetPoint("BOTTOM", 90, 10)
+    panel.back = makeButton(self.frame, 170, 24, "Return to current level")
+    panel.back:SetPoint("TOP", self.view, "BOTTOM", 90, -2)
     panel.back:SetScript("OnClick", function() UI:HideLevelSelect() end)
-    -- wipes progress after a second click within a few seconds; just above the pair
+    panel.editor:Hide(); panel.back:Hide()
+    panel:SetScript("OnShow", function() panel.editor:Show(); panel.back:Show() end)
+    panel:SetScript("OnHide", function() panel.editor:Hide(); panel.back:Hide() end)
+    -- wipes progress after a second click within a few seconds
     panel.reset = makeButton(panel, 150, 24, "Reset progress")
-    panel.reset:SetPoint("BOTTOM", 0, 40)
+    panel.reset:SetPoint("BOTTOM", 0, 10)
     panel.reset:SetScript("OnClick", function(self)
         if self.armedUntil and GetTime() < self.armedUntil then
             self.armedUntil = nil
@@ -2194,9 +2198,9 @@ function UI:CreateLevelSelect()
     end)
     -- the owner's characters can open every level for testing
     panel.unlock = makeButton(panel, 150, 24, "Unlock all (testing)")
-    panel.unlock:SetPoint("BOTTOM", -80, 68)
+    panel.unlock:SetPoint("BOTTOM", -80, 40)
     panel.unlimited = makeButton(panel, 150, 24, "Unlimited items")
-    panel.unlimited:SetPoint("BOTTOM", 80, 68)
+    panel.unlimited:SetPoint("BOTTOM", 80, 40)
     panel.unlimited:SetScript("OnClick", function() GP:ToggleUnlimited(); UI:LevelPage(UI.levelPage) end)
     panel.unlimited:Hide()
     panel.unlock:SetScript("OnClick", function() GP:UnlockAll() end)

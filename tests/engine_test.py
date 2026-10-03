@@ -88,7 +88,11 @@ function Obj:Show()
   rawset(self, "_shown", true)
   if not was and rawget(self, "_scripts") and rawget(self, "_scripts").OnShow then self._scripts.OnShow(self) end
 end
-function Obj:Hide() rawset(self, "_shown", false) end
+function Obj:Hide()
+  local was = self:IsShown()
+  rawset(self, "_shown", false)
+  if was and rawget(self, "_scripts") and rawget(self, "_scripts").OnHide then self._scripts.OnHide(self) end
+end
 function Obj:SetScript(name, fn)
   rawset(self, "_scripts", rawget(self, "_scripts") or {})
   rawget(self, "_scripts")[name] = fn
@@ -3903,6 +3907,19 @@ lua(f"__tocVersion = \"{toc_version}\"")
 check("the window's credit line names the author and the version from the TOC (below 1.0.0)",
       ev("GP:Version()") == toc_version and toc_version.startswith("0.")
       and ev("UI.creditText:GetText()").endswith("by Chairface Chippendale"), ev("UI.creditText:GetText()"))
+
+# the map's two buttons sit in the window's footer under the board (not on the map), only while the map is open
+lua(r"""
+UI:ShowLevelSelect()
+local e, b = UI.levelPanel.editor, UI.levelPanel.back
+local pe = { e:GetPoint() }
+__footerShown = e:IsShown() and b:IsShown() and e:GetParent() == UI.frame and pe[2] == UI.view and pe[3] == "BOTTOM"
+  and b:GetText() == nil and b.text:GetText() == "Return to current level"
+UI:HideLevelSelect()
+__footerHidden = not e:IsShown() and not b:IsShown()
+""")
+check("Level editor and Return to current level sit in the footer under the board while the map is open, and go with it",
+      ev("__footerShown") and ev("__footerHidden"))
 
 # the code: what goes out comes back, and a cut-short, changed or hostile code is refused
 lua(r"""
