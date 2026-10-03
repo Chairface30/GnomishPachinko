@@ -116,6 +116,13 @@ local function gimmickPoint(test)
     return function(st) return firstPiece(st, test) end
 end
 local function isMoving(p) return p.moving and true or false end
+-- a moving gimmick's tutorial shows a plain moving piece (not the purple,
+-- an orange or a green that happens to ride it), any moving one failing that
+local function movingPoint(st)
+    return firstPiece(st, function(p) return p.moving and p.kind == "blue" and not p.special end)
+        or firstPiece(st, function(p) return p.moving and not p.special and p.kind ~= "purple" end)
+        or firstPiece(st, isMoving)
+end
 local function isBumper(p) return p.kind == "bumper" and not p.balloon end
 local function isKey(p) return p.kind == "key" end
 local function plainBlock(p) return p.kind == "block" and not p.scrap and not p.rail and not p.lock and not p.cradle end
@@ -196,7 +203,7 @@ D.SCRIPTS = {
         { "mekka", "Use them for a ricochet, or curse them when they're in the way." },
     } },
     { key = "tough", when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end,
-      point = gimmickPoint(function(p) return (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" end), lines = {
+      demo = { 2, 3 }, lines = {
         { "bink", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
     } },
     { key = "eggs", when = function(st) return st.objective == "eggs" or st.objective == "mixed_eggs" end,
@@ -227,28 +234,28 @@ D.SCRIPTS = {
       point = gimmickPoint(function(p) return p.rail and (p.railIdx or 1) == 1 end), lines = {
         { "mekka", "Another rail! Catch the inside of it and the ball rides the whole curve, lighting every brick." },
     } },
-    { key = "gim_slider", when = function(st) return hasGimmick(st, "Slider") end, point = gimmickPoint(isMoving), lines = {
+    { key = "gim_slider", when = function(st) return hasGimmick(st, "Slider") end, point = movingPoint, lines = {
         { "razzle", "A Slider! That row glides back and forth. Aim for where it will be, not where it is." },
     } },
-    { key = "gim_lifts", when = function(st) return hasGimmick(st, "Lifts") end, point = gimmickPoint(isMoving), lines = {
+    { key = "gim_lifts", when = function(st) return hasGimmick(st, "Lifts") end, point = movingPoint, lines = {
         { "bink", "Lifts! These pegs rise and sink in turn. Wait for the one you want to come up to meet you." },
     } },
     { key = "gim_blocks", when = function(st) return hasGimmick(st, "Blocks") end, point = gimmickPoint(plainBlock), lines = {
         { "tink", "Steel blocks. They never light and never break, so bank off them to reach what's behind." },
     } },
-    { key = "gim_wheel", when = function(st) return hasGimmick(st, "Wheel") end, point = gimmickPoint(isMoving), lines = {
+    { key = "gim_wheel", when = function(st) return hasGimmick(st, "Wheel") end, point = movingPoint, lines = {
         { "mekka", "A wheel of pegs, turning round and round. Time your shot to catch it on the way past." },
     } },
     { key = "gim_bumpers", when = function(st) return hasGimmick(st, "Bumpers") end, point = gimmickPoint(isBumper), lines = {
         { "razzle", "Bumpers! Hit one and it kicks the ball away hard. Great for sending a ball back up the board." },
     } },
-    { key = "gim_pendulum", when = function(st) return hasGimmick(st, "Pendulum") end, point = gimmickPoint(isMoving), lines = {
+    { key = "gim_pendulum", when = function(st) return hasGimmick(st, "Pendulum") end, point = movingPoint, lines = {
         { "bink", "A pendulum on its chain. Catch it at the end of its swing and it flings the ball along with it." },
     } },
     { key = "gim_key_cage", when = function(st) return hasGimmick(st, "Key Cage") end, point = gimmickPoint(isKey), lines = {
         { "tink", "A cage! Those oranges are locked in. Light the gold key somewhere on the board and the cage falls away." },
     } },
-    { key = "gim_twin_wheels", when = function(st) return hasGimmick(st, "Twin Wheels") end, point = gimmickPoint(isMoving), lines = {
+    { key = "gim_twin_wheels", when = function(st) return hasGimmick(st, "Twin Wheels") end, point = movingPoint, lines = {
         { "mekka", "Twin wheels, turning against each other. Thread the ball between them!" },
     } },
     { key = "gim_bumper_gate", when = function(st) return hasGimmick(st, "Bumper Gate") end, point = gimmickPoint(isBumper), lines = {
@@ -266,7 +273,7 @@ D.SCRIPTS = {
         { "tink", "A cage inside a cage! The gold key sits behind silver bars, so find the silver key first." },
     } },
     { key = "heavy", when = function(st) return firstPiece(st, function(p) return (p.maxhp or 1) >= 3 and p.kind ~= "egg" and p.kind ~= "boss" end) ~= nil end,
-      point = gimmickPoint(function(p) return (p.maxhp or 1) >= 3 and p.kind ~= "egg" and p.kind ~= "boss" end), lines = {
+      demo = { 3 }, lines = {
         { "mekka", "Gold-rimmed pegs! These take three hits each. Keep at them." },
     } },
     { key = "eggs3", when = function(st) return firstPiece(st, function(p) return p.kind == "egg" and (p.maxhp or 1) >= 3 end) ~= nil end,
@@ -473,7 +480,8 @@ function D:Play(list, done)
             self.queue[#self.queue + 1] = { who, line[2], clip = clip, highlight = line.highlight, cues = line.cues,
                 giftKey = line.givesGift and sc.key or nil,
                 -- each talk's first line says what to show above the box (or nothing)
-                scriptStart = (n == 1) or nil, point = (n == 1) and sc.point or nil }
+                scriptStart = (n == 1) or nil, point = (n == 1) and sc.point or nil,
+                demo = (n == 1) and sc.demo or nil }
         end
     end
     self.done = done
@@ -542,7 +550,10 @@ function D:Show(line)
             local ok, p = pcall(line.point, GP.UI.state)
             if ok then piece = p end
         end
-        if piece then GP.UI:ShowShowcase(piece) else GP.UI:HideShowcase() end
+        if line.demo and GP.UI.ShowToughDemo then
+            -- tough pieces: sample pegs shown being hit, cracking and lighting
+            GP.UI:ShowToughDemo(line.demo)
+        elseif piece then GP.UI:ShowShowcase(piece) else GP.UI:HideShowcase() end
     end
     self:StartCues(line)
     local sp = self.SPEAKERS[line[1]] or self.SPEAKERS.tink

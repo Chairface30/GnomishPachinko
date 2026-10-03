@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The moving-piece tutorials (Slider, Lifts, Wheel, Pendulum, Twin Wheels) show a plain moving piece instead of whatever moved first (the Lifts talk showed the purple peg), and show it moving: lifts bob, sliders glide, wheels circle, pendulums swing.
+- The steel and gold rim tutorials now show the pieces themselves: a steel-rimmed and a gold-rimmed peg (just the gold one for the gold tutorial) above the talk box, a ball bouncing on each, cracking it hit by hit until it lights, then starting over.
 - **The Gyro Spider spins two webs every time an orange is lit** (instead of two after every shot), up to 10 on the board, never right on top of a ball in flight.
 - The last gem's (or egg's) fall stays in slow motion but zooms back out to the whole board, so you can see whether the bucket catches it.
 - Fixed: the Levels button beside the board opened the map behind the level cleared card, which stayed on screen. Any card is now closed first.

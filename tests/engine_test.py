@@ -2797,6 +2797,53 @@ UI:UpdateZoom(1 / 30)
 """)
 check("while the last gem falls the view zooms back out to the whole board", abs(ev("__gemZoom") - 1) < 0.01, str(ev("__gemZoom")))
 
+# the tough pieces' tutorial shows a steel- and a gold-rimmed peg being hit:
+# cracks first, then lit, then over again
+lua(r"""
+UI:StartLevel(1, true)
+GP.Dialog:Finish()
+UI:ShowToughDemo({ 2, 3 })
+local f = UI.showcase
+local d1, d2 = f.demoTex[1], f.demoTex[2]
+__demoShown = f:IsShown() and not f.piece:IsShown() and d1.rim:IsShown() and d2.rim:IsShown()
+local r1, r2 = d1.rimColor, d2.rimColor
+__demoRims = r1[3] > r2[3]          -- steel is cooler, gold warmer
+local seen = { cracked = false, lit = false, ball = false }
+local t0 = f.startAt
+for k = 0, 80 do
+  UI:AnimateToughDemo(t0 + k * 0.05)
+  if d2.crack:IsShown() then seen.cracked = true end
+  if d2.state == "lit" and d2.disc.slot == ART:Peg("blue", "_lit") and not d2.rim:IsShown() then seen.lit = true end
+  if d1.ball:IsShown() then seen.ball = true end
+end
+UI:AnimateToughDemo(t0 + 0.01)
+__demoReset = d1.state == 2 and not d1.crack:IsShown()
+__demoSeen = seen.cracked and seen.lit and seen.ball
+UI:HideShowcase()
+""")
+check("the tough pieces' tutorial shows a steel and a gold rimmed peg bouncing a ball, cracking, then lighting",
+      ev("__demoShown") and ev("__demoRims") and ev("__demoSeen") and ev("__demoReset"),
+      f"{ev('__demoShown')} {ev('__demoRims')} {ev('__demoSeen')} {ev('__demoReset')}")
+
+# a moving gimmick's tutorial shows a plain moving piece, moving (level 31: lifts)
+lua(r"""
+for _, sc in ipairs(GP.Dialog.SCRIPTS) do GnomishPachinkoDB.dialogs[sc.key] = true end
+GnomishPachinkoDB.dialogs.gim_lifts = nil
+GnomishPachinkoDB.unlocked = 400
+UI:StartLevel(31, true)
+local f = UI.showcase
+__liftShown = GP.Dialog:IsShown() and f and f:IsShown() and f.mover ~= nil and f.mover.kind == "lift"
+__liftKind = f and f.piece.slot or "none"
+local ys = {}
+for k = 0, 20 do UI:AnimateShowcase(f.startAt + k * 0.1); ys[#ys + 1] = f.y end
+local lo, hi = math.huge, -math.huge
+for _, y in ipairs(ys) do lo = math.min(lo, y); hi = math.max(hi, y) end
+__liftMoves = hi - lo > 20
+GP.Dialog:Finish()
+""")
+check("the Lifts tutorial shows a plain moving peg bobbing up and down, not the purple",
+      ev("__liftShown") and ev("__liftMoves") and "purple" not in ev("__liftKind"), f"{ev('__liftShown')} {ev('__liftMoves')} {ev('__liftKind')}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

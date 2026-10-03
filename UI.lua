@@ -1324,6 +1324,10 @@ function UI:ShowShowcase(piece)
         self.showcase = f
     end
     local f = self.showcase
+    -- an ordinary showcase: no tough-piece demo samples
+    f.demoN = nil
+    for _, d in ipairs(f.demoTex or {}) do d.rim:Hide(); d.disc:Hide(); d.crack:Hide(); d.ball:Hide() end
+    f.piece:Show()
     local slot = pieceSlot(piece, "")
     ART:Set(f.piece, slot)
     if piece.shape == "brick" then
@@ -1344,17 +1348,153 @@ function UI:ShowShowcase(piece)
     f.x, f.y = self.SHOWCASE_X, self.SHOWCASE_Y
     f.side = 1
     f.startAt = GetTime()
+    -- a moving piece is shown moving the way its gimmick moves it
+    f.mover = nil
+    for _, mv in ipairs((self.state and self.state.movers) or {}) do
+        for _, q in ipairs(mv.pegs) do if q == piece then f.mover = mv end end
+    end
     f:Show()
+end
+
+-- The showcased piece's motion, in showcase pixels: lifts bob, sliders
+-- glide, wheels circle, pendulums swing. Returns the offset and the turn.
+UI.SHOWCASE_SWAY = 34
+function UI:ShowcaseMotion(f, t)
+    local mv = f.mover
+    if not mv then return 0, 0, 0 end
+    local sp = math.max(1.6, math.abs(mv.speed or 1))
+    local A = self.SHOWCASE_SWAY
+    if mv.kind == "lift" then return 0, A * math.sin(sp * t), 0 end
+    if mv.kind == "slide" then return A * math.sin(sp * t), 0, 0 end
+    local th
+    if mv.kind == "wheel" then th = sp * t * ((mv.speed or 1) < 0 and -1 or 1)
+    else th = 0.9 * math.sin(sp * t) end
+    -- round a centre just above the piece, as on a wheel's rim or a pendulum's bob
+    return A * math.sin(th), A - A * math.cos(th), th
 end
 
 function UI:HideShowcase()
     if self.showcase then self.showcase:Hide() end
 end
 
+-- The tough pieces' tutorial: sample blue pegs, one per entry of `hits`
+-- (2 = steel rim, 3 = gold rim), side by side where the showcase sits. A
+-- ball bounces on each again and again: every hit but the last cracks it
+-- further, the last lights it, and after a beat it starts over.
+UI.DEMO_GAP = 96          -- between the sample pegs
+UI.DEMO_HIT_EVERY = 0.85  -- seconds between bounces
+UI.DEMO_REST = 1.3        -- lit, before it starts over
+function UI:ShowToughDemo(hits)
+    self:ShowShowcase({ kind = "blue", shape = "peg", r = E.PEG_R, x = self.SHOWCASE_X, y = self.SHOWCASE_Y })
+    local f = self.showcase
+    f.piece:Hide()
+    f.demoTex = f.demoTex or {}
+    local n = #hits
+    local size = self.SHOWCASE_PEG
+    for i, h in ipairs(hits) do
+        local d = f.demoTex[i]
+        if not d then
+            d = {}
+            d.rim = f:CreateTexture(nil, "ARTWORK", nil, 0)
+            d.disc = f:CreateTexture(nil, "ARTWORK", nil, 1)
+            d.crack = f:CreateTexture(nil, "ARTWORK", nil, 2)
+            d.ball = f:CreateTexture(nil, "OVERLAY", nil, 1)
+            ART:Set(d.rim, "rim", 1, 1, 1)
+            ART:Set(d.crack, "crack")
+            ART:Set(d.ball, "ball")
+            f.demoTex[i] = d
+        end
+        d.hits = h
+        d.x = self.SHOWCASE_X + (i - (n + 1) / 2) * self.DEMO_GAP
+        d.y = self.SHOWCASE_Y
+        local c = (h >= 3) and RIM_HEAVY or RIM
+        d.rimColor = c
+        d.rim:SetVertexColor(c[1], c[2], c[3], 1)
+        d.rim:SetSize(size + 14, size + 14)
+        d.crack:SetSize(size, size)
+        d.ball:SetSize(size * 0.45, size * 0.45)
+        for _, tex in ipairs({ d.rim, d.disc, d.crack }) do
+            tex:ClearAllPoints()
+            tex:SetPoint("CENTER", self.field, "TOPLEFT", d.x, -d.y)
+        end
+        d.state = nil
+        d.rim:Show(); d.disc:Show(); d.crack:Hide(); d.ball:Hide()
+    end
+    for i = n + 1, #f.demoTex do
+        local d = f.demoTex[i]
+        d.rim:Hide(); d.disc:Hide(); d.crack:Hide(); d.ball:Hide()
+    end
+    f.demoN = n
+    -- the arrow and the glow on the first sample
+    local first = f.demoTex[1]
+    f.x, f.y = first.x, first.y
+    f.glow:ClearAllPoints()
+    f.glow:SetPoint("CENTER", self.field, "TOPLEFT", (f.demoTex[1].x + f.demoTex[n].x) / 2, -first.y)
+    f.glow:SetSize(n * self.DEMO_GAP + size * 2, size * 3)
+    self:AnimateToughDemo(GetTime())
+end
+
+-- One frame of the demo: hp, cracks, the lit peg, the ball's bounce arc.
+function UI:AnimateToughDemo(now)
+    local f = self.showcase
+    if not (f and f.demoN) then return end
+    local t = now - (f.startAt or now)
+    local size = self.SHOWCASE_PEG
+    for i = 1, f.demoN do
+        local d = f.demoTex[i]
+        local cycle = d.hits * self.DEMO_HIT_EVERY + self.DEMO_REST
+        -- each sample a little behind the one before, so they never bounce in step
+        local u = (t + (i - 1) * 0.4) % cycle
+        local done = math.floor((u + self.DEMO_HIT_EVERY / 2) / self.DEMO_HIT_EVERY)    -- hits landed so far
+        if done > d.hits then done = d.hits end
+        local hp = d.hits - done
+        local state = (hp <= 0) and "lit" or hp
+        if d.state ~= state then
+            d.state = state
+            ART:Set(d.disc, ART:Peg("blue", hp <= 0 and "_lit" or ""))
+            d.disc:SetSize(ART:Size(d.disc.slot, size))
+            if hp <= 0 then
+                d.rim:Hide(); d.crack:Hide()
+            else
+                d.rim:Show()
+                if hp < d.hits then
+                    d.crack:SetAlpha(hp <= 1 and 1 or 0.6)
+                    d.crack:Show()
+                else
+                    d.crack:Hide()
+                end
+            end
+        end
+        -- the ball: an arc down onto the peg's top and back up, for each hit
+        local k = u / self.DEMO_HIT_EVERY - 0.5     -- hit j lands at k = j - 1
+        local j = math.floor(k + 0.5)
+        local w = k - j                              -- -0.5 .. 0.5 around a landing
+        if j >= 0 and j < d.hits then
+            local x = d.x + w * 30
+            local y = d.y - size * 0.5 - size * 0.22 - 70 * (4 * w * w)
+            d.ball:ClearAllPoints()
+            d.ball:SetPoint("CENTER", self.field, "TOPLEFT", x, -y)
+            d.ball:Show()
+            -- a squash on the peg as the ball lands
+            local s = 1 + 0.18 * math.max(0, 1 - math.abs(w) * 8)
+            d.disc:SetSize(ART:Size(d.disc.slot, size * s))
+        else
+            d.ball:Hide()
+        end
+    end
+end
+
 function UI:AnimateShowcase(now)
     local f = self.showcase
     if not (f and f:IsShown()) then return end
     local t = now - (f.startAt or now)
+    if f.mover then
+        local ox, oy, th = self:ShowcaseMotion(f, t)
+        f.x, f.y = self.SHOWCASE_X + ox, self.SHOWCASE_Y + oy
+        f.piece:ClearAllPoints()
+        f.piece:SetPoint("CENTER", self.field, "TOPLEFT", f.x, -f.y)
+        if f.piece.SetRotation and f.mover.kind ~= "lift" and f.mover.kind ~= "slide" then f.piece:SetRotation(-th) end
+    end
     -- the arrow: in from a slant, jabbing in and out, wobbling, squashing
     local base = (f.side > 0) and self.SHOWCASE_ANGLE or (math.pi - self.SHOWCASE_ANGLE)
     local ang = base + 0.16 * math.sin(t * 5)
@@ -1366,6 +1506,7 @@ function UI:AnimateShowcase(now)
     local k = 1 + 0.1 * math.sin(t * 9 + 1.2)
     f.arrow:SetSize(self.ARROW_W * k, self.ARROW_W / 2 / k)
     f.glow:SetAlpha(0.55 + 0.35 * math.sin(t * 4))
+    if f.demoN then self:AnimateToughDemo(now) end
 end
 
 -- The Super Slide tutorial's arrow: the fat cartoon arrow, still, pointing
