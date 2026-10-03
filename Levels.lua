@@ -1206,6 +1206,7 @@ local function cradleFor(body, kind)
     return pair
 end
 L.CradleFor = cradleFor
+L.SurfaceDist = function(p, q) return surfaceDist(p, q) end
 
 -- attempt (0, 1, 2...) reshuffles which pieces are orange, egg or gem on a
 -- retry; the picture itself never changes.

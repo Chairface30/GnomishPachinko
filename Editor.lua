@@ -362,7 +362,8 @@ end
 function ED:SetData(d, keepUndo)
     self.data = d or self:NewData()
     self.sel = {}
-    if not keepUndo then self.undo = {} end
+    if not keepUndo then self.undo = {}; self.redo = {} end
+    if self.preview then self:StopPreview() end
     self:Refresh()
 end
 
@@ -370,12 +371,25 @@ function ED:PushUndo()
     self.undo = self.undo or {}
     self.undo[#self.undo + 1] = copy(self.data)
     if #self.undo > self.UNDO_MAX then table.remove(self.undo, 1) end
+    self.redo = {}          -- a new change: what was undone is gone for good
     self.dirty = true
+    if self.preview then self:StopPreview() end
 end
 
 function ED:Undo()
     if not self.undo or #self.undo == 0 then return self:Status("Nothing to undo.") end
+    self.redo = self.redo or {}
+    self.redo[#self.redo + 1] = copy(self.data)
     self.data = table.remove(self.undo)
+    self.sel = {}
+    self:Refresh()
+end
+
+function ED:Redo()
+    if not self.redo or #self.redo == 0 then return self:Status("Nothing to redo.") end
+    self.undo = self.undo or {}
+    self.undo[#self.undo + 1] = copy(self.data)
+    self.data = table.remove(self.redo)
     self.sel = {}
     self:Refresh()
 end
@@ -404,6 +418,13 @@ local function place(tex, field, x, y)
     tex:SetPoint("CENTER", field, "TOPLEFT", x, -y)
 end
 
+local function unusedName(prefix, used)
+    for k = 1, 999 do
+        if not used[prefix .. k] then return prefix .. k end
+    end
+    return prefix .. "x"
+end
+
 local function clampToZone(pc)
     local z = ED.ZONE
     pc.x = math.max(z.x0, math.min(z.x1, pc.x))
@@ -428,6 +449,69 @@ function ED:AddPiece(t, x, y, extra)
     clampToZone(pc)
     self.data.pieces[#self.data.pieces + 1] = pc
     return #self.data.pieces
+end
+
+-- Mirror while placing: off, left-right, top-bottom, or quad (all four
+-- quarters), across the board's middle lines (where X and Y count from).
+ED.MIRROR_MODES = { "off", "lr", "tb", "quad" }
+ED.MIRROR_NAMES = { off = "Mirror: off", lr = "Mirror: L-R", tb = "Mirror: T-B", quad = "Mirror: quad" }
+function ED:CycleMirror()
+    local k = 1
+    for i, m in ipairs(self.MIRROR_MODES) do if m == (self.mirrorMode or "off") then k = i end end
+    self.mirrorMode = self.MIRROR_MODES[(k % #self.MIRROR_MODES) + 1]
+    self.mirrorBtn.text:SetText(self.MIRROR_NAMES[self.mirrorMode])
+    local words = { off = "off", lr = "left to right", tb = "top to bottom", quad = "into all four quarters" }
+    self:Status("Mirror while placing: " .. words[self.mirrorMode] .. ".")
+end
+
+-- The pieces just placed (the selection) get their mirrored copies. Each
+-- copy set gets its own rail names and lock ids, so a mirrored slide is a
+-- slide of its own and a mirrored key opens only its own cage; moving
+-- groups are not copied. Copies land in the same undo step.
+function ED:MirrorCopies()
+    local mode = self.mirrorMode or "off"
+    if mode == "off" then return end
+    local flips = {}
+    if mode == "lr" or mode == "quad" then flips[#flips + 1] = { x = true } end
+    if mode == "tb" or mode == "quad" then flips[#flips + 1] = { y = true } end
+    if mode == "quad" then flips[#flips + 1] = { x = true, y = true } end
+    local list = self:Selected()
+    local usedRail, usedLock = {}, {}
+    for _, pc in ipairs(self.data.pieces) do
+        if pc.rail then usedRail[pc.rail] = true end
+        if pc.id then usedLock[pc.id] = true end
+    end
+    for _, fl in ipairs(flips) do
+        local railMap, lockMap = {}, {}
+        for _, i in ipairs(list) do
+            local src = self.data.pieces[i]
+            local pc = copy(src)
+            if fl.x then pc.x = W - pc.x end
+            if fl.y then pc.y = H - pc.y end
+            if isBar(pc) then
+                local a = src.a or 0
+                if fl.x and fl.y then a = a + pi elseif fl.x then a = pi - a else a = -a end
+                pc.a = a
+            end
+            -- a piece on the mirror line would land on itself
+            if math.abs(pc.x - src.x) > 1 or math.abs(pc.y - src.y) > 1 then
+                if pc.rail then
+                    if not railMap[pc.rail] then railMap[pc.rail] = unusedName("rail", usedRail); usedRail[railMap[pc.rail]] = true end
+                    pc.rail = railMap[pc.rail]
+                end
+                if pc.id and (pc.t == "key" or pc.t == "cage") then
+                    if not lockMap[pc.id] then lockMap[pc.id] = unusedName("lock", usedLock); usedLock[lockMap[pc.id]] = true end
+                    pc.id = lockMap[pc.id]
+                end
+                pc.mv = nil
+                clampToZone(pc)
+                if #self.data.pieces < self.MAX_PIECES then
+                    self.data.pieces[#self.data.pieces + 1] = pc
+                    self.sel[#self.data.pieces] = true
+                end
+            end
+        end
+    end
 end
 
 function ED:DeleteSelected()
@@ -777,12 +861,6 @@ function ED:Resize(step)
     end)
 end
 
-local function unusedName(prefix, used)
-    for k = 1, 999 do
-        if not used[prefix .. k] then return prefix .. k end
-    end
-    return prefix .. "x"
-end
 
 function ED:MakeRail()
     local bricks = {}
@@ -1023,6 +1101,45 @@ function ED:CycleMover()
 end
 
 -- drop movers nothing uses and renumber the rest
+-- Preview motion: the level built as the game builds it, its movers run on
+-- the clock, and the moving pieces drawn where they are. Editing stops it.
+function ED:TogglePreview()
+    if self.preview then return self:StopPreview() end
+    if #self.data.movers == 0 then return self:Status("Nothing moves yet: select pieces and press Make them move.") end
+    self:CompactMovers()
+    local spec = L:BuildCustom(self:Sanitize(self.data), self.data.level or 1, 0)
+    local st = E:NewLevel(spec)
+    self.preview = { state = st, t0 = GetTime() }
+    self.previewBtn.text:SetText("|cff88ff88Stop preview|r")
+    self:Status("Previewing the moving parts. Click the board, or change anything, to stop.")
+end
+
+function ED:StopPreview()
+    if not self.preview then return end
+    self.preview = nil
+    if self.previewBtn then self.previewBtn.text:SetText("Preview motion") end
+    self:Redraw()
+end
+
+function ED:AnimatePreview()
+    local pv = self.preview
+    if not pv then return end
+    local st = pv.state
+    st.time = GetTime() - pv.t0
+    E:UpdateMovers(st)
+    for _, mv in ipairs(st.movers) do
+        for _, p in ipairs(mv.pegs) do
+            local t = p.editIdx and not p.cradle and self.pieceTex[p.editIdx]
+            if t then
+                for _, tex in ipairs({ t.body, t.sel, t.rim }) do place(tex, self.field, p.x, p.y) end
+                if p.shape == "brick" and t.body.SetRotation then
+                    t.body:SetRotation(-(p.angle or 0)); t.sel:SetRotation(-(p.angle or 0)); t.rim:SetRotation(-(p.angle or 0))
+                end
+            end
+        end
+    end
+end
+
 function ED:CompactMovers()
     local used, map, new = {}, {}, {}
     for _, pc in ipairs(self.data.pieces) do if pc.mv then used[pc.mv] = true end end
@@ -1204,6 +1321,50 @@ function ED:ReturnFromTest()
 end
 
 -- what is wrong with the level, briefly
+-- Pieces sitting on top of each other (more than a pixel deep). A rail's
+-- own bricks and a key's cage bars are left out: they overlap at their
+-- joints on purpose. Pieces are bucketed into cells so a big board stays quick.
+ED.OVERLAP_CELL = 48
+function ED:Overlaps()
+    local pieces = self.data.pieces
+    local game, cells = {}, {}
+    local C = self.OVERLAP_CELL
+    for i, pc in ipairs(pieces) do
+        local p = L:CustomPieces(pc)[1]
+        if p then
+            game[i] = p
+            local r = E.PegRadius(p)
+            for cx = floor((p.x - r) / C), floor((p.x + r) / C) do
+                for cy = floor((p.y - r) / C), floor((p.y + r) / C) do
+                    local key = cx * 1000 + cy
+                    cells[key] = cells[key] or {}
+                    table.insert(cells[key], i)
+                end
+            end
+        end
+    end
+    local over, seen = {}, {}
+    for _, list in pairs(cells) do
+        for a = 1, #list do
+            for b = a + 1, #list do
+                local i, j = list[a], list[b]
+                local key = (i < j) and (i * 4096 + j) or (j * 4096 + i)
+                if not seen[key] then
+                    seen[key] = true
+                    local pa, pb = pieces[i], pieces[j]
+                    local sameRail = pa.rail and pa.rail == pb.rail
+                    local sameLock = pa.id and pa.id == pb.id and (pa.t == "cage" or pa.t == "key") and (pb.t == "cage" or pb.t == "key")
+                    if not sameRail and not sameLock and L.SurfaceDist(game[i], game[j]) < -1 then
+                        over[i], over[j] = true, true
+                    end
+                end
+            end
+        end
+    end
+    self.overlapSet = over
+    return over
+end
+
 function ED:Problems()
     local out = {}
     local pieces = self.data.pieces
@@ -1214,6 +1375,10 @@ function ED:Problems()
         if pc.y + r + E.BALL_R < L:ReachFloor(pc.x) - 2 then unreach = unreach + 1 end
     end
     if unreach > 0 then out[#out + 1] = unreach .. " out of the ball's reach (red)" end
+    local over = self:Overlaps()
+    local nOver = 0
+    for _ in pairs(over) do nOver = nOver + 1 end
+    if nOver > 0 then out[#out + 1] = nOver .. " pieces overlap (yellow)" end
     local goals = self.data.goals or {}
     if (goals.oranges or goals.longshots) and lit < 3 then out[#out + 1] = "needs pegs or bricks to light" end
     local eggs, gems = 0, 0
@@ -1386,8 +1551,14 @@ function ED:Create()
         "Snap new and moved pieces to a grid.")
     self.snapBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, y)
     y = y - 27
-    local undo = button(frame, 136, 24, "Undo", function() ED:Undo() end, "Ctrl+Z")
+    local undo = button(frame, 66, 24, "Undo", function() ED:Undo() end, "Ctrl+Z")
     undo:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, y)
+    local redo = button(frame, 66, 24, "Redo", function() ED:Redo() end, "Ctrl+Y")
+    redo:SetPoint("TOPLEFT", frame, "TOPLEFT", 94, y)
+    y = y - 27
+    self.mirrorBtn = button(frame, 136, 24, "Mirror: off", function() ED:CycleMirror() end,
+        "Mirror while placing: every piece you place gets copies across the board's middle lines, left-right, top-bottom, or into all four quarters.")
+    self.mirrorBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, y)
     y = y - 27
     local help = button(frame, 136, 24, "Help", function() ED:ToggleHelp() end)
     help:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, y)
@@ -1513,7 +1684,9 @@ function ED:Create()
     rbtn(73, -642, 68, "Range +", function() ED:TuneMover("amp", 1) end)
     rbtn(146, -642, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
     rbtn(218, -642, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
-    rbtn(0, -667, 286, "Reverse direction", function() ED:TuneMover("reverse") end)
+    rbtn(0, -667, 140, "Reverse direction", function() ED:TuneMover("reverse") end)
+    self.previewBtn = rbtn(146, -667, 140, "Preview motion", function() ED:TogglePreview() end,
+        "Watch the moving parts move, here in the editor. Any change to the board stops it.")
 
     rtext(-701, "Files", 14)
     rbtn(0, -723, 92, "New", function() ED:NewLevel() end)
@@ -1524,7 +1697,10 @@ function ED:Create()
     self.importBtn = rbtn(0, -773, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
     self.approveBtn = rbtn(146, -773, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
         "Owner: this level replaces the level number above.")
-    self.unapproveBtn = rbtn(0, -798, 286, "Remove approval for level", function() ED:Unapprove(ED.data.level) end)
+    self.unapproveBtn = rbtn(0, -798, 140, "Remove approval", function() ED:Unapprove(ED.data.level) end,
+        "Owner: the level number above goes back to its generated layout.")
+    self.approvedBtn = rbtn(146, -798, 140, "Approved levels", function() ED:ShowList("approved") end,
+        "Owner: every approved level waiting to ship, to load or remove.")
 
     self.statusText = rtext(-831, "", 11)
     self.statusText:SetWidth(286)
@@ -1556,13 +1732,22 @@ function ED:CreateList()
     local t = text(p, 15)
     t:SetPoint("TOP", 0, -18)
     t:SetText("Saved levels")
+    p.titleText = t
     p.rows = {}
     for i = 1, self.LIST_ROWS do
-        local b = button(p, 230, 24, "", function(self) if self.levelName then ED:Load(self.levelName); p:Hide() end end)
+        local b = button(p, 230, 24, "", function(self)
+            if not self.levelName then return end
+            if p.mode == "approved" then ED:LoadApproved(self.levelName) else ED:Load(self.levelName) end
+            p:Hide()
+        end)
         b:SetPoint("TOPLEFT", p, "TOPLEFT", 24, -46 - (i - 1) * 29)
         local del = button(p, 70, 24, "Delete", function(self)
             if not self.levelName then return end
-            if self.armed then ED:DeleteSaved(self.levelName); ED:ListPage(ED.listPage) return end
+            if self.armed then
+                if p.mode == "approved" then ED:Unapprove(self.levelName) else ED:DeleteSaved(self.levelName) end
+                ED:ListPage(ED.listPage)
+                return
+            end
             self.armed = true
             self.text:SetText("Sure?")
         end)
@@ -1582,14 +1767,39 @@ function ED:CreateList()
     self.listPanel = p
 end
 
-function ED:ShowList()
+-- mode "approved" (owner): the approved levels by number, to load or remove
+function ED:ShowList(mode)
     self.codePanel:Hide()
+    local p = self.listPanel
+    p.mode = (mode == "approved" and self:IsOwner()) and "approved" or "saved"
+    p.titleText:SetText(p.mode == "approved" and "Approved levels (waiting to ship)" or "Saved levels")
+    p.empty:SetText(p.mode == "approved" and "No approved levels." or "Nothing saved yet.")
     self:ListPage(1)
-    self.listPanel:Show()
+    p:Show()
+end
+
+function ED:LoadApproved(n)
+    local d = self:DB().approved[n]
+    if not d then return self:Status(("Level %d has no approved replacement."):format(n)) end
+    local data = self:Sanitize(copy(d))
+    data.level = n
+    self:SetData(data)
+    self:Status(("Loaded the approved level %d."):format(n))
 end
 
 function ED:ListPage(page)
-    local names = self:SavedNames()
+    local p0 = self.listPanel
+    local names, labels = {}, {}
+    if p0.mode == "approved" then
+        for n in pairs(self:DB().approved) do names[#names + 1] = n end
+        table.sort(names)
+        for _, n in ipairs(names) do
+            local d = self:DB().approved[n]
+            labels[n] = ("Level %d: %s%s"):format(n, (d.name and d.name ~= "") and d.name or "untitled", d.author and (" (" .. d.author .. ")") or "")
+        end
+    else
+        names = self:SavedNames()
+    end
     local pages = math.max(1, math.ceil(#names / self.LIST_ROWS))
     page = math.max(1, math.min(pages, page or 1))
     self.listPage = page
@@ -1599,8 +1809,8 @@ function ED:ListPage(page)
         b.levelName = name
         b.del.levelName = name
         b.del.armed = nil
-        b.del.text:SetText("Delete")
-        if name then b.text:SetText(name); b:Show(); b.del:Show() else b:Hide(); b.del:Hide() end
+        b.del.text:SetText(p.mode == "approved" and "Remove" or "Delete")
+        if name then b.text:SetText(labels[name] or name); b:Show(); b.del:Show() else b:Hide(); b.del:Hide() end
     end
     if #names == 0 then p.empty:Show() else p.empty:Hide() end
     if page > 1 then p.prev:Enable() else p.prev:Disable() end
@@ -1725,7 +1935,9 @@ function ED:CreateHelp()
         "",
         "|cffffd700Selecting|r  With Select: click a piece, Shift+click to add or remove, or drag a box. Drag a selected piece to move the whole selection. Right-drag turns it round its middle; the mouse wheel turns it 5 degrees (Shift: 1).",
         "",
-        "|cffffd700Keys|r (mouse over the board)  Delete removes, arrows nudge (Shift: 10), Q / E turn 5 degrees (Shift: 15), M mirrors, Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste at the mouse, Ctrl+A selects all, Ctrl+Z undoes, Escape clears the selection.",
+        "|cffffd700Keys|r (mouse over the board)  Delete removes, arrows nudge (Shift: 10), Q / E turn 5 degrees (Shift: 15), M mirrors, Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste at the mouse, Ctrl+A selects all, Ctrl+Z undoes, Ctrl+Y redoes, Escape clears the selection.",
+        "",
+        "|cffffd700Mirror while placing|r  L-R, T-B or quad: every piece you place gets copies across the board's middle lines. Yellow pieces overlap another piece.",
         "",
         "|cffffd700Colors|r  Pegs and bricks are dealt orange, green and blue at random on every attempt, as on the normal levels. Orange and Green each go round dealt, never, always; Purple (it hops every shot) can land or never. Colors: all dealt puts the selection back to plain dealing. Set the number of oranges on the right.",
         "",
@@ -1764,11 +1976,42 @@ function ED:RefreshTools()
     end
 end
 
+-- the snap grid, faint, inside the zone (at 5 pixels a line every 10, to stay readable)
+function ED:DrawGrid()
+    if not self.field then return end
+    self.gridLines = self.gridLines or {}
+    local g = self.snap or 0
+    local n = 0
+    if g > 0 then
+        local step = math.max(g, 10)
+        local z = self.ZONE
+        local function line(x0, y0, w, h)
+            n = n + 1
+            local t = self.gridLines[n]
+            if not t then
+                t = self.field:CreateTexture(nil, "BACKGROUND", nil, 1)
+                t:SetTexture(WHITE)
+                t:SetVertexColor(0.7, 0.75, 1, 0.08)
+                self.gridLines[n] = t
+            end
+            t:ClearAllPoints()
+            t:SetPoint("TOPLEFT", self.field, "TOPLEFT", x0, -y0)
+            t:SetSize(w, h)
+            t:Show()
+        end
+        -- lines run from the board's middle outward, so the middle lines are grid lines
+        for x = W / 2 - floor((W / 2 - z.x0) / step) * step, z.x1, step do line(x, z.y0, 1, z.y1 - z.y0) end
+        for y = H / 2 - floor((H / 2 - z.y0) / step) * step, z.y1, step do line(z.x0, y, z.x1 - z.x0, 1) end
+    end
+    for k = n + 1, #self.gridLines do self.gridLines[k]:Hide() end
+end
+
 function ED:CycleSnap()
     local k = 1
     for i, g in ipairs(self.SNAPS) do if g == self.snap then k = i end end
     self.snap = self.SNAPS[(k % #self.SNAPS) + 1]
     self.snapBtn.text:SetText(self.snap > 0 and ("Snap: " .. self.snap .. " px") or "Snap: off")
+    self:DrawGrid()
 end
 
 local OBJ_NAMES = { classic = "Orange pegs", eggs = "Eggs", gems = "Gems", longshots = "Long Shots" }
@@ -1916,6 +2159,7 @@ function ED:DrawPiece(i, pc)
     local sel = self.sel[i]
     local r, g, b = 1, 1, 1
     local rad = isBar(pc) and select(2, self:BarSize(pc)) / 2 or self:PieceRadius(pc)
+    if self.overlapSet and self.overlapSet[i] then r, g, b = 1, 0.9, 0.3 end
     if pc.y + rad + E.BALL_R < L:ReachFloor(pc.x) - 2 then r, g, b = 1, 0.35, 0.35 end
     t.body:SetVertexColor(r, g, b, 1)
     if isBar(pc) then
@@ -2085,6 +2329,7 @@ function ED:Refresh()
     self.importBtn:SetShown(owner)
     self.approveBtn:SetShown(owner)
     self.unapproveBtn:SetShown(owner and approved and true or false)
+    self.approvedBtn:SetShown(owner)
     self:RefreshTools()
     self:Redraw()
 end
@@ -2106,6 +2351,7 @@ local function shift() return IsShiftKeyDown and IsShiftKeyDown() end
 local function ctrl() return IsControlKeyDown and IsControlKeyDown() end
 
 function ED:OnMouseDown(btn)
+    if self.preview then return self:StopPreview() end
     local x, y = self:Cursor()
     if not x then return end
     if btn == "RightButton" and self.arc then
@@ -2142,6 +2388,7 @@ function ED:OnMouseDown(btn)
             local pts = self:ArcPoints(a.x0, a.y0, a.x1, a.y1, px, py)
             self:CancelArc()
             local made = self:AddSlide(pts)
+            if made then self:MirrorCopies() end
             self:Status(made and ("A slide arc of %d bricks."):format(made) or "Too short for a slide arc.")
             self:Refresh()
         end
@@ -2158,7 +2405,7 @@ function ED:OnMouseDown(btn)
         else
             self:PushUndo()
             local i = self:AddPiece(tool, x, y)
-            if i then self.sel = { [i] = true } end
+            if i then self.sel = { [i] = true }; self:MirrorCopies() end
             self:Refresh()
         end
         return
@@ -2184,6 +2431,7 @@ function ED:OnMouseDown(btn)
 end
 
 function ED:OnUpdate()
+    if self.preview then self:AnimatePreview() end
     local a = self.arc
     if a and not self.drag then
         local x, y = self:Cursor()
@@ -2282,6 +2530,7 @@ function ED:OnMouseUp(btn)
     elseif dr.mode == "circle" then
         self:DrawSlidePath(nil)
         local made = (dr.r or 0) >= self.CIRCLE_MIN_R and self:AddSlide(self:CirclePoints(dr.cx, dr.cy, dr.r))
+        if made then self:MirrorCopies() end
         self:Status(made and ("A slide circle of %d bricks, open at the top."):format(made)
             or ("Drag out a bigger circle (at least %d pixels across)."):format(self.CIRCLE_MIN_R * 2))
         self:Refresh()
@@ -2289,6 +2538,7 @@ function ED:OnMouseUp(btn)
         self:DrawSlidePath(nil)
         local made = self:AddSlide(dr.pts)
         if made then
+            self:MirrorCopies()
             self:Status(("A Super Slide of %d bricks. A ball meeting it from the inside of its curve rides it."):format(made))
         else
             self:Status("Drag a longer path for a Super Slide (at least three bricks).")
@@ -2304,7 +2554,7 @@ function ED:OnMouseUp(btn)
         if len > 10 and self.tool == "brick" then
             -- a row of full bricks, the last cut to fit
             table.remove(self.undo)
-            self:AddSlide({ { dr.x0, dr.y0 }, { x1, y1 } }, true)
+            if self:AddSlide({ { dr.x0, dr.y0 }, { x1, y1 } }, true) then self:MirrorCopies() end
             self:Refresh()
             return
         elseif len > 10 then
@@ -2313,7 +2563,7 @@ function ED:OnMouseUp(btn)
         else
             i = self:AddPiece(self.tool, dr.x0, dr.y0)
         end
-        if i then self.sel = { [i] = true } end
+        if i then self.sel = { [i] = true }; self:MirrorCopies() end
         self:Refresh()
     end
 end
@@ -2351,6 +2601,8 @@ function ED:OnKey(key)
         end
     elseif key == "M" then
         self:MirrorSelected(false)
+    elseif ctrl() and (key == "Y" or (key == "Z" and shift())) then
+        self:Redo()
     elseif ctrl() and key == "Z" then
         self:Undo()
     elseif ctrl() and key == "D" then

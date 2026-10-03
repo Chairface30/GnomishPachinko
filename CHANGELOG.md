@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Level editor: **Redo** (button and Ctrl+Y) beside Undo.
+- Level editor: **mirror while placing**, left-right, top-bottom or quad: every piece placed (pegs, bars, rows, Super Slides, arcs, circles) gets copies across the board's middle lines. A mirrored slide is a rail of its own and a mirrored key opens only its own cage.
+- Level editor: **Preview motion** shows the moving parts moving right on the editor board; any change stops it.
+- Level editor: pieces sitting on top of each other are tinted yellow and listed in the checks (a rail's own joints don't count).
+- Level editor: a faint **snap grid** shows while Snap is on.
+- Level editor (owner): an **Approved levels** list of everything waiting to ship, to load or remove.
 - The level card's objective is centred on the card (it sat a little to the right); its icon sits just before the text.
 - **The level card is laid out afresh:** the three stars spread out with the score each one takes written beneath it ("Clear" under the first unless the level sets a score), so the "2 stars at..." line is gone; the best score and credits sit under the stars, the power row a little higher, and the objective big and centred right above the Play button.
 - Fixed: the aim guide treated moving pieces as standing still, so its ball met a sliding block (or any moving piece) where the block was when the guide was drawn, often in thin air. The guide (and the Super Guide) now moves the pieces on as the predicted ball flies, and is redrawn continuously while anything moves: it meets the piece where the real ball will.
