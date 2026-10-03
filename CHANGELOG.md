@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **FULL CLEAR!** Lighting every piece on the board that can light (pegs, bricks, eggs, the purple) pays a 100,000 bonus, once, with a banner, fireworks and the fanfare.
 - A tutorial is always voiced by the host of the first level it belongs to, whenever the player meets it (the special balls by Tinkmaster, the Slider by Razzle, and so on).
 - **Every obstacle and objective gets a tutorial:** a voiced talk from the chapter's host on the first level it appears, and after Play a cartoon arrow that slides in on the thing itself (following it if it moves) until the first shot. New talks: the purple peg, small rails, each moving setup on its own (Slider, Lifts, Blocks, Wheel, Bumpers, Pendulum, Key Cage, Twin Wheels, Bumper Gate, Key Gate, Sliding Block), cages inside cages, three-hit pegs and three-hit eggs. The existing ones (bricks, balloons, tough pegs, eggs, gems, mixed, Long Shots, the bosses) now point too.
 

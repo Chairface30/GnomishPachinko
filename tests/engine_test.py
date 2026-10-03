@@ -2701,6 +2701,30 @@ check("the Slider's tutorial points the arrow at a moving piece after Play", ev(
 check("a tutorial is always voiced by the host of its first level (the Slider: Razzle)",
       all(line[1] == "razzle" for line in [l for sc in ev("GP.Dialog.SCRIPTS").values() if sc.key == "gim_slider" for l in sc.lines.values()]))
 
+# a full clear: every piece that can light, lit, pays a big bonus once
+lua(r"""
+function full_clear_probe()
+  local st = E:NewLevel(L:Build(4))
+  local events = {}
+  local score0 = st.score
+  local pieces = {}
+  for _, p in ipairs(st.pegs) do if not E.IsSolid(p) and p.kind ~= "boss" and p.kind ~= "gem" and not p.post then pieces[#pieces + 1] = p end end
+  local beforeLast = false
+  for i, p in ipairs(pieces) do
+    st.time = st.time + 0.5
+    p.cooldown = nil
+    E.HitPeg(st, p, nil, events, true)
+    while not p.lit and not p.gone do st.time = st.time + 0.5; p.cooldown = nil; E.HitPeg(st, p, nil, events, true) end
+    if i == #pieces - 1 then for _, e in ipairs(events) do if e.type == "full_clear" then beforeLast = true end end end
+  end
+  local n = 0
+  for _, e in ipairs(events) do if e.type == "full_clear" then n = n + 1 end end
+  return n, beforeLast, st.fullClear == true
+end
+""")
+fc_n, fc_early, fc_flag = ev("full_clear_probe")()
+check("lighting every piece pays the FULL CLEAR bonus once, and not before the last one", fc_n == 1 and not fc_early and fc_flag, f"{fc_n} {fc_early} {fc_flag}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

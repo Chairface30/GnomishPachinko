@@ -100,6 +100,7 @@ E.ORANGE_RUNS   = {
 -- off a side wall and a good way across before lighting a piece: a bank shot
 E.BANK_DX       = 220       -- the orange must be this far across the board from where the ball met the wall
 E.BANK_POINTS   = 7500
+E.FULL_CLEAR    = 100000    -- every piece on the board that can light, lit
 E.SLIDE_RATIO   = 0.42      -- a brick contact this grazing slides instead of bouncing
 E.SLIDE_RUN     = 6         -- bricks lit in one slide for the Super Slide award
 E.SLIDE_GAP     = 0.3       -- seconds between two slid bricks that still count as one slide
@@ -923,6 +924,21 @@ lightPeg = function(state, p, ball, events, quiet, at)
     state.shotPegs = state.shotPegs + 1
     state.shotPoints = state.shotPoints + pts
     if p.kind == "key" and p.unlocks then unlock(state, p, events) end
+    -- a full clear: nothing left on the board that could still light
+    if not state.fullClear and not (state.duel and state.duel.stage == 2) then
+        local left = false
+        for _, q in ipairs(state.pegs) do
+            if not q.lit and not q.gone and not isSolid(q) and q.kind ~= "boss" and q.kind ~= "gem" and not q.post then
+                left = true
+                break
+            end
+        end
+        if not left then
+            state.fullClear = true
+            addScore(state, E.FULL_CLEAR, events, true)
+            push(events, { type = "full_clear", points = E.FULL_CLEAR, x = p.x, y = p.y })
+        end
+    end
     -- on a boss level every orange lit zaps the boss
     local boss = state.boss
     if p.kind == "orange" and boss and boss ~= p and not boss.lit and not boss.gone and state.objective == "boss" then
