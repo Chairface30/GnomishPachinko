@@ -194,6 +194,8 @@ function UI:ObjectiveText(st)
     return text
 end
 
+local GOAL_WORD = { classic = "word_goal_classic", eggs = "word_goal_eggs", gems = "word_goal_gems", boss = "word_goal_boss",
+    duel = "word_goal_classic", longshots = "word_goal_longshots", mixed_eggs = "word_goal_mixed", mixed_gems = "word_goal_mixed" }
 local GOAL_LABEL = { classic = "Orange pegs left", eggs = "Eggs left", gems = "Gems to drop", boss = "Boss health", duel = "Orange pegs left", longshots = "Long Shots left",
     mixed_eggs = "Goals left", mixed_gems = "Goals left" }
 
@@ -643,6 +645,14 @@ function UI:CreateFrame()
         fs:SetText(text)
         return fs
     end
+    -- a heading in brass word-art (512 x 64, left-aligned), h pixels tall
+    local function word(slot, x, y, h)
+        local t = info:CreateTexture(nil, "ARTWORK")
+        ART:Set(t, slot)
+        t:SetSize(h * 8, h)
+        t:SetPoint("TOPLEFT", side, "TOPLEFT", x, y)
+        return t
+    end
     local function value(y, template)
         local fs = info:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
         fs:SetPoint("TOPRIGHT", side, "TOPRIGHT", -6, y)
@@ -682,7 +692,7 @@ function UI:CreateFrame()
     self.layoutText:SetTextColor(0.6, 0.55, 0.75)
     divider(-60)
 
-    label("|cffffd700Objective|r", -68, "GameFontNormal")
+    word("word_objective", 2, -64, 20)
     self.objectiveText = label("", -84)
     self.objectiveText:SetWidth(SIDE_W)
     self.objectiveText:SetJustifyH("LEFT")
@@ -694,9 +704,7 @@ function UI:CreateFrame()
     self.hostText:SetWidth(SIDE_W)
     self.hostText:SetJustifyH("LEFT")
     self.powerIcon = icon(0, -126, 18, "power_multiball")
-    local powerLabel = label("|cff88ff88Power|r", -128, "GameFontNormal")
-    powerLabel:ClearAllPoints()
-    powerLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -128)
+    word("word_power", 22, -125, 18)
     self.powerText = value(-128, "GameFontHighlight")
     self.powerBlurb = label("", -144)
     self.powerBlurb:SetWidth(SIDE_W)
@@ -707,22 +715,20 @@ function UI:CreateFrame()
     self.powerStatus = label("", -170)
     self.powerStatus:SetTextColor(0.6, 1, 0.6)
 
-    label("Balls", -188, "GameFontNormal")
+    word("word_balls", 2, -185, 18)
     self.ballsText = value(-188, "GameFontHighlightLarge")
     self.goalIcon = icon(0, -210, 18, "goal_orange")
-    self.goalLabel = label("Orange pegs left", -212, "GameFontNormal")
-    self.goalLabel:ClearAllPoints()
-    self.goalLabel:SetPoint("TOPLEFT", side, "TOPLEFT", 22, -212)
+    self.goalLabel = word("word_goal_classic", 22, -209, 18)
     self.goalText = value(-212, "GameFontHighlightLarge")
-    label("Score", -236, "GameFontNormal")
+    word("word_score", 2, -233, 18)
     self.scoreText = value(-236, "GameFontHighlight")
-    label("Multiplier", -254)
+    word("word_multiplier", 2, -252, 14)
     self.multText = value(-254, "GameFontHighlightSmall")
-    label("Combo (this shot / best)", -290)
+    word("word_combo", 2, -288, 14)
     self.comboText = value(-290, "GameFontHighlightSmall")
-    label("Best on this level", -306)
+    word("word_best", 2, -304, 14)
     self.bestText = value(-306, "GameFontHighlightSmall")
-    label("Next free ball at", -322)
+    word("word_next_free_ball", 2, -320, 14)
     self.freeBallText = value(-322, "GameFontHighlightSmall")
     local function bar(y, r, g, b)
         local f = CreateFrame("StatusBar", nil, info)
@@ -754,7 +760,7 @@ function UI:CreateFrame()
     end
     gauge:SetValue(0)
     self.multBar = gauge
-    label("Stars on this level", -346)
+    word("word_stars", 2, -344, 14)
     self.sideStars = makeStars(info, 12, 2)
     for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -346) end
     self.starNeedText = label("", -362)
@@ -764,41 +770,76 @@ function UI:CreateFrame()
     divider(-382)
 
     self.nextBtn = makeButton(side, SIDE_W, 32, "NEXT LEVEL")
-    self.nextBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 164)
+    self.nextBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 116)
     self.nextBtn:SetScript("OnClick", function() UI:NextLevel() end)
     self.retryBtn = makeButton(side, SIDE_W, 26, "Restart level")
-    self.retryBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 136)
+    self.retryBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 88)
     self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current, true) end)
     self.levelsBtn = makeButton(side, SIDE_W, 26, "Level select")
-    self.levelsBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 108)
+    self.levelsBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 60)
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 
     self.playsText = label("", 0, "GameFontNormal")
     if self.playsText.SetParent then self.playsText:SetParent(side) end
     self.playsText:ClearAllPoints()
-    self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 78)
+    self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 28)
     self.playsText:SetWidth(SIDE_W)
     self.playsText:SetHeight(30)
     self.playsText:SetJustifyH("CENTER")
     self.playsText:SetJustifyV("TOP")
-    self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears\n1g each")
+    self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears\n1g each")   -- placed in the shop below
     self.buyBtn.text:SetWidth(SIDE_W - 16)
     self.buyBtn.text:SetWordWrap(true)
     self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 28)
     self.buyBtn:SetScript("OnClick", function() UI:BuyGears() end)
     -- the Golden Gear shop
     -- the way in: a fat button at the bottom of the info
-    self.shopOpenBtn = makeButton(info, SIDE_W, 40, "Golden Gear Shop")
-    self.shopOpenBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -392)
-    self.shopOpenBtn:SetScript("OnClick", function() UI:ShowShop(true) end)
+    local gearBtn = CreateFrame("Button", nil, info)
+    gearBtn:SetSize(64, 64)
+    gearBtn:SetPoint("TOP", side, "TOP", 0, -388)
+    gearBtn.tex = gearBtn:CreateTexture(nil, "ARTWORK")
+    gearBtn.tex:SetAllPoints()
+    ART:Set(gearBtn.tex, "shop_gear")
+    gearBtn.glow = gearBtn:CreateTexture(nil, "BACKGROUND")
+    gearBtn.glow:SetSize(96, 96)
+    gearBtn.glow:SetPoint("CENTER")
+    ART:Set(gearBtn.glow, "glow_soft", 1, 0.85, 0.3)
+    if gearBtn.glow.SetBlendMode then gearBtn.glow:SetBlendMode("ADD") end
+    gearBtn.glow:SetAlpha(0.35)
+    gearBtn:SetScript("OnEnter", function(self)
+        self.hover = true
+        self.glow:SetAlpha(0.8)
+        if GameTooltip then
+            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+            GameTooltip:AddLine("Golden Gear Shop")
+            GameTooltip:AddLine("Special balls, Extra Green Pegs and plays, for Golden Gears.", 0.8, 0.8, 0.9, true)
+            GameTooltip:Show()
+        end
+    end)
+    gearBtn:SetScript("OnLeave", function(self)
+        self.hover = nil
+        self.glow:SetAlpha(0.35)
+        if self.tex.SetRotation then self.tex:SetRotation(0) end
+        if GameTooltip then GameTooltip:Hide() end
+    end)
+    -- it turns while the mouse is on it
+    gearBtn:SetScript("OnUpdate", function(self, elapsed)
+        if self.hover and self.tex.SetRotation then
+            self.angle = ((self.angle or 0) - elapsed * 1.5) % (2 * math.pi)
+            self.tex:SetRotation(self.angle)
+        end
+    end)
+    gearBtn:SetScript("OnClick", function() GP:PlaySfx("clink.ogg"); UI:ShowShop(true) end)
+    self.shopOpenBtn = gearBtn
     -- the Golden Gear shop, in the info's place
     local shop = CreateFrame("Frame", nil, side)
     shop:SetAllPoints(side)
     shop:Hide()
     self.shopPanel = shop
-    local shopTitle = shop:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    shopTitle:SetPoint("TOP", side, "TOP", 0, -2)
-    shopTitle:SetText("|cffffd700Golden Gear Shop|r")
+    local shopTitle = shop:CreateTexture(nil, "ARTWORK")
+    ART:Set(shopTitle, "word_shop")
+    shopTitle:SetSize(SIDE_W, SIDE_W / 8)
+    shopTitle:SetPoint("TOP", side, "TOP", 0, 0)
     self.gearsText = shop:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
     self.gearsText:SetPoint("TOP", side, "TOP", 0, -30)
     self.gearsText:SetWidth(SIDE_W)
@@ -813,7 +854,11 @@ function UI:CreateFrame()
         self.shopBtns[i] = b
     end
     local shopHow = shop:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    shopHow:SetPoint("TOPLEFT", side, "TOPLEFT", 4, -62 - #GP.Plays.SHOP_ORDER * 48 - 4)
+    -- the way to get gears, in the shop
+    if self.buyBtn.SetParent then self.buyBtn:SetParent(shop) end
+    self.buyBtn:ClearAllPoints()
+    self.buyBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -62 - #GP.Plays.SHOP_ORDER * 48 - 4)
+    shopHow:SetPoint("TOPLEFT", side, "TOPLEFT", 4, -62 - #GP.Plays.SHOP_ORDER * 48 - 58)
     shopHow:SetWidth(SIDE_W - 8)
     shopHow:SetJustifyH("LEFT")
     shopHow:SetTextColor(0.8, 0.8, 0.9)
@@ -3453,7 +3498,7 @@ function UI:UpdateDisplay()
             if def then objective = objective .. "\n" .. def.blurb end
         end
         self.objectiveText:SetText(objective)
-        self.goalLabel:SetText(GOAL_LABEL[st.objective] or GOAL_LABEL.classic)
+        ART:Set(self.goalLabel, GOAL_WORD[st.objective] or "word_goal_classic")
     self.chapterText:SetText("|cffaaddff" .. (st.title or st.name or "") .. "|r")
         local name, blurb = powerName(st.power)
         self.powerText:SetText("|cff88ff88" .. name .. "|r")

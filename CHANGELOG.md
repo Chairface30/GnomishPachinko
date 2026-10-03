@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The info headings are brass word-art** (Objective, Power, Balls, Score and the rest), every O a cogwheel and every I a piston. The goal heading changes with the objective. `tools/word_art.py` draws them.
+- **The shop button is a shiny golden gear** that turns and glows under the mouse. **Get Golden Gears** now sits in the shop, under the offers, and the level buttons close up at the bottom of the column.
+
 - **The Golden Gear shop has its own page.** A big Golden Gear Shop button at the bottom of the info swaps the info for the shop in the same space; Leave shop swaps it back.
 - The gear shop sells the **Extra Green Peg** for 1 Golden Gear. The shop is three rows now, and the level buttons sit a little lower to make room.
 - **Sound and Music boxes** above the right column: one switches the sound effects and voices, the other the music, each on its own.

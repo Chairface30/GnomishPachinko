@@ -106,6 +106,8 @@ function Obj:CreateTexture() return new() end
 function Obj:CreateLine() return new() end
 function Obj:SetChecked(v) rawset(self, "_checked", v and true or false) end
 function Obj:GetChecked() return rawget(self, "_checked") end
+function Obj:SetParent(p) rawset(self, "_parent", p) end
+function Obj:GetParent() return rawget(self, "_parent") end
 function Obj:SetPoint(...) rawset(self, "_point", { ... }) end
 function Obj:GetPoint() local p = rawget(self, "_point") if p then return table.unpack(p) end end
 function Obj:CreateFontString() return new() end
@@ -2138,11 +2140,15 @@ check("a new player is welcomed first, with the bosses' work-in-progress note", 
 lua(r"""
 UI:StartLevel(1, true)
 UI.shopOpenBtn:Click()
-__shopIn = UI.shopPanel:IsShown() and not UI.infoPanel:IsShown()
+__shopIn = UI.shopPanel:IsShown() and not UI.infoPanel:IsShown() and UI.buyBtn:GetParent() == UI.shopPanel
+__gearSprite = UI.shopOpenBtn.tex.slot == "shop_gear"
 UI.shopLeaveBtn:Click()
 __shopOut = UI.infoPanel:IsShown() and not UI.shopPanel:IsShown() and UI.playsText:IsShown()
 """)
 check("the shop button swaps the info for the Golden Gear shop, Leave shop swaps it back", ev("__shopIn") and ev("__shopOut"))
+check("the shop button is the golden gear and Get Golden Gears sits in the shop", ev("__gearSprite"))
+lua("UI:StartLevel(15, true); __eggWord = UI.goalLabel.slot")
+check("the info headings are word-art; the goal heading follows the objective", ev("__eggWord") == "word_goal_eggs", str(ev("__eggWord")))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
