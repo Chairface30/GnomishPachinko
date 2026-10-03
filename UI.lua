@@ -3457,7 +3457,7 @@ function UI:HandleEvents(now)
             self:Popup(ev.x, ev.y - 20, "BURNED", 1, 0.55, 0.2)
         elseif t == "boss_heal" then
             GP:PlaySfx("heal.ogg")
-            self:Popup(ev.x, ev.y - 30, "+1", 1, 0.4, 0.4)
+            self:Popup(ev.x, ev.y - 30, "+" .. (ev.healed or 1), 1, 0.4, 0.4)
         elseif t == "boss_down" then
             GP:PlaySfx("boss_down.ogg")
             GP:PlayVoice("boss_down")

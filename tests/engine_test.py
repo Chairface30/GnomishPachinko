@@ -585,7 +585,7 @@ function boss_heal_probe()
   st.balls[1].x, st.balls[1].y = 20, 560
   for _ = 1, 120 do E:Step(st, 1 / 60, events) end
   local heals = count(events, "boss_heal")
-  return hpAfterHit, b.hp, heals
+  return hpAfterHit, b.hp, heals, b.maxhp
 end
 function boss_shield_probe()
   local spec
@@ -617,8 +617,9 @@ for n in (10, 30, 50, 70, 110):
 check("the Tin Drake speeds up when hit", abilities["drake"].speedChanged)
 check("the Gyro Spider hops when hit", abilities["spider"].hops > 0)
 check("the Mechano-Boar turns around when hit", abilities["boar"].speedChanged)
-hp_hit, hp_after, heals = ev("boss_heal_probe")()
-check("the Cog Yeti heals after a shot that misses it", heals == 1 and hp_after == hp_hit + 1, f"{hp_hit} -> {hp_after} heals {heals}")
+hp_hit, hp_after, heals, hp_max = ev("boss_heal_probe")()
+check("the Cog Yeti heals E.YETI_HEAL (capped at full) after a shot that lights no orange and misses it",
+      heals == 1 and hp_after == min(hp_max, hp_hit + ev("E.YETI_HEAL")) and hp_after - hp_hit > 1, f"{hp_hit} -> {hp_after}/{hp_max} heals {heals}")
 shields, shield, blocked, full = ev("boss_shield_probe")()
 check("the Bolt Golem raises a shield on the third shot that soaks a hit", shields == 1 and shield == 1 and blocked == 1 and full,
       f"shields {shields} left {shield} blocked {blocked} full {full}")

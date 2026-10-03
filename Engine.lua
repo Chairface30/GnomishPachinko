@@ -177,6 +177,7 @@ E.SCRAP_COL_W    = 44        -- scrap sits on columns this wide (a ball passes b
 E.SCRAP_FREE_COLS = 3        -- columns always left empty: scrap is never a wall
 E.GOLEM_SHIELD = 2
 E.GOLEM_EVERY  = 3
+E.YETI_HEAL    = 3          -- the Cog Yeti's heal after a shot that lit no orange and missed it: more than a direct hit does
 
 E.PHASE = { AIM = "AIM", FLIGHT = "FLIGHT", FEVER = "FEVER", OVER = "OVER" }
 
@@ -263,7 +264,7 @@ E.BOSSES = {
     { id = "golem",  name = "Bolt Golem",   blurb = "Raises a two-hit shield every third shot.",        speed = 0.7 },
     { id = "spider", name = "Gyro Spider",  blurb = "Lit oranges only charge it: strike it in the same shot to turn the charge into damage. Jumps when hit, and spins two webs every time an orange is lit: a ball that touches one is caught with it.", speed = 1.0 },
     { id = "boar",   name = "Mechano-Boar", blurb = "Charges fast and turns around when hit.",          speed = 1.8 },
-    { id = "yeti",   name = "Cog Yeti",     blurb = "Heals one point after any shot that misses it.",   speed = 0.8 },
+    { id = "yeti",   name = "Cog Yeti",     blurb = "Heals 3 health after any shot that lights no orange and misses it.",   speed = 0.8 },
 }
 
 local W, H = E.FIELD_W, E.FIELD_H
@@ -2126,11 +2127,14 @@ local function substep(state, dt, events)
         -- the ball is fired, the Gyro Spider's webs as oranges are lit, the
         -- Bolt Golem's shield and the Cog Yeti's healing are below, the
         -- boar's charge in its movement
-        -- the Cog Yeti heals after a shot that never touched it
+        -- the Cog Yeti heals after a shot that never touched it, by a strike
+        -- or an orange's zap: more than a direct hit takes, so a wasted
+        -- shot costs more than a good one earns
         local b = state.boss
         if b and not b.lit and b.ability == "yeti" and not state.bossHitThisShot and b.hp < b.maxhp then
-            b.hp = b.hp + 1
-            push(events, { type = "boss_heal", x = b.x, y = b.y, hp = b.hp })
+            local healed = math.min(E.YETI_HEAL, b.maxhp - b.hp)
+            b.hp = b.hp + healed
+            push(events, { type = "boss_heal", x = b.x, y = b.y, hp = b.hp, healed = healed })
         end
         -- the Gyro Spider's charge is lost if no strike let it loose
         if b and not b.lit and (b.charge or 0) > 0 then
