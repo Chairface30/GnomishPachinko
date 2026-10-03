@@ -1,6 +1,8 @@
 # Gnomish Pachinko — Changelog
 
-## Unreleased
+## Gnomish Pachinko v0.7.0 (2026-10-03)
+
+The first tagged release. Version 1.0 waits until the bosses have their final mechanics.
 
 - **The map is laid out by hand:** every chapter's ten levels sit where they were placed one by one (MapLayout.lua), instead of on a path made from the chapter number.
 - Level editor: **the tools on the right are regrouped into sections** that close to their header bar with a click (the ones below move up): Level; Selection and position; Toughness, size and angle; Colors; Mirror, copy and delete; Rails and locks; Moving parts; Files and sharing. Every section starts closed; whichever you open or close stays that way.
@@ -43,7 +45,7 @@
 - The map's buttons: **Level editor** and **Return to current level** (was Back to the game) sit side by side in the window's footer under the board, above the author and version line, while the map is open. Reset progress stays at the bottom of the map. The map's path sits a little higher to leave room.
 - **Level editor** (the Level editor button on the map, or /pachinko editor), for every player: place pegs, bricks, steel bars and studs, balloons, bumpers, keys and cage bars, eggs and gems (their cradles are built for them). Select with a click, Shift+click or a dragged box, and move, turn (right-drag, the wheel, Q / E), mirror, duplicate, copy and paste or delete the selection as a group. Set tough pieces, always-orange pins, rails, key-and-cage links and moving groups (slide, lift, wheel, swing), the goal, the oranges and the bucket. Start from any level's layout, test-play on the board (no play spent, nothing recorded), save by name, and export a level code to send in. Red pieces are out of the ball's reach.
 - The game's owner can import a level code, test it and approve it for a level number; approved levels are then shipped in the addon and replace that generated level for everyone.
-- The window shows the version and author along the bottom. The version is now 0.9.0.
+- The window shows the version and author along the bottom. The version is 0.7.0.
 - **Fixed: the duel's coin flip was rigged by the level number.** It came from the level's fixed random stream, so each duel level always flipped the same way (level 90 always gave Cogwhistle the first shot). It is now a fresh 50/50 draw every time.
 - **Spirals can be ridden:** most generated spirals now open like level 8's, with the mouth on the upper flank and the outer arm running down from it, so a falling ball can be laid into it for a Super Slide. Before, nearly every spiral's arm climbed away from its mouth. One in five still opens the hard way.
 - Fixed: the goal's count in the info panel ("20 / 20") ran into the end of its heading ("ORANGE PEGS LEFT"). The heading now shrinks to leave room for the count.
@@ -208,7 +210,7 @@
 - **The owner's button gives 10 Golden Gears** instead of free plays.
 - The Get Golden Gears button is twice as tall and its text wraps.
 
-### Gnomish Pachinko v1.1.0
+### Earlier in development
 
 - **Every picture is a named art slot.** `Art.lua` lists all 114 of them (pegs and bricks in four colours and three states, balls, eggs, gems, bosses, launcher, bucket and splash, icons, skins, map, effects) with a generated placeholder each, and the window draws only through them, so a finished sprite dropped into `Textures/` under the slot's name is used with no code change. `tools/cut_sheet.py` slices a transparent sprite sheet into the slots from a JSON map; `tools/make_textures.py` regenerates the placeholders. New on screen because of it: lit and vanishing pictures per piece, a muzzle flash, a bucket splash, sparkles on every hit, confetti and fireworks on the GNOME bonus and three-star clears, a rainbow ribbon in Fever and behind the Rainbow Ball, a glow on the last piece, lit Fever cups, icons for powers, power-ups and the objective, a balls-left strip, a multiplier gauge, skinned buttons, cards, plates, map nodes and backdrops, and a drawn minimap button.
 - **Eggs and gems are loose bodies, twice a peg's size.** They are not pinned: gravity pulls them, and each rests in a cradle of two ordinary bricks the level builds under it (a flat ledge for a gem, a V for an egg). A hit only nudges them (and damages an egg). Knock a gem's ledge out and it rolls and falls: off the bottom it counts, in the bucket it is a Bucket Drop. Lose an egg's cradle and it drops: the bucket saves it, the floor loses the level. The last gem's fall gets the slow-mo. Space Blast throws them.
