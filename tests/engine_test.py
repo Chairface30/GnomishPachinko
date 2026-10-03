@@ -4076,6 +4076,29 @@ check("the selection turns round its middle, and Undo takes changes back", ev("_
 check("Delete removes the selection; a level saves and loads back by name", ev("__deleted") and ev("__blank") and ev("__loaded"))
 check("a rail is refused without bricks; selected pieces can be made to slide, then lift", ev("__railRefused") and ev("__slide") and ev("__lift"))
 
+# exact turns: the degrees box turns the selection by that much, or sets a bar's angle
+lua(r"""
+ED:NewLevel()
+local a = ED:AddPiece("peg", 200, 300)
+local b = ED:AddPiece("peg", 300, 300)
+local c = ED:AddPiece("brick", 250, 360)
+ED.sel = { [a] = true, [b] = true }
+ED.degBox:SetText("90")
+ED:TurnBy(1)
+local pa, pb = ED.data.pieces[a], ED.data.pieces[b]
+__turn90 = math.abs(pa.x - 250) < 0.01 and math.abs(pb.x - 250) < 0.01 and math.abs(math.abs(pa.y - pb.y) - 100) < 0.01
+ED.sel = { [c] = true }
+ED.degBox:SetText("37.5")
+ED:SetAngle()
+__angle = math.abs(ED.data.pieces[c].a - 37.5 * math.pi / 180) < 1e-6 and ED.data.pieces[c].x == 250
+__angleShown = ED.selText:GetText():find("angle 37.5", 1, true) ~= nil
+ED.degBox:SetText("abc")
+ED:TurnBy(1)
+__badNumber = ED.data.pieces[c].a == 37.5 * math.pi / 180
+""")
+check("the degrees box turns the selection by an exact amount, sets a bar's angle outright (shown), and ignores a non-number",
+      ev("__turn90") and ev("__angle") and ev("__angleShown") and ev("__badNumber"))
+
 # the Super Slide tool: a dragged curve becomes one rail of full bricks, the last cut, that builds in order
 lua(r"""
 ED:NewLevel()

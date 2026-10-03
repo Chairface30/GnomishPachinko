@@ -414,6 +414,31 @@ function ED:RotateSelected(da, cx, cy)
     end
 end
 
+-- the number in the degrees box
+function ED:Degrees()
+    local v = tonumber(self.degBox and self.degBox:GetText() or "")
+    if not v or v ~= v or abs(v) > 3600 then return nil end
+    return v
+end
+
+function ED:TurnBy(sign)
+    local deg = self:Degrees()
+    if not deg then return self:Status("Type a number of degrees in the box.") end
+    if self:SelCount() == 0 then return self:Status("Select some pieces first.") end
+    self:PushUndo()
+    self:RotateSelected(sign * deg * pi / 180)
+    self:Refresh()
+end
+
+function ED:SetAngle()
+    local deg = self:Degrees()
+    if not deg then return self:Status("Type an angle in degrees in the box.") end
+    local any = false
+    for _, i in ipairs(self:Selected()) do if isBar(self.data.pieces[i]) then any = true end end
+    if not any then return self:Status("Select a brick or bar to set its angle.") end
+    self:ForSelected(function(pc) if isBar(pc) then pc.a = deg * pi / 180 end end)
+end
+
 function ED:MirrorSelected(vertical)
     local list = self:Selected()
     if #list == 0 then return end
@@ -1098,10 +1123,16 @@ function ED:Create()
     rbtn(0, -317, 140, "Always orange", function() ED:ToggleOrange() end, "Pinned orange on every attempt; the rest are dealt at random.")
     rbtn(146, -317, 68, "Smaller", function() ED:Resize(-1) end, "Bars shorter, balloons and studs smaller.")
     rbtn(218, -317, 68, "Bigger", function() ED:Resize(1) end)
-    rbtn(0, -342, 68, "-15", function() ED:PushUndo(); ED:RotateSelected(-pi / 12); ED:Refresh() end, "Turn the selection round its middle (Q / E).")
-    rbtn(73, -342, 68, "-5", function() ED:PushUndo(); ED:RotateSelected(-pi / 36); ED:Refresh() end)
-    rbtn(146, -342, 68, "+5", function() ED:PushUndo(); ED:RotateSelected(pi / 36); ED:Refresh() end)
-    rbtn(218, -342, 68, "+15", function() ED:PushUndo(); ED:RotateSelected(pi / 12); ED:Refresh() end)
+    -- turning by an exact number of degrees, or setting a bar's angle outright
+    rbtn(0, -342, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
+    self.degBox = editBox(frame, 46, 20)
+    self.degBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -343)
+    self.degBox:SetText("15")
+    if self.degBox.SetJustifyH then self.degBox:SetJustifyH("CENTER") end
+    self.degBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:TurnBy(1) end)
+    rbtn(102, -342, 40, "+", function() ED:TurnBy(1) end, "Turn the selection by the degrees in the box, clockwise. Enter in the box does the same.")
+    rbtn(148, -342, 138, "Set angle", function() ED:SetAngle() end,
+        "Set every selected bar (brick, steel bar, cage bar) to the angle in the box, in degrees: 0 is level, 90 upright. Each turns where it stands.")
     rbtn(0, -367, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
     rbtn(97, -367, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
     rbtn(194, -367, 92, "Mirror copy", function() ED:MirrorCopyAcross() end, "A mirrored copy on the other side of the middle line.")
@@ -1517,7 +1548,17 @@ function ED:Refresh()
     local parts = {}
     for t, c in pairs(kinds) do parts[#parts + 1] = c .. " " .. L.EDIT_TYPES[t].name:lower() end
     table.sort(parts)
-    self.selText:SetText(n == 0 and "Nothing selected" or (n .. " selected: " .. table.concat(parts, ", ")))
+    local angle
+    for _, i in ipairs(list) do
+        local pc = d.pieces[i]
+        if isBar(pc) then
+            local deg = floor(((pc.a or 0) * 180 / pi) % 360 * 10 + 0.5) / 10
+            if angle and angle ~= deg then angle = "mixed" break end
+            angle = deg
+        end
+    end
+    local angleText = angle and ((angle == "mixed") and "  (angles differ)" or ("  (angle " .. angle .. ")")) or ""
+    self.selText:SetText(n == 0 and "Nothing selected" or (n .. " selected: " .. table.concat(parts, ", ") .. angleText))
     local mv = self:SelMover()
     if mv then
         local m = d.movers[mv]
