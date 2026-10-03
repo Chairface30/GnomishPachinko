@@ -1326,7 +1326,7 @@ function UI:ShowShowcase(piece)
     local f = self.showcase
     -- an ordinary showcase: no tough-piece demo samples
     f.demoN = nil
-    for _, d in ipairs(f.demoTex or {}) do d.rim:Hide(); d.disc:Hide(); d.crack:Hide(); d.ball:Hide() end
+    for _, d in ipairs(f.demoTex or {}) do d.rim:Hide(); d.disc:Hide(); d.crack:Hide(); d.ball:Hide(); if d.bird then d.bird:Hide() end end
     f.piece:Show()
     local slot = pieceSlot(piece, "")
     ART:Set(f.piece, slot)
@@ -1381,16 +1381,22 @@ end
 -- (2 = steel rim, 3 = gold rim), side by side where the showcase sits. A
 -- ball bounces on each again and again: every hit but the last cracks it
 -- further, the last lights it, and after a beat it starts over.
+-- With hits.kind == "egg" the sample is a phoenix egg: it cracks, hatches
+-- on the last hit, and the phoenix rises out of it and away.
 UI.DEMO_GAP = 96          -- between the sample pegs
 UI.DEMO_HIT_EVERY = 0.85  -- seconds between bounces
 UI.DEMO_REST = 1.3        -- lit, before it starts over
+UI.DEMO_EGG_REST = 1.8    -- an egg's: the phoenix's climb
 function UI:ShowToughDemo(hits)
     self:ShowShowcase({ kind = "blue", shape = "peg", r = E.PEG_R, x = self.SHOWCASE_X, y = self.SHOWCASE_Y })
     local f = self.showcase
     f.piece:Hide()
     f.demoTex = f.demoTex or {}
     local n = #hits
-    local size = self.SHOWCASE_PEG
+    local egg = hits.kind == "egg"
+    f.demoEgg = egg
+    local size = self.SHOWCASE_PEG * (egg and 1.3 or 1)
+    f.demoSize = size
     for i, h in ipairs(hits) do
         local d = f.demoTex[i]
         if not d then
@@ -1402,8 +1408,12 @@ function UI:ShowToughDemo(hits)
             ART:Set(d.rim, "rim", 1, 1, 1)
             ART:Set(d.crack, "crack")
             ART:Set(d.ball, "ball")
+            d.bird = f:CreateTexture(nil, "OVERLAY", nil, 2)
+            ART:Set(d.bird, "phoenix")
             f.demoTex[i] = d
         end
+        d.bird:SetSize(size * 1.6, size * 1.6)
+        d.bird:Hide()
         d.hits = h
         d.x = self.SHOWCASE_X + (i - (n + 1) / 2) * self.DEMO_GAP
         d.y = self.SHOWCASE_Y
@@ -1418,11 +1428,11 @@ function UI:ShowToughDemo(hits)
             tex:SetPoint("CENTER", self.field, "TOPLEFT", d.x, -d.y)
         end
         d.state = nil
-        d.rim:Show(); d.disc:Show(); d.crack:Hide(); d.ball:Hide()
+        d.rim:SetShown(not egg); d.disc:Show(); d.crack:Hide(); d.ball:Hide()
     end
     for i = n + 1, #f.demoTex do
         local d = f.demoTex[i]
-        d.rim:Hide(); d.disc:Hide(); d.crack:Hide(); d.ball:Hide()
+        d.rim:Hide(); d.disc:Hide(); d.crack:Hide(); d.ball:Hide(); d.bird:Hide()
     end
     f.demoN = n
     -- the arrow and the glow on the first sample
@@ -1439,17 +1449,26 @@ function UI:AnimateToughDemo(now)
     local f = self.showcase
     if not (f and f.demoN) then return end
     local t = now - (f.startAt or now)
-    local size = self.SHOWCASE_PEG
+    local size = f.demoSize or self.SHOWCASE_PEG
+    local egg = f.demoEgg
+    local rest = egg and self.DEMO_EGG_REST or self.DEMO_REST
     for i = 1, f.demoN do
         local d = f.demoTex[i]
-        local cycle = d.hits * self.DEMO_HIT_EVERY + self.DEMO_REST
+        local cycle = d.hits * self.DEMO_HIT_EVERY + rest
         -- each sample a little behind the one before, so they never bounce in step
         local u = (t + (i - 1) * 0.4) % cycle
         local done = math.floor((u + self.DEMO_HIT_EVERY / 2) / self.DEMO_HIT_EVERY)    -- hits landed so far
         if done > d.hits then done = d.hits end
         local hp = d.hits - done
         local state = (hp <= 0) and "lit" or hp
-        if d.state ~= state then
+        if d.state ~= state and egg then
+            d.state = state
+            ART:Set(d.disc, (hp <= 0) and "egg_hatched" or ((hp < d.hits) and "egg_cracked" or "egg"))
+            d.disc:SetSize(ART:Size(d.disc.slot, size))
+            d.disc:SetAlpha(1)
+            -- a three-hit egg shows its second crack with the crack lines
+            if hp > 0 and hp <= 1 and d.hits >= 3 then d.crack:SetAlpha(0.9); d.crack:Show() else d.crack:Hide() end
+        elseif d.state ~= state then
             d.state = state
             ART:Set(d.disc, ART:Peg("blue", hp <= 0 and "_lit" or ""))
             d.disc:SetSize(ART:Size(d.disc.slot, size))
@@ -1480,6 +1499,18 @@ function UI:AnimateToughDemo(now)
             d.disc:SetSize(ART:Size(d.disc.slot, size * s))
         else
             d.ball:Hide()
+        end
+        -- hatched: the shell fades and the phoenix climbs out and away
+        if egg and hp <= 0 then
+            local a = (u - (d.hits - 0.5) * self.DEMO_HIT_EVERY) / rest     -- 0 .. 1 since the hatch
+            if a < 0 then a = 0 elseif a > 1 then a = 1 end
+            d.disc:SetAlpha(1 - a)
+            d.bird:ClearAllPoints()
+            d.bird:SetPoint("CENTER", self.field, "TOPLEFT", d.x + 6 * math.sin(a * 18), -(d.y - 10 - a * 190))
+            d.bird:SetAlpha(a < 0.7 and 1 or (1 - (a - 0.7) / 0.3))
+            d.bird:Show()
+        else
+            d.bird:Hide()
         end
     end
 end

@@ -2844,6 +2844,33 @@ GP.Dialog:Finish()
 check("the Lifts tutorial shows a plain moving peg bobbing up and down, not the purple",
       ev("__liftShown") and ev("__liftMoves") and "purple" not in ev("__liftKind"), f"{ev('__liftShown')} {ev('__liftMoves')} {ev('__liftKind')}")
 
+# the egg tutorial: the egg cracks, hatches, and the phoenix rises out of it
+lua(r"""
+UI:StartLevel(1, true)
+GP.Dialog:Finish()
+UI:ShowToughDemo({ 2, kind = "egg" })
+local f = UI.showcase
+local d = f.demoTex[1]
+local seen = { egg = false, cracked = false, hatched = false, rise = false }
+local birdY0
+for k = 0, 80 do
+  UI:AnimateToughDemo(f.startAt + k * 0.05)
+  local slot = d.disc.slot
+  if slot == "egg" then seen.egg = true end
+  if slot == "egg_cracked" then seen.cracked = true end
+  if slot == "egg_hatched" then seen.hatched = true end
+  if d.bird:IsShown() then
+    local _, _, _, _, y = d.bird:GetPoint()
+    if birdY0 and y > birdY0 + 40 then seen.rise = true end
+    birdY0 = birdY0 or y
+  end
+end
+__eggDemo = seen.egg and seen.cracked and seen.hatched and seen.rise and not d.rim:IsShown()
+__eggSeen = (seen.egg and "e" or "") .. (seen.cracked and "c" or "") .. (seen.hatched and "h" or "") .. (seen.rise and "r" or "")
+UI:HideShowcase()
+""")
+check("the egg tutorial shows the egg cracking, hatching and the phoenix rising", ev("__eggDemo"), ev("__eggSeen"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

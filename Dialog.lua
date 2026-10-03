@@ -207,7 +207,7 @@ D.SCRIPTS = {
         { "bink", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
     } },
     { key = "eggs", when = function(st) return st.objective == "eggs" or st.objective == "mixed_eggs" end,
-      point = gimmickPoint(function(p) return p.kind == "egg" end), lines = {
+      point = gimmickPoint(function(p) return p.kind == "egg" end), demo = { 2, kind = "egg" }, lines = {
         { "mekka", "Phoenix eggs! Two hits hatch one, and the phoenix bursts straight up through everything above it." },
         { "mekka", "But mind the bricks holding them. Knock a cradle away and the egg falls. Catch it in the bucket, or the level is lost!" },
     } },
@@ -277,7 +277,7 @@ D.SCRIPTS = {
         { "mekka", "Gold-rimmed pegs! These take three hits each. Keep at them." },
     } },
     { key = "eggs3", when = function(st) return firstPiece(st, function(p) return p.kind == "egg" and (p.maxhp or 1) >= 3 end) ~= nil end,
-      point = gimmickPoint(function(p) return p.kind == "egg" end), lines = {
+      point = gimmickPoint(function(p) return p.kind == "egg" end), demo = { 3, kind = "egg" }, lines = {
         { "razzle", "These eggs are tougher: three hits to hatch one now." },
     } },
     -- the adversaries, the first time each one turns up
