@@ -3910,7 +3910,7 @@ check("the window's credit line names the author and the version from the TOC (b
 
 # a player's level shipped in the game credits its builder on the level card and in the info panel
 lua(r"""
-local d = { name = "Jaina's Garden", author = "Jaina Proudmoore", goals = { oranges = true }, pieces = {}, movers = {} }
+local d = { name = "Jaina's Garden", author = "Jaina Proudmoore", imported = true, goals = { oranges = true }, pieces = {}, movers = {} }
 for k = 1, 12 do d.pieces[#d.pieces + 1] = { t = "peg", x = 40 + k * 34, y = 380 } end
 L.CUSTOM[39] = d
 GnomishPachinkoDB.unlocked = 400
@@ -4360,6 +4360,7 @@ local bestBefore = GnomishPachinkoDB.best[1]
 UI:ShowLevelSelect()      -- the editor is opened from the map
 ED:Test()
 __testing = UI.customTest ~= nil and UI.state.custom == true and not ED.frame:IsShown() and not UI.levelPanel:IsShown()
+  and UI.state.author == nil and not (UI.card.line3:GetText() or ""):find("Level by", 1, true)
 __toEditorShown = UI.toEditorBtn:IsShown()
 UI:PlayFromCard()
 local st = UI.state
@@ -4382,7 +4383,7 @@ __earlyBack = ED.frame:IsShown() and not UI.toEditorBtn:IsShown()
 __noRecord = GnomishPachinkoDB.best[1] == bestBefore
 UI.customTest = nil
 """)
-check("Test play runs the level on the board (the map closes), records nothing, and returns to the editor; Back to editor in the footer leaves early",
+check("Test play runs the level on the board (the map closes, no builder named on the card), records nothing, and returns to the editor; Back to editor in the footer leaves early",
       ev("__testing") and ev("__back") and ev("__noRecord") and ev("__toEditorShown") and ev("__earlyBack"), f'{ev("__testing")} {ev("__back")} {ev("__noRecord")} {ev("__overSeen")}')
 
 # sharing: everyone exports; only the owner imports and approves, and an approved level replaces the generated one

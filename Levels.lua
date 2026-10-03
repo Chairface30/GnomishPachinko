@@ -1853,7 +1853,9 @@ function L:BuildCustom(data, n, attempt)
         seed = seed,
         layout = "Custom",
         custom = true,
-        author = data.author,
+        -- only a submitted level (imported from a player's code) names its
+        -- builder; the author's own levels, and a level being tested, do not
+        author = data.imported and data.author or nil,
         objective = objective,
         -- Long Shots alongside other goals (a Long Shots level alone counts them as its goal)
         longshots = (objective ~= "longshots") and longshots or nil,
