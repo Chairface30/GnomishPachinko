@@ -1668,6 +1668,9 @@ lua(r"""
 GP:GetDB()
 UI:Show()
 function ui_play(maxSecs)
+  -- press Play first: the board waits for it
+  if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+  if UI.card:IsShown() and UI.startCardUp then UI.card.main:Click() end
   local st = UI.state
   local shots, t = 0, 0
   while st.phase ~= E.PHASE.OVER and t < (maxSecs or 900) do
@@ -1860,6 +1863,7 @@ check("no stray balloon pictures in Fever: the balloons are drawn only by the Fe
 # the boss stands as its creature model on a platform that rides with it
 lua(r"""
 UI:StartLevel(10, true)
+UI:ShowBoardContents()
 __bmShown = UI.bossModel:IsShown() and (UI.bossPlatform:IsShown() ~= (UI:BossView(UI.state.boss.ability).noPlatform == true))
 __bmNpc = UI.bossModelNpc
 UI:StartLevel(11, true)
@@ -1911,6 +1915,7 @@ check("the host's square clip lies under the ring band: corners inside its rim, 
 # the boss's bar and name sit below it, and a hurt boss shows no cracks
 lua(r"""
 UI:StartLevel(10, true)
+UI:ShowBoardContents()
 local b = UI.state.boss
 b.hp = b.maxhp - 2
 __advance(0.1)
@@ -1926,6 +1931,7 @@ check("the boss's bar sits below it and a hurt boss shows no cracks", ev("__barY
 # in Fever a scored tube glows and an unscored one stands dim
 lua(r"""
 UI:StartLevel(1, true)
+UI:ShowBoardContents()
 local st = UI.state
 st.phase = E.PHASE.FEVER
 st.binsLit = { [2] = true }
@@ -2505,9 +2511,27 @@ __giftSkip = P:ItemOf("ring") == r1 + 1
 check("the special balls are handed over on \"Here's one of each\", not before; skipping still hands them over",
       ev("__giftEarly") and ev("__giftStill") and ev("__giftNow") and ev("__giftOnce") and ev("__giftSkip"))
 
+# the board stays empty while the level card is up, and fills on Play
+lua(r"""
+UI:StartLevel(4, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+__advance(0.2)
+local anyPeg = false
+for _, t in ipairs(UI.pegTex) do if t.disc:IsShown() then anyPeg = true end end
+__emptyBoard = UI.card:IsShown() and not anyPeg and not UI.bucket:IsShown() and not UI.barrelFrame:IsShown()
+UI.card.main:Click()
+__advance(0.2)
+local shown = 0
+for i, p in ipairs(UI.state.pegs) do if UI.pegTex[i] and UI.pegTex[i].disc:IsShown() then shown = shown + 1 end end
+__fullBoard = shown > 0 and UI.bucket:IsShown() and UI.barrelFrame:IsShown()
+""")
+check("the board stays empty (no pieces, bucket or cannon) until Play is pressed on the level card", ev("__emptyBoard") and ev("__fullBoard"),
+      f'{ev("__emptyBoard")} {ev("__fullBoard")}')
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
+UI:ShowBoardContents()
 local path = { { x = 100, y = 200 }, { x = 160, y = 230 }, { x = 220, y = 210 }, { x = 280, y = 260 } }
 UI:ShowBolt(path, GetTime())
 local function shown() local n = 0 for _, l in ipairs(UI.boltLines) do if l.core:IsShown() then n = n + 1 end end return n end

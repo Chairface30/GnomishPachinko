@@ -1290,8 +1290,35 @@ function UI:PlayFromCard()
     end
     self.greenBoost = false
     self:HideCard()
+    self:ShowBoardContents()
     GP:PlaySfx("start.ogg")
     self:UpdateDisplay()
+end
+
+-- Until Play is pressed the board stands empty: no pieces, no bucket, no
+-- cannon, no boss, no ribbon, no guide; only its painted backdrop.
+function UI:HideBoardContents()
+    self.boardHidden = true
+    for _, t in ipairs(self.pegTex or {}) do t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide() end
+    for _, b in ipairs(self.ballTex or {}) do b:Hide() end
+    for _, a in pairs(self.ballAura or {}) do if a.Hide then a:Hide() end end
+    for _, t in ipairs(self.trail or {}) do t:Hide() end
+    self.bucket:Hide()
+    self.splashTex:Hide()
+    self:HideGuide()
+    if self.bossModel then self.bossModel:Hide(); self.bossPlatform:Hide() end
+    self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
+    self.pyramidTex:Hide()
+    if self.barrelFrame then self.barrelFrame:Hide() end
+end
+
+-- Play: the board appears, the pieces dropping in as a level always starts.
+function UI:ShowBoardContents()
+    if not self.boardHidden then return end
+    self.boardHidden = nil
+    self:LayoutPegs()
+    if self.state and not self.state.noBucket then self.bucket:Show() end
+    if self.barrelFrame then self.barrelFrame:Show() end
 end
 
 UI.CARD_STAR = 52            -- the level card's stars
@@ -1501,7 +1528,7 @@ UI.BALL_STRIP_SIZE = 65               -- the balls left, two columns of five
 -- in radians, 0 = from the right, counter-clockwise), how far, how big
 -- (Rainbow comes in from the left, nearly level, so it cannot be read as
 -- pointing at its neighbours; Suction comes in low from the right.)
-UI.ARROW_ANGLES = { ring = 0.55, rainbow = math.pi - 0.18, suction = 0.28, green = -0.6 }
+UI.ARROW_ANGLES = { ring = 0.55, rainbow = math.pi - 0.18, suction = 0.08, green = -0.6 }
 UI.ARROW_DIST = 128
 UI.ARROW_W = 120
 UI.ITEMS_Y = 4 + 5 * (65 + 5) + 26     -- under the balls
@@ -1851,12 +1878,13 @@ end
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
 function UI:SetBoardChrome(shown)
     local function set(obj) if obj then if shown then obj:Show() else obj:Hide() end end end
-    set(self.portraitBox); set(self.portraitRingFrame); set(self.barrelFrame)
+    set(self.portraitBox); set(self.portraitRingFrame)
+    if self.boardHidden then self.barrelFrame:Hide() else set(self.barrelFrame) end
     for _, b in ipairs(self.ballStrip or {}) do if shown then b:Show() else b:Hide() end end
     if not shown then self.ballStripMore:SetText(""); self.ballExtra:Hide() end
     for _, b in ipairs(self.itemSlots or {}) do if shown and not self:ItemSlotKnown(b.item) then b:Hide() else set(b) end end
     if shown then
-        if self.state and not self.state.noBucket and self.state.phase ~= E.PHASE.FEVER then self.bucket:Show() end
+        if self.state and not self.state.noBucket and self.state.phase ~= E.PHASE.FEVER and not self.boardHidden then self.bucket:Show() end
         self:UpdateCounters()
     else
         self.bucket:Hide()
@@ -2144,6 +2172,8 @@ function UI:StartLevel(n, retry)
     self:HideGuide()
     self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
     if GP.Mascot.SetHost then GP.Mascot:SetHost(GP:HostFor(n).npc, GP:HostFor(n)) end
+    -- nothing is drawn on the board until the player presses Play on the card
+    self:HideBoardContents()
     self.startVoice = spec.objective == "boss" and "boss_start" or (spec.objective == "duel" and "duel_start" or "level_start")
     GP.Mascot:React("start")
     self:UpdateDisplay()
@@ -3416,6 +3446,7 @@ function UI:OnUpdate(dt)
     end
     if not st then return end
     if self.levelPanel and self.levelPanel:IsShown() then return end
+    if self.boardHidden then return end          -- the level card is up: nothing on the board yet
 
     if st.phase == E.PHASE.AIM then
         self:AimAtCursor(dt)

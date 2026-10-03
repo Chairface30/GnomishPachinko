@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The Suction Tube's tutorial arrow comes in lower still, nearly level from the right.
+- **The board waits for Play:** while the level card (and any talk before it) is up, the board shows only its painted backdrop; the pieces, bucket, cannon, boss and ribbon appear when Play is pressed.
 - **The map reads better:** taller chapter buttons with bigger words (<<, Prev, Next, >>) along the top, and the chapter's name (22) and its levels line (15) larger, beneath them.
 - **Boss health rebalanced** for oranges that zap and double-damage direct hits: it starts at 12 and climbs a little under half a point a chapter (29 by the last boss). In simulated play a careful player needs most of an early boss level's balls and beats late bosses about two times in three. The hand-set 8 for the first Gyro Spider is gone; it has 13 like its chapter.
 

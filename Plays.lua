@@ -475,6 +475,7 @@ end
 -- unlock-all, and a reset. Each writes the addon's record and the settings.
 ns.Progress = {}
 function ns.Progress.Record(n, cleared, stars, score, crazy, count)
+    if ns.trustPlain then ns.Progress.FromSettings() end
     local db = GP:GetDB()
     local a = ns.auth or {}
     ns.auth = a
