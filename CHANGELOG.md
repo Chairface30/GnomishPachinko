@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Super Slides are earned, not handed out.** A ride lights only the bricks the ball actually glides past; hitting the lead brick no longer lights the whole chain. And the ball takes a rail only in at a mouth (either end brick) or coming in grazing along the face (within about 35 degrees); a squarer hit on a brick mid-chain is an ordinary brick hit that bounces and lights just that brick.
 - **The last orange no longer decides a duel.** Its 25,000 bonus is gone: lighting it pays only the peg's own points and ends the duel (there is nothing left to shoot for), and the higher score wins. Cogwhistle's challenge line is re-voiced to match.
 - The level card for a duel level (20, 40, 60 and on) no longer prints the rival's long description under the goal; the duel's rules are still in the map tooltip.
 - **The Tin Drake's iron draws the lightning:** while any of its scrap barricades are up, an orange's zap strikes the nearest piece instead of the drake, destroying it. Hit the drake directly, or clear the iron first.

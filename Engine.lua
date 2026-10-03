@@ -1077,6 +1077,7 @@ end
 -- and runs along its face like a road, lighting each brick, until the rail
 -- ends or the ball is too slow to hold on.
 E.RAIL_MIN_SPEED = 60
+E.RAIL_ENGAGE    = 0.7     -- away from a mouth, a ball takes the rail only this grazing (into the face < 0.7 x along it, ~35 degrees)
 local function brickFrame(q)
     local c, s = cos(q.angle or 0), sin(q.angle or 0)
     local nx, ny = -s, c
@@ -1128,6 +1129,21 @@ local function railPath(state, rail)
         pts[k].s = pts[k - 1].s + sqrt(dx * dx + dy * dy)
     end
     return pts
+end
+
+-- Is brick p one of its chain's two end bricks (a mouth)?
+function E.RailMouth(state, p)
+    local lo, hi
+    for i, q in ipairs(state.pegs) do
+        if q.rail == p.rail and not q.gone then
+            local o = q.railIdx or i
+            if not lo or o < lo then lo = o end
+            if not hi or o > hi then hi = o end
+        end
+    end
+    local o = p.railIdx
+    if not o then for i, q in ipairs(state.pegs) do if q == p then o = i end end end
+    return o == lo or o == hi
 end
 
 -- the point and direction at arc length s
@@ -1189,11 +1205,8 @@ local function railStep(state, ball, events, dt)
     ball.x, ball.y = x, y
     ball.vx, ball.vy = tx * speed * ride.dir, ty * speed * ride.dir
     if ride.s <= 0 or ride.s >= endS then
-        -- off the end: away along the rail's last stretch
-        for k = 1, #pts do
-            local p = pts[k]
-            if p.q and not p.done and not p.q.gone then p.done = true; hitPeg(state, p.q, ball, events) end
-        end
+        -- off the end: away along the rail's last stretch (only the bricks
+        -- the ball actually passed are lit; the rest keep to the normal rules)
         ball.ride = nil
         ball.railLost, ball.railLostAt = ball.rail, state.time
         ball.rail = nil
@@ -1226,9 +1239,16 @@ collideBall = function(state, ball, events, light)
             if depth then
                 local onto = false
                 if p.rail and light and not ball.fire and p.railCx and not p.lit then
-                    -- from the centre side, the ball takes the rail instead of bouncing
-                    local _, _, fnx, fny = brickFrame(p)
-                    if (ball.x - p.x) * fnx + (ball.y - p.y) * fny > 0 then onto = true end
+                    -- from the centre side, the ball takes the rail instead of
+                    -- bouncing, but only in at a mouth (either end brick of
+                    -- the chain) or coming in grazing along the face; any
+                    -- other contact is an ordinary brick hit
+                    local c, s, fnx, fny = brickFrame(p)
+                    if (ball.x - p.x) * fnx + (ball.y - p.y) * fny > 0 then
+                        local into = -(ball.vx * fnx + ball.vy * fny)
+                        local along = abs(ball.vx * c + ball.vy * s)
+                        onto = E.RailMouth(state, p) or into < E.RAIL_ENGAGE * along
+                    end
                 end
                 if onto then
                     ball.rail = p.rail

@@ -3048,6 +3048,52 @@ GP.Dialog.panel:Hide()
 check("a new announcer line cuts the last one off, and none plays while a dialog is up", ev("__cutFirst") and ev("__quietUnderDialog"), f"{ev('__cutFirst')} {ev('__quietUnderDialog')} {ev('__h1')} {ev('GnomishPachinkoDB.sound')} {ev('GnomishPachinkoDB.voice')}")
 check("the host's lines come from the host's own voice folder", ev("(function() UI.state.level = 15; __n = #__played_files; GP:PlayVoice('fever'); return __played_files[#__played_files] end)()").find("Voice\\mekka\\fever") >= 0)
 
+# a Super Slide is taken only at a mouth or at a grazing angle; a square hit
+# mid-chain is a plain brick hit, and a ride lights only the bricks it passes
+lua(r"""
+function rail_engage(which, mode)
+  local st = E:NewLevel(L:Build(8))
+  st.phase = E.PHASE.FLIGHT
+  local list = {}
+  for _, p in ipairs(st.pegs) do if p.rail == "spiral" then list[#list + 1] = p end end
+  table.sort(list, function(x, y) return x.railIdx < y.railIdx end)
+  local p = (which == "lead") and list[1] or list[math.floor(#list / 2)]
+  local c, s = math.cos(p.angle or 0), math.sin(p.angle or 0)
+  local nx, ny = -s, c
+  if (p.railCx - p.x) * nx + (p.railCy - p.y) * ny < 0 then nx, ny = -nx, -ny end
+  local d = p.h / 2 + E.BALL_R - 2
+  local ball = { x = p.x + nx * d, y = p.y + ny * d, slow = 0 }
+  local sp = 400
+  if mode == "square" then
+    ball.vx, ball.vy = -nx * sp, -ny * sp
+  elseif mode == "graze" then
+    ball.vx, ball.vy = (c - nx * 0.2) * sp, (s - ny * 0.2) * sp
+  else
+    -- out of the mouth: along the chain, away from the next brick
+    local q = list[2]
+    local ox, oy = p.x - q.x, p.y - q.y
+    local l = math.sqrt(ox * ox + oy * oy)
+    ball.vx, ball.vy = (ox / l - nx * 0.5) * sp, (oy / l - ny * 0.5) * sp
+  end
+  st.balls = { ball }
+  local events = {}
+  E.CollideBall(st, ball, events, true)
+  local rode = ball.rail ~= nil
+  for _ = 1, 200 do if not ball.ride then break end E.RailStep(st, ball, events, 1 / 120) end
+  local lit = 0
+  for _, q in ipairs(list) do if q.lit or q.gone then lit = lit + 1 end end
+  return rode, lit, #list, p.lit == true
+end
+""")
+re_sq, lit_sq, tot, hit_sq = ev("rail_engage")("mid", "square")
+re_gr, lit_gr, _, _ = ev("rail_engage")("mid", "graze")
+re_out, lit_out, _, _ = ev("rail_engage")("lead", "out")
+check("a square hit on a mid-chain rail brick is a plain brick hit: no Super Slide, only that brick lit",
+      not re_sq and hit_sq and lit_sq == 1, f"{re_sq} {lit_sq}/{tot}")
+check("a grazing ball takes the rail mid-chain", re_gr and lit_gr >= 1, f"{re_gr} {lit_gr}/{tot}")
+check("a ride off the lead brick lights only the bricks the ball passes, not the whole chain",
+      re_out and 1 <= lit_out < tot, f"{re_out} {lit_out}/{tot}")
+
 # level 8: the spiral is a rail; a shot down its mouth rides the inside all the way round
 lua(r"""
 function spiral_ride(aimDeg)
