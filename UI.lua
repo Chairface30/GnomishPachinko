@@ -1344,11 +1344,19 @@ function UI:CardLayout(mode)
     if result then
         card.title:SetPoint("TOP", card, "TOP", 0, -200)
         card.line2:SetPoint("TOP", card.title, "BOTTOM", 0, -14)
-        card.line3:SetPoint("TOP", card.line2, "BOTTOM", 0, -12)
-        card.best:Hide()
+        card.best:ClearAllPoints()
+        card.best:SetPoint("TOP", card.line2, "BOTTOM", 0, -12)
+        card.line3:SetPoint("TOP", card.best, "BOTTOM", 0, -10)
     else
         card.title:SetPoint("TOP", card, "TOP", 0, -46)
         card.line2:SetPoint("TOP", card.line1, "BOTTOM", -22, -10)
+        card.best:ClearAllPoints()
+        card.best:SetPoint("TOP", card.line2, "BOTTOM", 0, -10)
+        -- the level card's own sizes and colours
+        card.line2:SetFont("Fonts\\FRIZQT__.TTF", 16, "")
+        card.line2:SetTextColor(1, 0.82, 0)
+        card.line3:SetFont("Fonts\\FRIZQT__.TTF", 14, "")
+        card.line3:SetTextColor(0.8, 0.8, 0.9)
         card.line3:SetPoint("TOP", card.best, "BOTTOM", 0, -10)
     end
 end
@@ -1572,11 +1580,21 @@ function UI:ShowResultCard(result, stars)
     else goalLine = ("%d of %d %s"):format(result.goals, result.goalTotal, def.goalWord) end
     card.goalIcon:Hide()
     card.bigScore:SetText("0")
-    card.line2:SetText((cleared and "|cff66ff66done|r  " or "|cffff6060missed|r  ") .. goalLine)
-    local s2, s3 = L:StarScores(st.level)
-    local third = ("Fever %s  -  best combo %d  -  2 stars at %s, 3 at %s"):format(
-        fmtBig(result.feverTotal or 0), result.bestCombo or 0, fmtBig(s2), fmtBig(s3))
-    if not cleared then third = third .. ("  -  plays left today: %d"):format(GP.Plays:Remaining()) end
+    -- under the title: what happened, the level's high score, the best combo
+    card.line2:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    card.line2:SetTextColor(1, 1, 1)
+    card.line2:SetText((cleared and "|cff66ff66Done!|r  " or "|cffff6060Missed:|r  ") .. goalLine)
+    local prev = self.cardPrevBest or 0
+    local high = math.max(prev, result.score or 0)
+    local newBest = (result.score or 0) > prev and prev > 0
+    card.best:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    card.best:SetTextColor(1, 0.85, 0.3)
+    card.best:SetText(("High score  |cffffffff%s|r%s"):format(fmtBig(high), newBest and "  |cff88ff88NEW!|r" or ""))
+    card.best:Show()
+    card.line3:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
+    card.line3:SetTextColor(0.75, 0.9, 1)
+    local third = ("Best combo  |cffffffff%d|r"):format(result.bestCombo or 0)
+    if not cleared then third = third .. ("\n|cffffb0a0Plays left today: %d|r"):format(GP.Plays:Remaining()) end
     card.line3:SetText(third)
     if cleared and st.level < L.COUNT and GP:IsUnlocked(st.level + 1) then
         card.main.text:SetText("NEXT LEVEL")
@@ -3299,6 +3317,7 @@ end
 function UI:OnLevelOver(result)
     local db = GP:GetDB()
     local prevBest = db.best[result.level] or 0
+    self.cardPrevBest = prevBest
     local stars, playsLeft
     local canPlayOn = not result.cleared and not result.duel and not result.eggLost
     if canPlayOn then

@@ -2538,6 +2538,21 @@ if GP.Dialog:IsShown() then GP.Dialog:Finish() end
 """)
 check("a level starts with no title banner (the card shows the title)", ev("__noBanner"))
 
+# the result card: done line, high score, best combo; no Fever or star marks
+lua(r"""
+UI:StartLevel(3, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI.cardPrevBest = 1000
+UI:ShowResultCard({ cleared = true, score = 5000, objective = "classic", goals = 3, goalTotal = 3, feverTotal = 777, bestCombo = 9, level = 3 }, 1)
+__rcBest = UI.card.best:GetText() or ""
+__rcCombo = UI.card.line3:GetText() or ""
+UI:HideCard()
+""")
+rc_best, rc_combo = ev("__rcBest"), ev("__rcCombo")
+check("the result card shows the high score (with NEW!) and the best combo, without Fever or star marks",
+      "High score" in rc_best and ("5,000" in rc_best or "5000" in rc_best) and "NEW" in rc_best and "Best combo" in rc_combo and "9" in rc_combo
+      and "Fever" not in rc_combo and "stars at" not in rc_combo, f"{rc_best} | {rc_combo}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

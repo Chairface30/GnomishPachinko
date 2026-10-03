@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The result card's lines, tidied:** under the title, what happened (Done! or Missed:), then the level's high score (NEW! when you just beat it), then the best combo. The Fever points and the star marks are gone, and each line has its own size and colour so it reads easily.
 - The LEVEL CLEARED banner shows on its own; the score and the Fever bins are left to the result card.
 - A bank shot now counts by how far across the board it goes: the orange must be at least 220 pixels sideways from where the ball met the wall (about half the board), not just a long flight.
 - Fixed: a blue title banner showed for a moment behind the opening talk. A level no longer opens with a banner; the level card shows its title and objective.
