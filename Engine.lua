@@ -163,7 +163,8 @@ E.DRAKE_SCRAP_EVERY    = 2   -- on every second shot
 E.SCRAP_ROW1           = 5   -- the Drake's first row: blocks in its middle before it takes the ends and climbs
 E.SCRAP_ROW_GAP        = 34  -- between the Drake's rows of scrap
 E.WEB_R          = 13        -- a Gyro Spider web
-E.WEB_PER_SHOT   = 2         -- spun after every shot ...
+E.WEB_PER_ORANGE = 2         -- spun every time an orange is lit ...
+E.WEB_BALL_CLEAR = 60        -- never spun this close to a ball in flight
 E.WEB_MAX        = 10        -- ... up to this many on the board
 E.WEB_CLEAR      = 14        -- the gap kept between a web and any piece
 E.SCRAP_COL_W    = 44        -- scrap sits on columns this wide (a ball passes between neighbours)
@@ -255,7 +256,7 @@ E.AIM_SWING    = 5.0        -- radians a second the launcher swings toward the c
 E.BOSSES = {
     { id = "drake",  name = "Tin Drake",    blurb = "Speeds up as it weakens.",                         speed = 0.6 },
     { id = "golem",  name = "Bolt Golem",   blurb = "Raises a two-hit shield every third shot.",        speed = 0.7 },
-    { id = "spider", name = "Gyro Spider",  blurb = "Jumps when hit, and spins webs after every shot: a ball that touches one is caught with it.", speed = 1.0 },
+    { id = "spider", name = "Gyro Spider",  blurb = "Jumps when hit, and spins two webs every time an orange is lit: a ball that touches one is caught with it.", speed = 1.0 },
     { id = "boar",   name = "Mechano-Boar", blurb = "Charges fast and turns around when hit.",          speed = 1.8 },
     { id = "yeti",   name = "Cog Yeti",     blurb = "Heals one point after any shot that misses it.",   speed = 0.8 },
 }
@@ -955,6 +956,8 @@ lightPeg = function(state, p, ball, events, quiet, at)
     local boss = state.boss
     if p.kind == "orange" and boss and boss ~= p and not boss.lit and not boss.gone and state.objective == "boss" then
         state.bossHitThisShot = true
+        -- the Gyro Spider answers every orange with two fresh webs
+        if boss.ability == "spider" then E.SpiderWebs(state, boss, events) end
         -- the Tin Drake's iron draws the lightning: while any of its scrap is
         -- up, a zap strikes the nearest piece instead, destroys it and stops
         local iron, best
@@ -2002,8 +2005,8 @@ local function drakeScrap(state, boss, events)
 end
 E.DrakeScrap = drakeScrap
 
--- The Gyro Spider's webs: two after every shot, anywhere in the open
--- between the pattern's pieces. A ball that touches one is caught: the web
+-- The Gyro Spider's webs: two every time an orange is lit, anywhere in the
+-- open between the pattern's pieces (and clear of any ball in flight). A ball that touches one is caught: the web
 -- and the ball are both gone. A fireball burns a web away and flies on.
 local function spiderWebs(state, boss, events)
     local count = 0
@@ -2012,7 +2015,7 @@ local function spiderWebs(state, boss, events)
     if yBot <= yTop then return end
     local made = 0
     for _ = 1, 120 do
-        if made >= E.WEB_PER_SHOT or count + made >= E.WEB_MAX then break end
+        if made >= E.WEB_PER_ORANGE or count + made >= E.WEB_MAX then break end
         local x = 34 + state.rng() * (W - 68)
         local y = yTop + state.rng() * (yBot - yTop)
         local clear = true
@@ -2027,6 +2030,10 @@ local function spiderWebs(state, boss, events)
                 end
             end
         end
+        for _, b in ipairs(state.balls) do
+            local dx, dy = b.x - x, b.y - y
+            if dx * dx + dy * dy < E.WEB_BALL_CLEAR * E.WEB_BALL_CLEAR then clear = false break end
+        end
         if clear then
             state.pegs[#state.pegs + 1] = { shape = "peg", x = x, y = y, r = E.WEB_R, kind = "web", web = true }
             made = made + 1
@@ -2034,6 +2041,7 @@ local function spiderWebs(state, boss, events)
     end
     if made > 0 then push(events, { type = "boss_webs", count = made, x = boss.x, y = boss.y }) end
 end
+E.SpiderWebs = spiderWebs
 
 local function substep(state, dt, events)
     state.time = state.time + dt
@@ -2094,13 +2102,10 @@ local function substep(state, dt, events)
     if #state.balls == 0 and not rolling and not (state.phoenixes and #state.phoenixes > 0) then
         state.looseWait = 0
         clearLitPegs(state, events)
-        -- each boss fights back its own way: the Gyro Spider spins webs (the
-        -- Tin Drake's scrap comes as the ball is fired, the Bolt Golem's shield
-        -- and the Cog Yeti's healing are below, the boar's charge in its movement)
-        local boss = state.boss
-        if boss and not boss.lit and not boss.gone and boss.ability == "spider" then
-            spiderWebs(state, boss, events)
-        end
+        -- each boss fights back its own way: the Tin Drake's scrap comes as
+        -- the ball is fired, the Gyro Spider's webs as oranges are lit, the
+        -- Bolt Golem's shield and the Cog Yeti's healing are below, the
+        -- boar's charge in its movement
         -- the Cog Yeti heals after a shot that never touched it
         local b = state.boss
         if b and not b.lit and b.ability == "yeti" and not state.bossHitThisShot and b.hp < b.maxhp then

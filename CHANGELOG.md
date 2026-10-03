@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The Gyro Spider spins two webs every time an orange is lit** (instead of two after every shot), up to 10 on the board, never right on top of a ball in flight.
 - The last gem's (or egg's) fall stays in slow motion but zooms back out to the whole board, so you can see whether the bucket catches it.
 - Fixed: the Levels button beside the board opened the map behind the level cleared card, which stayed on screen. Any card is now closed first.
 - Gems are heavier: a hit shoves a gem 3.5 times less than before. The temporary Gem mass slider is gone from the Testing fly-out.

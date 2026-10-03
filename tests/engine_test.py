@@ -2964,7 +2964,7 @@ check("the Tin Drake's scrap fills its first row, then takes the two bank ends",
 check("then it climbs into cleared space above, and no row is ever a wall",
       upper > 0 and not wall, f"{upper} {wall}")
 
-# the Gyro Spider spins webs after every shot; a ball that touches one is
+# the Gyro Spider spins two webs every time an orange is lit; a ball that touches one is
 # caught, and the web goes with it
 lua(r"""
 function web_probe()
@@ -2973,12 +2973,23 @@ function web_probe()
   local st = E:NewLevel(spec)
   local events = {}
   local out = { webs = 0, scrap = 0, caught = false, webGone = false, lost = false, clear = true }
-  for shot = 1, 3 do
-    st.phase = E.PHASE.FLIGHT
-    st.balls = {}
-    st.shots = shot
-    st.ballsLeft = 10
-    for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+  -- a shot's end spins nothing
+  st.phase = E.PHASE.FLIGHT
+  st.balls = {}
+  st.shots = 1
+  st.ballsLeft = 10
+  for _ = 1, 4 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+  local function webCount() local c = 0 for _, p in ipairs(st.pegs) do if p.web and not p.gone then c = c + 1 end end return c end
+  out.afterShot = webCount()
+  -- two oranges lit: two webs each
+  local n = 0
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "orange" and not p.lit and n < 2 then
+      n = n + 1
+      st.time = st.time + 1
+      E.HitPeg(st, p, nil, events, true)
+      if n == 1 then out.afterOne = webCount() end
+    end
   end
   local web
   for _, p in ipairs(st.pegs) do
@@ -3017,8 +3028,8 @@ function web_probe()
 end
 """)
 wp = dict(ev("web_probe")())
-check("the Gyro Spider spins webs after every shot, in open space, and throws no steel scrap",
-      wp["webs"] >= 4 and wp["scrap"] == 0 and wp["clear"], str(wp))
+check("the Gyro Spider spins two webs every time an orange is lit (none at a shot's end), in open space, and throws no steel scrap",
+      wp["afterShot"] == 0 and wp["afterOne"] == 2 and wp["webs"] == 4 and wp["scrap"] == 0 and wp["clear"], str(wp))
 check("a ball that touches a web is caught: ball and web both gone", wp["caught"] and wp["lost"] and wp["webGone"], str(wp))
 
 # arming the Suction Tube starts the tube sucking; disarming it unfired stops it
