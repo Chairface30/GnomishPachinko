@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: a duel could be lost with the higher score, when Cogwhistle lit the last orange. The last orange now pays a 25,000 bonus and ends the duel, and the scores always decide it.
 - **The last-piece zoom has a crowd:** instead of a whispered "last one", a held "ahhhh" builds through the slow motion until the piece lights and the Fever music cuts in. If the ball misses, it falls away into a sad "awwww".
 - **Every boss has a voice of its own:** the Bolt Golem booms through iron with a metal-room echo, the Gyro Spider hisses and crackles with electricity, the Mechano-Boar snorts and growls, and the Cog Yeti rumbles slow through an ice-cave echo.
 - **The Tin Drake sounds like a small dragon:** a new snarling, hissing voice, pitched up with a growl and a light tin ring, and a new line. In the conversation box it is turned half round to face the player.
@@ -17,7 +18,7 @@
 - **Balloons fit the picture.** A level's balloons come in mirrored pairs, the same size at the same height either side, with an odd one only on the center line. Each level keeps to one arrangement: by the walls, on the flanks, or a center balloon with pairs beside it. No more single balloon stuck somewhere at random.
 - **Temporary dialog tuning panel** left of the window: pick any speaker in the conversation box (the four hosts, Cogwhistle, the five bosses) and set height, sideways, zoom, turn and tilt. The box now shows whole models in a clipped window instead of the head-cropping portrait camera.
 - Pressing **Get Golden Gears** away from a mailbox has Tinkmaster explain, in his own voice, how gears are bought by mail. He says it once; after that, heard or skipped, it is a chat line.
-- **Duels end on the last orange.** Whoever lights it wins the duel at once, keeping that shot's points. A duel has no Fever and no end bonus. If the balls run out first, the higher score still wins.
+- **Duels end on the last orange.** Lighting it earns its shooter a 25,000 bonus and ends the duel at once; the higher score wins. A duel has no Fever and no end bonus.
 - **A Super Slide is a sure thing.** Once a ball takes a rail it rides it to the end along the bricks in order, lighting every one, and leaves off the far end. It used to slip off at joints and leave bricks unlit.
 - **Scored Fever tubes stand out:** unscored tubes are dimmed and their points grayed; a scored tube lights up with a pulsing glow behind it and over its letter.
 - The boss's health bar sits just under it, always on the board and over its model; its name is no longer printed on the board.

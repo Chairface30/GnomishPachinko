@@ -1912,16 +1912,16 @@ __tubeDim = not UI.bins[1].halo:IsShown()
 """)
 check("a scored Fever tube glows and the rest stand dim", ev("__tubeLit") and ev("__tubeDim"))
 
-# a duel: whoever lights the last orange wins it there and then; no Fever
+# a duel: the last orange pays its shooter a bonus and ends it; the scores decide; no Fever
 lua(r"""
-function duel_last_probe()
+function duel_last_probe(you, rival)
   local spec = L:Build(20)
   local st = E:NewLevel(spec)
   local st2 = E:StartDuel(st, L:Build(20, 50, { stage2 = true }))
   local d = st2.duel
   d.turn = "rival"
   st2.ballsLeft = d.balls.rival
-  d.scores.you, d.scores.rival = 99999, 0
+  d.scores.you, d.scores.rival = you, rival
   local last
   for _, p in ipairs(st2.pegs) do
     if p.goal and not p.lit then
@@ -1933,23 +1933,26 @@ function duel_last_probe()
   assert(E:Launch(st2, events))
   local b = st2.balls[1]
   b.x, b.y, b.vx, b.vy = last.x, last.y - (last.r or E.PEG_R) - E.BALL_R - 3, 0, 150
-  local fever, decided = false, false
+  local fever, ended = false, false
   for _ = 1, 900 do
     E:Step(st2, 1 / 60, events)
     for _, e in ipairs(events) do
       if e.type == "fever" then fever = true end
-      if e.type == "duel_last_orange" then decided = true end
+      if e.type == "duel_last_orange" then ended = true end
     end
     wipe(events)
     if st2.phase == E.PHASE.OVER then break end
   end
   local r = st2.result or {}
-  return fever, decided, st2.phase == E.PHASE.OVER, r.cleared, r.duel and r.duel.lastOrange
+  return fever, ended, st2.phase == E.PHASE.OVER, r.cleared, r.duel and r.duel.lastOrange, d.scores.rival
 end
 """)
-fev, dec, over, cleared, lastSide = ev("duel_last_probe")()
-check("in a duel the last orange wins it outright (even on a lower score), with no Fever",
-      not fev and dec and over and cleared == False and lastSide == "rival", f"{fev} {dec} {over} {cleared} {lastSide}")
+fev, dec, over, cleared, lastSide, rivalScore = ev("duel_last_probe")(99999, 0)
+check("a duel's last orange pays its shooter the bonus and ends it, with no Fever; the higher score still wins",
+      not fev and dec and over and cleared == True and lastSide == "rival" and rivalScore >= ev("E.DUEL_LAST_BONUS"),
+      f"{fev} {dec} {over} {cleared} {lastSide} {rivalScore}")
+fev, dec, over, cleared, lastSide, rivalScore = ev("duel_last_probe")(80000, 60000)
+check("the last orange's bonus can swing a close duel", over and cleared == False and rivalScore > 80000, f"{cleared} {rivalScore}")
 
 # Get Golden Gears away from a mailbox: Tinkmaster explains, the first time only
 lua(r"""
