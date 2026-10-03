@@ -2134,6 +2134,16 @@ __welcomeFirst = talk[1] and talk[1].key == "welcome"
 check("the window has a Sound box and a Music box, each switching its own sounds", ev("__musicOff") and ev("__musicOn") and ev("__soundOff"))
 check("a new player is welcomed first, with the bosses' work-in-progress note", ev("__welcomeFirst"))
 
+# the Golden Gear shop takes the info's place, and Leave shop brings it back
+lua(r"""
+UI:StartLevel(1, true)
+UI.shopOpenBtn:Click()
+__shopIn = UI.shopPanel:IsShown() and not UI.infoPanel:IsShown()
+UI.shopLeaveBtn:Click()
+__shopOut = UI.infoPanel:IsShown() and not UI.shopPanel:IsShown() and UI.playsText:IsShown()
+""")
+check("the shop button swaps the info for the Golden Gear shop, Leave shop swaps it back", ev("__shopIn") and ev("__shopOut"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

@@ -630,21 +630,27 @@ function UI:CreateFrame()
         elseif UI.state and UI.state.phase == E.PHASE.FEVER then UI:StartFanfare(GetTime()) end
     end)
     self.side = side
+    -- the info (level, objective, host and power, balls, score, stars) lives
+    -- on a frame of its own; the Golden Gear shop takes the same space when
+    -- the player goes shopping
+    local info = CreateFrame("Frame", nil, side)
+    info:SetAllPoints(side)
+    self.infoPanel = info
 
     local function label(text, y, template)
-        local fs = side:CreateFontString(nil, "OVERLAY", template or "GameFontNormalSmall")
+        local fs = info:CreateFontString(nil, "OVERLAY", template or "GameFontNormalSmall")
         fs:SetPoint("TOPLEFT", side, "TOPLEFT", 6, y)
         fs:SetText(text)
         return fs
     end
     local function value(y, template)
-        local fs = side:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
+        local fs = info:CreateFontString(nil, "OVERLAY", template or "GameFontHighlight")
         fs:SetPoint("TOPRIGHT", side, "TOPRIGHT", -6, y)
         fs:SetJustifyH("RIGHT")
         return fs
     end
     local function divider(y)
-        local div = side:CreateTexture(nil, "ARTWORK")
+        local div = info:CreateTexture(nil, "ARTWORK")
         div:SetSize(SIDE_W, 1)
         div:SetPoint("TOPLEFT", side, "TOPLEFT", 0, y)
         div:SetTexture(WHITE)
@@ -653,13 +659,13 @@ function UI:CreateFrame()
     -- an inset plate behind a readout row (its pieces live on the side
     -- panel itself, under the text)
     local function plate(y, h)
-        local anchor = CreateFrame("Frame", nil, side)
+        local anchor = CreateFrame("Frame", nil, info)
         anchor:SetSize(SIDE_W + 8, h)
         anchor:SetPoint("TOPLEFT", side, "TOPLEFT", -4, y)
-        return ART:NewSkin(side, "plate", "BACKGROUND", 0, anchor)
+        return ART:NewSkin(info, "plate", "BACKGROUND", 0, anchor)
     end
     local function icon(x, y, size, slot)
-        local t = side:CreateTexture(nil, "ARTWORK")
+        local t = info:CreateTexture(nil, "ARTWORK")
         t:SetSize(size, size)
         t:SetPoint("TOPLEFT", side, "TOPLEFT", x, y)
         ART:Set(t, slot)
@@ -719,7 +725,7 @@ function UI:CreateFrame()
     label("Next free ball at", -322)
     self.freeBallText = value(-322, "GameFontHighlightSmall")
     local function bar(y, r, g, b)
-        local f = CreateFrame("StatusBar", nil, side)
+        local f = CreateFrame("StatusBar", nil, info)
         f:SetSize(SIDE_W, 5)
         f:SetPoint("TOPLEFT", side, "TOPLEFT", 0, y)
         f:SetStatusBarTexture(WHITE)
@@ -734,10 +740,10 @@ function UI:CreateFrame()
     end
     self.freeBallBar = bar(-336, 0.4, 0.7, 1)
     -- the multiplier: a horizontal trough with a rainbow bar clipped by progress
-    local trough = CreateFrame("Frame", nil, side)
+    local trough = CreateFrame("Frame", nil, info)
     trough:SetSize(SIDE_W, 16)
     trough:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -270)
-    local gauge = { skin = ART:NewSkin(side, "gauge", "ARTWORK", 0, trough), fill = side:CreateTexture(nil, "ARTWORK", nil, 2), w = SIDE_W - 8 }
+    local gauge = { skin = ART:NewSkin(info, "gauge", "ARTWORK", 0, trough), fill = info:CreateTexture(nil, "ARTWORK", nil, 2), w = SIDE_W - 8 }
     gauge.fill:SetPoint("LEFT", trough, "LEFT", 4, 0)
     gauge.fill:SetSize(gauge.w, 10)
     ART:Set(gauge.fill, "gauge_fill")
@@ -749,7 +755,7 @@ function UI:CreateFrame()
     gauge:SetValue(0)
     self.multBar = gauge
     label("Stars on this level", -346)
-    self.sideStars = makeStars(side, 12, 2)
+    self.sideStars = makeStars(info, 12, 2)
     for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -346) end
     self.starNeedText = label("", -362)
     self.starNeedText:SetWidth(SIDE_W)
@@ -768,6 +774,7 @@ function UI:CreateFrame()
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 
     self.playsText = label("", 0, "GameFontNormal")
+    if self.playsText.SetParent then self.playsText:SetParent(side) end
     self.playsText:ClearAllPoints()
     self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 78)
     self.playsText:SetWidth(SIDE_W)
@@ -780,26 +787,40 @@ function UI:CreateFrame()
     self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 28)
     self.buyBtn:SetScript("OnClick", function() UI:BuyGears() end)
     -- the Golden Gear shop
-    self.gearsText = label("", -388, "GameFontNormal")
+    -- the way in: a fat button at the bottom of the info
+    self.shopOpenBtn = makeButton(info, SIDE_W, 40, "Golden Gear Shop")
+    self.shopOpenBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -392)
+    self.shopOpenBtn:SetScript("OnClick", function() UI:ShowShop(true) end)
+    -- the Golden Gear shop, in the info's place
+    local shop = CreateFrame("Frame", nil, side)
+    shop:SetAllPoints(side)
+    shop:Hide()
+    self.shopPanel = shop
+    local shopTitle = shop:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    shopTitle:SetPoint("TOP", side, "TOP", 0, -2)
+    shopTitle:SetText("|cffffd700Golden Gear Shop|r")
+    self.gearsText = shop:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
+    self.gearsText:SetPoint("TOP", side, "TOP", 0, -30)
     self.gearsText:SetWidth(SIDE_W)
     self.gearsText:SetJustifyH("CENTER")
     self.shopBtns = {}
     for i, what in ipairs(GP.Plays.SHOP_ORDER) do
         local offer = GP.Plays.SHOP[what]
-        -- two to a row; an odd one out at the end takes the whole row
-        local half = (SIDE_W - 4) / 2
-        local last = (i == #GP.Plays.SHOP_ORDER) and (i % 2 == 1)
-        local w = last and SIDE_W or half
-        local b = makeButton(side, w, 28, last and ("%s - %d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s")
-            or ("%s\n%d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s"))
-        if GameFontNormalSmall then b.text:SetFontObject(GameFontNormalSmall) end
-        b.text:SetWidth(w - 8)
-        b.text:SetWordWrap(true)
-        b:SetPoint("TOPLEFT", side, "TOPLEFT", last and 0 or ((i - 1) % 2) * (half + 4), -404 - math.floor((i - 1) / 2) * 30)
+        local b = makeButton(shop, SIDE_W, 40, ("%s  -  %d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s"))
+        b:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -62 - (i - 1) * 48)
         b.what = what
         b:SetScript("OnClick", function(self) UI:ShopBuy(self.what) end)
         self.shopBtns[i] = b
     end
+    local shopHow = shop:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    shopHow:SetPoint("TOPLEFT", side, "TOPLEFT", 4, -62 - #GP.Plays.SHOP_ORDER * 48 - 4)
+    shopHow:SetWidth(SIDE_W - 8)
+    shopHow:SetJustifyH("LEFT")
+    shopHow:SetTextColor(0.8, 0.8, 0.9)
+    shopHow:SetText("Golden Gears are 1g each: press Get Golden Gears at a mailbox and the mail fills itself in.")
+    self.shopLeaveBtn = makeButton(shop, SIDE_W, 40, "Leave shop")
+    self.shopLeaveBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -392)
+    self.shopLeaveBtn:SetScript("OnClick", function() UI:ShowShop(false) end)
     -- the owner's characters top up for free
     self.freeBtn = makeButton(side, SIDE_W, 24, "Owner: +" .. GP.Plays.OWNER_GEARS .. " Golden Gears")
     self.freeBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 0)
@@ -1502,6 +1523,21 @@ function UI:UpdatePlaysPanel()
         return
     end
     self.playsPanel.wait:SetText("Next free play in |cffffd700" .. P:FormatWait(P:NextFreeIn()) .. "|r")
+end
+
+-- The right column shows the info or, while shopping, the Golden Gear shop
+-- in the same space.
+function UI:ShowShop(on)
+    if not self.shopPanel then return end
+    self.shopping = on and true or false
+    if on then
+        self.infoPanel:Hide()
+        self.shopPanel:Show()
+    else
+        self.shopPanel:Hide()
+        self.infoPanel:Show()
+    end
+    self:UpdateDisplay()
 end
 
 -- Plays: with gears, straight from the shop; without, the mail for gears.

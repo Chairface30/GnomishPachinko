@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The Golden Gear shop has its own page.** A big Golden Gear Shop button at the bottom of the info swaps the info for the shop in the same space; Leave shop swaps it back.
 - The gear shop sells the **Extra Green Peg** for 1 Golden Gear. The shop is three rows now, and the level buttons sit a little lower to make room.
 - **Sound and Music boxes** above the right column: one switches the sound effects and voices, the other the music, each on its own.
 - **A welcome for new players:** Tinkmaster greets them, warns that the bosses are a work in progress and may change completely, and asks for ideas (new gnome hosts and powers, obstacles, bosses) on the CurseForge page.
