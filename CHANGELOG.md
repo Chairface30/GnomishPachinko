@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **More style points:** lighting 3 oranges with one ball is a HAT TRICK (+5,000), 5 an ORANGE CRUSH (+12,500), 8 an ORANGE AVALANCHE (+25,000). Coming off a side wall and flying at least 200 pixels without touching anything before lighting a piece is a BANK SHOT (+7,500).
+
 - **The tutorials point, loudly:** with the glow, a comically fat cartoon arrow jabs at each button being talked about, each from its own silly angle, wobbling as it goes.
 - **The testing buttons have their own fly-out:** a Testing tab on the window's right side (owner characters only) opens a panel with Unlock all, Unlimited items, +10 Golden Gears and Reset progress. They are gone from the map, the shop and the out-of-plays panel.
 - **Each star pops all the way:** as it fills it flies up, spins a full turn and drops back into place. Only a three-star clear brings the fanfare, and with it a shower of little stars shooting out of the big ones like bottle rockets.

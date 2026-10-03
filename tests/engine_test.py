@@ -2399,6 +2399,54 @@ check("the special-ball talk lights all three (glow and a fat arrow), then each 
       ev("__hlAll") == "ring,rainbow,suction" and ev("__hlRainbow") == "rainbow" and ev("__hlOff") == "",
       f'{ev("__hlAll")} | {ev("__hlStart")} | {ev("__hlRainbow")} | {ev("__hlOff")}')
 
+# style bonuses: several oranges with one ball, and a bank shot off the wall
+lua(r"""
+function bonus_probe()
+  local st = E:NewLevel(L:Build(41))      -- plenty of oranges, so five lit start no Fever
+  local events = {}
+  st.phase = E.PHASE.FLIGHT
+  local ball = { x = 100, y = 100, vx = 0, vy = 100, slow = 0 }
+  local styles = {}
+  local n = 0
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "orange" and n < 5 then
+      n = n + 1
+      st.time = st.time + 1
+      E.HitPeg(st, p, ball, events)
+    end
+  end
+  for _, e in ipairs(events) do if e.type == "style" then styles[#styles + 1] = e.name end end
+  local runs = table.concat(styles, ",")
+  -- a bank shot: off the left wall, a long clean flight, then a blue peg
+  wipe(events)
+  st.shotStyles = {}
+  local b2 = { x = E.BALL_R + 1, y = 200, vx = -300, vy = 0, slow = 0 }
+  st.balls = { b2 }
+  E:Step(st, 1 / 60, events)
+  local wallSet = b2.bankX ~= nil
+  b2.bankDist = E.BANK_DIST + 10
+  local blue
+  for _, p in ipairs(st.pegs) do if p.kind == "blue" and not p.lit then blue = p break end end
+  st.time = st.time + 1
+  E.HitPeg(st, blue, b2, events)
+  local bank = false
+  for _, e in ipairs(events) do if e.type == "style" and e.name == "BANK SHOT" then bank = true end end
+  -- a short hop off the wall is no bank shot
+  wipe(events)
+  st.shotStyles = {}
+  b2.bankX, b2.bankDist = 1, 50
+  for _, p in ipairs(st.pegs) do if p.kind == "blue" and not p.lit then blue = p break end end
+  st.time = st.time + 1
+  E.HitPeg(st, blue, b2, events)
+  local shortBank = false
+  for _, e in ipairs(events) do if e.type == "style" and e.name == "BANK SHOT" then shortBank = true end end
+  return runs, wallSet, bank, shortBank
+end
+""")
+runs, wallSet, bank, shortBank = ev("bonus_probe")()
+check("lighting 3 and 5 oranges with one ball pays HAT TRICK and ORANGE CRUSH", "HAT TRICK" in runs and "ORANGE CRUSH" in runs, runs)
+check("off the wall and far enough before a hit pays a BANK SHOT; a short hop does not", wallSet and bank and not shortBank, f"{wallSet} {bank} {shortBank}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

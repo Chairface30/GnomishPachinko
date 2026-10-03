@@ -91,6 +91,15 @@ E.GNOME_BUCKET  = 25000
 E.BUCKET_DROP   = 10000     -- a gem that lands in the bucket, on top of counting
 E.STYLE_POINTS  = 5000      -- a trick shot: a Long Shot, a Super Slide
 E.LONG_SHOT     = 220       -- two orange pegs at least this far apart in one shot
+-- oranges lit by one shot: a bonus at each of these counts (each once a shot)
+E.ORANGE_RUNS   = {
+    { n = 3, points = 5000,  name = "HAT TRICK",        caption = "3 ORANGES!" },
+    { n = 5, points = 12500, name = "ORANGE CRUSH",     caption = "5 ORANGES!" },
+    { n = 8, points = 25000, name = "ORANGE AVALANCHE", caption = "8 ORANGES!" },
+}
+-- off a side wall and a good way across before lighting a piece: a bank shot
+E.BANK_DIST     = 200       -- pixels flown from the wall, touching nothing, before the hit
+E.BANK_POINTS   = 7500
 E.SLIDE_RATIO   = 0.42      -- a brick contact this grazing slides instead of bouncing
 E.SLIDE_RUN     = 6         -- bricks lit in one slide for the Super Slide award
 E.SLIDE_GAP     = 0.3       -- seconds between two slid bricks that still count as one slide
@@ -820,6 +829,12 @@ end
 hitPeg = function(state, p, ball, events, quiet)
     if p.lit or p.gone or isSolid(p) then return false end
     if p.cooldown and state.time < p.cooldown then return false end
+    if ball and ball.bankX then
+        if (ball.bankDist or 0) >= E.BANK_DIST and state.phase ~= E.PHASE.FEVER then
+            style(state, "BANK SHOT", events, p.x, p.y, E.BANK_POINTS, "BANK SHOT!")
+        end
+        ball.bankX = nil
+    end
     if p.loose then
         -- the ball shoves a loose piece; a gem is never lit by a hit, only
         -- by leaving the board. An egg takes the hit as well.
@@ -881,6 +896,11 @@ lightPeg = function(state, p, ball, events, quiet, at)
             end
         end
         state.shotGoals[#state.shotGoals + 1] = { x = p.x, y = p.y }
+        -- several oranges with one shot
+        local n = #state.shotGoals
+        for _, run in ipairs(E.ORANGE_RUNS) do
+            if n == run.n then style(state, run.name, events, p.x, p.y, run.points, run.caption) end
+        end
     end
     local pts = (E.PEG_POINTS[p.kind] or 10) * E:ScoreMultiplier(E:Progress(state))
     pts = pts + E.COMBO_STEP * (state.combo - 1)
@@ -1126,6 +1146,7 @@ collideBall = function(state, ball, events, light)
     for _, p in ipairs(state.pegs) do
         if not p.gone and not (ball.rail and p.rail == ball.rail) then
             local depth, nx, ny = pegContact(p, ball.x, ball.y, R)
+            if depth and isSolid(p) then ball.bankX = nil end
             if depth and p.web then
                 -- a web: only a real ball in play meets it
                 if light and state.phase ~= E.PHASE.FEVER then
@@ -1361,9 +1382,13 @@ local function integrateBall(state, ball, dt, events)
     end
 
     local R = E.BALL_R
+    -- the flight since the last side wall, for a bank shot
+    if ball.bankX then ball.bankDist = (ball.bankDist or 0) + sqrt(ball.vx * ball.vx + ball.vy * ball.vy) * dt end
+    local offWall = (ball.x < R and ball.vx < 0) or (ball.x > W - R and ball.vx > 0)
     if ball.x < R then ball.x = R; if ball.vx < 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.y < R then ball.y = R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
+    if offWall and not ball.rail then ball.bankX, ball.bankDist = ball.x, 0 end
 
     collideBall(state, ball, events, true)
     collidePyramid(state, ball, events)
