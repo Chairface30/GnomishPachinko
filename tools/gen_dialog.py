@@ -142,7 +142,8 @@ def boar(data):
     d = _shift(data, 0.9)
     t = np.arange(len(d)) / RATE
     growl = d * (1 + 0.5 * np.sin(2 * np.pi * 22 * t))
-    return _norm(np.tanh(growl * 3.0))
+    # driven hard, then brought down to the others' loudness
+    return (_norm(np.tanh(growl * 3.0)) * 0.45).astype(np.float32)
 
 
 def yeti(data):
