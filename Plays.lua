@@ -168,16 +168,32 @@ local function serverClock()
     local d = date("*t")
     return d.hour, d.min
 end
--- When the next reset is, from time t (now): the coming noon, or tomorrow's
--- if it is noon this minute.
-local function nextReset(t)
+-- The realm's time of day at any moment t: its clock is the server time
+-- shifted by the realm's time zone, worked out from the clock now and
+-- rounded to the quarter hour every time zone keeps (the clock itself only
+-- tells the minute).
+local function realmOffset()
     local h, m = serverClock()
-    local sinceMidnight = (h * 60 + m) * 60
-    local wait = (P.RESET_HOUR * 3600 - sinceMidnight) % P.WINDOW
+    local t = now()
+    local off = ((h * 3600 + m * 60) - (t % P.WINDOW)) % P.WINDOW
+    off = floor(off / 900 + 0.5) * 900
+    return off % P.WINDOW
+end
+local function secondsOfDay(t)
+    return (t + realmOffset()) % P.WINDOW
+end
+-- The first reset after t (a moment exactly on noon gives the next day's),
+-- and the last reset at or before t.
+local function nextReset(t)
+    local wait = (P.RESET_HOUR * 3600 - secondsOfDay(t)) % P.WINDOW
     if wait <= 0 then wait = P.WINDOW end
     return t + wait
 end
+local function lastReset(t)
+    return t - (secondsOfDay(t) - P.RESET_HOUR * 3600) % P.WINDOW
+end
 P.NextReset = function(_, t) return nextReset(t or now()) end
+P.LastReset = function(_, t) return lastReset(t or now()) end
 
 -- ---------------------------------------------------------------------
 -- Encryption: a keyed stream cipher over the record, a keyed checksum
@@ -439,8 +455,20 @@ local function merge(records)
         if type(rec.free) == "number" then free = free and math.min(free, rec.free) or rec.free end
         if type(rec.claimAt) == "number" then claimAt = claimAt and math.max(claimAt, rec.claimAt) or rec.claimAt end
     end
+    -- aligned to noon only if every copy that has a claim time is
+    local noon = true
+    for _, rec in ipairs(records) do if type(rec.claimAt) == "number" and not rec.noon then noon = false end end
     return { fails = fails, lots = lots, ts = now(), rev = newest.rev or 0,
-        gears = newest.gears, items = newest.items, prog = newest.prog, free = free, claimAt = claimAt }
+        gears = newest.gears, items = newest.items, prog = newest.prog, free = free, claimAt = claimAt, noon = noon }
+end
+
+-- A claim time saved before the noon reset (a day after the last claim) is
+-- moved back to the noon it falls after: that is when the noon rule would
+-- have opened the claim.
+local function alignClaim(rec)
+    if rec.noon or type(rec.claimAt) ~= "number" then rec.noon = true return end
+    rec.claimAt = lastReset(rec.claimAt)
+    rec.noon = true
 end
 
 -- A record from before the free balance: the day's free plays it still had
@@ -457,6 +485,7 @@ local function migrate(rec, t)
     end
     rec.free = math.max(0, P.FREE_PER_DAY - used)
     rec.claimAt = nextReset(t)
+    rec.noon = true
 end
 
 function P:Load()
@@ -469,6 +498,7 @@ function P:Load()
     end
     local rec = merge(records)
     migrate(rec, t)
+    alignClaim(rec)
     if tampered then
         -- an edited copy: every play is gone, and the next claim is a day off
         rec.fails = {}
@@ -618,6 +648,7 @@ end
 function P:ClaimState()
     local r = rec(self)
     migrate(r, now())
+    alignClaim(r)
     if (r.free or 0) >= self.FREE_CAP then return false, nil end
     local wait = math.max(0, (r.claimAt or 0) - now())
     return wait <= 0, wait

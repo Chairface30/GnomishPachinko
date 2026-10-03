@@ -1663,6 +1663,20 @@ __clock = base + 12 * 3600 + 60
 __noonB = P:NextReset(time()) - time()
 __clock = base + 86400 * 3
 """)
+# a claim time saved under the old rule (a day after the last claim) moves back to the noon it falls after
+lua(r"""
+local base = __clock - (__clock % 86400)
+__clock = base + 12 * 3600 + 45 * 60                 -- 12:45 on the realm's clock
+local r = __ns.VaultGet()
+r.free, r.claimAt, r.noon = 5, base + 14 * 3600 + 15 * 60, nil     -- 14:15: yesterday's claim plus a day
+__oldRuleReady = (P:ClaimState()) and r.claimAt == base + 12 * 3600
+-- a claim saved under the noon rule is left alone
+r.claimAt = base + 86400 + 12 * 3600
+__noonKept = not (P:ClaimState()) and r.claimAt == base + 86400 + 12 * 3600
+r.free, r.claimAt = 5, __clock + 86400
+""")
+check("a claim time saved under the 24-hour rule moves back to the noon it falls after (ready at 12:45 instead of 14:15); one saved at noon stays",
+      ev("__oldRuleReady") and ev("__noonKept"))
 check("the daily reset is noon on the realm's clock (a minute away at 11:59, almost a day away at 12:01)",
       ev("__noonA") == 60 and abs(ev("__noonB") - (86400 - 60)) <= 60, f'{ev("__noonA")} {ev("__noonB")}')
 check("daily plays: never added on their own, a missed day is not made up, one claim a day, the next at noon server time, a claim tops out at 50, the clock stops at 50 and the next comes the noon after falling under",
