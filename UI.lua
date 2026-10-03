@@ -2012,7 +2012,7 @@ local function nodePath(chapter)
         local t = (i - 1) / 9
         local x = E.FIELD_W / 2 + swing * math.sin((i - 1) * freq + phase) + (rng() - 0.5) * 40
         if x < 60 then x = 60 elseif x > E.FIELD_W - 60 then x = E.FIELD_W - 60 end
-        path[i] = { x = x, y = (E.FIELD_H - 90) - t * (E.FIELD_H - 220) + (rng() - 0.5) * 16 }
+        path[i] = { x = x, y = (E.FIELD_H - 120) - t * (E.FIELD_H - 250) + (rng() - 0.5) * 16 }     -- clear of the buttons under the map
     end
     return path
 end
@@ -2152,16 +2152,17 @@ function UI:CreateLevelSelect()
     panel.cells = panel.nodes
     panel:LayPath(1)
 
-    panel.back = makeButton(panel, 120, 26, "Back to the game")
-    panel.back:SetPoint("BOTTOM", -66, 10)
-    panel.back:SetScript("OnClick", function() UI:HideLevelSelect() end)
-    -- wipes progress after a second click within a few seconds
-    panel.reset = makeButton(panel, 120, 26, "Reset progress")
-    panel.reset:SetPoint("BOTTOM", 66, 10)
-    -- the level editor, for everyone
-    panel.editor = makeButton(panel, 120, 26, "Level editor")
-    panel.editor:SetPoint("BOTTOM", -198, 10)
+    -- under the map, a centered pair: the level editor (for everyone) and
+    -- the way back to the level in play
+    panel.editor = makeButton(panel, 170, 26, "Level editor")
+    panel.editor:SetPoint("BOTTOM", -90, 10)
     panel.editor:SetScript("OnClick", function() GP.Editor:Show() end)
+    panel.back = makeButton(panel, 170, 26, "Return to current level")
+    panel.back:SetPoint("BOTTOM", 90, 10)
+    panel.back:SetScript("OnClick", function() UI:HideLevelSelect() end)
+    -- wipes progress after a second click within a few seconds; just above the pair
+    panel.reset = makeButton(panel, 150, 24, "Reset progress")
+    panel.reset:SetPoint("BOTTOM", 0, 40)
     panel.reset:SetScript("OnClick", function(self)
         if self.armedUntil and GetTime() < self.armedUntil then
             self.armedUntil = nil
@@ -2175,9 +2176,9 @@ function UI:CreateLevelSelect()
     end)
     -- the owner's characters can open every level for testing
     panel.unlock = makeButton(panel, 150, 24, "Unlock all (testing)")
-    panel.unlock:SetPoint("BOTTOM", -80, 40)
+    panel.unlock:SetPoint("BOTTOM", -80, 68)
     panel.unlimited = makeButton(panel, 150, 24, "Unlimited items")
-    panel.unlimited:SetPoint("BOTTOM", 80, 40)
+    panel.unlimited:SetPoint("BOTTOM", 80, 68)
     panel.unlimited:SetScript("OnClick", function() GP:ToggleUnlimited(); UI:LevelPage(UI.levelPage) end)
     panel.unlimited:Hide()
     panel.unlock:SetScript("OnClick", function() GP:UnlockAll() end)

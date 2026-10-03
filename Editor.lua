@@ -27,8 +27,14 @@ ED.MAX_PIECES = 500
 ED.MAX_MOVERS = 20
 ED.UNDO_MAX = 60
 ED.SNAPS = { 0, 5, 10, 20 }
-ED.TOOLS = { "select", "peg", "brick", "block", "rblock", "balloon", "bumper", "key", "cage", "egg", "gem" }
-ED.TOOL_NAMES = { select = "Select / move" }
+ED.TOOLS = { "select", "slide", "peg", "brick", "block", "rblock", "balloon", "bumper", "key", "cage", "egg", "gem" }
+ED.TOOL_NAMES = { select = "Select / move", slide = "Super Slide" }
+-- Bricks come in standard sizes: a full brick and a half one. A row or a
+-- Super Slide is laid in full bricks end to end along the path, and the
+-- last one is cut to fit.
+ED.BRICK_SIZES = { E.BRICK_W / 2, E.BRICK_W }
+ED.SLIDE_STEP = E.BRICK_W
+ED.MIN_CUT = 6              -- a cut end shorter than this is left off
 ED.CODE_PREFIX = "GPL1"
 
 -- ---------------------------------------------------------------------
@@ -345,6 +351,11 @@ function ED:Centre(list)
     return cx / #list, cy / #list
 end
 
+local function place(tex, field, x, y)
+    tex:ClearAllPoints()
+    tex:SetPoint("CENTER", field, "TOPLEFT", x, -y)
+end
+
 local function clampToZone(pc)
     local z = ED.ZONE
     pc.x = math.max(z.x0, math.min(z.x1, pc.x))
@@ -517,7 +528,12 @@ end
 
 function ED:Resize(step)
     self:ForSelected(function(pc)
-        if isBar(pc) then pc.w = math.max(12, math.min(300, (pc.w or 30) + step * 6))
+        if pc.t == "brick" then
+            -- bricks step through the standard sizes
+            local sizes, k = self.BRICK_SIZES, 1
+            for j, w in ipairs(sizes) do if (pc.w or E.BRICK_W) >= w - 0.5 then k = j end end
+            pc.w = sizes[math.max(1, math.min(#sizes, k + step))]
+        elseif isBar(pc) then pc.w = math.max(12, math.min(300, (pc.w or 30) + step * 6))
         elseif pc.t == "balloon" then
             local sizes = L.BALLOON_SIZES
             local k = 1
@@ -545,6 +561,74 @@ function ED:MakeRail()
     for _, i in ipairs(bricks) do self.data.pieces[i].rail = name end
     self:Status(("Rail made from %d bricks. A ball meeting it from the inside rides it."):format(#bricks))
     self:Refresh()
+end
+
+-- The dragged path, evened out to points SLIDE_STEP apart along it; a
+-- brick between each pair, end to end, all one rail.
+function ED:SlidePoints(pts)
+    if not pts or #pts < 2 then return {} end
+    local out = { { pts[1][1], pts[1][2] } }
+    local step = self.SLIDE_STEP
+    local need = step
+    for k = 2, #pts do
+        local ax, ay = pts[k - 1][1], pts[k - 1][2]
+        local bx, by = pts[k][1], pts[k][2]
+        local seg = sqrt((bx - ax) ^ 2 + (by - ay) ^ 2)
+        local pos = 0
+        while seg - pos >= need do
+            pos = pos + need
+            local f = pos / seg
+            out[#out + 1] = { ax + (bx - ax) * f, ay + (by - ay) * f }
+            need = step
+        end
+        need = need - (seg - pos)
+    end
+    -- the cut end: what is left of the path after the last full brick
+    local last, tail = out[#out], pts[#pts]
+    local rest = sqrt((tail[1] - last[1]) ^ 2 + (tail[2] - last[2]) ^ 2)
+    if rest >= self.MIN_CUT then out[#out + 1] = { tail[1], tail[2] } end
+    return out
+end
+
+-- rail: true for a Super Slide; a plain row of bricks otherwise
+function ED:AddSlide(pts, plain)
+    local even = self:SlidePoints(pts)
+    if #even < (plain and 2 or 4) then return nil end
+    self:PushUndo()
+    local used = {}
+    for _, pc in ipairs(self.data.pieces) do if pc.rail then used[pc.rail] = true end end
+    local name = (not plain) and unusedName("rail", used) or nil
+    local made, new = 0, {}
+    for k = 2, #even do
+        if #self.data.pieces >= self.MAX_PIECES then break end
+        local a, b = even[k - 1], even[k]
+        local pc = { t = "brick", x = (a[1] + b[1]) / 2, y = (a[2] + b[2]) / 2,
+            a = atan2(b[2] - a[2], b[1] - a[1]), w = sqrt((b[1] - a[1]) ^ 2 + (b[2] - a[2]) ^ 2), rail = name }
+        clampToZone(pc)
+        self.data.pieces[#self.data.pieces + 1] = pc
+        new[#self.data.pieces] = true
+        made = made + 1
+    end
+    self.sel = new
+    return made
+end
+
+function ED:DrawSlidePath(pts)
+    self.slideDots = self.slideDots or {}
+    local even = pts and self:SlidePoints(pts) or {}
+    for i, p in ipairs(even) do
+        local d = self.slideDots[i]
+        if not d then
+            d = self.field:CreateTexture(nil, "OVERLAY", nil, 5)
+            d:SetTexture(WHITE)
+            d:SetSize(5, 5)
+            d:SetVertexColor(0.4, 1, 0.9, 0.9)
+            self.slideDots[i] = d
+        end
+        place(d, self.field, p[1], p[2])
+        d:Show()
+    end
+    for i = #even + 1, #self.slideDots do self.slideDots[i]:Hide() end
 end
 
 function ED:ClearRail()
@@ -1192,7 +1276,7 @@ function ED:CreateHelp()
     t:SetWidth(396)
     t:SetJustifyV("TOP")
     t:SetText(table.concat({
-        "|cffffd700Placing|r  Pick a piece on the left and click the board. Bars (bricks, steel bars, cage bars): click for a short one, or drag to draw one from end to end.",
+        "|cffffd700Placing|r  Pick a piece on the left and click the board. Bars (bricks, steel bars, cage bars): click for a short one, or drag to draw one from end to end. Super Slide: drag a path and a rail of bricks is laid along it; a ball that meets it from the inside of the curve rides it.",
         "",
         "|cffffd700Selecting|r  With Select: click a piece, Shift+click to add or remove, or drag a box. Drag a selected piece to move the whole selection. Right-drag turns it round its middle; the mouse wheel turns it 5 degrees (Shift: 1).",
         "",
@@ -1297,10 +1381,6 @@ end
 -- ---------------------------------------------------------------------
 -- Drawing
 
-local function place(tex, field, x, y)
-    tex:ClearAllPoints()
-    tex:SetPoint("CENTER", field, "TOPLEFT", x, -y)
-end
 
 function ED:TexFor(i)
     local t = self.pieceTex[i]
@@ -1499,6 +1579,10 @@ function ED:OnMouseDown(btn)
     end
     if btn ~= "LeftButton" then return end
     local tool = self.tool
+    if tool == "slide" then
+        self.drag = { mode = "slide", pts = { { x, y } } }
+        return
+    end
     if tool ~= "select" then
         local def = L.EDIT_TYPES[tool]
         if def and (tool == "brick" or tool == "block" or tool == "cage") then
@@ -1569,6 +1653,12 @@ function ED:OnUpdate()
         self.boxTex:SetPoint("TOPLEFT", self.field, "TOPLEFT", x0, -y0)
         self.boxTex:SetSize(math.max(1, bw), math.max(1, bh))
         self.boxTex:Show()
+    elseif dr.mode == "slide" then
+        local last = dr.pts[#dr.pts]
+        if (x - last[1]) ^ 2 + (y - last[2]) ^ 2 >= 16 and #dr.pts < 400 then
+            dr.pts[#dr.pts + 1] = { x, y }
+            self:DrawSlidePath(dr.pts)
+        end
     elseif dr.mode == "bar" then
         local x1, y1 = self:Snap(x), self:Snap(y)
         local len = sqrt((x1 - dr.x0) ^ 2 + (y1 - dr.y0) ^ 2)
@@ -1608,6 +1698,15 @@ function ED:OnMouseUp(btn)
             end
         end
         self:Refresh()
+    elseif dr.mode == "slide" then
+        self:DrawSlidePath(nil)
+        local made = self:AddSlide(dr.pts)
+        if made then
+            self:Status(("A Super Slide of %d bricks. A ball meeting it from the inside of its curve rides it."):format(made))
+        else
+            self:Status("Drag a longer path for a Super Slide (at least three bricks).")
+        end
+        self:Refresh()
     elseif dr.mode == "bar" then
         self.ghostTex:Hide()
         if not x then return end
@@ -1615,7 +1714,13 @@ function ED:OnMouseUp(btn)
         local x1, y1 = self:Snap(x), self:Snap(y)
         local len = sqrt((x1 - dr.x0) ^ 2 + (y1 - dr.y0) ^ 2)
         local i
-        if len > 10 then
+        if len > 10 and self.tool == "brick" then
+            -- a row of full bricks, the last cut to fit
+            table.remove(self.undo)
+            self:AddSlide({ { dr.x0, dr.y0 }, { x1, y1 } }, true)
+            self:Refresh()
+            return
+        elseif len > 10 then
             i = self:AddPiece(self.tool, (x1 + dr.x0) / 2, (y1 + dr.y0) / 2,
                 { w = math.min(300, len), a = atan2(y1 - dr.y0, x1 - dr.x0) })
         else

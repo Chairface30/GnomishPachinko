@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Level editor: a **Super Slide** tool. Drag a path and a rail of bricks is laid along it, ready to ride. Bricks come in standard sizes (full and half): a dragged row or slide is full bricks end to end with the last one cut to fit, and Smaller / Bigger steps a brick between the sizes.
+- The map's buttons: **Level editor** and **Return to current level** (was Back to the game) sit side by side under the map, with Reset progress just above them. The map's path sits a little higher to leave them room.
 - **Level editor** (the Level editor button on the map, or /pachinko editor), for every player: place pegs, bricks, steel bars and studs, balloons, bumpers, keys and cage bars, eggs and gems (their cradles are built for them). Select with a click, Shift+click or a dragged box, and move, turn (right-drag, the wheel, Q / E), mirror, duplicate, copy and paste or delete the selection as a group. Set tough pieces, always-orange pins, rails, key-and-cage links and moving groups (slide, lift, wheel, swing), the goal, the oranges and the bucket. Start from any level's layout, test-play on the board (no play spent, nothing recorded), save by name, and export a level code to send in. Red pieces are out of the ball's reach.
 - The game's owner can import a level code, test it and approve it for a level number; approved levels are then shipped in the addon and replace that generated level for everyone.
 - The window shows the version and author along the bottom. The version is now 0.9.0.

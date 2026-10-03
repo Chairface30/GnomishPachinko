@@ -4027,18 +4027,19 @@ local function at(x, y) __cursor.x, __cursor.y = x, 600 - y end
 ED:SetTool("peg")
 for _, x in ipairs({ 150, 200, 250 }) do at(x, 300); ED:OnMouseDown("LeftButton"); ED:OnMouseUp("LeftButton") end
 __placed = #ED.data.pieces
--- a brick drawn from end to end
+-- a row of bricks dragged from end to end: full bricks, the last cut to fit
 ED:SetTool("brick")
 at(100, 400); ED:OnMouseDown("LeftButton"); at(180, 400); ED:OnUpdate(); ED:OnMouseUp("LeftButton")
-local br = ED.data.pieces[4]
-__brick = br and br.t == "brick" and math.abs(br.w - 80) < 1 and math.abs(br.a) < 0.01 and math.abs(br.x - 140) < 1
+local b4, b5, b6 = ED.data.pieces[4], ED.data.pieces[5], ED.data.pieces[6]
+__brick = #ED.data.pieces == 6 and b4.t == "brick" and math.abs(b4.w - E.BRICK_W) < 0.5 and math.abs(b5.w - E.BRICK_W) < 0.5
+  and math.abs(b6.w - 20) < 0.5 and math.abs(b4.a) < 0.01 and math.abs(b4.x - 115) < 0.5 and math.abs(b6.x - 170) < 0.5 and not b4.rail
 -- a box round the three pegs selects them
 ED:SetTool("select")
 at(130, 280); ED:OnMouseDown("LeftButton"); at(270, 320); ED:OnUpdate(); ED:OnMouseUp("LeftButton")
 __boxed = ED:SelCount()
 -- dragging one moves all three
 at(200, 300); ED:OnMouseDown("LeftButton"); at(200, 340); ED:OnUpdate(); ED:OnMouseUp("LeftButton")
-__moved = ED.data.pieces[1].y == 340 and ED.data.pieces[3].y == 340 and ED.data.pieces[4].y == 400
+__moved = ED.data.pieces[1].y == 340 and ED.data.pieces[3].y == 340 and ED.data.pieces[4].y == 400 and ED.data.pieces[6].y == 400
 -- a quarter turn round their middle stands the row upright
 ED:RotateSelected(math.pi / 2)
 local p1, p3 = ED.data.pieces[1], ED.data.pieces[3]
@@ -4048,7 +4049,7 @@ ED:PushUndo(); ED:RotateSelected(0)   -- (the buttons push before turning; the c
 ED:Undo(); ED:Undo()
 __undone = ED.data.pieces[1].y == 340 or ED.data.pieces[1].y == 300
 -- Delete removes the selection
-ED.sel = { [4] = true }
+ED.sel = { [4] = true, [5] = true, [6] = true }
 ED:OnKey("DELETE")
 __deleted = #ED.data.pieces == 3
 -- save and load by name
@@ -4069,11 +4070,44 @@ __slide = ED.data.pieces[1].mv == 1 and ED.data.movers[1].k == "slide"
 ED:CycleMover()
 __lift = ED.data.movers[1].k == "lift"
 """)
-check("the editor places pegs and draws a brick from end to end", ev("__placed") == 3 and ev("__brick"))
+check("the editor places pegs, and a dragged row of bricks is full bricks with the last cut to fit", ev("__placed") == 3 and ev("__brick"))
 check("a dragged box selects the pieces inside it, and dragging one moves the whole selection", ev("__boxed") == 3 and ev("__moved"))
 check("the selection turns round its middle, and Undo takes changes back", ev("__turned") and ev("__undone"))
 check("Delete removes the selection; a level saves and loads back by name", ev("__deleted") and ev("__blank") and ev("__loaded"))
 check("a rail is refused without bricks; selected pieces can be made to slide, then lift", ev("__railRefused") and ev("__slide") and ev("__lift"))
+
+# the Super Slide tool: a dragged curve becomes one rail of full bricks, the last cut, that builds in order
+lua(r"""
+ED:NewLevel()
+ED:SetTool("slide")
+local function at(x, y) __cursor.x, __cursor.y = x, 600 - y end
+local cx, cy, r = 245, 300, 90
+at(cx - r, cy); ED:OnMouseDown("LeftButton")
+for k = 1, 40 do
+  local a = math.pi - math.pi * k / 40          -- the bottom half of a circle, left to right
+  at(cx + r * math.cos(a), cy + r * math.sin(a)); ED:OnUpdate()
+end
+ED:OnMouseUp("LeftButton")
+local rail, full, cut, n = nil, 0, 0, 0
+for _, pc in ipairs(ED.data.pieces) do
+  if pc.t == "brick" then
+    n = n + 1
+    rail = rail or pc.rail
+    if pc.rail ~= rail then rail = false end
+    if math.abs(pc.w - E.BRICK_W) < 0.5 then full = full + 1 elseif pc.w < E.BRICK_W then cut = cut + 1 end
+  end
+end
+local spec = L:BuildCustom(ED:Sanitize(ED.data), 5, 0)
+local ordered = true
+local idx = {}
+for _, p in ipairs(spec.pegs) do if p.rail then idx[#idx + 1] = p.railIdx end end
+table.sort(idx)
+for i, v in ipairs(idx) do if v ~= i then ordered = false end end
+__slide = { n = n, rail = rail and true or false, full = full, cut = cut, ordered = ordered, railBricks = #idx }
+""")
+sl = dict(ev("__slide"))
+check("the Super Slide tool lays a dragged curve as one rail of full bricks (the last cut to fit) that builds in order",
+      sl["n"] >= 8 and sl["rail"] and sl["full"] == sl["n"] - sl["cut"] and sl["cut"] <= 1 and sl["ordered"] and sl["railBricks"] == sl["n"], str(sl))
 
 # test play: no play spent, nothing recorded, and back to the editor at the end
 lua(r"""
