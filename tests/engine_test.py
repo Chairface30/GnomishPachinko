@@ -2277,6 +2277,15 @@ __extra10 = not UI.ballExtra:IsShown()
 """)
 check("over ten balls an extra ball shows the total (11, or 15); at ten it is gone", ev("__extra15") and ev("__extra11") and ev("__extra10"))
 
+# plate buttons: half-gear ends at their true shape, whatever the button's size
+lua(r"""
+local b = UI.itemSlots[1]
+local caps = b.skin.pieces
+__plate = b.skin.plate and caps[1].slot == "plate_cap" and caps[3].slot == "plate_cap" and caps[2].slot == "plate_mid"
+  and math.abs(caps[1]:GetWidth() * 2 - caps[1]:GetHeight()) < 0.01
+""")
+check("plate buttons have half-gear ends at their true shape (half as wide as tall)", ev("__plate"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

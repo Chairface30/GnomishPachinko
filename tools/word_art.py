@@ -467,6 +467,36 @@ def number_frame(w=128, h=64):
     return img.resize((w, h), Image.LANCZOS)
 
 
+def half_gear(size=256):
+    """The end of a plate button: the left half of a brass cog the button's
+    full height (the right end is the same picture, mirrored)."""
+    big = size * SS
+    full = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    mask = cog_mask(int(big * 0.96))
+    off = (big - mask.width) // 2
+    o = Image.new("RGBA", full.size, (0, 0, 0, 0))
+    o.paste(OUTLINE + (255,), (off, off), mask.filter(ImageFilter.MaxFilter(4 * SS + 1)))
+    full = Image.alpha_composite(full, o)
+    grad = Image.new("RGBA", mask.size)
+    gd = ImageDraw.Draw(grad)
+    for y in range(mask.height):
+        t = y / max(1, mask.height - 1)
+        k = 1 - t
+        gd.line([(0, y), (mask.width, y)], fill=tuple(int(BRASS_BOTTOM[i] + (BRASS_TOP[i] - BRASS_BOTTOM[i]) * k) for i in range(3)) + (255,))
+    fl = Image.new("RGBA", full.size, (0, 0, 0, 0))
+    fl.paste(grad, (off, off), mask)
+    full = Image.alpha_composite(full, fl)
+    half = full.crop((0, 0, big // 2, big))
+    return half.resize((size // 2, size), Image.LANCZOS)
+
+
+def plate_mid(w=64, h=128):
+    """The middle of a plate button: the logo's copper plate, from the gap
+    between its words, the logo's own height."""
+    logo = Image.open(LOGO_SOURCE).convert("RGBA")
+    return logo.crop((LOGO_GAP[0], 0, LOGO_GAP[1], logo.size[1])).resize((w, h), Image.BICUBIC)
+
+
 STARS = {
     "star_big":        (True, 0.0),
     "star_big_l":      (True, -0.22),
@@ -499,6 +529,12 @@ def main():
             continue
         big_star(filled, tilt).save(os.path.join(OUT, slot + ".tga"), format="TGA")
         print("wrote", slot)
+    if not args.only or "plate_cap" in args.only:
+        half_gear().save(os.path.join(OUT, "plate_cap.tga"), format="TGA")
+        print("wrote plate_cap")
+    if not args.only or "plate_mid" in args.only:
+        plate_mid().save(os.path.join(OUT, "plate_mid.tga"), format="TGA")
+        print("wrote plate_mid")
     if not args.only or "play_token" in args.only:
         play_token().save(os.path.join(OUT, "play_token.tga"), format="TGA")
         print("wrote play_token")

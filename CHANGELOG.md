@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Button ends are true half gears:** every plate button is drawn as a half-cog end on each side, at its real shape whatever the button's height, with the logo's copper plate between them. Before, the plate's ends were sliced and stretched, and the cogs came out misshapen on taller buttons.
 - Fixed: the conversation box's buttons could not be clicked. The raised cards (and the sheet behind them that eats clicks) sat over it; the box now sits over everything.
 - The plays counter reads simply PLAYS LEFT, in word-art; bought plays are not shown apart.
 - Over ten balls, one extra ball sits at the top of the left column with the total written in it (11, 15, ...); at ten or fewer it disappears.

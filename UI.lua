@@ -94,10 +94,14 @@ local function makeButton(parent, w, h, text, nodeSkin)
     btn:SetSize(w, h)
     -- every button wears the logo's plate (words in gold on it) unless it
     -- has a picture of its own
-    local plate = not nodeSkin
-    if plate then nodeSkin = (h < 34) and "btn_logo_small" or "btn_logo" end
+    local plate = not nodeSkin or nodeSkin == "btn_logo"
+    if plate then nodeSkin = "btn_logo" end
     btn.nodeSkin = nodeSkin
-    btn.skin = ART:NewSkin(btn, nodeSkin, "BACKGROUND", 0)
+    if plate then
+        btn.skin = ART:NewPlate(btn, "BACKGROUND", h)
+    else
+        btn.skin = ART:NewSkin(btn, nodeSkin, "BACKGROUND", 0)
+    end
     btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     btn.text:SetPoint("CENTER")
     btn.text:SetText(text)
@@ -152,7 +156,7 @@ end
 -- A button in the logo's style: the blank logo plate (9-slice, so its cog
 -- ends keep their shape at any width) with the words in gold over it.
 local function logoButton(parent, w, h, text, size)
-    local b = makeButton(parent, w, h, text or "", "btn_logo")
+    local b = makeButton(parent, w, h, text or "", nil)
     b.text:SetFont("Fonts\\FRIZQT__.TTF", size or 16, "OUTLINE")
     b.text:SetTextColor(1, 0.86, 0.35)
     b.logo = true

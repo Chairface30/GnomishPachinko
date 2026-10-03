@@ -100,6 +100,8 @@ slot("star_big_empty",   256, 256, { note = "the middle star's empty slate socke
 slot("star_big_l_empty", 256, 256, { note = "the left star's empty socket (tools/word_art.py)" })
 slot("star_big_r_empty", 256, 256, { note = "the right star's empty socket (tools/word_art.py)" })
 slot("word_plays_left", 512, 64, { note = "PLAYS LEFT in brass word-art beside the plays counter (tools/word_art.py)" })
+slot("plate_cap", 128, 256, { note = "a plate button's end: the left half of a brass cog, the button's full height; mirrored for the right end (tools/word_art.py)" })
+slot("plate_mid", 64, 128,  { note = "a plate button's middle: the logo's copper plate, stretched only sideways (tools/word_art.py)" })
 slot("play_token",   128, 128, { note = "a play: a brass pachinko token with a cog rim and a silver ball set in it (tools/word_art.py)" })
 slot("number_frame", 128, 64,  { note = "a riveted brass frame with a dark window for a number (tools/word_art.py)" })
 slot("shop_gear", 128, 128, { note = "the shop button: a shiny golden gear (tools/word_art.py)" })
@@ -293,6 +295,7 @@ end
 -- Lays the nine pieces out: fixed-size corners, stretching edges and
 -- middle. A slot without an inset is one stretched texture.
 function ART:SetSkin(s, name, r, g, b, a)
+    if s.plate then return end      -- a plate keeps its pieces; only tints change
     local def = self:Def(name)
     local parent = s.parent
     local inset, edge = def.inset or 0, def.edge or def.inset or 0
@@ -340,11 +343,38 @@ function ART:SetSkin(s, name, r, g, b, a)
     end
 end
 
+-- A plate: two half-gear ends that keep their true shape at any height
+-- (each as wide as half the button's height) and a copper middle between
+-- them that stretches only sideways. It answers to TintSkin like a skin.
+function ART:NewPlate(parent, layer, h)
+    local s = { parent = parent, pieces = {}, plate = true, name = "btn_logo" }
+    local cap = h * 0.5
+    local mid = parent:CreateTexture(nil, layer or "BACKGROUND", nil, 0)
+    self:Set(mid, "plate_mid")
+    mid:SetPoint("TOPLEFT", parent, "TOPLEFT", cap * 0.6, 0)
+    mid:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -cap * 0.6, 0)
+    local left = parent:CreateTexture(nil, layer or "BACKGROUND", nil, 1)
+    self:Set(left, "plate_cap")
+    left:SetSize(cap, h)
+    left:SetPoint("LEFT", parent, "LEFT", 0, 0)
+    local right = parent:CreateTexture(nil, layer or "BACKGROUND", nil, 1)
+    self:Set(right, "plate_cap")
+    right:SetSize(cap, h)
+    right:SetPoint("RIGHT", parent, "RIGHT", 0, 0)
+    if right.SetTexCoord then right:SetTexCoord(1, 0, 0, 1) end
+    s.pieces = { left, mid, right }
+    return s
+end
+
 function ART:TintSkin(s, r, g, b, a)
     for _, t in ipairs(s.pieces) do t:SetVertexColor(r, g, b, a or 1) end
 end
 
 function ART:ShowSkin(s, shown)
+    if s.plate then
+        for _, t in ipairs(s.pieces) do if shown then t:Show() else t:Hide() end end
+        return
+    end
     local def = self:Def(s.name)
     for k, t in ipairs(s.pieces) do
         if shown and ((def.inset or 0) > 0 or k == 5) then t:Show() else t:Hide() end
