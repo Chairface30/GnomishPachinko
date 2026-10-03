@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: the conversation box's buttons could not be clicked. The raised cards (and the sheet behind them that eats clicks) sat over it; the box now sits over everything.
 - The plays counter reads simply PLAYS LEFT, in word-art; bought plays are not shown apart.
 - Over ten balls, one extra ball sits at the top of the left column with the total written in it (11, 15, ...); at ten or fewer it disappears.
 

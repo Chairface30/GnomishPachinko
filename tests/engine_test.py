@@ -2182,6 +2182,8 @@ full = 1
 lua("GnomishPachinkoDB.sound = true")
 lua("__cardTop = UI.card:GetFrameLevel() > UI.portraitRingFrame:GetFrameLevel() and UI.card.starFrame:GetFrameLevel() > UI.card:GetFrameLevel()")
 check("the cards sit over Tinkmaster's ring, and the big stars over the card itself", ev("__cardTop"))
+check("the conversation box and its buttons sit over the cards, so they can be clicked",
+      ev("GP.Dialog.panel:GetFrameLevel() > UI.card.starFrame:GetFrameLevel() and GP.Dialog.panel:GetFrameLevel() > UI.cardSheet:GetFrameLevel()"))
 check("the result card counts the score up and fills the stars from left to right",
       early[3] < full and early[1] > 0 and late[1] == full and late[2] == full and late[3] == full,
       f"{early} {late}")

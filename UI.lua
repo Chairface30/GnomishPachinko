@@ -961,7 +961,8 @@ function UI:CreateFrame()
     self:CreateLevelSelect()
     self:CreatePlaysPanel()
     self:CreateCard()
-    if GP.Dialog then GP.Dialog:Create(frame, view, field:GetFrameLevel() + 30) end
+    -- the talk box over everything, the cards (and their big stars) included
+    if GP.Dialog then GP.Dialog:Create(frame, view, field:GetFrameLevel() + UI.CARD_LEVEL + 30) end
     -- the host's box: a round frame centred over the field's top edge, the model inside it
     local box = CreateFrame("Frame", nil, frame)
     box:SetSize(PORTRAIT, PORTRAIT)
