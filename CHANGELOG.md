@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The tutorials point, loudly:** with the glow, a comically fat cartoon arrow jabs at each button being talked about, each from its own silly angle, wobbling as it goes.
 - **The testing buttons have their own fly-out:** a Testing tab on the window's right side (owner characters only) opens a panel with Unlock all, Unlimited items, +10 Golden Gears and Reset progress. They are gone from the map, the shop and the out-of-plays panel.
 - **Each star pops all the way:** as it fills it flies up, spins a full turn and drops back into place. Only a three-star clear brings the fanfare, and with it a shower of little stars shooting out of the big ones like bottle rockets.
 - **The tutorials point:** while the host talks about the special balls, their buttons glow; as each one is named (Ring of Fire, Rainbow Ball, Suction Tube) only that one lights up. The Extra Green Peg's button glows the same way in its talk.

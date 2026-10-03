@@ -2385,7 +2385,7 @@ for _, sc in ipairs(D.SCRIPTS) do if sc.key == "items" then items = sc end end
 GnomishPachinkoDB.dialogs.items = true
 UI:UpdateItemSlots()
 D:Play({ items })
-local function lit() local t = {} for _, b in ipairs(UI.itemSlots) do if b.hl:IsShown() then t[#t + 1] = b.item end end return table.concat(t, ",") end
+local function lit() local t = {} for _, b in ipairs(UI.itemSlots) do if b.hl:IsShown() and b.arrow:IsShown() then t[#t + 1] = b.item end end return table.concat(t, ",") end
 __hlAll = lit()
 D:Advance()                       -- the line that names each one
 __hlStart = lit()
@@ -2395,7 +2395,7 @@ __hlRainbow = lit()
 D:Finish()
 __hlOff = lit()
 """)
-check("the special-ball talk lights all three, then each one as it is named, and the lights go out after",
+check("the special-ball talk lights all three (glow and a fat arrow), then each one as it is named, and they go out after",
       ev("__hlAll") == "ring,rainbow,suction" and ev("__hlRainbow") == "rainbow" and ev("__hlOff") == "",
       f'{ev("__hlAll")} | {ev("__hlStart")} | {ev("__hlRainbow")} | {ev("__hlOff")}')
 

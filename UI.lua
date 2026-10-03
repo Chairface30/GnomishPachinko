@@ -608,6 +608,15 @@ function UI:CreateFrame()
         ART:Set(b.hl, "glow_soft", 1, 0.85, 0.3)
         if b.hl.SetBlendMode then b.hl:SetBlendMode("ADD") end
         b.hl:Hide()
+        -- and a comically fat arrow jabbing at it from a silly angle
+        local arrowFrame = CreateFrame("Frame", nil, frame)
+        arrowFrame:SetAllPoints(frame)
+        arrowFrame:SetFrameLevel(frame:GetFrameLevel() + 120)
+        b.arrow = arrowFrame:CreateTexture(nil, "OVERLAY")
+        ART:Set(b.arrow, "comic_arrow")
+        b.arrow:SetSize(UI.ARROW_W, UI.ARROW_W / 2)
+        b.arrow:Hide()
+        b.arrowAngle = UI.ARROW_ANGLES[id] or 0.4
         buttonIcon(b, ART:Item(id), UI.ITEM_H - 8)
         b.icon:ClearAllPoints()
         b.icon:SetPoint("LEFT", b, "LEFT", 10, 0)
@@ -1466,6 +1475,11 @@ UI.CARD_W, UI.CARD_H = 450, 560   -- the level card
 UI.CARD_POWER_Y = 290                 -- the card's power row, from its top
 UI.ITEM_H = 48                        -- a special-ball button in the left column
 UI.BALL_STRIP_SIZE = 65               -- the balls left, two columns of five
+-- the tutorials' arrows: where each comes in from (an angle from the button,
+-- in radians, 0 = from the right, counter-clockwise), how far, how big
+UI.ARROW_ANGLES = { ring = 0.55, rainbow = -0.42, suction = 0.8, green = -0.6 }
+UI.ARROW_DIST = 128
+UI.ARROW_W = 120
 UI.ITEMS_Y = 4 + 5 * (65 + 5) + 26     -- under the balls
 
 -- After the level: stars, score, what happened, and where to go next.
@@ -2158,17 +2172,25 @@ function UI:HighlightItems(items)
     for _, id in ipairs(items or {}) do on[id] = true end
     self.highlighted = items and on or nil
     for _, b in ipairs(self.itemSlots or {}) do
-        if on[b.item] and b:IsShown() then b.hl:Show() else b.hl:Hide() end
+        if on[b.item] and b:IsShown() then b.hl:Show(); b.arrow:Show() else b.hl:Hide(); b.arrow:Hide() end
     end
 end
 
 function UI:PulseHighlights(now)
     if not self.highlighted then return end
     local a = 0.55 + 0.45 * math.sin(now * 6)
-    for _, b in ipairs(self.itemSlots or {}) do
+    for i, b in ipairs(self.itemSlots or {}) do
         if self.highlighted[b.item] then
-            if b:IsShown() then b.hl:Show() end
+            if b:IsShown() then b.hl:Show(); b.arrow:Show() end
             b.hl:SetAlpha(a)
+            -- the arrow jabs in and out at the button and wobbles about its angle
+            local ang = b.arrowAngle + 0.12 * math.sin(now * 5 + i)
+            local d = self.ARROW_DIST + 16 * math.sin(now * 9 + i * 1.7)
+            b.arrow:ClearAllPoints()
+            b.arrow:SetPoint("CENTER", b, "CENTER", math.cos(ang) * d, math.sin(ang) * d)
+            if b.arrow.SetRotation then b.arrow:SetRotation(ang + math.pi) end
+            local k = 1 + 0.08 * math.sin(now * 9 + i * 1.7 + 1.2)
+            b.arrow:SetSize(self.ARROW_W * k, self.ARROW_W / 2 / k)
         end
     end
 end

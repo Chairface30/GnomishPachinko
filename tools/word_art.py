@@ -497,6 +497,42 @@ def plate_mid(w=64, h=128):
     return logo.crop((LOGO_GAP[0], 0, LOGO_GAP[1], logo.size[1])).resize((w, h), Image.BICUBIC)
 
 
+def comic_arrow(w=256, h=128):
+    """A comically fat cartoon arrow pointing right: a chunky body and head,
+    a thick black outline, hot orange with a white shine and a drop shadow."""
+    bw, bh = w * SS, h * SS
+    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    pad = 14 * SS
+    head_x = bw * 0.56
+    body_t, body_b = bh * 0.30, bh * 0.70
+    pts = [(pad, body_t), (head_x, body_t), (head_x, pad), (bw - pad, bh / 2), (head_x, bh - pad), (head_x, body_b), (pad, body_b)]
+    # a slight bulge to the body, so it looks puffed up
+    sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).polygon([(x + 7 * SS, y + 9 * SS) for x, y in pts], fill=(0, 0, 0, 120))
+    img = Image.alpha_composite(img, sh.filter(ImageFilter.GaussianBlur(5 * SS)))
+    d = ImageDraw.Draw(img)
+    d.polygon(pts, fill=(20, 12, 8, 255))
+    d.line(pts + [pts[0]], fill=(20, 12, 8, 255), width=int(16 * SS), joint="curve")
+    # the fill: hot orange top to deep red-orange bottom
+    mask = Image.new("L", img.size, 0)
+    ImageDraw.Draw(mask).polygon(pts, fill=255)
+    mask = mask.filter(ImageFilter.MinFilter(int(5 * SS) | 1))
+    grad = Image.new("RGBA", img.size)
+    gd = ImageDraw.Draw(grad)
+    for y in range(bh):
+        t = y / (bh - 1)
+        gd.line([(0, y), (bw, y)], fill=(255, int(214 - 120 * t), int(60 - 40 * t), 255))
+    img.paste(grad, (0, 0), mask)
+    # the shine along the top
+    gl = Image.new("L", img.size, 0)
+    gd2 = ImageDraw.Draw(gl)
+    gd2.rounded_rectangle([pad + 14 * SS, body_t + 6 * SS, head_x - 6 * SS, body_t + 16 * SS], radius=5 * SS, fill=200)
+    gd2.polygon([(head_x + 4 * SS, pad + 22 * SS), (head_x + 12 * SS, pad + 30 * SS), (bw - pad - 40 * SS, bh / 2 - 8 * SS), (bw - pad - 52 * SS, bh / 2 - 12 * SS)], fill=170)
+    gl = gl.filter(ImageFilter.GaussianBlur(2 * SS))
+    img = Image.alpha_composite(img, Image.merge("RGBA", (gl.point(lambda v: 255),) * 3 + (gl,)))
+    return img.resize((w, h), Image.LANCZOS)
+
+
 STARS = {
     "star_big":        (True, 0.0),
     "star_big_l":      (True, -0.22),
@@ -529,6 +565,9 @@ def main():
             continue
         big_star(filled, tilt).save(os.path.join(OUT, slot + ".tga"), format="TGA")
         print("wrote", slot)
+    if not args.only or "comic_arrow" in args.only:
+        comic_arrow().save(os.path.join(OUT, "comic_arrow.tga"), format="TGA")
+        print("wrote comic_arrow")
     if not args.only or "plate_cap" in args.only:
         half_gear().save(os.path.join(OUT, "plate_cap.tga"), format="TGA")
         print("wrote plate_cap")

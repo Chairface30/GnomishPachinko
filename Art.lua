@@ -102,6 +102,7 @@ slot("star_big_r_empty", 256, 256, { note = "the right star's empty socket (tool
 slot("word_plays_left", 512, 64, { note = "PLAYS LEFT in brass word-art beside the plays counter (tools/word_art.py)" })
 slot("plate_cap", 128, 256, { note = "a plate button's end: the left half of a brass cog, the button's full height; mirrored for the right end (tools/word_art.py)" })
 slot("plate_mid", 64, 128,  { note = "a plate button's middle: the logo's copper plate, stretched only sideways (tools/word_art.py)" })
+slot("comic_arrow", 256, 128, { note = "a comically fat cartoon arrow pointing right, thick black outline, hot orange (tools/word_art.py); the tutorials turn it to point at buttons" })
 slot("play_token",   128, 128, { note = "a play: a brass pachinko token with a cog rim and a silver ball set in it (tools/word_art.py)" })
 slot("number_frame", 128, 64,  { note = "a riveted brass frame with a dark window for a number (tools/word_art.py)" })
 slot("shop_gear", 128, 128, { note = "the shop button: a shiny golden gear (tools/word_art.py)" })
