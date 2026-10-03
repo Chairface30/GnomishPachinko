@@ -432,11 +432,13 @@ function E:NewLevel(spec)
             -- the Bolt Golem starts the fight behind its shield
             if p.ability == "golem" then p.shield = E.GOLEM_SHIELD end
         end
+        if p.rail then state.hasRails = true end
         if p.loose then
             state.hasLoose = true
             p.vx, p.vy, p.resting, p.settling = 0, 0, false, true
         end
     end
+    if state.hasRails then E.LinkRails(state) end      -- each rail brick's neighbours and inside face
     for _, mv in ipairs(state.movers) do
         for _, p in ipairs(mv.pegs) do p.mover = mv end
     end
@@ -1109,19 +1111,83 @@ end
 
 -- Resolve a body against every peg. light=false runs a dry pass (the
 -- guide's simulation and falling gems): bounces only, no hits.
--- Rails: a curve of bricks (p.rail names it, p.railCx/Cy its centre). A
--- ball that meets a rail brick from the centre side locks onto the rail
--- and runs along its face like a road, lighting each brick, until the rail
--- ends or the ball is too slow to hold on.
-E.RAIL_MIN_SPEED = 60
-E.RAIL_ENGAGE    = 0.7     -- away from a mouth, a ball takes the rail only this grazing (into the face < 0.7 x along it, ~35 degrees)
+-- Rails (Super Slides): a chain of bricks (p.rail names it, p.railIdx its
+-- place along it). The only thing special about one: a ball that comes in
+-- grazing along its INSIDE face (the side the chain curves toward) takes
+-- it, runs along it to the end of that inward curve, and leaves at the
+-- speed it came in. Hit any other way, on the outside of a bend, or square
+-- on, a rail brick is an ordinary brick.
+E.RAIL_MIN_SPEED = 30      -- (a ride never crawls slower than this)
+E.RAIL_ENGAGE    = 0.7     -- a ball takes the rail only this grazing: into the face < 0.7 x along it (~35 degrees) ...
+E.RAIL_ENGAGE_MOUTH = 1.0  -- ... or < 1.0 (45 degrees) at either end brick, the mouths
 E.RAIL_REENTRY   = 0.3     -- seconds after running off a rail's end before the ball can take that rail again
+E.RAIL_BEND      = 0.02    -- a turn smaller than this (radians) between neighbouring bricks counts as straight
+
+-- Links each rail's bricks to their neighbours along it and works out each
+-- brick's inside face: the side the chain bends toward there. q.railSide is
+-- +1 or -1 against the brick's own normal (-sin a, cos a), or 0 on a
+-- stretch with no bend (a straight rail is never ridden). A straight brick
+-- between two bends the same way takes their side.
+function E.LinkRails(state)
+    local rails = {}
+    for i, q in ipairs(state.pegs) do
+        if q.rail and q.shape == "brick" then
+            rails[q.rail] = rails[q.rail] or {}
+            table.insert(rails[q.rail], q)
+            q.railOrder = q.railIdx or i
+        end
+    end
+    for _, list in pairs(rails) do
+        table.sort(list, function(a, b) return a.railOrder < b.railOrder end)
+        local n = #list
+        for k, q in ipairs(list) do q.railPrev, q.railNext, q.railPos = list[k - 1], list[k + 1], k end
+        -- the turn at each brick (from its neighbours' centres), as a signed angle
+        local turn = {}
+        for k = 1, n do
+            local a, b, c = list[k - 1], list[k], list[k + 1]
+            if a and c then
+                local ux, uy = b.x - a.x, b.y - a.y
+                local vx, vy = c.x - b.x, c.y - b.y
+                turn[k] = atan2(ux * vy - uy * vx, ux * vx + uy * vy)
+            end
+        end
+        if n >= 2 then turn[1] = turn[2] or 0; turn[n] = turn[n - 1] or 0 end
+        local side = {}
+        for k = 1, n do
+            local t = turn[k] or 0
+            if abs(t) < E.RAIL_BEND then side[k] = 0 else side[k] = (t > 0) and 1 or -1 end
+        end
+        -- straight bits between two bends the same way take that way
+        for k = 1, n do
+            if side[k] == 0 then
+                local l, r = nil, nil
+                for j = k - 1, 1, -1 do if side[j] ~= 0 then l = side[j] break end end
+                for j = k + 1, n do if side[j] ~= 0 then r = side[j] break end end
+                if l and r and l == r then side[k] = l
+                elseif l and not r then side[k] = l
+                elseif r and not l then side[k] = r end
+            end
+        end
+        for k, q in ipairs(list) do
+            -- the chain's direction here, and the inside as left (+1) or right (-1) of it
+            local a, b = list[k - 1] or q, list[k + 1] or q
+            local tx, ty = b.x - a.x, b.y - a.y
+            local ix, iy = -ty * side[k], tx * side[k]          -- toward the inside of the bend
+            local nx, ny = -sin(q.angle or 0), cos(q.angle or 0)
+            local d = ix * nx + iy * ny
+            q.railSide = (side[k] == 0 or abs(d) < 1e-9) and 0 or ((d > 0) and 1 or -1)
+        end
+    end
+end
+
 local function brickFrame(q)
     local c, s = cos(q.angle or 0), sin(q.angle or 0)
     local nx, ny = -s, c
-    -- the face that looks at the rail's centre
-    local side = ((q.railCx - q.x) * nx + (q.railCy - q.y) * ny) >= 0 and 1 or -1
-    return c, s, nx * side, ny * side
+    -- the inside face (0 on a straight stretch: no inside)
+    local side = q.railSide
+    if side == nil and q.railCx then side = ((q.railCx - q.x) * nx + (q.railCy - q.y) * ny) >= 0 and 1 or -1 end
+    side = side or 0
+    return c, s, nx * side, ny * side, side
 end
 
 -- A Super Slide: once a ball takes a rail it rides the whole of it. The
@@ -1130,12 +1196,25 @@ end
 -- every brick it passes, and leaves off the far end along the last brick.
 -- (Searching for the nearest brick each step let a fast ball slip off at a
 -- joint and leave bricks unlit.)
-local function railPath(state, rail)
+-- The path a ride takes from brick `from`: along the inside faces of the
+-- unbroken run of bricks around it that bend the same way (a bend the other
+-- way, or a gone brick, ends it).
+local function railPath(state, rail, from)
     local list = {}
-    for i, q in ipairs(state.pegs) do
-        if q.rail == rail and not q.gone then list[#list + 1] = { q = q, order = q.railIdx or i } end
+    local side = from and from.railSide or 0
+    if from and side ~= 0 then
+        local run = { from }
+        local q = from.railPrev
+        while q and not q.gone and (q.railSide == side) do table.insert(run, 1, q); q = q.railPrev end
+        q = from.railNext
+        while q and not q.gone and (q.railSide == side) do run[#run + 1] = q; q = q.railNext end
+        for _, b in ipairs(run) do list[#list + 1] = { q = b } end
+    else
+        for i, b in ipairs(state.pegs) do
+            if b.rail == rail and not b.gone then list[#list + 1] = { q = b, order = b.railIdx or i } end
+        end
+        table.sort(list, function(x, y) return x.order < y.order end)
     end
-    table.sort(list, function(x, y) return x.order < y.order end)
     local R = E.BALL_R
     local pts = {}
     for k, e in ipairs(list) do
@@ -1201,8 +1280,10 @@ local function railAt(pts, s)
 end
 
 -- The ball takes the rail at brick p: where along it, and which way.
+E.RailPath = railPath
+
 local function startRide(state, ball, p, events)
-    local pts = railPath(state, ball.rail)
+    local pts = railPath(state, ball.rail, p)
     if not pts or #pts < 2 then ball.rail = nil return end
     -- the nearest point of the path
     local bestS, bestD = 0, nil
@@ -1284,27 +1365,25 @@ collideBall = function(state, ball, events, light)
                 -- (never the rail just run off: at its end the ball would be
                 -- taken straight back on and sit there, riding nowhere)
                 local justOff = ball.railLost == p.rail and state.time - (ball.railLostAt or -1) < E.RAIL_REENTRY
-                if p.rail and light and not ball.fire and p.railCx and not p.lit and not justOff then
-                    -- from the centre side, the ball takes the rail instead of
-                    -- bouncing, but only in at a mouth (either end brick of
-                    -- the chain) or coming in grazing along the face; any
-                    -- other contact is an ordinary brick hit
-                    local c, s, fnx, fny = brickFrame(p)
-                    if (ball.x - p.x) * fnx + (ball.y - p.y) * fny > 0 then
+                if p.rail and light and not ball.fire and not p.lit and not justOff then
+                    -- on the inside of the bend, coming in grazing along the
+                    -- face (a little more steeply at a mouth), the ball takes
+                    -- the rail; any other contact is an ordinary brick hit
+                    local c, s, fnx, fny, side = brickFrame(p)
+                    if side ~= 0 and (ball.x - p.x) * fnx + (ball.y - p.y) * fny > 0 then
                         local into = -(ball.vx * fnx + ball.vy * fny)
                         local along = abs(ball.vx * c + ball.vy * s)
-                        onto = E.RailMouth(state, p) or into < E.RAIL_ENGAGE * along
+                        local limit = E.RailMouth(state, p) and E.RAIL_ENGAGE_MOUTH or E.RAIL_ENGAGE
+                        onto = into < limit * along
                     end
                 end
                 if onto then
                     ball.rail = p.rail
                     state.rideSeq = (state.rideSeq or 0) + 1
                     ball.rideId = state.rideSeq
+                    -- it rides at the speed it came in with, and leaves at it
                     local now = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
-                    if ball.railLost == p.rail and ball.railSpeed and state.time - (ball.railLostAt or 0) < 0.4 then
-                        now = math.max(now, ball.railSpeed)     -- back on the same rail: the same speed
-                    end
-                    ball.railSpeed = math.max(E.RAIL_MIN_SPEED * 3, now)
+                    ball.railSpeed = math.max(E.RAIL_MIN_SPEED, now)
                     ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
                     startRide(state, ball, p, events)
                     if ball.rail then railStep(state, ball, events, 0) return end

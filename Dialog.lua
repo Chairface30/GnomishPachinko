@@ -160,6 +160,7 @@ D.SCRIPTS = {
     { key = "intro", when = function(st) return st.level == 1 end, lines = {
         { "tink", "Fair warning: the bosses are still a work in progress. They may change completely in a later version." },
         { "tink", "Got ideas? New gnome hosts with new powers, new obstacles, new bosses? Send them in on the Gnomish Pachinko page on CurseForge!" },
+        { "tink", "And you can build boards of your own! Press Level editor under the map, make a level, and post its code on CurseForge. The best go into the machine, with your name on them!" },
         { "tink", "Now, enough chatter! Step right up, grab the lever, and give her a whirl. Go on, off you go, and mind the sparks!" },
     } },
     { key = "host_mekka", when = function(st) return GP:HostFor(st.level).id == "mekka" end, lines = {

@@ -4380,6 +4380,77 @@ check("Oranges: the total counts the always orange pieces (shown as the split), 
       ev("__split") == "Oranges: 5 (3 always orange, 2 random)" and ev("__floor") == 3 and ev("__dealt") == 3,
       f'{ev("__split")} / {ev("__floor")} / {ev("__dealt")}')
 
+# Super Slide physics: taken only grazing the inside of a bend, ridden to the end of that bend,
+# left at the speed it came in; the outside of a bend, or a straight rail, is an ordinary brick
+lua(r"""
+local function level(pts)
+  ED:NewLevel()
+  ED:AddSlide(pts)
+  return E:NewLevel(L:BuildCustom(ED:Sanitize(ED.data), 5, 0))
+end
+local function throw(st, x, y, vx, vy)
+  st.aim = 0
+  E:Launch(st, {})
+  local b = st.balls[1]
+  b.x, b.y, b.vx, b.vy = x, y, vx, vy
+  local rode, exitSpeed, entry = false, nil, nil
+  for _ = 1, 600 do
+    -- its speed as it meets the rail
+    local before = math.sqrt(b.vx ^ 2 + b.vy ^ 2)
+    E:Step(st, 1 / 240, {})
+    b = st.balls[1]
+    if not b then break end
+    if b.rail then
+      if not rode then entry = before end
+      rode = true
+    elseif rode and not exitSpeed then exitSpeed = math.sqrt(b.vx ^ 2 + b.vy ^ 2) end
+  end
+  return rode, exitSpeed, entry
+end
+local out = {}
+-- a bowl: the bottom half of a circle round (245, 300), radius 100
+local cx, cy, r = 245, 300, 100
+local bowl = ED:ArcPoints(cx - r, cy, cx + r, cy, cx, cy + r)
+local a = math.rad(165)
+local tx, ty = math.sin(a), -math.cos(a)          -- along the bowl, heading down into it
+local rx, ry = math.cos(a), math.sin(a)           -- outward, into the bricks
+-- inside, grazing, slowly (slower than any ride used to be): it rides, and leaves at the speed it came in
+local st = level(bowl)
+local speed = 120
+out.insideRides, out.exitSpeed, out.entrySpeed = throw(st, cx + (r - 13) * rx, cy + (r - 13) * ry, tx * speed + rx * 12, ty * speed + ry * 12)
+-- outside the bowl, grazing along it: an ordinary brick, no ride
+st = level(bowl)
+local b2 = math.rad(120)
+local ox, oy = math.cos(b2), math.sin(b2)
+out.outsideRides = throw(st, cx + (r + 13) * ox, cy + (r + 13) * oy, math.sin(b2) * 250 - ox * 15, -math.cos(b2) * 250 - oy * 15)
+-- an S: the inside flips half way; a ride from the first bend stays on the first bend
+local s = {}
+for x = 120, 370, 2 do s[#s + 1] = { x, 300 + 45 * math.sin((x - 120) / 250 * 2 * math.pi) } end
+st = level(s)
+local list = {}
+for _, p in ipairs(st.pegs) do if p.rail then list[#list + 1] = p end end
+table.sort(list, function(p, q) return p.railOrder < q.railOrder end)
+local first = list[3]
+local path = E.RailPath(st, first.rail, first)
+local maxX = -1
+for _, pt in ipairs(path) do if pt.q and pt.q.x > maxX then maxX = pt.q.x end end
+out.sFlips = list[3].railSide ~= 0 and list[#list - 2].railSide ~= 0
+out.sRideStops = maxX < 260
+-- a straight rail has no inside: never ridden
+ED:NewLevel()
+ED:AddSlide({ { 120, 300 }, { 360, 300 } })
+st = E:NewLevel(L:BuildCustom(ED:Sanitize(ED.data), 5, 0))
+local straight = true
+for _, p in ipairs(st.pegs) do if p.rail and p.railSide ~= 0 then straight = false end end
+out.straightNever = straight
+__railRules = out
+""")
+rr = dict(ev("__railRules"))
+check("Super Slide: grazing in on the inside of a bend rides it and leaves at the speed it came in (even slowly)",
+      rr["insideRides"] and rr["exitSpeed"] is not None and rr["entrySpeed"] < 180 and abs(rr["exitSpeed"] - rr["entrySpeed"]) <= ev("E.GRAVITY * E.STEP") + 1, str(rr))     # (one step of gravity after it leaves)
+check("Super Slide: the outside of a bend never rides; an S-bend's ride stops where the bend flips; a straight rail is never ridden",
+      not rr["outsideRides"] and rr["sFlips"] and rr["sRideStops"] and rr["straightNever"], str(rr))
+
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
 ED:NewLevel()

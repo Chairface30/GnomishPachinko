@@ -6,6 +6,8 @@ Well hello there! Tinkmaster Overspark, at your service. Pull up a crate and min
 
 It fits right inside your game. Point with the mouse, click, and a polished steel ball goes rattling down through a board of pegs. Light up every **orange peg** and the board is yours. You get ten balls a level, so make them count!
 
+And once you've got the hang of it, build boards of your own in my **level editor** and send them in. The best ones go into the machine for everybody, with your name on them!
+
 ---
 
 ## What's inside the machine
