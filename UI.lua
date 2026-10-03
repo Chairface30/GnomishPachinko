@@ -50,6 +50,13 @@ local COLORS = {
 }
 local RIM = { 0.78, 0.80, 0.86 }
 local RIM_HEAVY = { 1.00, 0.84, 0.35 }
+-- A tough piece wears what it has left: gold with three hits to go, steel
+-- with two, nothing with one (a plain piece). A gold piece knocked down to
+-- steel shows the crack too.
+local function toughLook(hp, maxhp)
+    if (maxhp or 1) <= 1 or hp <= 1 then return nil, false end
+    return (hp >= 3) and RIM_HEAVY or RIM, hp < maxhp
+end
 -- the peg colour a kind is painted in (the per-colour art set)
 local COLOR_OF = { blue = "blue", orange = "orange", green = "green", purple = "purple" }
 
@@ -250,7 +257,7 @@ local TIPS = {
     { key = "gems",      when = function(st) return st.objective == "gems" or st.objective == "mixed_gems" end, text = "Tinkmaster: \"Gems! Knock them loose and drop them off the bottom. One in the bucket is a Bucket Drop bonus.\"" },
     { key = "duel",      when = function(st) return st.objective == "duel" end, text = "Tinkmaster: \"My brother Cogwhistle again. Clear the board, then it's a duel: five balls each, and hit an orange every shot or he docks your score.\"" },
     { key = "longshots", when = function(st) return st.objective == "longshots" end, text = "Tinkmaster: \"Long Shots! Light two orange pegs far apart in one shot. Bounce it off the far wall and watch.\"" },
-    { key = "tough",     when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, text = "Tinkmaster: \"Steel-rimmed pieces take two hits, gold-rimmed three. They crack first.\"" },
+    { key = "tough",     when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, text = "Tinkmaster: \"Steel-rimmed pieces take two hits, gold-rimmed three. Each hit strips a layer: gold to steel, steel to a plain piece.\"" },
     { key = "webs",      when = function(st) return st.boss and st.boss.ability == "spider" end, text = "Tinkmaster: \"Lit oranges only charge the Gyro Spider. Strike it with the ball in the same shot and the charge hits it, or it fizzles. It spins two webs every time you light an orange. Touch one and the ball is caught, web and all. A fireball burns them away.\"" },
     { key = "nobucket",  when = function(st) return st.noBucket end, text = "Tinkmaster: \"No bucket on this one. The only free balls are the score marks, so make every ball count.\"" },
     { key = "keys",      when = function(st) for _, p in ipairs(st.pegs) do if p.kind == "key" then return true end end end, text = "Tinkmaster: \"A key! Light it and its cage falls away. Sometimes the key is behind another lock.\"" },
@@ -1488,17 +1495,16 @@ function UI:AnimateToughDemo(now)
             d.state = state
             ART:Set(d.disc, ART:Peg("blue", hp <= 0 and "_lit" or ""))
             d.disc:SetSize(ART:Size(d.disc.slot, size))
-            if hp <= 0 then
-                d.rim:Hide(); d.crack:Hide()
-            else
+            -- each hit sheds a layer: gold to steel (cracked), steel to plain
+            local rimColor, cracked = toughLook(hp, d.hits)
+            if rimColor then
+                d.rim:SetVertexColor(rimColor[1], rimColor[2], rimColor[3], 1)
                 d.rim:Show()
-                if hp < d.hits then
-                    d.crack:SetAlpha(hp <= 1 and 1 or 0.6)
-                    d.crack:Show()
-                else
-                    d.crack:Hide()
-                end
+            else
+                d.rim:Hide()
             end
+            d.crack:SetAlpha(0.8)
+            d.crack:SetShown(hp > 0 and cracked)
         end
         -- the ball: an arc down onto the peg's top and back up, for each hit
         local k = u / self.DEMO_HIT_EVERY - 0.5     -- hit j lands at k = j - 1
@@ -2807,9 +2813,9 @@ function UI:LayoutPegs(midLevel)
         t.disc:Show()
         t.ring:Hide()
         t.crack:Hide()
-        if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then
-            local c = (p.maxhp >= 3) and RIM_HEAVY or RIM
-            t.rim:SetVertexColor(c[1], c[2], c[3], 1)
+        local rimColor = (p.kind ~= "egg" and p.kind ~= "boss") and toughLook(p.hp or 1, p.maxhp)
+        if rimColor then
+            t.rim:SetVertexColor(rimColor[1], rimColor[2], rimColor[3], 1)
             t.rim:SetAlpha(1)
             t.rim:Show()
         else
@@ -4099,13 +4105,23 @@ function UI:Render(now)
                         t.hpShown = p.hp
                     end
                 end
-                -- cracks on a damaged piece (not the boss: its bar shows the damage)
+                -- a damaged tough piece sheds a layer per hit: gold to steel
+                -- (cracked), steel to a plain piece. An egg shows its cracks;
+                -- the boss's bar shows its damage.
                 if (p.maxhp or 1) > 1 and p.hp < p.maxhp and not p.lit and p.kind ~= "boss" then
                     if t.crackHp ~= p.hp then
                         t.crackHp = p.hp
+                        local rimColor, cracked = toughLook(p.hp, p.maxhp)
+                        if p.kind == "egg" then rimColor, cracked = nil, true end
+                        if rimColor then
+                            t.rim:SetVertexColor(rimColor[1], rimColor[2], rimColor[3], 1)
+                            t.rim:Show()
+                        else
+                            t.rim:Hide()
+                        end
                         t.crack:SetVertexColor(1, 1, 1, 1)
-                        t.crack:SetAlpha(p.hp <= 1 and 1 or 0.6)
-                        t.crack:Show()
+                        t.crack:SetAlpha(p.kind == "egg" and (p.hp <= 1 and 1 or 0.6) or 0.8)
+                        t.crack:SetShown(cracked)
                     end
                 elseif t.crackHp then
                     t.crackHp = nil

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Tough pieces show the hits they have left:** a hit strips a layer. A gold-rimmed piece turns steel-rimmed and shows a crack; a steel-rimmed piece loses its rim and becomes a plain piece. The tough pieces' tutorial demo and Bink's line (re-voiced) match.
 - **Level 66, the Long Shots tutorial, is redesigned:** just two angled walls of orange pegs in a V, nothing else on the board (no gimmick, rail, balloon, green or rimmed piece). A ball off one wall flies across to the other, so Long Shots come easily.
 - **A wedged ball leaves the board:** a ball that stays in the same spot for a second (stuck between pieces, jittering in place) is taken off as if it had fallen off the bottom.
 - **The Bolt Golem starts behind its shield,** shown as a glowing half dome over the top of it (dimmer with one hit left). The shield now blocks lightning as well: an orange's bolt knocks off a layer instead of hurting him. He still raises it again every third shot. Razzle's golem line is re-voiced to match.

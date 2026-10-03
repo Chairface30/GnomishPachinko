@@ -204,7 +204,7 @@ D.SCRIPTS = {
     } },
     { key = "tough", when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end,
       demo = { 2, 3 }, lines = {
-        { "bink", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
+        { "bink", "Steel-rimmed pieces take two hits, gold-rimmed three. Each hit strips a layer: gold to steel, steel to a plain peg." },
     } },
     { key = "eggs", when = function(st) return st.objective == "eggs" or st.objective == "mixed_eggs" end,
       point = gimmickPoint(function(p) return p.kind == "egg" end), demo = { 2, kind = "egg" }, lines = {

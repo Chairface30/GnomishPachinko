@@ -1900,6 +1900,30 @@ __cornersCovered = corner <= UI.portraitRingFrame:GetWidth() / 2 and half >= UI.
 check("the host is one model (copies drift out of step)", ev("__oneModel"))
 check("the host's square clip lies under the ring band: corners inside its rim, edges past its opening", ev("__cornersCovered"))
 
+# a tough piece sheds a layer per hit: gold, then steel with a crack, then a plain peg
+lua(r"""
+UI:StartLevel(1, true)
+UI:ShowBoardContents()
+local p
+for _, q in ipairs(UI.state.pegs) do if q.shape == "peg" and q.kind == "blue" then p = q break end end
+p.hp, p.maxhp = 3, 3
+UI:LayoutPegs()
+local t = UI.pegTex[UI.pegIndex[p]]
+local color
+local set = t.rim.SetVertexColor
+t.rim.SetVertexColor = function(self, r, g, b, a) color = { r, g, b }; return set(self, r, g, b, a) end
+__advance(0.1)
+__gold = t.rim:IsShown() and not t.crack:IsShown()
+p.hp = 2
+__advance(0.1)
+__steel = t.rim:IsShown() and t.crack:IsShown() and color and color[3] > 0.8 and color[1] < 0.9
+p.hp = 1
+__advance(0.1)
+__plain = not t.rim:IsShown() and not t.crack:IsShown()
+""")
+check("a gold piece hit once turns steel with a crack, hit again a plain peg", ev("__gold") and ev("__steel") and ev("__plain"),
+      f'{ev("__gold")} {ev("__steel")} {ev("__plain")}')
+
 # the boss's bar and name sit below it, and a hurt boss shows no cracks
 lua(r"""
 UI:StartLevel(10, true)
