@@ -236,16 +236,16 @@ E.LOOSE_BLAST_KICK  = 260       -- a Space Blast throws loose pieces away from i
 
 -- The duel: no piece to hit. Stage one is a board to clear; then the
 -- rival steps up and the two of you shoot turn and turn about on one
--- shared board, DUEL_BALLS each. Lighting the last orange earns its
--- shooter the DUEL_LAST_BONUS and ends the duel there; the higher duel
--- score wins, whether it ends that way or with the balls run out. No Fever
+-- shared board, DUEL_BALLS each. The last orange carries nothing extra:
+-- lighting it only ends the duel once that shot is done (nothing is left
+-- to shoot for), and the higher duel score wins, whether it ends that way
+-- or with the balls run out. No Fever
 -- and no end bonus in a duel. A shot that lights no orange costs its
 -- shooter DUEL_PENALTY.
 E.RIVAL = { id = "cogwhistle", name = "Cogwhistle Overspark",
-    blurb = "Tinkmaster's older brother. Clear the board, then duel him: five balls each, turn and turn about. The last orange is worth 25,000 and ends it; the higher score wins. A shot that lights no orange costs 500." }
+    blurb = "Tinkmaster's older brother. Clear the board, then duel him: five balls each, turn and turn about. The higher score wins. A shot that lights no orange costs 500." }
 E.DUEL_BALLS   = 5
 E.DUEL_PENALTY = 500         -- a shot that lights no orange costs this, the ball's own points stand
-E.DUEL_LAST_BONUS = 25000    -- lighting the duel's last orange: the bonus a Fever's best bin would pay
 E.DUEL_STAGE2_ORANGES = 10
 E.RIVAL_THINK  = 1.4        -- seconds the rival shows his aim before firing
 E.STYLE_TIERS  = { { run = 20, points = 25000, caption = "UNBELIEVABLE!" }, { run = 12, points = 12500, caption = "AWESOME!" }, { run = 6, points = 5000, caption = "NICE!" } }
@@ -1017,12 +1017,11 @@ lightPeg = function(state, p, ball, events, quiet, at)
     if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then
         local d = state.duel
         if d and d.stage == 2 then
-            -- the last orange: its shooter takes the bonus, and the duel ends
-            -- (no Fever) once the shot is done; the scores decide it
+            -- the last orange: no bonus, the duel just ends (no Fever) once
+            -- the shot is done, and the scores decide it
             if not d.lastOrange then
                 d.lastOrange = d.turn
-                addScore(state, E.DUEL_LAST_BONUS, events)
-                push(events, { type = "duel_last_orange", side = d.turn, bonus = E.DUEL_LAST_BONUS })
+                push(events, { type = "duel_last_orange", side = d.turn })
             end
         else
             startFever(state, events)
@@ -1602,7 +1601,7 @@ end
 local function duelTurnOver(state, events)
     local d = state.duel
     if not d or d.stage ~= 2 then return false end
-    if d.lastOrange then return true end    -- the last orange is lit: decided
+    if d.lastOrange then return true end    -- no oranges left: the scores decide
     if state.goalHitThisShot == 0 and state.shots > 0 then
         local lost = math.min(E.DUEL_PENALTY, d.scores[d.turn])
         if lost > 0 then

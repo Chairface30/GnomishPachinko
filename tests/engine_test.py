@@ -1947,7 +1947,7 @@ __tubeDim = not UI.bins[1].halo:IsShown()
 """)
 check("a scored Fever tube glows and the rest stand dim", ev("__tubeLit") and ev("__tubeDim"))
 
-# a duel: the last orange pays its shooter a bonus and ends it; the scores decide; no Fever
+# a duel: the last orange pays nothing extra, it only ends the duel; the scores decide; no Fever
 lua(r"""
 function duel_last_probe(you, rival)
   local spec = L:Build(20)
@@ -1957,6 +1957,7 @@ function duel_last_probe(you, rival)
   d.turn = "rival"
   st2.ballsLeft = d.balls.rival
   d.scores.you, d.scores.rival = you, rival
+  local rival0 = rival
   local last
   for _, p in ipairs(st2.pegs) do
     if p.goal and not p.lit then
@@ -1979,15 +1980,15 @@ function duel_last_probe(you, rival)
     if st2.phase == E.PHASE.OVER then break end
   end
   local r = st2.result or {}
-  return fever, ended, st2.phase == E.PHASE.OVER, r.cleared, r.duel and r.duel.lastOrange, d.scores.rival
+  return fever, ended, st2.phase == E.PHASE.OVER, r.cleared, r.duel and r.duel.lastOrange, d.scores.rival - rival0
 end
 """)
-fev, dec, over, cleared, lastSide, rivalScore = ev("duel_last_probe")(99999, 0)
-check("a duel's last orange pays its shooter the bonus and ends it, with no Fever; the higher score still wins",
-      not fev and dec and over and cleared == True and lastSide == "rival" and rivalScore >= ev("E.DUEL_LAST_BONUS"),
-      f"{fev} {dec} {over} {cleared} {lastSide} {rivalScore}")
-fev, dec, over, cleared, lastSide, rivalScore = ev("duel_last_probe")(80000, 60000)
-check("the last orange's bonus can swing a close duel", over and cleared == False and rivalScore > 80000, f"{cleared} {rivalScore}")
+fev, dec, over, cleared, lastSide, gained = ev("duel_last_probe")(99999, 0)
+check("a duel's last orange ends it with no Fever and no bonus (just the peg's own points); the higher score wins",
+      not fev and dec and over and cleared == True and lastSide == "rival" and gained < 5000,
+      f"{fev} {dec} {over} {cleared} {lastSide} {gained}")
+fev, dec, over, cleared, lastSide, gained = ev("duel_last_probe")(20000, 19000)
+check("lighting the last orange does not win a duel the shooter is behind in", over and cleared == True and 19000 + gained < 20000, f"{cleared} {gained}")
 
 # Get Golden Gears away from a mailbox: Tinkmaster explains, the first time only
 lua(r"""

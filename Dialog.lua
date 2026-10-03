@@ -129,7 +129,7 @@ D.SCRIPTS = {
     { key = "tink_duel", when = function(st) return st.level == GP.Levels.TINK_DUEL_LEVEL end, lines = {
         { "cog", "Well, well. Little brother. Still hiding behind your helpers?" },
         { "tink", "No helpers this time, Cogwhistle. This one is between you and me." },
-        { "cog", "Clear the board, then five balls each, and the last orange takes it. Try not to cry." },
+        { "cog", "Clear the board, then five balls each, and the higher score takes it. Try not to cry." },
         { "tink", "Win this one for me, friend, and I will show you something special. My Crazy Guide!" },
     } },
     { key = "crazy_guide", when = function() return false end, lines = {
