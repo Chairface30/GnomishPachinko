@@ -205,6 +205,15 @@ end
 
 UI.MakeButton, UI.PieceSlot, UI.ToughLook = makeButton, pieceSlot, toughLook
 
+-- The star marks for the level in play: two stars, three stars, and the
+-- first star's mark if the level sets one (an editor level being tested has
+-- its own, not its number's).
+local function starMarks(st)
+    if st and st.stars then return st.stars[1], st.stars[2], st.stars[3] end
+    return L:StarScores(st and st.level or 1)
+end
+UI.StarMarks = starMarks
+
 -- The ball's picture: fire, rainbow, spooky, electric, winged in Fever.
 local function ballSlot(ball, st, now, electricUntil)
     if ball.fire or ball.item == "ring" then return "ball_fire" end
@@ -1260,8 +1269,9 @@ function UI:ShowStartCard()
     card.line1:SetText(self:ObjectiveText(st))
     ART:Set(card.goalIcon, ART:Goal(st.objective))
     card.goalIcon:Show()
-    local s2, s3 = L:StarScores(st.level)
-    card.line2:SetText(("|cffffd7002 stars|r at %s   |cffffd7003 stars|r at %s"):format(fmtBig(s2), fmtBig(s3)))
+    local s2, s3, s1 = starMarks(st)
+    card.line2:SetText((s1 and ("|cffffd7001 star|r at %s   "):format(fmtBig(s1)) or "") ..
+        ("|cffffd7002 stars|r at %s   |cffffd7003 stars|r at %s"):format(fmtBig(s2), fmtBig(s3)))
     local extra = {}
     if st.author then extra[#extra + 1] = "|cff88ddffLevel by " .. st.author .. "|r" end
     if st.gimmick then extra[#extra + 1] = st.gimmick end
@@ -1953,9 +1963,9 @@ function UI:ShowResultCard(result, stars)
     end
     for _, t in ipairs(card.sparks) do t.rocket = nil; t:Hide()
     end
-    local m2, m3 = L:StarScores(st.level)
+    local m2, m3, m1 = starMarks(st)
     card.fillAnim = { start = GetTime(), score = result.score or 0, cleared = cleared,
-        marks = { m2 * 0.5, m2, m3 }, stars = cleared and stars or 0 }
+        marks = { m1 or m2 * 0.5, m2, m3 }, stars = cleared and stars or 0 }
     -- a rising sound under the count-up
     if self.rampHandle and type(StopSound) == "function" then pcall(StopSound, self.rampHandle, 0) end
     local _, rh = GP:PlaySfx("star_ramp.ogg")
@@ -3785,12 +3795,8 @@ end
 -- to the editor. Nothing is recorded.
 function UI:OnCustomOver(result)
     local spec = self.state
-    local stars = 0
     local marks = self.customStars or {}
-    if result.cleared then
-        stars = 1
-        for _, m in ipairs(marks) do if result.score >= m then stars = stars + 1 end end
-    end
+    local stars = result.cleared and L.StarsFromMarks(result.score, marks[1], marks[2], marks[3]) or 0
     self:ShowBanner(result.cleared and "|cffffd700TEST: CLEARED|r" or "|cffff8060TEST: NOT CLEARED|r",
         ("Score %s  -  %d star%s"):format(fmtBig(result.score), stars, stars == 1 and "" or "s"), 3)
     GP:PlaySfx(result.cleared and "clear.ogg" or "lost.ogg")
@@ -4598,10 +4604,10 @@ function UI:UpdateCounters()
         status = ("Pyramid: %d strike%s left"):format(st.pyramidHits, st.pyramidHits == 1 and "" or "s")
     end
     self.powerStatus:SetText(status)
-    local s2, s3 = L:StarScores(st.level)
-    local live = L:StarsFor(st.level, st.score, true)
+    local s2, s3, s1 = starMarks(st)
+    local live = L.StarsFromMarks(st.score, s2, s3, s1)
     setStars(self.sideStars, live, st.phase == E.PHASE.OVER and 1 or 0.6)
-    self.starNeedText:SetText(("2 stars at %s, 3 at %s"):format(fmtBig(s2), fmtBig(s3)))
+    self.starNeedText:SetText((s1 and ("1 star at %s, "):format(fmtBig(s1)) or "") .. ("2 stars at %s, 3 at %s"):format(fmtBig(s2), fmtBig(s3)))
 end
 
 function UI:UpdateDisplay()

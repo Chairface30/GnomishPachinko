@@ -103,6 +103,11 @@ function ED:Sanitize(d)
     local g = L:CustomGoals(type(d.goals) == "table" and { goals = d.goals } or d)
     out.goals = { oranges = g.oranges and true or nil, longshots = g.longshots and floor(num(g.longshots, 1, 20, 3)) or nil }
     out.oranges = d.oranges and floor(num(d.oranges, 0, 200, 0)) or nil
+    if type(d.stars) == "table" then
+        local st = {}
+        for k = 1, 3 do if d.stars[k] then st[k] = floor(num(d.stars[k], 0, 99999999, 0)) end end
+        if st[1] or st[2] or st[3] then out.stars = st end
+    end
     out.noBucket = d.noBucket and true or nil
     out.level = floor(num(d.level, 1, L.COUNT, 1))
     out.movers = {}
@@ -1139,6 +1144,7 @@ function ED:Approve(n)
     -- only a submitted level names its builder; the owner's own carry no credit
     if not d.imported then d.author = nil end
     self:DB().approved[n] = d
+    if L.starCache then L.starCache[n] = nil end
     self:Status(("Approved for level %d. It replaces that level on this account now; ask for the approved levels to be imported into the addon to ship it."):format(n))
 end
 
@@ -1239,7 +1245,7 @@ local function editBox(parent, w, h)
 end
 
 ED.FIELD_X, ED.FIELD_Y = 176, -96
-ED.FRAME_W, ED.FRAME_H = 1010, 950
+ED.FRAME_W, ED.FRAME_H = 1010, 980
 
 function ED:Create()
     if self.frame then return end
@@ -1395,52 +1401,66 @@ function ED:Create()
     self.copyBtn = rbtn(0, -216, 286, "Start from this level's layout", function() ED:CopyLevel() end,
         "Replace the board with the layout of the level number above (its pieces, moving parts and goal), to edit.")
 
-    rtext(-250, "Selection", 14)
-    self.selText = rtext(-272, "")
+    -- the score for one, two and three stars (blank: the first comes with
+    -- clearing the level, the others are worked out from the board)
+    rtext(-244, "Stars")
+    self.starBoxes = {}
+    for k = 1, 3 do
+        local lab = text(frame, 12)
+        lab:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 44 + (k - 1) * 82, -244)
+        lab:SetText(k .. ":")
+        local eb = editBox(frame, 62, 20)
+        eb:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 60 + (k - 1) * 82, -240)
+        eb:SetScript("OnEnterPressed", function(box) box:ClearFocus(); ED:SetStarMarks() end)
+        eb:SetScript("OnEditFocusLost", function() ED:SetStarMarks() end)
+        self.starBoxes[k] = eb
+    end
+    rtext(-276, "Selection", 14)
+    self.selText = rtext(-298, "")
     -- where the selection is: one piece's own spot, or a group's middle
-    rtext(-296, "X")
+    rtext(-322, "X")
     self.xBox = editBox(frame, 52, 20)
-    self.xBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 16, -292)
+    self.xBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 16, -318)
     self.xBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:MoveTo() end)
     local ylab = text(frame, 12)
-    ylab:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 78, -296)
+    ylab:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 78, -322)
     ylab:SetText("Y")
     self.yBox = editBox(frame, 52, 20)
-    self.yBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 94, -292)
+    self.yBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 94, -318)
     self.yBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:MoveTo() end)
-    rbtn(156, -292, 130, "Move", function() ED:MoveTo() end,
+    rbtn(156, -318, 130, "Move", function() ED:MoveTo() end,
         "One piece: put it at X, Y. Several: move the group so its middle is at X, Y. Enter in a box does the same. Pixels from the middle of the board (the dotted lines): X is minus to the left and plus to the right, Y plus upward and minus downward.")
-    rbtn(0, -317, 68, "Line up X", function() ED:LineUp("x") end, "Every selected piece to the X in the box (a column).")
-    rbtn(73, -317, 68, "Line up Y", function() ED:LineUp("y") end, "Every selected piece to the Y in the box (a row).")
-    rbtn(146, -317, 68, "Spread X", function() ED:Spread("x") end, "Space the selected pieces evenly from left to right, between the outermost two.")
-    rbtn(218, -317, 68, "Spread Y", function() ED:Spread("y") end, "Space the selected pieces evenly from top to bottom, between the outermost two.")
-    rbtn(0, -342, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
-    rbtn(97, -342, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
-    rbtn(194, -342, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
-    self.colorBtn = rbtn(0, -367, 140, "Colors: all dealt", function() ED:ClearColors() end,
+    rbtn(0, -343, 68, "Line up X", function() ED:LineUp("x") end, "Every selected piece to the X in the box (a column).")
+    rbtn(73, -343, 68, "Line up Y", function() ED:LineUp("y") end, "Every selected piece to the Y in the box (a row).")
+    rbtn(146, -343, 68, "Spread X", function() ED:Spread("x") end, "Space the selected pieces evenly from left to right, between the outermost two.")
+    rbtn(218, -343, 68, "Spread Y", function() ED:Spread("y") end, "Space the selected pieces evenly from top to bottom, between the outermost two.")
+    rbtn(0, -368, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
+    rbtn(97, -368, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
+    rbtn(194, -368, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
+    self.colorBtn = rbtn(0, -393, 140, "Colors: all dealt", function() ED:ClearColors() end,
         "Pegs and bricks back to plain dealing: any color at random on every attempt.")
-    rbtn(146, -367, 68, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step through half, full, one and a half and double; bars shorter; round pieces smaller.")
-    rbtn(218, -367, 68, "Bigger", function() ED:Resize(1) end)
+    rbtn(146, -393, 68, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step through half, full, one and a half and double; bars shorter; round pieces smaller.")
+    rbtn(218, -393, 68, "Bigger", function() ED:Resize(1) end)
     -- turning by an exact number of degrees, or setting a bar's angle outright
-    rbtn(0, -392, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
+    rbtn(0, -418, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
     self.degBox = editBox(frame, 46, 20)
-    self.degBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -393)
+    self.degBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -419)
     self.degBox:SetText("15")
     if self.degBox.SetJustifyH then self.degBox:SetJustifyH("CENTER") end
     self.degBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:TurnBy(1) end)
-    rbtn(102, -392, 40, "+", function() ED:TurnBy(1) end, "Turn the selection by the degrees in the box, clockwise. Enter in the box does the same.")
-    rbtn(148, -392, 138, "Set angle", function() ED:SetAngle() end,
+    rbtn(102, -418, 40, "+", function() ED:TurnBy(1) end, "Turn the selection by the degrees in the box, clockwise. Enter in the box does the same.")
+    rbtn(148, -418, 138, "Set angle", function() ED:SetAngle() end,
         "Set every selected bar (brick, steel bar, cage bar) to the angle in the box, in degrees: 0 is level, 90 upright. Each turns where it stands.")
-    rbtn(0, -417, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
-    rbtn(97, -417, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
-    rbtn(194, -417, 92, "Mirror copy", function() ED:MirrorCopyAcross() end, "A mirrored copy on the other side of the middle line.")
-    rbtn(0, -442, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
-    rbtn(97, -442, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
-    rbtn(194, -442, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
-    rbtn(0, -467, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
-    rbtn(146, -467, 140, "Unrail", function() ED:ClearRail() end)
-    rbtn(0, -492, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
-    rbtn(146, -492, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
+    rbtn(0, -443, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
+    rbtn(97, -443, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
+    rbtn(194, -443, 92, "Mirror copy", function() ED:MirrorCopyAcross() end, "A mirrored copy on the other side of the middle line.")
+    rbtn(0, -468, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
+    rbtn(97, -468, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
+    rbtn(194, -468, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
+    rbtn(0, -493, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
+    rbtn(146, -493, 140, "Unrail", function() ED:ClearRail() end)
+    rbtn(0, -518, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
+    rbtn(146, -518, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
 
     -- each colour for the selected pegs and bricks: orange and green go
     -- dealt -> never -> always -> dealt; purple (it hops every shot) can land or never
@@ -1451,35 +1471,35 @@ function ED:Create()
         purple = "Purple hops to a new peg every shot: let it land here, or never.",
     }
     for k, which in ipairs({ "orange", "green", "purple" }) do
-        local b = rbtn((k - 1) * 97, -517, 92, "", function() ED:CycleColorState(which) end, tips[which])
+        local b = rbtn((k - 1) * 97, -543, 92, "", function() ED:CycleColorState(which) end, tips[which])
         self.colorBtns[which] = b
     end
-    rtext(-549, "Moving parts", 14)
-    self.moverText = rtext(-571, "")
-    self.moverBtn = rbtn(0, -591, 286, "Make them move", function() ED:CycleMover() end,
+    rtext(-575, "Moving parts", 14)
+    self.moverText = rtext(-597, "")
+    self.moverBtn = rbtn(0, -617, 286, "Make them move", function() ED:CycleMover() end,
         "The selected pieces move together: slide side to side, lift up and down, wheel round their middle, or swing like a pendulum. Click again for the next kind; after Swing they stop moving.")
-    rbtn(0, -616, 68, "Range -", function() ED:TuneMover("amp", -1) end)
-    rbtn(73, -616, 68, "Range +", function() ED:TuneMover("amp", 1) end)
-    rbtn(146, -616, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
-    rbtn(218, -616, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
-    rbtn(0, -641, 286, "Reverse direction", function() ED:TuneMover("reverse") end)
+    rbtn(0, -642, 68, "Range -", function() ED:TuneMover("amp", -1) end)
+    rbtn(73, -642, 68, "Range +", function() ED:TuneMover("amp", 1) end)
+    rbtn(146, -642, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
+    rbtn(218, -642, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
+    rbtn(0, -667, 286, "Reverse direction", function() ED:TuneMover("reverse") end)
 
-    rtext(-675, "Files", 14)
-    rbtn(0, -697, 92, "New", function() ED:NewLevel() end)
-    rbtn(97, -697, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
-    rbtn(194, -697, 92, "Load", function() ED:ShowList() end)
-    rbtn(0, -722, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
-    self.testBtn = rbtn(146, -722, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
-    self.importBtn = rbtn(0, -747, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
-    self.approveBtn = rbtn(146, -747, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
+    rtext(-701, "Files", 14)
+    rbtn(0, -723, 92, "New", function() ED:NewLevel() end)
+    rbtn(97, -723, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
+    rbtn(194, -723, 92, "Load", function() ED:ShowList() end)
+    rbtn(0, -748, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
+    self.testBtn = rbtn(146, -748, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
+    self.importBtn = rbtn(0, -773, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
+    self.approveBtn = rbtn(146, -773, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
         "Owner: this level replaces the level number above.")
-    self.unapproveBtn = rbtn(0, -772, 286, "Remove approval for level", function() ED:Unapprove(ED.data.level) end)
+    self.unapproveBtn = rbtn(0, -798, 286, "Remove approval for level", function() ED:Unapprove(ED.data.level) end)
 
-    self.statusText = rtext(-805, "", 11)
+    self.statusText = rtext(-831, "", 11)
     self.statusText:SetWidth(286)
     self.statusText:SetJustifyV("TOP")
     self.statusText:SetTextColor(0.75, 1, 0.75)
-    self.problemText = rtext(-865, "", 11)
+    self.problemText = rtext(-891, "", 11)
     self.problemText:SetWidth(286)
     self.problemText:SetJustifyV("TOP")
     self.problemText:SetTextColor(1, 0.55, 0.45)
@@ -1720,6 +1740,33 @@ function ED:AutoOranges()
     return math.max(1, floor(n * 0.3 + 0.5), self:PinnedOranges())
 end
 
+-- the three star boxes into the level: a number each, blank for automatic
+function ED:SetStarMarks()
+    if not self.starBoxes then return end
+    local marks, any = {}, false
+    for k = 1, 3 do
+        local v = tonumber((self.starBoxes[k]:GetText() or ""):gsub("[,%s]", ""), 10)
+        if v and v == v and v >= 0 then marks[k] = floor(v); any = true end
+    end
+    local old = self.data.stars
+    local same = (not any and not old) or (old and any and old[1] == marks[1] and old[2] == marks[2] and old[3] == marks[3])
+    if same then return end
+    self:PushUndo()
+    self.data.stars = any and marks or nil
+    if (marks[1] and marks[2] and marks[1] >= marks[2]) or (marks[2] and marks[3] and marks[2] >= marks[3])
+        or (marks[1] and marks[3] and marks[1] >= marks[3]) then
+        self:Status("Star scores should climb: 1 star lowest, 3 stars highest.")
+    end
+    self:Refresh()
+end
+
+-- the marks the level ends up with: the boxes, or the formula's for blanks
+function ED:EffectiveStars()
+    if #self.data.pieces == 0 then return nil end
+    local spec = L:BuildCustom(self:Sanitize(self.data), self.data.level or 1, 0)
+    return spec.stars
+end
+
 function ED:CopyLevel()
     local n = self.data.level or 1
     self:PushUndo()
@@ -1874,6 +1921,20 @@ function ED:Refresh()
     local pinned = self:PinnedOranges()
     local split = (pinned > 0) and (" (%d always orange, %d random)"):format(pinned, total - pinned) or ""
     self.orangeText:SetText((d.oranges and "Oranges: " or "Oranges: auto ") .. total .. split)
+    -- the star boxes: the level's own marks, the formula's shown faded where blank
+    if self.starBoxes then
+        local eff = self:EffectiveStars()
+        local own = d.stars or {}
+        for k = 1, 3 do
+            local box = self.starBoxes[k]
+            if not (box.HasFocus and box:HasFocus()) then
+                local v = own[k]
+                box:SetText(v and tostring(v) or "")
+                if box.SetTextColor then box:SetTextColor(1, 1, 1) end
+            end
+        end
+        self.starAuto = eff
+    end
     local approved = self:DB().approved[d.level or 1]
     self.levelText:SetText(("Level number: %d%s"):format(d.level or 1, approved and "  |cff88ff88(approved)|r" or ""))
     ART:Set(self.fieldBg, ART:FieldBackdrop(d.level or 1))
@@ -1924,6 +1985,14 @@ function ED:Refresh()
     local lines = { #d.pieces .. " pieces" }
     for _, t in ipairs(self.TOOLS) do
         if counts[t] then lines[#lines + 1] = counts[t] .. "  " .. L.EDIT_TYPES[t].name end
+    end
+    -- the star scores the level ends up with (the boxes, or worked out from the board)
+    local eff = self.starAuto
+    if eff then
+        local function k(v) return v and (v >= 1000 and (floor(v / 1000 + 0.5) .. "k") or tostring(v)) or "clear" end
+        lines[#lines + 1] = ""
+        lines[#lines + 1] = "Stars at:"
+        lines[#lines + 1] = ("1: %s  2: %s  3: %s"):format(k(eff[3]), k(eff[1]), k(eff[2]))
     end
     self.countText:SetText(table.concat(lines, "\n"))
     local probs = self:Problems()

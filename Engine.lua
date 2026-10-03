@@ -378,6 +378,7 @@ function E:NewLevel(spec)
         title = spec.title,
         seed = spec.seed,
         layout = spec.layout,
+        stars = spec.stars,         -- { two-star mark, three-star mark, one-star mark or nil }
         author = spec.author,       -- a player's level from the editor: its builder, credited on the card
         objective = spec.objective or "classic",
         pegs = spec.pegs,

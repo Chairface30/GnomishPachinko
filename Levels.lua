@@ -1112,15 +1112,23 @@ function L:StarScores(n)
         c = spec.stars
         self.starCache[n] = c
     end
-    return c[1], c[2]
+    return c[1], c[2], c[3]
+end
+
+-- Stars for a score against the marks: s2 and s3 for two and three stars;
+-- s1 (a level from the editor may set one) for the first, which otherwise
+-- comes with clearing the level. A level cleared below s1 is still cleared.
+function L.StarsFromMarks(score, s2, s3, s1)
+    if s3 and score >= s3 then return 3 end
+    if s2 and score >= s2 then return 2 end
+    if s1 and score < s1 then return 0 end
+    return 1
 end
 
 function L:StarsFor(n, score, cleared)
     if not cleared then return 0 end
-    local s2, s3 = self:StarScores(n)
-    if score >= s3 then return 3 end
-    if score >= s2 then return 2 end
-    return 1
+    local s2, s3, s1 = self:StarScores(n)
+    return L.StarsFromMarks(score, s2, s3, s1)
 end
 
 -- Pieces may sit as close as the pattern wants, even touching; only real
@@ -1906,5 +1914,10 @@ function L:BuildCustom(data, n, attempt)
         power = data.power or self:PowerFor(chapter),
     }
     spec.stars = { self:ParFor(spec) }
+    -- the editor's own star marks, where set (blank ones keep the formula's)
+    local marks = data.stars
+    if type(marks) == "table" then
+        spec.stars = { marks[2] or spec.stars[1], marks[3] or spec.stars[2], marks[1] }
+    end
     return spec
 end

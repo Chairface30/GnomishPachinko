@@ -1526,12 +1526,12 @@ check("when the last two goal hits come in one swoop the slow-mo starts before t
       cc is not None and cc.litB is not None and cc.slowAt is not None and cc.slowAt < cc.litA, str(dict(cc) if cc else None))
 
 # stars come from the level's own pieces
-s2, s3 = ev("L:StarScores(1)")
+s2, s3, *_ = ev("L:StarScores(1)")
 check("stars: none for a loss, one for a clear, two and three at the marks",
       [ev(f"L:StarsFor(1, {s}, {c})") for s, c in ((999999, "false"), (1000, "true"), (s2 - 1, "true"), (s2, "true"), (s3, "true"))] == [0, 1, 1, 2, 3])
-b2, b3 = ev("L:StarScores(81)")
+b2, b3, *_ = ev("L:StarScores(81)")
 check("a fuller board asks for a higher score", b2 > s2 * 1.2 and b3 > s3 * 1.2, f"level 1 {s2}/{s3}, level 81 {b2}/{b3}")
-check("star marks are cached and reproducible", ev("L:StarScores(81)") == (b2, b3))
+check("star marks are cached and reproducible", ev("L:StarScores(81)")[:2] == (b2, b3))
 
 # ------------------------------------------------------------------ plays vault
 lua(r"""
@@ -2900,7 +2900,7 @@ for attempt = 0, 12 do
 end
 """)
 check("the Super Slide tutorial's spiral is never green", ev("__spiralGreen") == 0)
-check("level 8 asks 500k for three stars, level 10 less than before", ev("select(2, L:StarScores(8))") == 500000 and ev("(L:StarScores(8))") == 300000 and ev("select(2, L:StarScores(10))") == 260000)
+check("level 8 asks 500k for three stars, level 10 less than before", ev("(select(2, L:StarScores(8)))") == 500000 and ev("(L:StarScores(8))") == 300000 and ev("(select(2, L:StarScores(10)))") == 260000)
 
 # a chapter's rewards flash on the left instead of being written on the card
 lua(r"""
@@ -4450,6 +4450,34 @@ check("Super Slide: grazing in on the inside of a bend rides it and leaves at th
       rr["insideRides"] and rr["exitSpeed"] is not None and rr["entrySpeed"] < 180 and abs(rr["exitSpeed"] - rr["entrySpeed"]) <= ev("E.GRAVITY * E.STEP") + 1, str(rr))     # (one step of gravity after it leaves)
 check("Super Slide: the outside of a bend never rides; an S-bend's ride stops where the bend flips; a straight rail is never ridden",
       not rr["outsideRides"] and rr["sFlips"] and rr["sRideStops"] and rr["straightNever"], str(rr))
+
+# star scores set in the editor: 1, 2 and 3 stars; a clear below the 1-star score earns none
+lua(r"""
+ED:NewLevel()
+for k = 1, 12 do ED:AddPiece("peg", 40 + k * 30, 380) end
+ED.starBoxes[1]:SetText("20000"); ED.starBoxes[2]:SetText("50,000"); ED.starBoxes[3]:SetText("90000")
+ED:SetStarMarks()
+local d = ED:Sanitize(ED.data)
+__marksSaved = d.stars[1] == 20000 and d.stars[2] == 50000 and d.stars[3] == 90000
+local spec = L:BuildCustom(d, 5, 0)
+__specMarks = spec.stars[1] == 50000 and spec.stars[2] == 90000 and spec.stars[3] == 20000
+__counts = { L.StarsFromMarks(10000, 50000, 90000, 20000), L.StarsFromMarks(20000, 50000, 90000, 20000),
+             L.StarsFromMarks(60000, 50000, 90000, 20000), L.StarsFromMarks(95000, 50000, 90000, 20000),
+             L.StarsFromMarks(10000, 50000, 90000, nil) }
+-- blanks: the first star comes with clearing, the others are worked out
+ED.starBoxes[1]:SetText(""); ED.starBoxes[2]:SetText(""); ED.starBoxes[3]:SetText("")
+ED:SetStarMarks()
+__blank = ED.data.stars == nil and L:BuildCustom(ED:Sanitize(ED.data), 5, 0).stars[3] == nil
+-- the level card of a test shows the level's own marks
+ED.starBoxes[1]:SetText("1234"); ED:SetStarMarks()
+ED:Test()
+__cardMarks = (UI.card.line2:GetText() or ""):find("1 star", 1, true) ~= nil and (UI.card.line2:GetText() or ""):find("1234", 1, true) ~= nil
+UI:BackToEditor()
+""")
+c = list(ev("__counts").values())
+check("Star scores set in the editor: kept and built (1, 2 and 3), a clear below the 1-star score earns none, blanks stay automatic, a test's card shows them",
+      ev("__marksSaved") and ev("__specMarks") and c == [0, 1, 2, 3, 1] and ev("__blank") and ev("__cardMarks"),
+      f'{ev("__marksSaved")} {ev("__specMarks")} {c} {ev("__blank")} {ev("__cardMarks")}')
 
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
