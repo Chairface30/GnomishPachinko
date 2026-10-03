@@ -3728,6 +3728,9 @@ function UI:UpdateZoom(dt)
     local hold = self.slowSeenAt and (now - self.slowSeenAt) < 0.25 and st and st.phase == E.PHASE.FLIGHT
     local fine = self.fineAim and st and st.phase == E.PHASE.AIM and self.guideEnd
     local target = (slow or hold) and E.LAST_ZOOM or (fine and FINE_ZOOM or 1)
+    -- the last gem (or egg) falling: still slowed, but the view eases back
+    -- out to the whole board so the bucket can be seen catching it or not
+    if st and st.looseSlow and st.lastSlow then target = 1 end
     local cur = self.zoomScale or 1
     if math.abs(target - cur) < 0.002 then
         if cur == 1 and self.zoomApplied == 1 then return end

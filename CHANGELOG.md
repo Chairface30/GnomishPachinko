@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The last gem's (or egg's) fall stays in slow motion but zooms back out to the whole board, so you can see whether the bucket catches it.
 - Fixed: the Levels button beside the board opened the map behind the level cleared card, which stayed on screen. Any card is now closed first.
 - Gems are heavier: a hit shoves a gem 3.5 times less than before. The temporary Gem mass slider is gone from the Testing fly-out.
 - **Super Slides are earned, not handed out.** A ride lights only the bricks the ball actually glides past; hitting the lead brick no longer lights the whole chain. And the ball takes a rail only in at a mouth (either end brick) or coming in grazing along the face (within about 35 degrees); a squarer hit on a brick mid-chain is an ordinary brick hit that bounces and lights just that brick.

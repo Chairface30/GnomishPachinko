@@ -2778,6 +2778,25 @@ UI:HideLevelSelect()
 """)
 check("the Levels button takes the level cleared card off the screen", ev("__cardUpBefore") and ev("__cardGone"), f"{ev('__cardUpBefore')} {ev('__cardGone')}")
 
+# the last gem's fall: slowed, but the view eases back out to the whole board
+lua(r"""
+UI:StartLevel(23, true)
+UI:ShowBoardContents()
+local st = UI.state
+local gem
+for _, p in ipairs(st.pegs) do if p.kind == "gem" then gem = p break end end
+UI.zoomScale = E.LAST_ZOOM
+st.phase = E.PHASE.FLIGHT
+st.looseSlow, st.lastSlow, st.lastPeg = gem, true, gem
+for _ = 1, 60 do UI:UpdateZoom(1 / 30) end
+__gemZoom = UI.zoomScale
+st.looseSlow, st.lastSlow, st.lastPeg = nil, false, nil
+st.phase = E.PHASE.AIM
+UI.zoomScale = 1
+UI:UpdateZoom(1 / 30)
+""")
+check("while the last gem falls the view zooms back out to the whole board", abs(ev("__gemZoom") - 1) < 0.01, str(ev("__gemZoom")))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
