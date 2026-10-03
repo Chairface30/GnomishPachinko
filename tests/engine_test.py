@@ -4256,6 +4256,39 @@ __spread = math.abs((xs[2] - xs[1]) - (xs[3] - xs[2])) < 1e-6
 check("X / Y boxes: show a piece's spot, put it at a typed spot, move a group's middle (one axis left blank keeps it), line up a row and spread it evenly",
       ev("__shown") and ev("__single") and ev("__group") and ev("__row") and ev("__spread"))
 
+# Bigger / Smaller work on every piece, and the game builds the new sizes
+lua(r"""
+ED:NewLevel()
+local before, idx = {}, {}
+for _, t in ipairs(ED.TOOLS) do
+  if L.EDIT_TYPES[t] then
+    local i = ED:AddPiece(t, 60 + #idx * 30, 250 + (#idx % 3) * 60)
+    idx[#idx + 1] = i
+  end
+end
+local function size(pc) return ED.IsBar(pc) and (pc.w or 0) or ED:PieceRadius(pc) end
+for _, i in ipairs(idx) do before[i] = size(ED.data.pieces[i]) end
+ED.sel = {}
+for _, i in ipairs(idx) do ED.sel[i] = true end
+ED:Resize(-1)
+local stuck = {}
+for _, i in ipairs(idx) do
+  local pc = ED.data.pieces[i]
+  if size(pc) >= before[i] then stuck[#stuck + 1] = pc.t end
+end
+-- the game uses the new sizes, cradles and all
+local spec = L:BuildCustom(ED:Sanitize(ED.data), 5, 0)
+local gameOk = true
+for _, p in ipairs(spec.pegs) do
+  local pc = ED.data.pieces[p.editIdx]
+  if p.editIdx and not p.cradle and pc and not ED.IsBar(pc) and math.abs((p.r or E.PEG_R) - ED:PieceRadius(pc)) > 0.01 then gameOk = false end
+end
+__resizeStuck = table.concat(stuck, ",")
+__resizeGame = gameOk
+""")
+check("Smaller works on every kind of piece (bricks to half, bars shorter, round pieces smaller), and the game builds them at that size",
+      ev("__resizeStuck") == "" and ev("__resizeGame"), ev("__resizeStuck"))
+
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
 ED:NewLevel()

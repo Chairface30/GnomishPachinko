@@ -1664,6 +1664,14 @@ function L:CustomPieces(pc)
         for _, b in ipairs(cradleFor(body, t)) do out[#out + 1] = b end
     end
     local p = out[1]
+    -- a round piece made bigger or smaller in the editor
+    if p and pc.r and (t == "peg" or t == "bumper" or t == "key" or t == "egg" or t == "gem") then
+        p.r = pc.r
+        if t == "egg" or t == "gem" then
+            for k = #out, 2, -1 do out[k] = nil end
+            for _, b in ipairs(cradleFor(p, t)) do out[#out + 1] = b end
+        end
+    end
     if p then
         if t == "peg" or t == "brick" then
             local c = pc.c or (pc.o and "orange") or nil

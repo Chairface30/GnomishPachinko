@@ -271,8 +271,14 @@ end
 -- ---------------------------------------------------------------------
 -- Pieces: size, hit test, the pieces in a box
 
+-- round pieces' sizes: smallest, biggest and normal radius, in pixels
+ED.SIZE_RANGE = {
+    peg = { 6, 20, E.PEG_R }, bumper = { 10, 30, E.BUMPER_R }, key = { 7, 16, 10 },
+    egg = { 16, 30, E.EGG_R }, gem = { 14, 28, E.GEM_R }, rblock = { 6, 30, 11 },
+}
 function ED:PieceRadius(pc)
     local t = pc.t
+    if pc.r and t ~= "balloon" then return pc.r end
     if t == "rblock" or t == "balloon" then return pc.r or L.EDIT_TYPES[t].r end
     if t == "bumper" then return E.BUMPER_R end
     if t == "key" then return 10 end
@@ -650,7 +656,12 @@ function ED:Resize(step)
             local k = 1
             for j, r in ipairs(sizes) do if (pc.r or 16) >= r then k = j end end
             pc.r = sizes[math.max(1, math.min(#sizes, k + step))]
-        elseif pc.t == "rblock" then pc.r = math.max(6, math.min(30, (pc.r or 11) + step * 2)) end
+        elseif self.SIZE_RANGE[pc.t] then
+            local range = self.SIZE_RANGE[pc.t]
+            local lo, hi, def = range[1], range[2], range[3]
+            pc.r = math.max(lo, math.min(hi, (pc.r or def) + step * 2))
+            if pc.r == def then pc.r = nil end
+        end
     end)
 end
 
@@ -1279,7 +1290,7 @@ function ED:Create()
     rbtn(194, -342, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
     self.colorBtn = rbtn(0, -367, 140, "Color: dealt", function() ED:CycleColor() end,
         "Pegs and bricks: dealt at random on every attempt, or set to orange, blue or green for good.")
-    rbtn(146, -367, 68, "Smaller", function() ED:Resize(-1) end, "Bars shorter, balloons and studs smaller.")
+    rbtn(146, -367, 68, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step between full and half, bars shorter, round pieces smaller.")
     rbtn(218, -367, 68, "Bigger", function() ED:Resize(1) end)
     -- turning by an exact number of degrees, or setting a bar's angle outright
     rbtn(0, -392, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
