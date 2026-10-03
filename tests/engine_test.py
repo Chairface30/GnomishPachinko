@@ -2147,6 +2147,8 @@ __shopOut = UI.infoPanel:IsShown() and not UI.shopPanel:IsShown() and UI.playsTe
 """)
 check("the shop button swaps the info for the Golden Gear shop, Leave shop swaps it back", ev("__shopIn") and ev("__shopOut"))
 check("the shop button is the golden gear and Get Golden Gears sits in the shop", ev("__gearSprite"))
+check("Restart, Level Select and Next Level wear their gnomish plates",
+      ev("UI.retryBtn.skin.pieces[5].slot") == "btn_restart" and ev("UI.levelsBtn.skin.pieces[5].slot") == "btn_levels" and ev("UI.nextBtn.skin.pieces[5].slot") == "btn_next")
 lua("UI:StartLevel(15, true); __eggWord = UI.goalLabel.slot")
 check("the info headings are word-art; the goal heading follows the objective", ev("__eggWord") == "word_goal_eggs", str(ev("__eggWord")))
 

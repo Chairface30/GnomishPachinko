@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Restart, Level Select and Next Level are gnomish plates:** colored enamel (copper-red, blue, green) in a riveted brass rim, an icon in a porthole, and the word in cream with the cog-and-piston letters.
 - **The info headings are brass word-art** (Objective, Power, Balls, Score and the rest), every O a cogwheel and every I a piston. The goal heading changes with the objective. `tools/word_art.py` draws them.
 - **The shop button is a shiny golden gear** that turns and glows under the mouse. **Get Golden Gears** now sits in the shop, under the offers, and the level buttons close up at the bottom of the column.
 

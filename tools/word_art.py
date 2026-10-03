@@ -201,6 +201,107 @@ def gear_sprite(size=128):
     return canvas.resize((size, size), Image.LANCZOS)
 
 
+# The side column's buttons: an enamelled plate in a riveted brass rim,
+# an icon in a porthole on the left, the word in cream with the same cog
+# and piston letters.
+BUTTONS = {
+    "btn_next":    ("NEXT LEVEL",   (90, 200, 90), (24, 100, 40), "next"),
+    "btn_restart": ("RESTART",      (240, 120, 70), (150, 40, 20), "restart"),
+    "btn_levels":  ("LEVEL SELECT", (80, 170, 230), (24, 70, 140), "map"),
+}
+
+
+def _icon(kind, size):
+    """A cream icon on transparent, `size` square."""
+    m = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(m)
+    cream = (255, 246, 220, 255)
+    c, r = size / 2, size * 0.36
+    w = max(2, int(size * 0.1))
+    if kind == "restart":
+        d.arc([c - r, c - r, c + r, c + r], 40, 330, fill=cream, width=w)
+        a = math.radians(40)
+        tx, ty = c + math.cos(a) * r, c + math.sin(a) * r
+        s = size * 0.2
+        d.polygon([(tx + s * 0.9, ty - s * 0.2), (tx - s * 0.6, ty - s * 0.5), (tx - s * 0.1, ty + s * 0.8)], fill=cream)
+    elif kind == "map":
+        x0, y0, x1, y1 = size * 0.16, size * 0.24, size * 0.84, size * 0.78
+        d.polygon([(x0, y0), (c - size * 0.11, y0 - size * 0.06), (c + size * 0.11, y0), (x1, y0 - size * 0.06),
+                   (x1, y1 - size * 0.06), (c + size * 0.11, y1), (c - size * 0.11, y1 - size * 0.06), (x0, y1)], outline=cream, width=w)
+        for k, (px, py) in enumerate(((0.3, 0.62), (0.46, 0.5), (0.6, 0.58))):
+            rr = size * 0.035
+            d.ellipse([size * px - rr, size * py - rr, size * px + rr, size * py + rr], fill=cream)
+        pr = size * 0.09
+        d.ellipse([size * 0.72 - pr, size * 0.36 - pr, size * 0.72 + pr, size * 0.36 + pr], fill=(255, 90, 70, 255))
+    else:   # next: two chevrons
+        for k in (0, 1):
+            ox = size * (0.22 + 0.24 * k)
+            d.line([(ox, size * 0.24), (ox + size * 0.24, c), (ox, size * 0.76)], fill=cream, width=w + 1, joint="curve")
+    return m
+
+
+def plate_button(text, top, bottom, icon):
+    bw, bh = W * SS, H * SS
+    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rad = int(bh * 0.32)
+    # the brass rim
+    rim = Image.new("RGBA", (bw, bh))
+    rd = ImageDraw.Draw(rim)
+    for y in range(bh):
+        t = y / (bh - 1)
+        k = 1 - t
+        rd.line([(0, y), (bw, y)], fill=tuple(int(BRASS_BOTTOM[i] + (BRASS_TOP[i] - BRASS_BOTTOM[i]) * k) for i in range(3)) + (255,))
+    rmask = Image.new("L", (bw, bh), 0)
+    ImageDraw.Draw(rmask).rounded_rectangle([0, 0, bw - 1, bh - 1], radius=rad, fill=255)
+    img.paste(rim, (0, 0), rmask)
+    d.rounded_rectangle([0, 0, bw - 1, bh - 1], radius=rad, outline=OUTLINE + (255,), width=SS * 2)
+    # the enamel
+    inset = int(bh * 0.13)
+    en = Image.new("RGBA", (bw, bh))
+    ed = ImageDraw.Draw(en)
+    for y in range(bh):
+        t = y / (bh - 1)
+        k = 1 - abs(t - 0.25) / 0.75 if t >= 0.25 else 1
+        ed.line([(0, y), (bw, y)], fill=tuple(int(bottom[i] + (top[i] - bottom[i]) * k) for i in range(3)) + (255,))
+    emask = Image.new("L", (bw, bh), 0)
+    ImageDraw.Draw(emask).rounded_rectangle([inset, inset, bw - 1 - inset, bh - 1 - inset], radius=rad - inset, fill=255)
+    img.paste(en, (0, 0), emask)
+    # a gloss across the top half
+    gloss = Image.new("L", (bw, bh), 0)
+    ImageDraw.Draw(gloss).rounded_rectangle([inset + SS * 4, inset + SS * 2, bw - 1 - inset - SS * 4, bh // 2], radius=rad // 2, fill=60)
+    img = Image.alpha_composite(img, Image.merge("RGBA", (gloss.point(lambda v: 255),) * 3 + (gloss,)))
+    d = ImageDraw.Draw(img)
+    # rivets at the ends
+    for x in (inset * 2.2, bw - inset * 2.2):
+        for y in (bh * 0.32, bh * 0.68):
+            rr = SS * 2.6
+            d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=(250, 225, 150, 255), outline=OUTLINE + (255,), width=SS)
+    # the porthole and its icon
+    ph = int(bh * 0.74)
+    px = int(inset * 3.4)
+    py = (bh - ph) // 2
+    d.ellipse([px, py, px + ph, py + ph], fill=tuple(int(v * 0.55) for v in bottom) + (255,), outline=(250, 225, 150, 255), width=SS * 2)
+    ic = _icon(icon, ph)
+    img.alpha_composite(ic, (px, py))
+    # the word, in cream with a dark outline, centred in the rest of the plate
+    cap = int(bh * 0.46)
+    mask = word_mask(text, cap)
+    room = bw - (px + ph) - inset * 4
+    if mask.width > room:
+        f = room / mask.width
+        mask = mask.resize((room, max(1, int(mask.height * f))), Image.LANCZOS)
+    mx = px + ph + (bw - (px + ph) - inset * 2 - mask.width) // 2
+    my = (bh - mask.height) // 2
+    o = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    o.paste((40, 20, 8, 255), (mx, my), mask.filter(ImageFilter.MaxFilter(2 * SS + 1)))
+    img = Image.alpha_composite(img, o)
+    f = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    f.paste((255, 246, 220, 255), (mx, my), mask)
+    img = Image.alpha_composite(img, f)
+    return img.resize((W, H), Image.LANCZOS)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sheet", action="store_true")
@@ -218,6 +319,13 @@ def main():
         g = gear_sprite(128)
         g.save(os.path.join(OUT, "shop_gear.tga"), format="TGA")
         print("wrote shop_gear")
+    for slot, (text, top, bottom, icon) in BUTTONS.items():
+        if args.only and slot not in args.only:
+            continue
+        img = plate_button(text, top, bottom, icon)
+        img.save(os.path.join(OUT, slot + ".tga"), format="TGA")
+        made.append((slot, img))
+        print("wrote", slot)
     if args.sheet and made:
         sheet = Image.new("RGBA", (W, H * len(made)), (34, 30, 44, 255))
         for i, (_, img) in enumerate(made):
