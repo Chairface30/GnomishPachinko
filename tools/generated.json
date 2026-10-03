@@ -39,6 +39,11 @@
     "prompt": "A short victorious arcade jingle, bright and happy, level cleared.",
     "secs": 2.5
   },
+  "click_soft": {
+    "at": "2026-10-02 21:55",
+    "prompt": "A single soft, quiet mechanical click, like a small brass toggle switch, very short.",
+    "secs": 0.3
+  },
   "clink": {
     "at": "2026-10-01 17:39",
     "prompt": "A short bright metallic tink, a steel ball striking an iron peg, no reverb.",

@@ -92,11 +92,19 @@ end
 local function makeButton(parent, w, h, text, nodeSkin)
     local btn = CreateFrame("Button", nil, parent)
     btn:SetSize(w, h)
+    -- every button wears the logo's plate (words in gold on it) unless it
+    -- has a picture of its own
+    local plate = not nodeSkin
+    if plate then nodeSkin = (h < 34) and "btn_logo_small" or "btn_logo" end
     btn.nodeSkin = nodeSkin
-    btn.skin = ART:NewSkin(btn, nodeSkin or "button_grey", "BACKGROUND", 0)
+    btn.skin = ART:NewSkin(btn, nodeSkin, "BACKGROUND", 0)
     btn.text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     btn.text:SetPoint("CENTER")
     btn.text:SetText(text)
+    if plate then
+        btn.text:SetFont("Fonts\\FRIZQT__.TTF", (h >= 40) and 16 or 13, "OUTLINE")
+        btn.text:SetTextColor(1, 0.86, 0.35)
+    end
     btn:SetScript("OnEnter", function(self) if self:IsEnabled() then hoverButton(self, true) end end)
     btn:SetScript("OnLeave", function(self) if self:IsEnabled() then hoverButton(self, false) end end)
     btn:SetScript("OnMouseDown", function(self)
@@ -857,7 +865,7 @@ function UI:CreateFrame()
             self.tex:SetRotation(self.angle)
         end
     end)
-    gearBtn:SetScript("OnClick", function() GP:PlaySfx("clink.ogg"); UI:ShowShop(true) end)
+    gearBtn:SetScript("OnClick", function() UI:ShowShop(true) end)
     self.shopOpenBtn = gearBtn
     -- the Golden Gear shop, in the info's place
     local shop = CreateFrame("Frame", nil, side)
@@ -969,7 +977,7 @@ function UI:CreateCard()
     local card = CreateFrame("Frame", nil, self.frame)
     card:SetSize(UI.CARD_W, UI.CARD_H)
     card:SetPoint("CENTER", self.view, "CENTER", 0, 10)
-    card:SetFrameLevel(self.field:GetFrameLevel() + 6)
+    card:SetFrameLevel(self.field:GetFrameLevel() + UI.CARD_LEVEL)
     card.skin = ART:NewSkin(card, "card", "BACKGROUND", 0)
     card:EnableMouse(true)
     card:Hide()
@@ -978,7 +986,7 @@ function UI:CreateCard()
     local sheet = CreateFrame("Frame", nil, self.frame)
     sheet:SetSize(FW, FH)
     sheet:SetPoint("TOPLEFT", self.view, "TOPLEFT", 0, 0)
-    sheet:SetFrameLevel(self.field:GetFrameLevel() + 5)
+    sheet:SetFrameLevel(self.field:GetFrameLevel() + UI.CARD_LEVEL - 1)
     sheet:EnableMouse(true)
     sheet:Hide()
     self.cardSheet = sheet
@@ -999,6 +1007,30 @@ function UI:CreateCard()
         f:Hide()
         s.fill = f
     end
+    -- the result card: three big stars across the whole card, over even its
+    -- border, the middle one bigger and higher; the score big beneath them
+    local sf = CreateFrame("Frame", nil, card)
+    sf:SetAllPoints(card)
+    sf:SetFrameLevel(card:GetFrameLevel() + 12)
+    sf:Hide()
+    card.starFrame = sf
+    card.bigStars = {}
+    for i, spec in ipairs(UI.BIG_STARS) do
+        local base = sf:CreateTexture(nil, "ARTWORK", nil, spec.layer)
+        base:SetSize(spec.size, spec.size)
+        base:SetPoint("CENTER", card, "TOP", spec.x, spec.y)
+        ART:Set(base, spec.slot .. "_empty")
+        local fill = sf:CreateTexture(nil, "ARTWORK", nil, spec.layer + 1)
+        fill:SetPoint("LEFT", base, "LEFT", 0, 0)
+        fill:SetSize(spec.size, spec.size)
+        ART:Set(fill, spec.slot)
+        fill:Hide()
+        card.bigStars[i] = { base = base, fill = fill, size = spec.size }
+    end
+    card.bigScore = sf:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+    card.bigScore:SetPoint("TOP", card, "TOP", 0, UI.BIG_SCORE_Y)
+    card.bigScore:SetFont("Fonts\\FRIZQT__.TTF", 40, "THICKOUTLINE")
+    card.bigScore:SetTextColor(1, 0.96, 0.74)
     card.line1 = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     card.line1:SetPoint("TOP", 22, -144)
     card.line1:SetWidth(UI.CARD_W - 110)
@@ -1070,6 +1102,7 @@ function UI:ShowStartCard()
     local card = self.card
     card.title:SetText(("|cffffd700%d. %s|r"):format(st.level, st.title or ""))
     card.fillAnim = nil
+    self:CardLayout("start")
     for _, s in ipairs(card.stars) do s.fill:Hide() end
     setStars(card.stars, GP:GetDB().stars[st.level] or 0)
     -- the goal, big and gold, with its icon: most players never read small print
@@ -1172,7 +1205,37 @@ function UI:PlayFromCard()
     self:UpdateDisplay()
 end
 
-UI.CARD_STAR = 52            -- the result card's stars
+UI.CARD_STAR = 52            -- the level card's stars
+UI.CARD_LEVEL = 40           -- the cards sit this far over the board: above Tinkmaster's ring and the cannon
+-- the result card's big stars: centred on the card's top edge plus (x, y)
+UI.BIG_STARS = {
+    { slot = "star_big_l", x = -140, y = -74, size = 170, layer = 1 },
+    { slot = "star_big",   x = 0,    y = -44, size = 206, layer = 3 },
+    { slot = "star_big_r", x = 140,  y = -74, size = 170, layer = 1 },
+}
+UI.BIG_SCORE_Y = -146        -- the big score's top, under the middle star
+
+-- The two cards share one frame; their layouts differ.
+function UI:CardLayout(mode)
+    local card = self.card
+    local result = mode == "result"
+    card.starFrame:SetShown(result)
+    for _, s in ipairs(card.stars) do s:SetShown(not result) end
+    card.line1:SetShown(not result)
+    card.title:ClearAllPoints()
+    card.line2:ClearAllPoints()
+    card.line3:ClearAllPoints()
+    if result then
+        card.title:SetPoint("TOP", card, "TOP", 0, -200)
+        card.line2:SetPoint("TOP", card.title, "BOTTOM", 0, -14)
+        card.line3:SetPoint("TOP", card.line2, "BOTTOM", 0, -12)
+        card.best:Hide()
+    else
+        card.title:SetPoint("TOP", card, "TOP", 0, -46)
+        card.line2:SetPoint("TOP", card.line1, "BOTTOM", -22, -10)
+        card.line3:SetPoint("TOP", card.best, "BOTTOM", 0, -10)
+    end
+end
 UI.STAR_FILL_SECS = 2.0      -- the score counts up (and the stars fill) over this long
 
 -- The result card's count-up: the score climbs from nothing, and each star
@@ -1186,9 +1249,9 @@ function UI:UpdateStarFill(now)
     local t = math.min(1, (now - a.start) / self.STAR_FILL_SECS)
     local e = 1 - (1 - t) * (1 - t)                 -- quick, then easing in
     local shown = a.score * e
-    card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(math.floor(shown + 0.5))))
+    card.bigScore:SetText(fmtBig(math.floor(shown + 0.5)))
     local prev = 0
-    for i, s in ipairs(card.stars) do
+    for i, s in ipairs(card.bigStars) do
         local lo, hi = prev, a.marks[i]
         prev = hi
         local f = 0
@@ -1198,7 +1261,7 @@ function UI:UpdateStarFill(now)
             if f < 0 then f = 0 elseif f > 1 then f = 1 end
         end
         if f > 0 then
-            s.fill:SetWidth(self.CARD_STAR * f)
+            s.fill:SetWidth(s.size * f)
             if s.fill.SetTexCoord then s.fill:SetTexCoord(0, f, 0, 1) end
             s.fill:Show()
         else
@@ -1216,7 +1279,7 @@ function UI:UpdateStarFill(now)
         end
     end
     if t >= 1 then
-        card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(a.score)))
+        card.bigScore:SetText(fmtBig(a.score))
         card.fillAnim = nil
         if self.rampHandle and type(StopSound) == "function" then pcall(StopSound, self.rampHandle, 300) end
         self.rampHandle = nil
@@ -1243,9 +1306,9 @@ function UI:ShowResultCard(result, stars)
     else
         card.title:SetText(cleared and "|cffffd700LEVEL CLEARED!|r" or "|cffff6060OUT OF BALLS|r")
     end
-    -- the stars start grey and fill as the score counts up
-    setStars(card.stars, 0)
-    for _, s in ipairs(card.stars) do s.fill:Hide(); s.filled = nil end
+    -- the big stars start empty and fill as the score counts up
+    self:CardLayout("result")
+    for _, s in ipairs(card.bigStars) do s.fill:Hide(); s.filled = nil end
     local m2, m3 = L:StarScores(st.level)
     card.fillAnim = { start = GetTime(), score = result.score or 0, cleared = cleared,
         marks = { m2 * 0.5, m2, m3 }, stars = cleared and stars or 0 }
@@ -1263,10 +1326,8 @@ function UI:ShowResultCard(result, stars)
         end
     elseif result.objective == "boss" then goalLine = cleared and "Boss beaten" or "The boss survived"
     else goalLine = ("%d of %d %s"):format(result.goals, result.goalTotal, def.goalWord) end
-    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
-    card.line1:SetTextColor(1, 1, 1)
     card.goalIcon:Hide()
-    card.line1:SetText("Score |cffffd7000|r")
+    card.bigScore:SetText("0")
     card.line2:SetText((cleared and "|cff66ff66done|r  " or "|cffff6060missed|r  ") .. goalLine)
     local s2, s3 = L:StarScores(st.level)
     local third = ("Fever %s  -  best combo %d  -  2 stars at %s, 3 at %s"):format(
@@ -1719,6 +1780,7 @@ end
 -- in the same space.
 function UI:ShowShop(on)
     if not self.shopPanel then return end
+    if (on and true or false) ~= (self.shopping or false) then GP:PlaySfx("click_soft.ogg") end
     self.shopping = on and true or false
     if on then
         self.infoPanel:Hide()

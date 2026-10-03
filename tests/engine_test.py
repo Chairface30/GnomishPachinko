@@ -75,7 +75,9 @@ function Obj:GetWidth() return rawget(self, "_w") or 0 end
 function Obj:GetHeight() return rawget(self, "_h") or 0 end
 function Obj:SetText(t) rawset(self, "_text", t) end
 function Obj:GetText() return rawget(self, "_text") end
-function Obj:GetFrameLevel() return 1 end
+function Obj:GetFrameLevel() return rawget(self, "_level") or 1 end
+function Obj:SetFrameLevel(n) rawset(self, "_level", n) end
+function Obj:SetShown(v) if v then self:Show() else self:Hide() end end
 function Obj:GetEffectiveScale() return 1 end
 function Obj:GetLeft() return 0 end
 function Obj:GetTop() return 600 end
@@ -2159,7 +2161,7 @@ if GP.Dialog:IsShown() then GP.Dialog:Finish() end
 local s2, s3 = L:StarScores(3)
 UI:ShowResultCard({ cleared = true, score = s3 + 10, objective = "classic", goals = 3, goalTotal = 3, feverTotal = 0, bestCombo = 1 }, 3)
 local card = UI.card
-local function w(i) local f = card.stars[i].fill return f:IsShown() and f:GetWidth() or 0 end
+local function w(i) local f = card.bigStars[i].fill return f:IsShown() and f:GetWidth() / card.bigStars[i].size or 0 end
 __now = __now + 0.3
 UI:UpdateStarFill(GetTime())
 __early = { w(1), w(2), w(3), card.line1:GetText() }
@@ -2176,8 +2178,10 @@ __starSounds = { rockets, fanfare, ramp }
 UI:HideCard()
 """)
 early, late = dict(ev("__early")), dict(ev("__late"))
-full = ev("UI.CARD_STAR")
+full = 1
 lua("GnomishPachinkoDB.sound = true")
+lua("__cardTop = UI.card:GetFrameLevel() > UI.portraitRingFrame:GetFrameLevel() and UI.card.starFrame:GetFrameLevel() > UI.card:GetFrameLevel()")
+check("the cards sit over Tinkmaster's ring, and the big stars over the card itself", ev("__cardTop"))
 check("the result card counts the score up and fills the stars from left to right",
       early[3] < full and early[1] > 0 and late[1] == full and late[2] == full and late[3] == full,
       f"{early} {late}")

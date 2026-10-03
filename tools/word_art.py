@@ -353,6 +353,66 @@ def logo_button(text):
     return img.resize((W, H), Image.LANCZOS)
 
 
+# The result card's big stars: chunky bevelled stars, gold or an empty
+# slate socket, upright for the middle and tipped out for the sides.
+def big_star(filled, tilt=0.0, size=256):
+    big = size * SS
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    c = big / 2
+    r_out, r_in = big * 0.46, big * 0.235
+    pts = []
+    for k in range(10):
+        a = -math.pi / 2 + k * math.pi / 5 + tilt
+        r = r_out if k % 2 == 0 else r_in
+        pts.append((c + math.cos(a) * r, c + math.sin(a) * r))
+    # a soft shadow, then the rim (rounded by drawing it thick)
+    sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(sh).polygon([(x + 6 * SS, y + 9 * SS) for x, y in pts], fill=(0, 0, 0, 140))
+    img = Image.alpha_composite(img, sh.filter(ImageFilter.GaussianBlur(6 * SS)))
+    d = ImageDraw.Draw(img)
+    rim = (150, 72, 10, 255) if filled else (40, 46, 62, 255)
+    d.polygon(pts, fill=rim)
+    d.line(pts + [pts[0]], fill=rim, width=int(14 * SS), joint="curve")
+    # the bevel: ten facets from the centre, lit from the top left
+    if filled:
+        light, mid, dark = (255, 244, 150), (255, 206, 40), (232, 150, 10)
+    else:
+        light, mid, dark = (120, 132, 160), (88, 98, 124), (62, 70, 92)
+    inner = []
+    for k in range(10):
+        x, y = pts[k]
+        inner.append((c + (x - c) * 0.9, c + (y - c) * 0.9))
+    for k in range(10):
+        a, b = inner[k], inner[(k + 1) % 10]
+        mx, my = (a[0] + b[0]) / 2 - c, (a[1] + b[1]) / 2 - c
+        lit = (-mx - my) / (abs(mx) + abs(my) + 1e-6)          # facing the top left
+        t = (lit + 1) / 2
+        col = tuple(int(dark[i] + (light[i] - dark[i]) * t) if t > 0.5 else int(dark[i] + (mid[i] - dark[i]) * t * 2) for i in range(3))
+        d.polygon([(c, c), a, b], fill=col + (255,))
+    # a raised middle and a glint
+    core = [(c + (x - c) * 0.45, c + (y - c) * 0.45) for x, y in inner]
+    d.polygon(core, fill=(mid if filled else (96, 106, 132)) + (255,))
+    if filled:
+        gl = Image.new("L", img.size, 0)
+        gd = ImageDraw.Draw(gl)
+        raw = [(-0.13, -0.22), (-0.05, -0.25), (-0.18, 0.0), (-0.24, -0.03)]
+        ct, st_ = math.cos(tilt), math.sin(tilt)
+        gd.polygon([(c + (x * ct - y * st_) * big, c + (x * st_ + y * ct) * big) for x, y in raw], fill=150)
+        gl = gl.filter(ImageFilter.GaussianBlur(3 * SS))
+        img = Image.alpha_composite(img, Image.merge("RGBA", (gl.point(lambda v: 255),) * 3 + (gl,)))
+    return img.resize((size, size), Image.LANCZOS)
+
+
+STARS = {
+    "star_big":        (True, 0.0),
+    "star_big_l":      (True, -0.22),
+    "star_big_r":      (True, 0.22),
+    "star_big_empty":   (False, 0.0),
+    "star_big_l_empty": (False, -0.22),
+    "star_big_r_empty": (False, 0.22),
+}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sheet", action="store_true")
@@ -370,6 +430,11 @@ def main():
         g = gear_sprite(128)
         g.save(os.path.join(OUT, "shop_gear.tga"), format="TGA")
         print("wrote shop_gear")
+    for slot, (filled, tilt) in STARS.items():
+        if args.only and slot not in args.only:
+            continue
+        big_star(filled, tilt).save(os.path.join(OUT, slot + ".tga"), format="TGA")
+        print("wrote", slot)
     if not args.only or "btn_logo" in args.only:
         logo_button("").save(os.path.join(OUT, "btn_logo.tga"), format="TGA")
         print("wrote btn_logo")

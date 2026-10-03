@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- A soft click going into the shop and back out.
+- **The result card, redesigned:** three big bevelled stars span the whole card, the middle one larger and higher, sitting over the card's own border. They fill with gold left to right as the score, big and without a label, spins up beneath them. All the text comes below.
+- **Every button wears the logo plate** (gold words on the blank logo plate), across the game, apart from the map's nodes and the pictures that have their own art.
+- The level and result cards sit over everything on the board; Tinkmaster's ring no longer covers them.
+
 - **A bigger level card:** larger text throughout, the best score on a line of its own, the power with its icon and what it does, and every button in the logo's style (a blank logo plate that keeps its cog ends at any width, gold words on it).
 - **The left column's special balls are big and sit under the balls:** Ring of Fire, Rainbow Ball, Suction Tube and now the Extra Green Peg, each a logo-plate button with a large icon. The green peg is the level boost while the card is up, and adds a green peg on the spot during play.
 
