@@ -2170,7 +2170,9 @@ function UI:StartLevel(n, retry)
     self:ClearFx()
     self:StopFanfare()
     self:HideGuide()
-    self:ShowBanner(("|cffffd700%d. %s|r"):format(n, spec.title or ""), self:ObjectiveText(self.state), 3)
+    -- (no title banner: the level card shows the title and objective, and a
+    -- banner would sit behind the opening talk)
+    self:ShowBanner("", "", 0)
     if GP.Mascot.SetHost then GP.Mascot:SetHost(GP:HostFor(n).npc, GP:HostFor(n)) end
     -- nothing is drawn on the board until the player presses Play on the card
     self:HideBoardContents()

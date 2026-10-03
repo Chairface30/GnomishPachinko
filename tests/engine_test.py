@@ -2528,6 +2528,14 @@ __fullBoard = shown > 0 and UI.bucket:IsShown() and UI.barrelFrame:IsShown()
 check("the board stays empty (no pieces, bucket or cannon) until Play is pressed on the level card", ev("__emptyBoard") and ev("__fullBoard"),
       f'{ev("__emptyBoard")} {ev("__fullBoard")}')
 
+# a level starts with no banner behind the opening talk or the card
+lua(r"""
+UI:StartLevel(5, true)
+__noBanner = not UI.bannerRibbon:IsShown() and (UI.banner:GetText() or "") == ""
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+""")
+check("a level starts with no title banner (the card shows the title)", ev("__noBanner"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

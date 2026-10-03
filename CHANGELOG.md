@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: a blue title banner showed for a moment behind the opening talk. A level no longer opens with a banner; the level card shows its title and objective.
 - The Suction Tube's tutorial arrow comes in lower still, nearly level from the right.
 - **The board waits for Play:** while the level card (and any talk before it) is up, the board shows only its painted backdrop; the pieces, bucket, cannon, boss and ribbon appear when Play is pressed.
 - **The map reads better:** taller chapter buttons with bigger words (<<, Prev, Next, >>) along the top, and the chapter's name (22) and its levels line (15) larger, beneath them.
