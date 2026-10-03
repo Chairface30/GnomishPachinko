@@ -2425,10 +2425,10 @@ function bonus_probe()
   E:Step(st, 1 / 60, events)
   local wallSet = b2.bankX ~= nil
   b2.bankDist = E.BANK_DIST + 10
-  local blue
-  for _, p in ipairs(st.pegs) do if p.kind == "blue" and not p.lit then blue = p break end end
+  local orange
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" and not p.lit then orange = p break end end
   st.time = st.time + 1
-  E.HitPeg(st, blue, b2, events)
+  E.HitPeg(st, orange, b2, events)
   local bank = false
   for _, e in ipairs(events) do if e.type == "style" and e.name == "BANK SHOT" then bank = true end end
   -- a short hop off the wall is no bank shot
@@ -2440,12 +2440,43 @@ function bonus_probe()
   E.HitPeg(st, blue, b2, events)
   local shortBank = false
   for _, e in ipairs(events) do if e.type == "style" and e.name == "BANK SHOT" then shortBank = true end end
-  return runs, wallSet, bank, shortBank
+  -- off the wall, but a blue peg first: no bank shot, even for the orange after
+  wipe(events)
+  st.shotStyles = {}
+  b2.bankX, b2.bankDist = 1, 500
+  local blue2, orange2
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "blue" and not p.lit and not blue2 then blue2 = p end
+    if p.kind == "orange" and not p.lit and p ~= orange and not orange2 then orange2 = p end
+  end
+  st.time = st.time + 1
+  E.HitPeg(st, blue2, b2, events)
+  st.time = st.time + 1
+  E.HitPeg(st, orange2, b2, events)
+  local blueFirst = false
+  for _, e in ipairs(events) do if e.type == "style" and e.name == "BANK SHOT" then blueFirst = true end end
+  return runs, wallSet, bank, shortBank, blueFirst
 end
 """)
-runs, wallSet, bank, shortBank = ev("bonus_probe")()
+runs, wallSet, bank, shortBank, blueFirst = ev("bonus_probe")()
 check("lighting 3 and 5 oranges with one ball pays HAT TRICK and ORANGE CRUSH", "HAT TRICK" in runs and "ORANGE CRUSH" in runs, runs)
-check("off the wall and far enough before a hit pays a BANK SHOT; a short hop does not", wallSet and bank and not shortBank, f"{wallSet} {bank} {shortBank}")
+check("off the wall, far enough, straight onto an orange pays a BANK SHOT; a short hop or anything touched first does not",
+      wallSet and bank and not shortBank and not blueFirst, f"{wallSet} {bank} {shortBank} {blueFirst}")
+
+# closing the result card silences what it started
+lua(r"""
+UI:StartLevel(3, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+GnomishPachinkoDB.sound = true
+local s2, s3 = L:StarScores(3)
+UI:ShowResultCard({ cleared = true, score = s3 + 10, objective = "classic", goals = 3, goalTotal = 3, feverTotal = 0, bestCombo = 1, level = 3 }, 3)
+for _ = 1, 80 do __now = __now + 0.08; UI:UpdateStarFill(GetTime()) end
+local had = UI.cardSounds and #UI.cardSounds or 0
+local stops = #__stopped
+UI:HideCard()
+__cardQuiet = had > 0 and #__stopped >= stops + had and UI.cardSounds == nil
+""")
+check("closing the result card stops its sounds", ev("__cardQuiet"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
@@ -2467,6 +2498,7 @@ lua(r"""
 function art_probe()
   GnomishPachinkoDB.unlocked = 400
   UI:StartLevel(15)
+  if GP.Dialog:IsShown() then GP.Dialog:Finish() end   -- the talk ends on the level card
   UI.card.main:Click()
   __advance(0.2)
   local out = { egg = nil, cradle = nil, blue = 0, sizeEgg = 0, sizeBrick = 0 }

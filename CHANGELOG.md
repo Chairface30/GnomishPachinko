@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Closing the result card stops everything it set playing: the tally, the rockets, the fanfare and the host's line.
+- A bank shot now needs the ball to go off the wall and straight onto an orange peg; touching anything else first (a blue peg, a brick, a balloon, a bumper, the pyramid) spoils it.
+
 - The tutorial arrows can no longer be mixed up: the Rainbow Ball's comes in from the left side, nearly level, and the Suction Tube's comes in lower from the right.
 - **More style points:** lighting 3 oranges with one ball is a HAT TRICK (+5,000), 5 an ORANGE CRUSH (+12,500), 8 an ORANGE AVALANCHE (+25,000). Coming off a side wall and flying at least 200 pixels without touching anything before lighting a piece is a BANK SHOT (+7,500).
 

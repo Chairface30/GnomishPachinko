@@ -1178,6 +1178,11 @@ end
 
 function UI:HideCard()
     self.startCardUp = nil
+    -- everything the card set playing stops with it, the host's line too
+    if self.card and self.card:IsShown() then
+        self:StopCardSounds()
+        GP:StopVoice()
+    end
     if self.UpdateItemSlots then self:UpdateItemSlots() end
     self.card:Hide()
     self.cardSheet:Hide()
@@ -1333,6 +1338,23 @@ UI.ROCKET_GRAVITY = 520
 -- level's first star always fills. A chime rises with each full star.
 -- A star that has just filled pops: it swells and springs back, with a
 -- burst of light behind it that fades.
+-- The result card's sounds are remembered, so closing the card stops them.
+function UI:CardSound(file)
+    local ok, handle = GP:PlaySfx(file)
+    if ok and handle then
+        self.cardSounds = self.cardSounds or {}
+        self.cardSounds[#self.cardSounds + 1] = handle
+    end
+end
+
+function UI:StopCardSounds()
+    if type(StopSound) == "function" then
+        for _, h in ipairs(self.cardSounds or {}) do pcall(StopSound, h, 150) end
+        if self.rampHandle then pcall(StopSound, self.rampHandle, 0) end
+    end
+    self.cardSounds, self.rampHandle = nil, nil
+end
+
 function UI:UpdateStarPops(now)
     local card = self.card
     if not (card and card.bigStars) then return end
@@ -1448,11 +1470,11 @@ function UI:UpdateStarFill(now)
             s.popAt = now                            -- it pops to life
             -- a bottle rocket for each of the first two; the full fanfare for the third
             if i < 3 then
-                GP:PlaySfx("star_rocket.ogg")
+                self:CardSound("star_rocket.ogg")
             else
                 -- all three: the fanfare, and the shower of little stars
-                GP:PlaySfx("star_rocket.ogg")
-                GP:PlaySfx("star_fanfare.ogg")
+                self:CardSound("star_rocket.ogg")
+                self:CardSound("star_fanfare.ogg")
                 self:StarRockets(now)
                 self:Celebrate()
             end

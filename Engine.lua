@@ -830,7 +830,7 @@ hitPeg = function(state, p, ball, events, quiet)
     if p.lit or p.gone or isSolid(p) then return false end
     if p.cooldown and state.time < p.cooldown then return false end
     if ball and ball.bankX then
-        if (ball.bankDist or 0) >= E.BANK_DIST and state.phase ~= E.PHASE.FEVER then
+        if p.kind == "orange" and (ball.bankDist or 0) >= E.BANK_DIST and state.phase ~= E.PHASE.FEVER then
             style(state, "BANK SHOT", events, p.x, p.y, E.BANK_POINTS, "BANK SHOT!")
         end
         ball.bankX = nil
@@ -1146,7 +1146,9 @@ collideBall = function(state, ball, events, light)
     for _, p in ipairs(state.pegs) do
         if not p.gone and not (ball.rail and p.rail == ball.rail) then
             local depth, nx, ny = pegContact(p, ball.x, ball.y, R)
-            if depth and isSolid(p) then ball.bankX = nil end
+            -- a contact that will not reach hitPeg (solid, lit, gone, cooling
+            -- down) ends a bank shot: only an orange first after the wall pays
+            if depth and ball.bankX and (isSolid(p) or p.lit or p.gone or (p.cooldown and state.time < p.cooldown)) then ball.bankX = nil end
             if depth and p.web then
                 -- a web: only a real ball in play meets it
                 if light and state.phase ~= E.PHASE.FEVER then
@@ -1307,6 +1309,7 @@ local function collidePyramid(state, ball, events)
         return
     end
     ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
+    ball.bankX = nil
     local vn = ball.vx * nx + ball.vy * ny
     if vn >= 0 then return end
     local k = (1 + 0.8) * vn
