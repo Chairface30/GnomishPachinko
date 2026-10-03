@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The level card's objective is centred on the card (it sat a little to the right); its icon sits just before the text.
 - **The level card is laid out afresh:** the three stars spread out with the score each one takes written beneath it ("Clear" under the first unless the level sets a score), so the "2 stars at..." line is gone; the best score and credits sit under the stars, the power row a little higher, and the objective big and centred right above the Play button.
 - Fixed: the aim guide treated moving pieces as standing still, so its ball met a sliding block (or any moving piece) where the block was when the guide was drawn, often in thin air. The guide (and the Super Guide) now moves the pieces on as the predicted ball flies, and is redrawn continuously while anything moves: it meets the piece where the real ball will.
 - **Test plays end with a card:** the cleared card (the score counting up and the stars filling by the level's own marks, the sweep and fanfare) or the failed card (out of balls, egg lost), titled TEST, with **Back to editor** and **Retry** and no plays line. Nothing is recorded.

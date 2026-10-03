@@ -1993,9 +1993,9 @@ local p1 = { c.line1:GetPoint() }
 local sx1 = select(4, c.stars[1]:GetPoint())
 local sx3 = select(4, c.stars[3]:GetPoint())
 __cardLayout = c.stars[1].sub:GetText() == "Clear" and c.stars[2].sub:GetText() == tostring(s2) and c.stars[3].sub:GetText() == tostring(s3)
-  and not c.line2:IsShown() and p1[1] == "BOTTOM" and p1[2] == c.main and p1[3] == "TOP" and sx3 - sx1 >= 200
+  and not c.line2:IsShown() and p1[1] == "BOTTOM" and p1[2] == c.main and p1[3] == "TOP" and p1[4] == 0 and sx3 - sx1 >= 200
 """)
-check("Level card: the stars spread out with each one's score beneath, no star-score line, and the objective sits right over Play", ev("__cardLayout"))
+check("Level card: the stars spread out with each one's score beneath, no star-score line, and the objective sits centred right over Play", ev("__cardLayout"))
 
 # the boss's bar and name sit below it, and a hurt boss shows no cracks
 lua(r"""

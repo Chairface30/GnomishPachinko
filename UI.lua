@@ -1274,6 +1274,10 @@ function UI:ShowStartCard()
     card.line1:SetTextColor(1, 0.85, 0.25)
     card.line1:SetText(self:ObjectiveText(st))
     ART:Set(card.goalIcon, ART:Goal(st.objective))
+    -- the text centred on the card; its icon just before where the text starts
+    local tw = math.min(card.line1:GetStringWidth() or 0, card.line1:GetWidth() or 0)
+    card.goalIcon:ClearAllPoints()
+    card.goalIcon:SetPoint("RIGHT", card.line1, "CENTER", -tw / 2 - 6, 0)
     card.goalIcon:Show()
     -- what each star takes, under it (the first comes with clearing unless the level sets a score)
     local s2, s3, s1 = starMarks(st)
@@ -1765,7 +1769,8 @@ function UI:CardLayout(mode)
         -- the objective front and centre, right over the Play button (a
         -- longer one grows upward); the star scores are under the stars
         card.line1:ClearAllPoints()
-        card.line1:SetPoint("BOTTOM", card.main, "TOP", 22, 16)
+        card.line1:SetPoint("BOTTOM", card.main, "TOP", 0, 16)
+        if card.line1.SetJustifyH then card.line1:SetJustifyH("CENTER") end
         card.line2:SetPoint("TOP", card, "TOP", 0, -168)
         card.line2:SetShown(false)
         card.best:ClearAllPoints()
