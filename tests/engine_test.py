@@ -2243,6 +2243,21 @@ UI:HideCard()
 """)
 check("the result card's Map and Retry buttons do not overlap", ev("__gap") > 0, str(ev("__gap")))
 
+# reset progress puts the special balls and green pegs back to a new player's
+lua(r"""
+P:AddItem("green", 5); P:AddItem("ring", 5); P:AddItem("rainbow", 5); P:AddItem("suction", 5)
+local g0 = P:Gears()
+local u0 = GnomishPachinkoDB.unlocked
+GP:ResetProgress()
+local it = P:Items()
+__resetItems = it.green == P.START_ITEMS.green and it.ring == P.START_ITEMS.ring and it.rainbow == P.START_ITEMS.rainbow
+  and it.suction == P.START_ITEMS.suction and P:Gears() == g0 and GnomishPachinkoDB.unlocked == 1
+__playsRow = UI.playsNum:GetText() ~= nil and UI.playsToken.slot == "play_token"
+GnomishPachinkoDB.unlocked = u0
+""")
+check("reset progress also puts green pegs and special balls back to a new player's, keeping gears", ev("__resetItems"))
+check("the plays left show as a play token and a framed number", ev("__playsRow"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

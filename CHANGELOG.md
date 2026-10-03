@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Plays left are a brass play token and a framed number,** with a short note beside them (bought plays, or the wait for the next free one).
+- Reset progress now also puts the special balls and green pegs back to what a new player starts with; gears and the day's plays are kept.
+
 - Fixed: the result card's Map and Retry buttons overlapped.
 - **Buttons click:** held down, a button's plate darkens and its words sink a little; let go over it, it gives a soft click.
 - The balls left are two and a half times bigger, in two columns of five; the left column is a little wider to hold them.

@@ -835,12 +835,27 @@ function UI:CreateFrame()
 
     self.playsText = label("", 0, "GameFontNormal")
     if self.playsText.SetParent then self.playsText:SetParent(side) end
+    -- the plays left: a brass play token, the number in a riveted frame,
+    -- and a short note beside them
+    local token = side:CreateTexture(nil, "ARTWORK")
+    token:SetSize(34, 34)
+    token:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 2, 26)
+    ART:Set(token, "play_token")
+    self.playsToken = token
+    local frameTex = side:CreateTexture(nil, "ARTWORK")
+    frameTex:SetSize(62, 31)
+    frameTex:SetPoint("LEFT", token, "RIGHT", 4, 0)
+    ART:Set(frameTex, "number_frame")
+    self.playsFrame = frameTex
+    self.playsNum = side:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    self.playsNum:SetPoint("CENTER", frameTex, "CENTER", 0, 0)
+    self.playsNum:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
+    self.playsNum:SetTextColor(1, 0.9, 0.5)
     self.playsText:ClearAllPoints()
-    self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 28)
-    self.playsText:SetWidth(SIDE_W)
-    self.playsText:SetHeight(30)
-    self.playsText:SetJustifyH("CENTER")
-    self.playsText:SetJustifyV("TOP")
+    self.playsText:SetPoint("LEFT", frameTex, "RIGHT", 8, 0)
+    self.playsText:SetWidth(SIDE_W - 110)
+    self.playsText:SetJustifyH("LEFT")
+    self.playsText:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
     self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears\n1g each")   -- placed in the shop below
     self.buyBtn.text:SetWidth(SIDE_W - 16)
     self.buyBtn.text:SetWordWrap(true)
@@ -1556,7 +1571,7 @@ function UI:CreateLevelSelect()
         else
             self.armedUntil = GetTime() + 6
             self.text:SetText("|cffff6060Really? Click again|r")
-            GP:Print("Reset progress: click the button again within six seconds to wipe every level, star and best score. The day's plays are kept.")
+            GP:Print("Reset progress: click the button again within six seconds to wipe every level, star and best score, and put the special balls and green pegs back to a new player's. Gears and the day's plays are kept.")
         end
     end)
     -- the owner's characters can open every level for testing
@@ -3753,9 +3768,10 @@ function UI:UpdateDisplay()
     self:UpdateItemSlots()
     local P = GP.Plays
     local free, bought = P:FreeLeft(), P:BoughtLeft()
-    local plays = ("Plays left today: |cffffd700%d|r"):format(free + bought)
-    if bought > 0 then plays = plays .. (" (%d bought)"):format(bought) end
-    if free == 0 and bought == 0 then plays = plays .. "\n|cffff8080Next free play in " .. P:FormatWait(P:NextFreeIn()) .. "|r" end
+    self.playsNum:SetText(tostring(free + bought))
+    local plays = "plays left"
+    if bought > 0 then plays = plays .. ("\n|cffffd700%d bought|r"):format(bought) end
+    if free == 0 and bought == 0 then plays = "|cffff8080next free play\nin " .. P:FormatWait(P:NextFreeIn()) .. "|r" end
     self.playsText:SetText(plays)
     styleButton(self.buyBtn, true, 0.5, 0.38, 0.1)
     self.gearsText:SetText(("|cffffd700Golden Gears: %d|r"):format(P:Gears()))

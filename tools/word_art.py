@@ -403,6 +403,69 @@ def big_star(filled, tilt=0.0, size=256):
     return img.resize((size, size), Image.LANCZOS)
 
 
+def play_token(size=128):
+    """A play: a brass pachinko token, cog-toothed rim, a silver ball set in it."""
+    big = size * SS
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    c = big / 2
+    rim = cog_mask(int(big * 0.96))
+    off = (big - rim.width) // 2
+    sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    sh.paste((0, 0, 0, 150), (off + 3 * SS, off + 4 * SS), rim)
+    img = Image.alpha_composite(img, sh.filter(ImageFilter.GaussianBlur(3 * SS)))
+    o = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    o.paste(OUTLINE + (255,), (off, off), rim.filter(ImageFilter.MaxFilter(3 * SS + 1)))
+    img = Image.alpha_composite(img, o)
+    teeth = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    teeth.paste((214, 160, 60, 255), (off, off), rim)
+    img = Image.alpha_composite(img, teeth)
+    d = ImageDraw.Draw(img)
+    # the coin's face over the cog: a full disc, brass lit from the top left
+    r = big * 0.4
+    for k in range(40, 0, -1):
+        t = k / 40
+        col = tuple(int(BRASS_BOTTOM[i] + (BRASS_TOP[i] - BRASS_BOTTOM[i]) * (1 - t) ** 0.7) for i in range(3))
+        rr = r * t
+        d.ellipse([c - rr - big * 0.03 * (1 - t), c - rr - big * 0.03 * (1 - t), c + rr - big * 0.03 * (1 - t), c + rr - big * 0.03 * (1 - t)], fill=col + (255,))
+    d.ellipse([c - r, c - r, c + r, c + r], outline=OUTLINE + (255,), width=int(2.5 * SS))
+    d.ellipse([c - r * 0.82, c - r * 0.82, c + r * 0.82, c + r * 0.82], outline=(150, 96, 24, 255), width=int(1.5 * SS))
+    # the silver ball, set in the middle
+    br = r * 0.5
+    for k in range(30, 0, -1):
+        t = k / 30
+        v = int(120 + 135 * (1 - t))
+        rr = br * t
+        sx = c - br * 0.25 * (1 - t)
+        sy = c - br * 0.25 * (1 - t)
+        d.ellipse([sx - rr, sy - rr, sx + rr, sy + rr], fill=(v, v, min(255, v + 12), 255))
+    d.ellipse([c - br, c - br, c + br, c + br], outline=(60, 60, 72, 255), width=int(1.5 * SS))
+    return img.resize((size, size), Image.LANCZOS)
+
+
+def number_frame(w=128, h=64):
+    """A riveted brass frame with a dark slate window for a number."""
+    bw, bh = w * SS, h * SS
+    img = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    rad = int(bh * 0.22)
+    for y in range(bh):
+        t = y / (bh - 1)
+        col = tuple(int(BRASS_BOTTOM[i] + (BRASS_TOP[i] - BRASS_BOTTOM[i]) * (1 - t)) for i in range(3))
+        d.line([(0, y), (bw, y)], fill=col + (255,))
+    mask = Image.new("L", (bw, bh), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, bw - 1, bh - 1], radius=rad, fill=255)
+    img.putalpha(mask)
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle([0, 0, bw - 1, bh - 1], radius=rad, outline=OUTLINE + (255,), width=2 * SS)
+    inset = int(bh * 0.17)
+    d.rounded_rectangle([inset, inset, bw - 1 - inset, bh - 1 - inset], radius=rad // 2, fill=(30, 32, 44, 255), outline=(90, 56, 14, 255), width=SS)
+    for x in (inset * 0.55, bw - inset * 0.55):
+        for y in (inset * 0.55, bh - inset * 0.55):
+            rr = SS * 2.2
+            d.ellipse([x - rr, y - rr, x + rr, y + rr], fill=(250, 225, 150, 255), outline=OUTLINE + (255,), width=SS)
+    return img.resize((w, h), Image.LANCZOS)
+
+
 STARS = {
     "star_big":        (True, 0.0),
     "star_big_l":      (True, -0.22),
@@ -435,6 +498,12 @@ def main():
             continue
         big_star(filled, tilt).save(os.path.join(OUT, slot + ".tga"), format="TGA")
         print("wrote", slot)
+    if not args.only or "play_token" in args.only:
+        play_token().save(os.path.join(OUT, "play_token.tga"), format="TGA")
+        print("wrote play_token")
+    if not args.only or "number_frame" in args.only:
+        number_frame().save(os.path.join(OUT, "number_frame.tga"), format="TGA")
+        print("wrote number_frame")
     if not args.only or "btn_logo" in args.only:
         logo_button("").save(os.path.join(OUT, "btn_logo.tga"), format="TGA")
         print("wrote btn_logo")

@@ -219,14 +219,18 @@ function GP:UnlockAll()
 end
 
 function GP:ResetProgress()
-    -- keep the settings, wipe the progress (gears, special balls and plays stay)
+    -- keep the settings, wipe the progress; the special balls and green
+    -- pegs go back to what a new player starts with (gears and plays stay)
+    local items = self.Plays:Items()
+    for k in pairs(items) do items[k] = nil end
+    for k, v in pairs(self.Plays.START_ITEMS) do items[k] = v end
     local keep = GnomishPachinkoDB or {}
     GnomishPachinkoDB = { sound = keep.sound, music = keep.music, voice = keep.voice, minimap = keep.minimap, mascot = keep.mascot }
     self.db = nil
     self:GetDB()
     self.Plays:Save()
     if self.Levels then self.Levels.starCache = nil end
-    self:Print("Progress wiped. Back to level 1. (The day's plays are not reset.)")
+    self:Print("Progress wiped: back to level 1, special balls and green pegs back to a new player's. (Gears and the day's plays are kept.)")
     if self.UI and self.UI.frame then
         self.UI:HideLevelSelect()
         self.UI:StartLevel(1)
