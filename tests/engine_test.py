@@ -4789,6 +4789,26 @@ check("Editor: mirror while placing makes 2 (left-right), 2 (top-bottom) or 4 (q
 check("Editor: the owner's Approved levels list loads and removes approved levels, and is hidden for everyone else",
       q["approvedLoad"] and q["approvedRemove"] and q["approvedHidden"], str(q))
 
+# the right-hand tools in sections that open and close; closing one moves the rest up
+lua(r"""
+ED:Show()
+GnomishPachinkoDB.editor.collapsed = nil
+ED:LayoutSections()
+local pos = ED.sections.position
+local y0 = select(5, pos.head:GetPoint())
+ED:ToggleSection("level")
+local y1 = select(5, pos.head:GetPoint())
+__closed = not ED.sections.level.body:IsShown() and y1 > y0 and GnomishPachinkoDB.editor.collapsed.level == true
+__firstClosed = not ED.sections.links.body:IsShown() and not ED.sections.moving.body:IsShown()
+ED:ToggleSection("level")
+__reopened = ED.sections.level.body:IsShown() and select(5, pos.head:GetPoint()) == y0 and ED.nameBox:IsShown()
+local keys = {}
+for _, sec in ipairs(ED.sections) do keys[#keys + 1] = sec.key end
+__sections = table.concat(keys, ",")
+""")
+check("Editor tools sit in sections (level, position, shape, colors, mirror, rails, moving, files) that close to their header and open again, the rest moving up",
+      ev("__closed") and ev("__reopened") and ev("__firstClosed") and ev("__sections") == "level,position,shape,color,mirror,links,moving,files", ev("__sections"))
+
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
 ED:NewLevel()

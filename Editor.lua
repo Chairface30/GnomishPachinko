@@ -1583,109 +1583,117 @@ function ED:Create()
     self.countText:SetJustifyV("TOP")
 
     -- ===== the level and the selection, on the right =====
+    -- Collapsible sections, each a header bar (click to open or close) over a
+    -- frame of its tools; LayoutSections stacks the open ones top to bottom.
     local rx = self.FIELD_X + W + 16
-    local function rtext(yy, s, size)
-        local fs = text(frame, size or 12)
-        fs:SetPoint("TOPLEFT", frame, "TOPLEFT", rx, yy)
+    self.RX = rx
+    self.sections = {}
+    local ROW = 25
+    local function section(key, title, rows)
+        local sec = { key = key, title = title, rows = rows }
+        local head = CreateFrame("Button", nil, frame, "BackdropTemplate")
+        head:SetSize(286, 20)
+        if head.SetBackdrop then
+            head:SetBackdrop({ bgFile = WHITE })
+            head:SetBackdropColor(0.25, 0.18, 0.08, 0.85)
+        end
+        head.text = text(head, 13, 1, 0.85, 0.35)
+        head.text:SetPoint("LEFT", 6, 0)
+        head:SetScript("OnClick", function() ED:ToggleSection(key) end)
+        sec.head = head
+        local body = CreateFrame("Frame", nil, frame)
+        body:SetSize(286, rows * ROW)
+        sec.body = body
+        self.sections[#self.sections + 1] = sec
+        self.sections[key] = sec
+        return sec
+    end
+    local function sbtn(sec, col, row, w, label, fn, tip)
+        local b = button(sec.body, w, 22, label, fn, tip)
+        b:SetPoint("TOPLEFT", sec.body, "TOPLEFT", col, -(row * ROW))
+        return b
+    end
+    local function stext(sec, col, row, s, size)
+        local fs = text(sec.body, size or 12)
+        fs:SetPoint("TOPLEFT", sec.body, "TOPLEFT", col, -(row * ROW) - 4)
         fs:SetText(s or "")
         return fs
     end
-    local function rbtn(col, yy, w, label, fn, tip)
-        local b = button(frame, w, 22, label, fn, tip)
-        b:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + col, yy)
-        return b
+    local function sbox(sec, col, row, w)
+        local eb = editBox(sec.body, w, 20)
+        eb:SetPoint("TOPLEFT", sec.body, "TOPLEFT", col, -(row * ROW))
+        return eb
     end
-    rtext(-96, "Level", 14)
-    rtext(-118, "Name")
-    self.nameBox = editBox(frame, 230, 20)
-    self.nameBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -114)
-    self.nameBox:SetScript("OnTextChanged", function(eb, user) if user then ED.data.name = str(eb:GetText(), 40) or "" end end)
-    -- the goals, any mix: oranges, Long Shots, and every egg and gem placed
-    self.objBtn = rbtn(0, -142, 96, "Oranges: on", function() ED:ToggleGoal("oranges") end,
-        "Lighting every orange is a goal. Eggs and gems on the board are always goals too.")
-    self.longBtn = rbtn(100, -142, 96, "Long Shots: off", function() ED:ToggleGoal("longshots") end,
-        "Long Shots wanted: off, 1 to 5. A Long Shot is two oranges far apart lit in one shot.")
-    self.bucketBtn = rbtn(200, -142, 86, "Bucket: yes", function() ED:ToggleBucket() end)
-    self.orangeText = rtext(-170, "")
-    rbtn(156, -166, 40, "-", function() ED:Tune("oranges", -1) end)
-    rbtn(200, -166, 40, "+", function() ED:Tune("oranges", 1) end)
-    rbtn(244, -166, 42, "Auto", function() ED:Tune("oranges", 0) end, "Deal about a third of the pegs and bricks as orange.")
-    self.levelText = rtext(-194, "")
-    rbtn(156, -190, 40, "-", function() ED:Tune("level", -1) end)
-    rbtn(200, -190, 40, "+", function() ED:Tune("level", 1) end)
-    rbtn(244, -190, 42, "+10", function() ED:Tune("level", 10) end)
-    self.copyBtn = rbtn(0, -216, 286, "Start from this level's layout", function() ED:CopyLevel() end,
-        "Replace the board with the layout of the level number above (its pieces, moving parts and goal), to edit.")
 
+    -- Level: its name, what it asks for, its number and stars
+    local s = section("level", "Level", 6)
+    stext(s, 0, 0, "Name")
+    self.nameBox = sbox(s, 50, 0, 230)
+    self.nameBox:SetScript("OnTextChanged", function(eb, user) if user then ED.data.name = str(eb:GetText(), 40) or "" end end)
+    self.objBtn = sbtn(s, 0, 1, 96, "Oranges: on", function() ED:ToggleGoal("oranges") end,
+        "Lighting every orange is a goal. Eggs and gems on the board are always goals too.")
+    self.longBtn = sbtn(s, 100, 1, 96, "Long Shots: off", function() ED:ToggleGoal("longshots") end,
+        "Long Shots wanted: off, 1 to 5. A Long Shot is two oranges far apart lit in one shot.")
+    self.bucketBtn = sbtn(s, 200, 1, 86, "Bucket: yes", function() ED:ToggleBucket() end)
+    self.orangeText = stext(s, 0, 2, "")
+    sbtn(s, 156, 2, 40, "-", function() ED:Tune("oranges", -1) end)
+    sbtn(s, 200, 2, 40, "+", function() ED:Tune("oranges", 1) end)
+    sbtn(s, 244, 2, 42, "Auto", function() ED:Tune("oranges", 0) end, "Deal about a third of the pegs and bricks as orange.")
     -- the score for one, two and three stars (blank: the first comes with
     -- clearing the level, the others are worked out from the board)
-    rtext(-244, "Stars")
+    stext(s, 0, 3, "Stars")
     self.starBoxes = {}
     for k = 1, 3 do
-        local lab = text(frame, 12)
-        lab:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 44 + (k - 1) * 82, -244)
-        lab:SetText(k .. ":")
-        local eb = editBox(frame, 62, 20)
-        eb:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 60 + (k - 1) * 82, -240)
+        stext(s, 44 + (k - 1) * 82, 3, k .. ":")
+        local eb = sbox(s, 60 + (k - 1) * 82, 3, 62)
         eb:SetScript("OnEnterPressed", function(box) box:ClearFocus(); ED:SetStarMarks() end)
         eb:SetScript("OnEditFocusLost", function() ED:SetStarMarks() end)
         self.starBoxes[k] = eb
     end
-    rtext(-276, "Selection", 14)
-    self.selText = rtext(-298, "")
+    self.levelText = stext(s, 0, 4, "")
+    sbtn(s, 156, 4, 40, "-", function() ED:Tune("level", -1) end)
+    sbtn(s, 200, 4, 40, "+", function() ED:Tune("level", 1) end)
+    sbtn(s, 244, 4, 42, "+10", function() ED:Tune("level", 10) end)
+    self.copyBtn = sbtn(s, 0, 5, 286, "Start from this level's layout", function() ED:CopyLevel() end,
+        "Replace the board with the layout of the level number above (its pieces, moving parts and goal), to edit.")
+
+    -- Position: what is selected, and where
+    s = section("position", "Selection and position", 3)
+    self.selText = stext(s, 0, 0, "")
     -- where the selection is: one piece's own spot, or a group's middle
-    rtext(-322, "X")
-    self.xBox = editBox(frame, 52, 20)
-    self.xBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 16, -318)
+    stext(s, 0, 1, "X")
+    self.xBox = sbox(s, 16, 1, 52)
     self.xBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:MoveTo() end)
-    local ylab = text(frame, 12)
-    ylab:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 78, -322)
-    ylab:SetText("Y")
-    self.yBox = editBox(frame, 52, 20)
-    self.yBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 94, -318)
+    stext(s, 78, 1, "Y")
+    self.yBox = sbox(s, 94, 1, 52)
     self.yBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:MoveTo() end)
-    rbtn(156, -318, 130, "Move", function() ED:MoveTo() end,
+    sbtn(s, 156, 1, 130, "Move", function() ED:MoveTo() end,
         "One piece: put it at X, Y. Several: move the group so its middle is at X, Y. Enter in a box does the same. Pixels from the middle of the board (the dotted lines): X is minus to the left and plus to the right, Y plus upward and minus downward.")
-    rbtn(0, -343, 68, "Line up X", function() ED:LineUp("x") end, "Every selected piece to the X in the box (a column).")
-    rbtn(73, -343, 68, "Line up Y", function() ED:LineUp("y") end, "Every selected piece to the Y in the box (a row).")
-    rbtn(146, -343, 68, "Spread X", function() ED:Spread("x") end, "Space the selected pieces evenly from left to right, between the outermost two.")
-    rbtn(218, -343, 68, "Spread Y", function() ED:Spread("y") end, "Space the selected pieces evenly from top to bottom, between the outermost two.")
-    rbtn(0, -368, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
-    rbtn(97, -368, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
-    rbtn(194, -368, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
-    self.colorBtn = rbtn(0, -393, 140, "Colors: all dealt", function() ED:ClearColors() end,
-        "Pegs and bricks back to plain dealing: any color at random on every attempt.")
-    rbtn(146, -393, 68, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step through half, full, one and a half and double; bars shorter; round pieces smaller.")
-    rbtn(218, -393, 68, "Bigger", function() ED:Resize(1) end)
+    sbtn(s, 0, 2, 68, "Line up X", function() ED:LineUp("x") end, "Every selected piece to the X in the box (a column).")
+    sbtn(s, 73, 2, 68, "Line up Y", function() ED:LineUp("y") end, "Every selected piece to the Y in the box (a row).")
+    sbtn(s, 146, 2, 68, "Spread X", function() ED:Spread("x") end, "Space the selected pieces evenly from left to right, between the outermost two.")
+    sbtn(s, 218, 2, 68, "Spread Y", function() ED:Spread("y") end, "Space the selected pieces evenly from top to bottom, between the outermost two.")
+
+    -- Shape: toughness, size and angle
+    s = section("shape", "Toughness, size and angle", 3)
+    sbtn(s, 0, 0, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
+    sbtn(s, 97, 0, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
+    sbtn(s, 194, 0, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
+    sbtn(s, 0, 1, 140, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step through half, full, one and a half and double; bars shorter; round pieces smaller.")
+    sbtn(s, 146, 1, 140, "Bigger", function() ED:Resize(1) end)
     -- turning by an exact number of degrees, or setting a bar's angle outright
-    rbtn(0, -418, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
-    self.degBox = editBox(frame, 46, 20)
-    self.degBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -419)
+    sbtn(s, 0, 2, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
+    self.degBox = sbox(s, 50, 2, 46)
     self.degBox:SetText("15")
     if self.degBox.SetJustifyH then self.degBox:SetJustifyH("CENTER") end
     self.degBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:TurnBy(1) end)
-    rbtn(102, -418, 40, "+", function() ED:TurnBy(1) end, "Turn the selection by the degrees in the box, clockwise. Enter in the box does the same.")
-    rbtn(148, -418, 138, "Set angle", function() ED:SetAngle() end,
+    sbtn(s, 102, 2, 40, "+", function() ED:TurnBy(1) end, "Turn the selection by the degrees in the box, clockwise. Enter in the box does the same.")
+    sbtn(s, 148, 2, 138, "Set angle", function() ED:SetAngle() end,
         "Set every selected bar (brick, steel bar, cage bar) to the angle in the box, in degrees: 0 is level, 90 upright. Each turns where it stands.")
-    rbtn(0, -443, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
-    rbtn(97, -443, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
-    rbtn(194, -443, 92, "Flip both", function() ED:MirrorSelected(false); ED:MirrorSelected(true) end, "Mirror the selection left to right and top to bottom (half a turn).")
-    -- mirrored copies of the selection, and beside them mirror while placing
-    rbtn(0, -468, 64, "Copy L-R", function() ED:MirrorCopyAcross("lr") end, "A mirrored copy of the selection on the other side of the up-and-down middle line.")
-    rbtn(68, -468, 64, "Copy T-B", function() ED:MirrorCopyAcross("tb") end, "A mirrored copy of the selection on the other side of the across middle line.")
-    rbtn(136, -468, 64, "Copy quad", function() ED:MirrorCopyAcross("quad") end, "Mirrored copies of the selection in all four quarters of the board.")
-    self.mirrorBtn = rbtn(204, -468, 82, "Mirror: off", function() ED:CycleMirror() end,
-        "Mirror while placing: every piece you place from now on gets copies across the board's middle lines, left-right, top-bottom, or into all four quarters.")
-    rbtn(0, -493, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
-    rbtn(97, -493, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
-    rbtn(194, -493, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
-    rbtn(0, -518, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
-    rbtn(146, -518, 140, "Unrail", function() ED:ClearRail() end)
-    rbtn(0, -543, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
-    rbtn(146, -543, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
 
-    -- each colour for the selected pegs and bricks: orange and green go
+    -- Color: each colour for the selected pegs and bricks: orange and green go
     -- dealt -> never -> always -> dealt; purple (it hops every shot) can land or never
+    s = section("color", "Colors", 2)
     self.colorBtns = {}
     local tips = {
         orange = "Orange: dealt at random, never orange, or always orange. Click to go round.",
@@ -1693,43 +1701,70 @@ function ED:Create()
         purple = "Purple hops to a new peg every shot: let it land here, or never.",
     }
     for k, which in ipairs({ "orange", "green", "purple" }) do
-        local b = rbtn((k - 1) * 97, -568, 92, "", function() ED:CycleColorState(which) end, tips[which])
-        self.colorBtns[which] = b
+        self.colorBtns[which] = sbtn(s, (k - 1) * 97, 0, 92, "", function() ED:CycleColorState(which) end, tips[which])
     end
-    rtext(-600, "Moving parts", 14)
-    self.moverText = rtext(-622, "")
-    self.moverBtn = rbtn(0, -642, 286, "Make them move", function() ED:CycleMover() end,
+    self.colorBtn = sbtn(s, 0, 1, 286, "Colors: all dealt", function() ED:ClearColors() end,
+        "Pegs and bricks back to plain dealing: any color at random on every attempt.")
+
+    -- Mirror and copy
+    s = section("mirror", "Mirror, copy and delete", 3)
+    sbtn(s, 0, 0, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
+    sbtn(s, 97, 0, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
+    sbtn(s, 194, 0, 92, "Flip both", function() ED:MirrorSelected(false); ED:MirrorSelected(true) end, "Mirror the selection left to right and top to bottom (half a turn).")
+    -- mirrored copies of the selection, and beside them mirror while placing
+    sbtn(s, 0, 1, 64, "Copy L-R", function() ED:MirrorCopyAcross("lr") end, "A mirrored copy of the selection on the other side of the up-and-down middle line.")
+    sbtn(s, 68, 1, 64, "Copy T-B", function() ED:MirrorCopyAcross("tb") end, "A mirrored copy of the selection on the other side of the across middle line.")
+    sbtn(s, 136, 1, 64, "Copy quad", function() ED:MirrorCopyAcross("quad") end, "Mirrored copies of the selection in all four quarters of the board.")
+    self.mirrorBtn = sbtn(s, 204, 1, 82, "Mirror: off", function() ED:CycleMirror() end,
+        "Mirror while placing: every piece you place from now on gets copies across the board's middle lines, left-right, top-bottom, or into all four quarters.")
+    sbtn(s, 0, 2, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
+    sbtn(s, 97, 2, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
+    sbtn(s, 194, 2, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
+
+    -- Rails and locks
+    s = section("links", "Rails and locks", 2)
+    sbtn(s, 0, 0, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
+    sbtn(s, 146, 0, 140, "Unrail", function() ED:ClearRail() end)
+    sbtn(s, 0, 1, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
+    sbtn(s, 146, 1, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
+
+    -- Moving parts
+    s = section("moving", "Moving parts", 4)
+    self.moverText = stext(s, 0, 0, "")
+    self.moverBtn = sbtn(s, 0, 1, 286, "Make them move", function() ED:CycleMover() end,
         "The selected pieces move together: slide side to side, lift up and down, wheel round their middle, or swing like a pendulum. Click again for the next kind; after Swing they stop moving.")
-    rbtn(0, -667, 68, "Range -", function() ED:TuneMover("amp", -1) end)
-    rbtn(73, -667, 68, "Range +", function() ED:TuneMover("amp", 1) end)
-    rbtn(146, -667, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
-    rbtn(218, -667, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
-    rbtn(0, -692, 140, "Reverse direction", function() ED:TuneMover("reverse") end)
-    self.previewBtn = rbtn(146, -692, 140, "Preview motion", function() ED:TogglePreview() end,
+    sbtn(s, 0, 2, 68, "Range -", function() ED:TuneMover("amp", -1) end)
+    sbtn(s, 73, 2, 68, "Range +", function() ED:TuneMover("amp", 1) end)
+    sbtn(s, 146, 2, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
+    sbtn(s, 218, 2, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
+    sbtn(s, 0, 3, 140, "Reverse direction", function() ED:TuneMover("reverse") end)
+    self.previewBtn = sbtn(s, 146, 3, 140, "Preview motion", function() ED:TogglePreview() end,
         "Watch the moving parts move, here in the editor. Any change to the board stops it.")
 
-    rtext(-726, "Files", 14)
-    rbtn(0, -748, 92, "New", function() ED:NewLevel() end)
-    rbtn(97, -748, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
-    rbtn(194, -748, 92, "Load", function() ED:ShowList() end)
-    rbtn(0, -773, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
-    self.testBtn = rbtn(146, -773, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
-    self.importBtn = rbtn(0, -798, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
-    self.approveBtn = rbtn(146, -798, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
+    -- Files and sharing (the last two rows are the owner's)
+    s = section("files", "Files and sharing", 4)
+    sbtn(s, 0, 0, 92, "New", function() ED:NewLevel() end)
+    sbtn(s, 97, 0, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
+    sbtn(s, 194, 0, 92, "Load", function() ED:ShowList() end)
+    sbtn(s, 0, 1, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
+    self.testBtn = sbtn(s, 146, 1, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
+    self.importBtn = sbtn(s, 0, 2, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
+    self.approveBtn = sbtn(s, 146, 2, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
         "Owner: this level replaces the level number above.")
-    self.unapproveBtn = rbtn(0, -823, 140, "Remove approval", function() ED:Unapprove(ED.data.level) end,
+    self.unapproveBtn = sbtn(s, 0, 3, 140, "Remove approval", function() ED:Unapprove(ED.data.level) end,
         "Owner: the level number above goes back to its generated layout.")
-    self.approvedBtn = rbtn(146, -823, 140, "Approved levels", function() ED:ShowList("approved") end,
+    self.approvedBtn = sbtn(s, 146, 3, 140, "Approved levels", function() ED:ShowList("approved") end,
         "Owner: every approved level waiting to ship, to load or remove.")
 
-    self.statusText = rtext(-856, "", 11)
+    self.statusText = text(frame, 11)
     self.statusText:SetWidth(286)
     self.statusText:SetJustifyV("TOP")
     self.statusText:SetTextColor(0.75, 1, 0.75)
-    self.problemText = rtext(-916, "", 11)
+    self.problemText = text(frame, 11)
     self.problemText:SetWidth(286)
     self.problemText:SetJustifyV("TOP")
     self.problemText:SetTextColor(1, 0.55, 0.45)
+    self:LayoutSections()
 
     self:CreateList()
     self:CreateCodePanel()
@@ -1741,6 +1776,57 @@ end
 
 -- the saved levels, a page at a time
 ED.LIST_ROWS = 14
+-- The right-hand sections: open ones stacked from the top, closed ones as
+-- just their header bars; the status and checks follow the last.
+ED.SECTION_TOP = -96
+function ED:LayoutSections()
+    if not self.sections then return end
+    local rx, y = self.RX, self.SECTION_TOP
+    local closed = self:Collapsed()
+    local owner = self:IsOwner()
+    for _, sec in ipairs(self.sections) do
+        sec.head:ClearAllPoints()
+        sec.head:SetPoint("TOPLEFT", self.frame, "TOPLEFT", rx, y)
+        local open = not closed[sec.key]
+        sec.head.text:SetText((open and "-  " or "+  ") .. sec.title)
+        y = y - 24
+        if open then
+            local rows = sec.rows
+            if sec.key == "files" and not owner then rows = 2 end      -- the owner's rows
+            sec.body:ClearAllPoints()
+            sec.body:SetPoint("TOPLEFT", self.frame, "TOPLEFT", rx, y)
+            sec.body:SetHeight(rows * 25)
+            sec.body:Show()
+            y = y - rows * 25 - 4
+        else
+            sec.body:Hide()
+            y = y - 2
+        end
+    end
+    self.statusText:ClearAllPoints()
+    self.statusText:SetPoint("TOPLEFT", self.frame, "TOPLEFT", rx, y - 6)
+    self.problemText:ClearAllPoints()
+    self.problemText:SetPoint("TOPLEFT", self.frame, "TOPLEFT", rx, y - 56)
+end
+
+-- which sections are closed: remembered; at first, the two used least, so
+-- everything else fits in the window
+ED.SECTIONS_CLOSED_AT_FIRST = { links = true, moving = true }
+function ED:Collapsed()
+    local db = self:DB()
+    if type(db.collapsed) ~= "table" then
+        db.collapsed = {}
+        for k, v in pairs(self.SECTIONS_CLOSED_AT_FIRST) do db.collapsed[k] = v end
+    end
+    return db.collapsed
+end
+
+function ED:ToggleSection(key)
+    local closed = self:Collapsed()
+    closed[key] = (not closed[key]) or false
+    self:LayoutSections()
+end
+
 function ED:CreateList()
     local p = CreateFrame("Frame", nil, self.frame, "BackdropTemplate")
     p:SetSize(360, 520)
@@ -2368,6 +2454,7 @@ function ED:Refresh()
     self.approveBtn:SetShown(owner)
     self.unapproveBtn:SetShown(owner and approved and true or false)
     self.approvedBtn:SetShown(owner)
+    self:LayoutSections()
     self:RefreshTools()
     self:Redraw()
 end
