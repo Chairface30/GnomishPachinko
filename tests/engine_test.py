@@ -587,7 +587,7 @@ end
 """)
 boss_probe = ev("boss_probe")
 abilities = {}
-for n in (10, 30, 50, 70, 90):
+for n in (10, 30, 50, 70, 110):
     info = boss_probe(n)
     abilities[info.ability] = info
     check(f"level {n}: the {info.name} slides, takes {info.maxhp} hits and dies into Fever",
@@ -1688,7 +1688,7 @@ __zoomAfter = UI.zoomScale
 check("holding the right button zooms in on the landing spot and turns the cannon a fiftieth of a degree a pixel",
       abs(ev("__fineDelta") - 50 * 0.02 * math.pi / 180) < 1e-6 and ev("__fineZoom") > 2 and ev("__zoomAfter") < 1.05,
       f"{ev('__fineDelta')} {ev('__fineZoom')} {ev('__zoomAfter')}")
-check("boss levels have no vacuum tube", all(ev(f"L:NoBucket({n})") for n in range(10, 401, 20)))
+check("boss levels have no vacuum tube", all(ev(f"L:NoBucket({n})") for n in range(10, 401, 20) if n != ev("L.TINK_DUEL_LEVEL")))
 check("Space again resumes", ev("UI.paused") == False)
 ok, result = ev("ui_play")(900)
 check("a level plays to its end through the window", ok)
@@ -2379,19 +2379,33 @@ function guide_levels_probe()
   local green
   for _, p in ipairs(st.pegs) do if p.kind == "green" then green = p break end end
   E.HitPeg(st, green, { vx = 0, vy = 100 }, events)
-  local lvl1 = st.guideLevel
-  local _, b1 = E:Simulate(st, nil, nil, E.GUIDE_BOUNCES[st.guideLevel])
-  -- earned again while running
-  local green2
-  for _, p in ipairs(st.pegs) do if p.kind == "green" and p ~= green then green2 = p break end end
-  st.time = st.time + 1
-  E.HitPeg(st, green2, { vx = 0, vy = 100 }, events)
-  local _, b2 = E:Simulate(st, nil, nil, E.GUIDE_BOUNCES[st.guideLevel])
-  return lvl1, st.guideLevel, b1, b2
+  local _, b1 = E:Simulate(st, nil, nil, E:GuideBounces(st))
+  local n1 = E:GuideBounces(st)
+  st.crazyGuide = true
+  local _, b2 = E:Simulate(st, nil, nil, E:GuideBounces(st))
+  return n1, E:GuideBounces(st), b1, b2, st.superGuide
 end
 """)
-lvl1, lvl2, b1, b2 = ev("guide_levels_probe")()
-check("Super Guide shows three bounces, and six when earned again while it runs", lvl1 == 1 and lvl2 == 2 and b1 <= 3 and b2 <= 6 and b2 >= b1, f"{lvl1} {lvl2} {b1} {b2}")
+n1, n2, b1, b2, shots = ev("guide_levels_probe")()
+check("Super Guide tracks two bounces; the Crazy Guide five", n1 == 2 and n2 == 5 and b1 <= 2 and b2 <= 5 and b2 >= b1 and shots > 0, f"{n1} {n2} {b1} {b2} {shots}")
+lua(r"""
+__tdObj = L:Objective(L.TINK_DUEL_LEVEL)
+__tdHost = GP:HostFor(L.TINK_DUEL_LEVEL).id
+GnomishPachinkoDB.crazyGuide = nil
+GP:RecordResult({ level = L.TINK_DUEL_LEVEL, cleared = true, score = 1, objective = "duel", duel = { you = 1, rival = 0, name = "x" }, goals = 1, goalTotal = 1 })
+__tdUnlocked = GnomishPachinkoDB.crazyGuide == true
+GnomishPachinkoDB.crazyGuide = nil
+""")
+check("Tinkmaster's own duel (level 90, his chapter) unlocks the Crazy Guide", ev("__tdObj") == "duel" and ev("__tdHost") == "tink" and ev("__tdUnlocked"))
+lua(r"""
+UI:StartLevel(1, true)
+UI:ShowLevelSelect()
+UI:LevelPage(2)
+__mapHost = UI.hostText:GetText()
+UI:HideLevelSelect()
+__backHost = UI.hostText:GetText()
+""")
+check("the host named on the right follows the chapter shown on the map", ev("__mapHost").find("Mekkatorque") >= 0 and ev("__backHost").find("Tinkmaster") >= 0)
 
 # a lit rail brick leaves on the same clock as any lit piece
 lua(r"""

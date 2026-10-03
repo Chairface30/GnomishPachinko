@@ -106,6 +106,11 @@ function GP:RecordResult(result)
         end
     end
     result.rewards = rewards
+    -- Tinkmaster's own duel won: the Super Guide becomes the Crazy Guide
+    if result.cleared and n == self.Levels.TINK_DUEL_LEVEL and not db.crazyGuide then
+        db.crazyGuide = true
+        result.crazyGuide = true
+    end
     self.Plays:Save()
     return stars, self.Plays:Remaining()
 end

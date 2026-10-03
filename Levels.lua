@@ -926,7 +926,12 @@ end
 -- What level n asks of you. Every tenth level is a boss, eggs from
 -- chapter 2 (levels ending 5) and chapter 4 (ending 7), gems from chapter
 -- 3 (ending 3 and 8); the rest are classic orange-peg levels.
+-- Tinkmaster hosts the odd chapters, where the bosses are; at the end of
+-- his chapter 9 he finally duels his brother himself. Winning it turns
+-- his Super Guide into the Crazy Guide.
+L.TINK_DUEL_LEVEL = 90
 function L:Objective(n)
+    if n == self.TINK_DUEL_LEVEL then return "duel" end
     local last = n % 10
     if last == 0 and n >= 10 then
         -- the first boss is a target; from then on even chapters duel
@@ -1003,9 +1008,15 @@ function L:DuelFor(n)
 end
 
 -- The boss for a level: kind by chapter, health climbing from 5 to 21.
+-- Bosses take the odd chapters in turn (Tin Drake, Gyro Spider, Cog Yeti,
+-- Bolt Golem, Mechano-Boar); Tinkmaster's own duel in chapter 9 takes no
+-- turn, so the order runs on unbroken past it.
+L.BOSS_ORDER = { 1, 3, 5, 2, 4 }
 function L:BossFor(n)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
-    local def = E.BOSSES[((chapter - 1) % #E.BOSSES) + 1]
+    local k = floor((chapter + 1) / 2)
+    if n > self.TINK_DUEL_LEVEL then k = k - 1 end
+    local def = E.BOSSES[self.BOSS_ORDER[((k - 1) % #self.BOSS_ORDER) + 1]]
     return def, 8 + floor(chapter * 0.6)
 end
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Super Guide tracks two bounces.** It no longer grows when earned again; it just runs for more shots.
+- **Tinkmaster duels his brother.** Level 90, the end of his chapter 9, is a duel with Cogwhistle instead of a boss, with its own voiced conversation. Win it and his Super Guide becomes the **Crazy Guide**: five bounces of the path. The unlock is sealed with the rest of the progress.
+- The host named in the right column follows the chapter shown on the map, and goes back to the level's host when the map closes.
+
 - The speaker in the conversation box sits behind the box's border, in a window that runs to the box's edges. The dialog tuner adds a camera distance slider.
 - **Balloons fit the picture.** A level's balloons come in mirrored pairs, the same size at the same height either side, with an odd one only on the center line. Each level keeps to one arrangement: by the walls, on the flanks, or a center balloon with pairs beside it. No more single balloon stuck somewhere at random.
 - **Temporary dialog tuning panel** left of the window: pick any speaker in the conversation box (the four hosts, Cogwhistle, the five bosses) and set height, sideways, zoom, turn and tilt. The box now shows whole models in a clipped window instead of the head-cropping portrait camera.

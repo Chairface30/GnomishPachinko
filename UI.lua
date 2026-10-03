@@ -59,6 +59,9 @@ local function fmtBig(n)
 end
 
 local function powerName(id)
+    if id == "guide" and GP:GetDB().crazyGuide then
+        return "Crazy Guide", ("See the bounce path through %d bounces, for three shots."):format(E.GUIDE_BOUNCES.crazy)
+    end
     for _, p in ipairs(E.POWERS) do if p.id == id then return p.name, p.blurb end end
     return id or "", ""
 end
@@ -1396,8 +1399,16 @@ function UI:ShowLevelSelect()
     self:SetBoardChrome(false)
 end
 
+-- The host named on the right: the one for the given level's chapter.
+function UI:ShowHostName(level)
+    if not self.hostText then return end
+    local host = GP:HostFor(level or 1)
+    self.hostText:SetText("|cffffd700" .. ((host and host.name) or "Tinkmaster Overspark") .. "|r")
+end
+
 function UI:HideLevelSelect()
     if self.levelPanel then self.levelPanel:Hide() end
+    self:ShowHostName((self.state and self.state.level) or GP:GetDB().current or 1)
     if self.playsPanel and not self.playsPanel:IsShown() then self:SetBoardChrome(true) end
 end
 
@@ -1411,6 +1422,7 @@ function UI:LevelPage(page)
     ART:Set(panel.mapBg, ART:MapBackdrop(page))
     panel:LayPath(page)
     panel.title:SetText(("|cffffd700Chapter %d  -  %s|r"):format(page, L:ChapterName(page)))
+    self:ShowHostName(first + 1)
     panel.subtitle:SetText(("Levels %d - %d"):format(first + 1, math.min(L.COUNT, first + L.PER_CHAPTER)))
     styleButton(panel.prev, page > 1, 0.3, 0.3, 0.45)
     styleButton(panel.prev10, page > 1, 0.3, 0.3, 0.45)
@@ -1610,6 +1622,7 @@ function UI:StartLevel(n, retry)
         for _, id in ipairs(GP:UnlockedPowers(n)) do if id == last then spec.power = last end end
     end
     self.state = E:NewLevel(spec)
+    self.state.crazyGuide = GP:GetDB().crazyGuide and true or nil
     if self.card then self:HideCard() end
     if self.shotText then self.shotText:SetText("") end
     self.duelStartAt, self.duelTurnAt, self.rivalShotAt = nil, nil, nil
@@ -2014,7 +2027,7 @@ function UI:DrawGuide()
     local st = self.state
     local pts, hit, hx, hy
     local super = st.superGuide > 0
-    if super then pts = E:Simulate(st, nil, nil, E.GUIDE_BOUNCES[st.guideLevel or 1]) else pts, hit, hx, hy = E:Guide(st) end
+    if super then pts = E:Simulate(st, nil, nil, E:GuideBounces(st)) else pts, hit, hx, hy = E:Guide(st) end
     local last = pts[#pts]
     if hx then self.guideEnd = { x = hx, y = hy } elseif last then self.guideEnd = { x = last.x, y = last.y } end
     -- the ball drawn where it first meets a piece (walls do not count)
@@ -2636,7 +2649,9 @@ function UI:HandleEvents(now)
             GP:PlaySfx("combo.ogg")
             GP:PlayVoice(ev.combo >= 20 and "combo_huge" or "combo")
         elseif t == "power" then
-            self:ShowBanner(POWER_BANNERS[ev.power] or "POWER!", "", 1.4)
+            local banner = POWER_BANNERS[ev.power] or "POWER!"
+            if ev.power == "guide" and st.crazyGuide then banner = "|cffff66ffCRAZY GUIDE!|r" end
+            self:ShowBanner(banner, "", 1.4)
             GP:PlayVoice("power_" .. ev.power, GP:HostForPower(ev.power))
             if ev.power == "blast" then
                 self:ShowBlast(ev.x, ev.y, now)
@@ -2747,6 +2762,10 @@ function UI:OnLevelOver(result)
         if stars >= 3 then self:Celebrate() end
         GP:PlaySfx("clear.ogg")
         GP:PlayVoice(result.duel and "duel_won" or (stars >= 3 and "three_stars" or "level_cleared"))
+        if result.crazyGuide then
+            GP:Print("|cffff66ffCrazy Guide unlocked!|r Tinkmaster's Super Guide now shows five bounces.")
+            if GP.Dialog and GP.Dialog.PlayOnce then GP.Dialog:PlayOnce("crazy_guide") end
+        end
         if result.level == L.COUNT then
             self:ShowBanner(("|cffffd700ALL %d LEVELS CLEARED!|r"):format(L.COUNT), "Score " .. fmtBig(result.score) .. ". You conquered Azeroth.", 0)
         end
@@ -3384,7 +3403,7 @@ function UI:UpdateCounters()
     end
     local status = ""
     if st.power == "guide" and st.superGuide > 0 then
-        status = ("Super Guide (%d bounces): %d shot%s left"):format(E.GUIDE_BOUNCES[st.guideLevel or 1], st.superGuide, st.superGuide == 1 and "" or "s")
+        status = ("%s (%d bounces): %d shot%s left"):format(st.crazyGuide and "Crazy Guide" or "Super Guide", E:GuideBounces(st), st.superGuide, st.superGuide == 1 and "" or "s")
     elseif st.power == "pyramid" and E.PyramidUp(st) then
         status = ("Pyramid: %d strike%s left"):format(st.pyramidHits, st.pyramidHits == 1 and "" or "s")
     end
@@ -3414,8 +3433,7 @@ function UI:UpdateDisplay()
     self.chapterText:SetText("|cffaaddff" .. (st.title or st.name or "") .. "|r")
         local name, blurb = powerName(st.power)
         self.powerText:SetText("|cff88ff88" .. name .. "|r")
-        local host = GP:HostFor(st.level)
-        self.hostText:SetText("|cffffd700" .. ((host and host.name) or "Tinkmaster Overspark") .. "|r")
+        self:ShowHostName(st.level)
         self.powerBlurb:SetText(blurb)
         ART:Set(self.powerIcon, ART:Power(st.power))
         self.bestText:SetText(fmtBig(db.best[st.level] or 0))

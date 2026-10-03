@@ -48,7 +48,7 @@ P.START_ITEMS = { ring = 2, rainbow = 0, green = 1, suction = 1 }
 -- gears, the special balls, the plays and the progress. These keys of the
 -- saved settings are filled from the vault at login and taken back out of
 -- the plain file at logout.
-P.SEALED = { "unlocked", "cleared", "best", "stars", "current", "lastPower", "tips", "dialogs" }
+P.SEALED = { "unlocked", "cleared", "best", "stars", "current", "lastPower", "tips", "dialogs", "crazyGuide" }
 
 local floor = math.floor
 

@@ -83,6 +83,17 @@ end
 
 -- The conversations. `when` decides whether one belongs to a level's state.
 D.SCRIPTS = {
+    -- Tinkmaster's own duel with his brother, and what winning it earns
+    { key = "tink_duel", when = function(st) return st.level == GP.Levels.TINK_DUEL_LEVEL end, lines = {
+        { "cog", "Well, well. Little brother. Still hiding behind your helpers?" },
+        { "tink", "No helpers this time, Cogwhistle. This one is between you and me." },
+        { "cog", "Clear the board, then five balls each, and the last orange takes it. Try not to cry." },
+        { "tink", "Win this one for me, friend, and I will show you something special. My Crazy Guide!" },
+    } },
+    { key = "crazy_guide", when = function() return false end, lines = {
+        { "tink", "You did it! Did you see his face? As promised: my Super Guide is now the Crazy Guide." },
+        { "tink", "Five bounces of the path, every time you earn it. Don't tell Cogwhistle how it works!" },
+    } },
     -- not tied to a level: played the first time Get Golden Gears is pressed away from a mailbox
     { key = "gears_help", when = function() return false end, lines = {
         { "tink", "Golden Gears, is it? They're the pachinko's own coin. One gold buys one gear." },
@@ -170,7 +181,7 @@ D.SCRIPTS = {
         { "yeti", "Cog Yeti repairs. Cog Yeti always repairs." },
         { "host", "Miss it and it heals. Every shot has to count!" },
     } },
-    { key = "duel", when = function(st) return st.objective == "duel" end, lines = {
+    { key = "duel", when = function(st) return st.objective == "duel" and st.level ~= GP.Levels.TINK_DUEL_LEVEL end, lines = {
         { "cog", "Well, well. My brother's little peg machine. Still playing, I see." },
         { "host", "Cogwhistle Overspark, Tinkmaster's brother! Clear this board first, friend, then he'll want a duel. Five balls each." },
         { "cog", "And every shot that lights no orange costs you five hundred. Do try to keep up." },

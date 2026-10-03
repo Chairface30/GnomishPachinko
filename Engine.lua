@@ -151,7 +151,7 @@ E.PHASE = { AIM = "AIM", FLIGHT = "FLIGHT", FEVER = "FEVER", OVER = "OVER" }
 -- The green-peg powers, unlocked one per chapter then cycled.
 E.POWERS = {
     { id = "multiball", name = "Multiball",       blurb = "The ball splits in two." },
-    { id = "guide",     name = "Super Guide",     blurb = "See the whole bounce path for three shots." },
+    { id = "guide",     name = "Super Guide",     blurb = "See the bounce path through two bounces, for three shots." },
     { id = "blast",     name = "Space Blast",     blurb = "A huge explosion hits every piece near the green one." },
     { id = "fireball",  name = "Fireball",        blurb = "The ball burns straight through pegs." },
     { id = "spooky",    name = "Spooky Ball",     blurb = "A lost ball comes back in from the top." },
@@ -524,9 +524,12 @@ local collideBall  -- forward
 local looseMoving, loosePhysics  -- forward
 
 -- Super Guide: the real bounce path (pegs unchanged) for up to maxT seconds.
--- Super Guide's two levels: the path through three bounces, and through
--- six when it is earned again while still running.
-E.GUIDE_BOUNCES = { 3, 6 }
+-- Super Guide shows the path through two bounces. Once Tinkmaster has
+-- beaten his brother in their own duel it becomes the Crazy Guide: five.
+E.GUIDE_BOUNCES = { super = 2, crazy = 5 }
+function E:GuideBounces(state)
+    return state.crazyGuide and self.GUIDE_BOUNCES.crazy or self.GUIDE_BOUNCES.super
+end
 
 function E:Simulate(state, maxT, every, maxBounces)
     maxT, every = maxT or 4, every or 0.04
@@ -605,7 +608,7 @@ function E:Launch(state, events)
     state.bossHitThisShot = false
     if state.superGuide > 0 then
         state.superGuide = state.superGuide - 1
-        if state.superGuide == 0 then state.guideLevel = nil end
+
     end
     -- the Bolt Golem shields itself every third shot
     local b = state.boss
@@ -650,8 +653,7 @@ applyPower = function(state, p, ball, events)
             fire = ball.fire, spooky = ball.spooky,
         }
     elseif power == "guide" then
-        -- earned again while it runs: the longer guide, and more shots of it
-        state.guideLevel = (state.superGuide > 0) and 2 or math.max(1, state.guideLevel or 1)
+        -- earned again while it runs: more shots of it
         state.superGuide = state.superGuide + E.GUIDE_SHOTS
     elseif power == "blast" then
         local r2 = E.BLAST_RADIUS * E.BLAST_RADIUS
