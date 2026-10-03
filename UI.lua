@@ -601,6 +601,13 @@ function UI:CreateFrame()
         local b = logoButton(frame, LEFT_W, UI.ITEM_H, "", 16)
         b:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE, -(TOP_H + UI.ITEMS_Y + (i - 1) * (UI.ITEM_H + 6)))
         b.item = id
+        -- the tutorial's light: a gold glow behind the button, pulsing
+        b.hl = frame:CreateTexture(nil, "BORDER")
+        b.hl:SetPoint("TOPLEFT", b, "TOPLEFT", -12, 12)
+        b.hl:SetPoint("BOTTOMRIGHT", b, "BOTTOMRIGHT", 12, -12)
+        ART:Set(b.hl, "glow_soft", 1, 0.85, 0.3)
+        if b.hl.SetBlendMode then b.hl:SetBlendMode("ADD") end
+        b.hl:Hide()
         buttonIcon(b, ART:Item(id), UI.ITEM_H - 8)
         b.icon:ClearAllPoints()
         b.icon:SetPoint("LEFT", b, "LEFT", 10, 0)
@@ -2032,6 +2039,28 @@ function UI:ToggleItem(item)
     self:UpdateItemSlots()
 end
 
+-- The tutorials light up the slots they talk about: a pulsing glow behind
+-- each named button (nil puts every light out).
+function UI:HighlightItems(items)
+    local on = {}
+    for _, id in ipairs(items or {}) do on[id] = true end
+    self.highlighted = items and on or nil
+    for _, b in ipairs(self.itemSlots or {}) do
+        if on[b.item] and b:IsShown() then b.hl:Show() else b.hl:Hide() end
+    end
+end
+
+function UI:PulseHighlights(now)
+    if not self.highlighted then return end
+    local a = 0.55 + 0.45 * math.sin(now * 6)
+    for _, b in ipairs(self.itemSlots or {}) do
+        if self.highlighted[b.item] then
+            if b:IsShown() then b.hl:Show() end
+            b.hl:SetAlpha(a)
+        end
+    end
+end
+
 -- A slot shows only once Tinkmaster has explained it: the special balls
 -- with the "items" talk, the Extra Green Peg with its own.
 UI.ITEM_TUTORIAL = { ring = "items", rainbow = "items", suction = "items", green = "green_peg" }
@@ -3174,6 +3203,7 @@ function UI:OnUpdate(dt)
     local now = GetTime()
     local st = self.state
     self:UpdatePopups(now)
+    self:PulseHighlights(now)
     self:WatchAhh(now)
     if self.bannerUntil and now >= self.bannerUntil then
         self.bannerUntil = nil

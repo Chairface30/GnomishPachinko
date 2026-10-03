@@ -2371,6 +2371,30 @@ check("a made-up tutorial with a gift gives nothing", ev("__fakeGift"))
 check("the special-ball counts handed out are a copy: changing them changes nothing", ev("__itemsCopy"))
 check("swapping out UnitName does not make a player the owner", ev("__ownerFake"))
 
+# the tutorials light up the buttons they talk about, one by one as they're named
+lua(r"""
+UI:StartLevel(2, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+local D = GP.Dialog
+local items
+for _, sc in ipairs(D.SCRIPTS) do if sc.key == "items" then items = sc end end
+GnomishPachinkoDB.dialogs.items = true
+UI:UpdateItemSlots()
+D:Play({ items })
+local function lit() local t = {} for _, b in ipairs(UI.itemSlots) do if b.hl:IsShown() then t[#t + 1] = b.item end end return table.concat(t, ",") end
+__hlAll = lit()
+D:Advance()                       -- the line that names each one
+__hlStart = lit()
+__now = __now + 3.4               -- "Rainbow Ball" has been said (character 44, about 3.1 s in)
+D:UpdateCues()
+__hlRainbow = lit()
+D:Finish()
+__hlOff = lit()
+""")
+check("the special-ball talk lights all three, then each one as it is named, and the lights go out after",
+      ev("__hlAll") == "ring,rainbow,suction" and ev("__hlRainbow") == "rainbow" and ev("__hlOff") == "",
+      f'{ev("__hlAll")} | {ev("__hlStart")} | {ev("__hlRainbow")} | {ev("__hlOff")}')
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

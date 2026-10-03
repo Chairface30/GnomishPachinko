@@ -154,14 +154,17 @@ D.SCRIPTS = {
     } },
     -- the special balls, and one of each as a gift to try them out
     { key = "items", when = function(st) return st.level >= 2 end, gift = { ring = 1, rainbow = 1, suction = 1 }, lines = {
-        { "host", "See the buttons to the left of the board? Those are my special balls." },
-        { "host", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot." },
-        { "host", "Here's one of each, on the house. Go on, give them a try!" },
+        { "host", "See the buttons to the left of the board? Those are my special balls.", highlight = { "ring", "rainbow", "suction" } },
+        { "host", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot.",
+            highlight = { "ring", "rainbow", "suction" },
+            cues = { { "Ring of Fire", "ring" }, { "Rainbow Ball", "rainbow" }, { "Suction Tube", "suction" }, { "Click one", "ring", "rainbow", "suction" } } },
+        { "host", "Here's one of each, on the house. Go on, give them a try!", highlight = { "ring", "rainbow", "suction" } },
     } },
     -- the Extra Green Peg, the level after the special balls
     { key = "green_peg", when = function(st) return st.level >= 3 end, gift = { green = 1 }, lines = {
-        { "host", "One more toy for you: the Extra Green Peg. It's the new button under the special balls." },
-        { "host", "Click it on the level card, before you press Play, and the board gets one more green peg. Here's one to try!" },
+        { "host", "One more toy for you: the Extra Green Peg. It's the new button under the special balls.",
+            cues = { { "Extra Green Peg", "green" } } },
+        { "host", "Click it on the level card, before you press Play, and the board gets one more green peg. Here's one to try!", highlight = { "green" } },
     } },
     { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end, lines = {
         { "host", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
@@ -319,6 +322,7 @@ function D:Create(parent, anchor, frameLevel)
     -- case the client does not report the end)
     D.TALK_ANIM = 60
     panel:SetScript("OnUpdate", function(_, elapsed)
+        D:UpdateCues()
         D.talkClock = (D.talkClock or 0) + elapsed
         if D.talkClock >= 2.5 then
             D.talkClock = 0
@@ -388,7 +392,7 @@ function D:Play(list, done)
                 who = GP:Host().id
                 clip = clip .. "_" .. who
             end
-            self.queue[#self.queue + 1] = { who, line[2], clip = clip }
+            self.queue[#self.queue + 1] = { who, line[2], clip = clip, highlight = line.highlight, cues = line.cues }
         end
     end
     self.done = done
@@ -398,7 +402,47 @@ function D:Play(list, done)
     return true
 end
 
+-- Highlights: a line may light up buttons in the left column while it is
+-- spoken (`highlight`, a list of item ids), and may move the light as each
+-- name is said (`cues`: { word, item, ... }, timed from where the word sits
+-- in the line at an even speaking pace).
+-- characters a second each voice speaks at (measured from the recordings)
+D.SPEAK_CPS = { tink = 15.2, mekka = 14.6, razzle = 17.4, bink = 16.9 }
+D.SPEAK_CPS_DEFAULT = 15.5
+function D:SetHighlight(items)
+    if GP.UI and GP.UI.HighlightItems then GP.UI:HighlightItems(items) end
+end
+
+function D:StartCues(line)
+    self.cueLine = nil
+    self:SetHighlight(line.highlight)
+    if not line.cues then return end
+    local list = {}
+    for _, c in ipairs(line.cues) do
+        local at = line[2]:find(c[1], 1, true)
+        if at then
+            local items = {}
+            for i = 2, #c do items[#items + 1] = c[i] end
+            local cps = self.SPEAK_CPS[line[1]] or self.SPEAK_CPS_DEFAULT
+            list[#list + 1] = { t = (at - 1) / cps, items = items }
+        end
+    end
+    self.cueLine = { start = GetTime(), list = list, next = 1 }
+end
+
+function D:UpdateCues()
+    local c = self.cueLine
+    if not c then return end
+    local e = GetTime() - c.start
+    while c.list[c.next] and e >= c.list[c.next].t do
+        self:SetHighlight(c.list[c.next].items)
+        c.next = c.next + 1
+    end
+    if not c.list[c.next] then self.cueLine = nil end
+end
+
 function D:Show(line)
+    self:StartCues(line)
     local sp = self.SPEAKERS[line[1]] or self.SPEAKERS.tink
     self.panel.name:SetText("|cffffd700" .. sp.name .. "|r")
     self.panel.text:SetText(line[2])
@@ -479,6 +523,8 @@ function D:Advance()
 end
 
 function D:Finish()
+    self.cueLine = nil
+    self:SetHighlight(nil)
     self:StopVoice()
     if self.panel then self.panel:Hide() end
     self.queue, self.speaker = nil, nil
