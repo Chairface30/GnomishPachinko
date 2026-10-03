@@ -1966,6 +1966,20 @@ __gearsOnce = not GP.Dialog:IsShown() and #__printed == printed + 1
 """)
 check("Get Golden Gears away from a mailbox: Tinkmaster explains once, then a chat line", ev("__gearsTalk") and ev("__gearsOnce"))
 
+# TEMPORARY: the dialog tuning panel frames each speaker in the box
+lua(r"""
+UI:TuneSpeaker(4)        -- tink -> cog
+__dlgId = UI:TuneSpeakerId()
+__dlgShown = GP.Dialog:IsShown() and GP.Dialog.speakerKey == "cog"
+UI.dialogTuner.sliders.scale:GetScript("OnValueChanged")(UI.dialogTuner.sliders.scale, 2)
+UI.dialogTuner.sliders.z:GetScript("OnValueChanged")(UI.dialogTuner.sliders.z, -0.3)
+__dlgW = GP.Dialog.model:GetWidth() / GP.Dialog.PORTRAIT_W
+__dlgSaved = GnomishPachinkoDB.mascot.dialogTune.cog.z == -0.3
+GP.Dialog:Finish()
+GnomishPachinkoDB.mascot.dialogTune = nil
+""")
+check("the dialog tuner previews a speaker and saves its zoom and height", ev("__dlgId") == "cog" and ev("__dlgShown") and abs(ev("__dlgW") - 2) < 0.01 and ev("__dlgSaved"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

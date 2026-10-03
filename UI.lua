@@ -775,6 +775,7 @@ function UI:CreateFrame()
     self:CreatePlaysPanel()
     self:CreateCard()
     if GP.Dialog then GP.Dialog:Create(frame, view, field:GetFrameLevel() + 30) end
+    self:CreateDialogTuner(frame)
     -- the host's box: a round frame centred over the field's top edge, the model inside it
     local box = CreateFrame("Frame", nil, frame)
     box:SetSize(PORTRAIT, PORTRAIT)
@@ -1264,6 +1265,103 @@ end
 UI.PORTRAIT_STRIPS = 1
 
 UI.TUBE_DIM = 0.38      -- an unscored Fever tube is drawn this dark
+
+-- TEMPORARY: a panel left of the window to frame each speaker in the
+-- conversation box (the hosts, Cogwhistle the duel rival, the bosses).
+-- Values save to GnomishPachinkoDB.mascot.dialogTune[speaker]; once set
+-- they are copied into Dialog.SPEAKER_VIEWS and this panel is removed.
+UI.TUNE_SPEAKERS = { "tink", "mekka", "razzle", "bink", "cog", "drake", "golem", "spider", "boar", "yeti" }
+function UI:CreateDialogTuner(frame)
+    local D = GP.Dialog
+    if not D then return end
+    local panel = CreateFrame("Frame", nil, frame)
+    panel:SetSize(230, 356)
+    panel:SetPoint("TOPRIGHT", frame, "TOPLEFT", -8, -40)
+    local bg = panel:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetTexture(WHITE)
+    bg:SetVertexColor(0.05, 0.06, 0.1, 0.92)
+    local title = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", panel, "TOP", 0, -8)
+    title:SetText("Dialog speakers (temporary)")
+    local name = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    name:SetPoint("TOP", panel, "TOP", 0, -30)
+    name:SetWidth(150)
+    panel.name = name
+    local prev = makeButton(panel, 26, 22, "<")
+    prev:SetPoint("TOPLEFT", panel, "TOPLEFT", 8, -26)
+    prev:SetScript("OnClick", function() UI:TuneSpeaker(-1) end)
+    local nxt = makeButton(panel, 26, 22, ">")
+    nxt:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -8, -26)
+    nxt:SetScript("OnClick", function() UI:TuneSpeaker(1) end)
+    panel.sliders = {}
+    local function slider(key, lo, hi, y)
+        local sname = "GnomishPachinkoDlgTune" .. key
+        local sl = CreateFrame("Slider", sname, panel, "OptionsSliderTemplate")
+        sl:SetPoint("TOP", panel, "TOP", 0, y)
+        sl:SetWidth(190)
+        sl:SetMinMaxValues(lo, hi)
+        sl:SetValueStep(0.01)
+        if sl.SetObeyStepOnDrag then sl:SetObeyStepOnDrag(true) end
+        local low, high = _G[sname .. "Low"], _G[sname .. "High"]
+        if low and low.SetText then low:SetText(tostring(lo)) end
+        if high and high.SetText then high:SetText(tostring(hi)) end
+        sl.textFs = _G[sname .. "Text"]
+        sl.key = key
+        sl:SetScript("OnValueChanged", function(self, v)
+            if UI.tuneLoading then return end
+            local db = GP:GetDB()
+            db.mascot = db.mascot or {}
+            db.mascot.dialogTune = db.mascot.dialogTune or {}
+            local id = UI:TuneSpeakerId()
+            db.mascot.dialogTune[id] = db.mascot.dialogTune[id] or {}
+            db.mascot.dialogTune[id][self.key] = math.floor(v * 100 + 0.5) / 100
+            GP.Dialog:PoseSpeaker()
+            UI:RefreshDialogTuner()
+        end)
+        panel.sliders[key] = sl
+    end
+    slider("z", -1.5, 1.5, -70)
+    slider("x", -80, 80, -120)
+    slider("scale", 0.3, 5, -170)
+    slider("yaw", -3.14, 3.14, -220)
+    slider("pitch", -3.14, 3.14, -270)
+    local show = makeButton(panel, 100, 22, "Show box")
+    show:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 8, 8)
+    show:SetScript("OnClick", function() GP.Dialog:Preview(UI:TuneSpeakerId()) end)
+    local hide = makeButton(panel, 100, 22, "Hide box")
+    hide:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -8, 8)
+    hide:SetScript("OnClick", function() GP.Dialog:Finish() end)
+    self.dialogTuner = panel
+    self:RefreshDialogTuner()
+end
+
+function UI:TuneSpeakerId()
+    return self.TUNE_SPEAKERS[self.tuneSpeakerIndex or 1]
+end
+
+function UI:TuneSpeaker(dir)
+    local n = #self.TUNE_SPEAKERS
+    self.tuneSpeakerIndex = ((self.tuneSpeakerIndex or 1) - 1 + dir) % n + 1
+    GP.Dialog:Preview(self:TuneSpeakerId())
+    self:RefreshDialogTuner()
+end
+
+function UI:RefreshDialogTuner()
+    local p = self.dialogTuner
+    if not p then return end
+    local id = self:TuneSpeakerId()
+    local sp = GP.Dialog.SPEAKERS[id]
+    p.name:SetText(sp and sp.name or id)
+    local v = GP.Dialog:SpeakerView(id)
+    self.tuneLoading = true
+    for key, sl in pairs(p.sliders) do sl:SetValue(v[key]) end
+    self.tuneLoading = false
+    local names = { z = "Height", x = "Sideways", scale = "Zoom", yaw = "Turn", pitch = "Tilt" }
+    for key, sl in pairs(p.sliders) do
+        if sl.textFs then sl.textFs:SetText(("%s: %.2f"):format(names[key], v[key])) end
+    end
+end
 
 -- The board's chrome: the host's box, the balls-left strip, the special-ball
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.

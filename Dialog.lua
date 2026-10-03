@@ -31,6 +31,55 @@ D.SPEAKERS = {
 }
 D.MUMBLES = 6       -- Sounds/mumble1..6.ogg and grumble1..6.ogg
 
+-- Each speaker's framing in the box: z, the height (a share of the
+-- window's height); x, a sideways nudge in pixels; scale, the zoom; yaw,
+-- its turn; pitch, its tilt. TEMPORARY: the tuning panel's saved values
+-- (db.mascot.dialogTune) win until they are hardcoded in SPEAKER_VIEWS.
+D.PORTRAIT_W, D.PORTRAIT_H = 110, 120
+D.SPEAKER_VIEW = { z = 0, x = 0, scale = 1, yaw = 0.4, pitch = 0 }
+D.SPEAKER_VIEWS = {}
+function D:SpeakerView(key)
+    local m = GP:GetDB().mascot
+    local saved = (key and m and m.dialogTune and m.dialogTune[key]) or {}
+    local fixed = (key and self.SPEAKER_VIEWS[key]) or {}
+    local v = {}
+    for k, d in pairs(self.SPEAKER_VIEW) do
+        if saved[k] ~= nil then v[k] = saved[k] elseif fixed[k] ~= nil then v[k] = fixed[k] else v[k] = d end
+    end
+    return v
+end
+
+-- The whole model (no portrait camera, which crops to the head), framed
+-- by its view.
+function D:PoseSpeaker()
+    local m = self.model
+    if not m then return end
+    local v = self:SpeakerView(self.speakerKey)
+    m:SetSize(self.PORTRAIT_W * v.scale, self.PORTRAIT_H * v.scale)
+    m:ClearAllPoints()
+    m:SetPoint("CENTER", self.portraitClip, "CENTER", v.x, v.z * self.PORTRAIT_H)
+    pcall(function()
+        if m.SetPortraitZoom then m:SetPortraitZoom(0) end
+        if m.SetCamDistanceScale then m:SetCamDistanceScale(1) end
+        m:SetPosition(0, 0, 0)
+        m:SetFacing(v.yaw)
+    end)
+    if m.SetPitch then pcall(m.SetPitch, m, v.pitch) end
+end
+
+-- TEMPORARY: preview a speaker in the box for the tuning panel.
+function D:Preview(key)
+    local sp = self.SPEAKERS[key]
+    if not (self.panel and sp) then return end
+    self:StopVoice()
+    self.queue = nil
+    self.panel:Show()
+    self.panel.name:SetText("|cffffd700" .. sp.name .. "|r")
+    self.panel.text:SetText("Tuning this speaker's framing.")
+    self.speaker = key
+    self:ShowSpeaker(sp, key)
+end
+
 -- The conversations. `when` decides whether one belongs to a level's state.
 D.SCRIPTS = {
     -- not tied to a level: played the first time Get Golden Gears is pressed away from a mailbox
@@ -168,9 +217,18 @@ function D:Create(parent, anchor, frameLevel)
     panel:Hide()
     self.panel = panel
 
-    local portrait = CreateFrame("PlayerModel", nil, panel)
-    portrait:SetSize(110, 120)
-    portrait:SetPoint("LEFT", panel, "LEFT", 26, -4)
+    -- the speaker, whole, in a clipped window on the left: zoom and height
+    -- move and size the model's frame (the client refits a model to its
+    -- frame, undoing SetModelScale), the window keeps it off the text
+    local clip = CreateFrame("Frame", nil, panel)
+    clip:SetSize(D.PORTRAIT_W, D.PORTRAIT_H + 30)
+    clip:SetPoint("LEFT", panel, "LEFT", 26, -4)
+    if clip.SetClipsChildren then pcall(clip.SetClipsChildren, clip, true) end
+    self.portraitClip = clip
+    local portrait = CreateFrame("PlayerModel", nil, clip)
+    portrait:SetSize(D.PORTRAIT_W, D.PORTRAIT_H)
+    portrait:SetPoint("CENTER", clip, "CENTER", 0, 0)
+    portrait:SetScript("OnModelLoaded", function() D:PoseSpeaker() end)
     self.model = portrait
     -- the speaker keeps talking for as long as the box is open: the talk
     -- animation is restarted whenever it ends (and every few seconds, in
@@ -247,7 +305,7 @@ function D:Show(line)
     self.panel.text:SetText(line[2])
     if self.speaker ~= line[1] then
         self.speaker = line[1]
-        self:ShowSpeaker(sp)
+        self:ShowSpeaker(sp, line[1])
     end
     if self.model.SetAnimation then pcall(self.model.SetAnimation, self.model, self.TALK_ANIM or 60) end   -- talk
     self.talkClock = 0
@@ -264,17 +322,16 @@ end
 -- shows the last speaker while the new model loads; a creature the client
 -- has not cached yet loads a moment later, so the call is repeated until
 -- the model is there (or the speaker changes).
-function D:ShowSpeaker(sp)
+function D:ShowSpeaker(sp, key)
     local m = self.model
+    self.speakerKey = key
     if m.ClearModel then pcall(m.ClearModel, m) end
     self.loadToken = (self.loadToken or 0) + 1
     local token = self.loadToken
     local function try(left)
         if token ~= self.loadToken then return end
         pcall(m.SetCreature, m, sp.npc)
-        pcall(m.SetPosition, m, 0, 0, 0)
-        pcall(m.SetFacing, m, 0.4)
-        if m.SetCamera then pcall(m.SetCamera, m, 0) end
+        self:PoseSpeaker()
         if m.SetAnimation then pcall(m.SetAnimation, m, self.TALK_ANIM or 60) end
         local has = true
         if m.GetModelFileID then

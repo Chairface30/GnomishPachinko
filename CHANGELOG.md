@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Temporary dialog tuning panel** left of the window: pick any speaker in the conversation box (the four hosts, Cogwhistle, the five bosses) and set height, sideways, zoom, turn and tilt. The box now shows whole models in a clipped window instead of the head-cropping portrait camera.
 - Pressing **Get Golden Gears** away from a mailbox has Tinkmaster explain, in his own voice, how gears are bought by mail. He says it once; after that, heard or skipped, it is a chat line.
 - **Duels end on the last orange.** Whoever lights it wins the duel at once, keeping that shot's points. A duel has no Fever and no end bonus. If the balls run out first, the higher score still wins.
 - **A Super Slide is a sure thing.** Once a ball takes a rail it rides it to the end along the bricks in order, lighting every one, and leaves off the far end. It used to slip off at joints and leave bricks unlit.
