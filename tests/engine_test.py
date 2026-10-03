@@ -1966,20 +1966,18 @@ __gearsOnce = not GP.Dialog:IsShown() and #__printed == printed + 1
 """)
 check("Get Golden Gears away from a mailbox: Tinkmaster explains once, then a chat line", ev("__gearsTalk") and ev("__gearsOnce"))
 
-# TEMPORARY: the dialog tuning panel frames each speaker in the box
+# the speakers in the box keep the framing the user set by eye
 lua(r"""
-UI:TuneSpeaker(4)        -- tink -> cog
-__dlgId = UI:TuneSpeakerId()
-__dlgShown = GP.Dialog:IsShown() and GP.Dialog.speakerKey == "cog"
-UI.dialogTuner.sliders.scale:GetScript("OnValueChanged")(UI.dialogTuner.sliders.scale, 2)
-UI.dialogTuner.sliders.z:GetScript("OnValueChanged")(UI.dialogTuner.sliders.z, -0.3)
-__dlgW = GP.Dialog.model:GetWidth() / GP.Dialog.PORTRAIT_W
-__dlgSaved = GnomishPachinkoDB.mascot.dialogTune.cog.z == -0.3
-GP.Dialog:Finish()
-GnomishPachinkoDB.mascot.dialogTune = nil
+local D = GP.Dialog
+D.panel:Show()
+D:ShowSpeaker(D.SPEAKERS.cog, "cog")
+__dlgW = D.model:GetWidth() / D.PORTRAIT_W
+__noDlgTuner = UI.dialogTuner == nil and UI.CreateDialogTuner == nil and D.Preview == nil
+D:Finish()
 """)
+check("each speaker keeps its set framing in the box (Cogwhistle at 4.18 zoom)", abs(ev("__dlgW") - 4.18) < 0.01, str(ev("__dlgW")))
+check("the dialog tuning panel is gone", ev("__noDlgTuner"))
 check("the conversation box draws its border over the speaker", ev("GP.Dialog.rim:GetFrameLevel()") is not None)
-check("the dialog tuner previews a speaker and saves its zoom and height", ev("__dlgId") == "cog" and ev("__dlgShown") and abs(ev("__dlgW") - 2) < 0.01 and ev("__dlgSaved"))
 
 # the balloons follow the picture: mirrored pairs, an odd one only on the centre line
 lua(r"""
@@ -2009,9 +2007,10 @@ check("level balloons come in mirrored pairs or sit on the centre line", nbad ==
 
 # Cogwhistle is Tinkmaster's model lit green, in a model frame of his own
 lua(r"""
-GP.Dialog:Preview("cog")
+GP.Dialog.panel:Show()
+GP.Dialog:ShowSpeaker(GP.Dialog.SPEAKERS.cog, "cog")
 __cogTint = GP.Dialog.model == GP.Dialog.tintModel and GP.Dialog.tintModel:IsShown() and not GP.Dialog.plainModel:IsShown()
-GP.Dialog:Preview("tink")
+GP.Dialog:ShowSpeaker(GP.Dialog.SPEAKERS.tink, "tink")
 __tinkPlain = GP.Dialog.model == GP.Dialog.plainModel and not GP.Dialog.tintModel:IsShown()
 GP.Dialog:Finish()
 """)

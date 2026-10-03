@@ -34,19 +34,23 @@ D.MUMBLES = 6       -- Sounds/mumble1..6.ogg and grumble1..6.ogg
 
 -- Each speaker's framing in the box: z, the height (a share of the
 -- window's height); x, a sideways nudge in pixels; scale, the zoom; yaw,
--- its turn; pitch, its tilt. TEMPORARY: the tuning panel's saved values
--- (db.mascot.dialogTune) win until they are hardcoded in SPEAKER_VIEWS.
+-- its turn; pitch, its tilt; cam, the camera's distance. Set by eye by
+-- the user (2026-10-02); a speaker not listed keeps SPEAKER_VIEW.
 D.PORTRAIT_W, D.PORTRAIT_H = 110, 120
 D.PORTRAIT_CLIP_W = 136      -- the window runs from the box's left edge to just short of the text
 D.SPEAKER_VIEW = { z = 0, x = 0, scale = 1, yaw = 0.4, pitch = 0, cam = 1 }
-D.SPEAKER_VIEWS = {}
+D.SPEAKER_VIEWS = {
+    tink   = { z = -0.35, x = 15.81, scale = 2.28, yaw = 0.21,  pitch = 0, cam = 0.98 },
+    mekka  = { z = -0.33, x = 14.86, scale = 2.42, yaw = -0.31, pitch = 0, cam = 1 },
+    razzle = { z = -0.31, x = 17.71, scale = 1.91, yaw = -0.2,  pitch = 0, cam = 1 },
+    bink   = { z = -0.4,  x = 8.19,  scale = 2.11, yaw = 0.4,   pitch = 0, cam = 1 },
+    cog    = { z = -0.26, x = 12.95, scale = 4.18, yaw = -0.05, pitch = 0, cam = 2.08 },
+}
 function D:SpeakerView(key)
-    local m = GP:GetDB().mascot
-    local saved = (key and m and m.dialogTune and m.dialogTune[key]) or {}
     local fixed = (key and self.SPEAKER_VIEWS[key]) or {}
     local v = {}
     for k, d in pairs(self.SPEAKER_VIEW) do
-        if saved[k] ~= nil then v[k] = saved[k] elseif fixed[k] ~= nil then v[k] = fixed[k] else v[k] = d end
+        if fixed[k] ~= nil then v[k] = fixed[k] else v[k] = d end
     end
     return v
 end
@@ -90,19 +94,6 @@ function D:TintModel(m, c, power)
         ok = pcall(m.SetLight, m, true, false, 0, 1, -0.5, amb, r, g, b, dif, r, g, b)
     end
     return ok
-end
-
--- TEMPORARY: preview a speaker in the box for the tuning panel.
-function D:Preview(key)
-    local sp = self.SPEAKERS[key]
-    if not (self.panel and sp) then return end
-    self:StopVoice()
-    self.queue = nil
-    self.panel:Show()
-    self.panel.name:SetText("|cffffd700" .. sp.name .. "|r")
-    self.panel.text:SetText("Tuning this speaker's framing.")
-    self.speaker = key
-    self:ShowSpeaker(sp, key)
 end
 
 -- The conversations. `when` decides whether one belongs to a level's state.

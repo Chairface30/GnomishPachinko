@@ -60,7 +60,7 @@ local function settings()
     db.mascot = db.mascot or {}
     local m = db.mascot
     -- the old tuning panel's values now live in GP.HOSTS and UI.BOSS_VIEWS
-    if m.tune or m.bossView or m.bossPitch then m.tune, m.bossView, m.bossPitch = nil, nil, nil end
+    if m.tune or m.bossView or m.bossPitch or m.dialogTune then m.tune, m.bossView, m.bossPitch, m.dialogTune = nil, nil, nil, nil end
     return m
 end
 

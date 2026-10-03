@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The conversation box keeps the framing set by eye** for Tinkmaster, Mekkatorque, Razzle, Bink and Cogwhistle. The temporary dialog tuning panel is gone.
 - **Cogwhistle looks the evil brother:** Tinkmaster's own model, lit pure, strong green. Any speaker can be given a tint; tinted speakers use a model frame of their own so the light never spills onto the others.
 - **Super Guide tracks two bounces.** It no longer grows when earned again; it just runs for more shots.
 - **Tinkmaster duels his brother.** Level 90, the end of his chapter 9, is a duel with Cogwhistle instead of a boss, with its own voiced conversation. Win it and his Super Guide becomes the **Crazy Guide**: five bounces of the path. The unlock is sealed with the rest of the progress.
