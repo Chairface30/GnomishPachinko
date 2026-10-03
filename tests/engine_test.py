@@ -3415,10 +3415,10 @@ function round_probe()
     E.HitPeg(st, b, { vx = 0, vy = 100 }, events)
   end
   out.bossThree = hp0 - b.hp == 3 * E.BOSS_HIT_DAMAGE
-  -- the Tin Drake throws its iron the moment a shot is fired, every second shot
+  -- the Tin Drake throws its iron the moment every shot is fired (counting every piece made)
   for n = 10, 400, 10 do spec = L:Build(n) if spec.boss and spec.boss.id == "drake" then break end end
   st = E:NewLevel(spec)
-  local function scrapCount() local c = 0 for _, p in ipairs(st.pegs) do if p.scrap and not p.gone then c = c + 1 end end return c end
+  local function scrapCount() local c = 0 for _, p in ipairs(st.pegs) do if p.scrap then c = c + 1 end end return c end
   wipe(events)
   E:Launch(st, events)
   local afterFirst = scrapCount()
@@ -3476,8 +3476,8 @@ check("a bucket catch is never a Total Miss", r["bucketNoMiss"])
 check("a boss counts every strike of a quick bank shot", r["bossThree"])
 sc = list(r["scrap"].values())
 E_PER = ev("E.SCRAP_PER_SHOT_DRAKE")
-check("the Tin Drake throws iron as a shot is fired, every second shot, and none when a shot ends",
-      sc[0] == 0 and sc[1] == 0 and sc[2] == E_PER, str(sc))
+check("the Tin Drake throws iron as every shot is fired, and none when a shot ends",
+      sc[0] == E_PER and sc[1] == E_PER and sc[2] == 2 * E_PER, str(sc))
 check("a hatched egg's phoenix lights the pieces in its column and no others", r["phoenix"])
 check("a lost egg ends the level even while aiming", r["eggAim"])
 check("a gem on a slope rolls off instead of sticking", r["rolls"])

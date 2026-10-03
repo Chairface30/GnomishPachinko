@@ -14,7 +14,7 @@
 - **The last orange no longer decides a duel.** Its 25,000 bonus is gone: lighting it pays only the peg's own points and ends the duel (there is nothing left to shoot for), and the higher score wins. Cogwhistle's challenge line is re-voiced to match.
 - The level card for a duel level (20, 40, 60 and on) no longer prints the rival's long description under the goal; the duel's rules are still in the map tooltip.
 - **The Tin Drake's iron draws the lightning:** while any of its scrap barricades are up, an orange's zap strikes the nearest piece instead of the drake, destroying it. Hit the drake directly, or clear the iron first.
-- The Tin Drake now throws its iron the moment a shot is fired (on every second shot, one piece at a time, at most 4 up), so it can't be aimed around. To make up for the iron, the drake carries 60% of a boss's usual health (7 on level 10, 10 on level 130).
+- The Tin Drake throws a piece of iron the moment every ball is fired (at most 4 up at once), so it can't be aimed around. He keeps a boss's full health.
 - The boss tutorials have no arrow or sample piece.
 - **The tutorials show what they talk about:** while the host speaks, a big sample of the piece in question is put up in the middle above the talk box (only for the talk: gone before the level card shows) with a soft glow and the goofy arrow jabbing and wobbling at it (the purple peg, bricks, balloons, rails, every moving setup, keys, eggs, gems, the bosses and the rest).
 - **Gems (and eggs) move like real bodies when hit:** the shove goes along the line from the ball through the face it struck, as strong as the ball closed on that face. A square hit drives a gem straight on; a glancing one barely nudges it.
