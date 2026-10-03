@@ -1305,7 +1305,7 @@ end
 function UI:PlayFromCard()
     local st = self.state
     if self.cardTip then GP:GetDB().tips[self.cardTip] = true; self.cardTip = nil end
-    if self.greenBoost and GP:SpendItem("green") then
+    if self.greenBoost and not self.duelOnly and GP:SpendItem("green") then
         local p = E:AddGreen(st)
         if p then
             self:LayoutPegs()
@@ -1316,6 +1316,13 @@ function UI:PlayFromCard()
     self:HideCard()
     self:ShowBoardContents()
     GP:PlaySfx("start.ogg")
+    local carry = self.duelOnly
+    if carry then
+        -- a duel retry: the cleared board's score carries over, as it did
+        self.duelOnly = nil
+        st.score, st.freeBallIdx, st.bestCombo = carry.score, carry.freeBallIdx, carry.bestCombo
+        self:BeginDuel(GetTime())
+    end
     self:UpdateDisplay()
 end
 
@@ -2494,6 +2501,10 @@ function UI:StartLevel(n, retry)
     self.attempts = self.attempts or {}
     if retry then self.attempts[n] = (self.attempts[n] or 0) + 1 else self.attempts[n] = 0 end
     local spec = L:Build(n, self.attempts[n])
+    -- a retry of a duel whose board was already cleared plays only the duel
+    self.duelCarry = self.duelCarry or {}
+    if not retry then self.duelCarry[n] = nil end
+    self.duelOnly = (retry and spec.objective == "duel") and self.duelCarry[n] or nil
     local last = GP:GetDB().lastPower
     if last then
         for _, id in ipairs(GP:UnlockedPowers(n)) do if id == last then spec.power = last end end
@@ -2727,6 +2738,9 @@ end
 -- Stage one is clear: build the shared board and flip the coin.
 function UI:BeginDuel(now)
     local st = self.state
+    -- remembered, so a retry of this level skips straight to the duel
+    self.duelCarry = self.duelCarry or {}
+    self.duelCarry[st.level] = { score = st.score, freeBallIdx = st.freeBallIdx, bestCombo = st.bestCombo }
     local spec2 = L:Build(st.level, (self.attempts and self.attempts[st.level] or 0) * 7 + 50, { stage2 = true })
     self.state = E:StartDuel(st, spec2)
     st = self.state

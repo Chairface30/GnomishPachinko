@@ -1824,6 +1824,30 @@ for n in (15, 23, 10, 20):
     ok, obj, phase = ev("ui_run_level")(n)
     check(f"the window runs level {n} ({obj}) without errors", ok and phase in ("AIM", "FLIGHT", "FEVER", "OVER"), f"{ok} {phase}")
 
+# a retry of a duel whose board was cleared goes straight to the duel,
+# with the cleared board's score carried over; a fresh start plays the board
+lua(r"""
+GnomishPachinkoDB.unlocked = 400
+UI:StartLevel(20)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:PlayFromCard()
+UI.state.score = 12345
+UI:BeginDuel(GetTime())
+__duelStage = UI.state.duel.stage
+UI:Retry()
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:PlayFromCard()
+__retryStage = UI.state.duel and UI.state.duel.stage
+__retryScore = UI.state.score
+UI:StartLevel(20)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:PlayFromCard()
+__freshStage = UI.state.duel and UI.state.duel.stage
+""")
+check("a duel retry skips the cleared board and plays only the duel, score carried; a fresh start plays the board",
+      ev("__duelStage") == 2 and ev("__retryStage") == 2 and ev("__retryScore") == 12345 and ev("__freshStage") == 1,
+      f'{ev("__duelStage")} {ev("__retryStage")} {ev("__retryScore")} {ev("__freshStage")}')
+
 # Fever's balloons are drawn once, by their own pictures: no leftover piece
 # texture from a bigger board shows up as a stray balloon
 lua(r"""
@@ -2168,7 +2192,33 @@ function wedged_probe()
 end
 """)
 lost_at = ev("wedged_probe")()
-check("a ball that stops dead for a second is taken off the board (lost, stuck)", 0.9 < lost_at < 1.4, f"{lost_at:.2f}s")
+check("a ball that stops dead on a solid piece is taken off the board (lost, stuck)", 0.9 < lost_at <= ev("E.STILL_SECS") + 0.1, f"{lost_at:.2f}s")
+
+# a ball resting on a piece it just lit is not taken off: it waits for the
+# lit piece to vanish, then falls on
+lua(r"""
+function resting_on_lit_probe()
+  local st = E:NewLevel(L:Build(1))
+  for _, p in ipairs(st.pegs) do p.gone = true end
+  local brick = { shape = "brick", x = 245, y = 400, angle = 0, w = 120, h = E.BRICK_H, kind = "blue", hp = 1, maxhp = 1, lit = false, gone = false }
+  st.pegs[#st.pegs + 1] = brick
+  st.aim = 0
+  local events = {}
+  assert(E:Launch(st, events))
+  local b = st.balls[1]
+  b.x, b.y, b.vx, b.vy = 245, 400 - E.BRICK_H / 2 - E.BALL_R - 0.5, 0, 0
+  local stuck, fell = false, false
+  for _ = 1, 60 * 4 do
+    E:Step(st, 1 / 60, events)
+    for _, e in ipairs(events) do if e.type == "lost" and e.stuck then stuck = true end end
+    if brick.gone and (not st.balls[1] or st.balls[1].y > 430) then fell = true end
+    if fell or stuck then break end
+  end
+  return brick.lit == true, stuck, fell
+end
+""")
+lit_ok, stuck_lit, fell_lit = ev("resting_on_lit_probe")()
+check("a ball resting on a piece it just lit is not taken off as stuck: the piece goes and the ball falls on", lit_ok and not stuck_lit and fell_lit, f"{lit_ok} {stuck_lit} {fell_lit}")
 
 # a ball that runs off the end of a Super Slide flies on: it is not taken
 # straight back onto the same rail (level 8's spiral, shot straight down,

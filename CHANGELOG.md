@@ -2,10 +2,11 @@
 
 ## Unreleased
 
+- **Retrying a duel skips the board you already cleared:** once a duel level's first board is cleared, Retry goes straight to the duel with Cogwhistle, carrying over that board's score as before. Starting the level fresh from the map plays the whole thing.
 - **Cogwhistle no longer runs away with a duel he opens:** when the coin gives him the first shot, he takes a warm-up shot down a middling lane instead of his best one. On a fresh duel board his best opening (often half the oranges and a big combo) left nothing to catch up on, worst of all on level 90. His later turns are unchanged.
 - **Tough pieces show the hits they have left:** a hit strips a layer. A gold-rimmed piece turns steel-rimmed and shows a crack; a steel-rimmed piece loses its rim and becomes a plain piece. The tough pieces' tutorial demo and Bink's line (re-voiced) match.
 - **Level 66, the Long Shots tutorial, is redesigned:** just two angled walls of orange pegs in a V, nothing else on the board (no gimmick, rail, balloon, green or rimmed piece). A ball off one wall flies across to the other, so Long Shots come easily.
-- **A wedged ball leaves the board:** a ball that stays in the same spot for a second (stuck between pieces, jittering in place) is taken off as if it had fallen off the bottom.
+- **A wedged ball leaves the board:** a ball that stays in the same spot for three seconds (stuck between pieces, jittering in place) is taken off as if it had fallen off the bottom. That is a second longer than lit pieces take to vanish, so a ball just resting on pieces it lit waits for them to go and falls on.
 - **The Bolt Golem starts behind its shield,** shown as a glowing half dome over the top of it (dimmer with one hit left). The shield now blocks lightning as well: an orange's bolt knocks off a layer instead of hurting him. He still raises it again every third shot. Razzle's golem line is re-voiced to match.
 - Fixed: a ball running off the end of a Super Slide could be taken straight back onto the same rail, over and over, and sit at its end. It now flies on along the rail's last stretch.
 - Rail (Super Slide) bricks bounce a ball like any other brick: a touch that doesn't take the rail no longer kills the ball's bounce, and a contact that can't start a ride is an ordinary bounce instead of leaving the ball stopped. On the rail the ball keeps its speed.
