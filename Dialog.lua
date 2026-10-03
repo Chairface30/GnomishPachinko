@@ -20,7 +20,8 @@ D.SPEAKERS = {
     mekka  = { name = "High Tinker Mekkatorque", npc = 7937, voice = "mumble" },
     razzle = { name = "Razzle Sprysprocket",     npc = 1269, voice = "mumble" },
     bink   = { name = "Bink",                    npc = 5144, voice = "mumble" },
-    cog    = { name = "Cogwhistle Overspark", npc = 7800, voice = "mumble" },
+    -- Cogwhistle, the evil brother: Tinkmaster's own model lit a sickly green
+    cog    = { name = "Cogwhistle Overspark", npc = 7406, tint = { 0.35, 1, 0.3 }, voice = "mumble" },
     -- the bosses: `models` are creature ids tried in turn for the board
     -- (the first the client has wins); `npc` is the first, for the dialog box
     drake  = { name = "Tin Drake",    npc = 8615, models = { 8615, 12473, 2678 }, voice = "grumble" },   -- Mithril, Arcanite, Mechanical Dragonling
@@ -66,6 +67,28 @@ function D:PoseSpeaker()
         m:SetFacing(v.yaw)
     end)
     if m.SetPitch then pcall(m.SetPitch, m, v.pitch) end
+end
+
+-- Lights a model in one colour: a coloured ambient and a coloured
+-- light from the front, so the whole model takes the tint. Both forms of
+-- SetLight are tried (a table of values in newer clients, a long list of
+-- numbers in older ones).
+function D:TintModel(m, c)
+    if not (m and m.SetLight) then return false end
+    local r, g, b = c[1], c[2], c[3]
+    local ok = false
+    if CreateColor and CreateVector3D then
+        ok = pcall(m.SetLight, m, true, {
+            omnidirectional = false,
+            point = CreateVector3D(0, 1, -0.5),
+            ambientIntensity = 0.8, ambientColor = CreateColor(r, g, b),
+            diffuseIntensity = 1.0, diffuseColor = CreateColor(r, g, b),
+        })
+    end
+    if not ok then
+        ok = pcall(m.SetLight, m, true, false, 0, 1, -0.5, 0.8, r, g, b, 1.0, r, g, b)
+    end
+    return ok
 end
 
 -- TEMPORARY: preview a speaker in the box for the tuning panel.
@@ -241,10 +264,24 @@ function D:Create(parent, anchor, frameLevel)
     if clip.SetClipsChildren then pcall(clip.SetClipsChildren, clip, true) end
     if clip.SetFrameLevel then clip:SetFrameLevel(base + 1) end
     self.portraitClip = clip
-    local portrait = CreateFrame("PlayerModel", nil, clip)
-    portrait:SetSize(D.PORTRAIT_W, D.PORTRAIT_H)
-    portrait:SetPoint("CENTER", clip, "CENTER", 0, 0)
-    if portrait.SetFrameLevel then portrait:SetFrameLevel(base + 2) end
+    -- two model frames: one in the client's own light, one lit in a
+    -- speaker's colour (a light set on a model frame stays on it, so the
+    -- tinted speakers get a frame of their own)
+    local function makeModel()
+        local m = CreateFrame("PlayerModel", nil, clip)
+        m:SetSize(D.PORTRAIT_W, D.PORTRAIT_H)
+        m:SetPoint("CENTER", clip, "CENTER", 0, 0)
+        if m.SetFrameLevel then m:SetFrameLevel(base + 2) end
+        m:SetScript("OnModelLoaded", function() D:PoseSpeaker() end)
+        m:SetScript("OnAnimFinished", function(self)
+            if panel:IsShown() then pcall(self.SetAnimation, self, D.TALK_ANIM) end
+        end)
+        return m
+    end
+    local portrait = makeModel()
+    self.plainModel = portrait
+    self.tintModel = makeModel()
+    self.tintModel:Hide()
     -- the border again, over the model (its middle left out)
     local rim = CreateFrame("Frame", nil, panel)
     rim:SetAllPoints(panel)
@@ -252,20 +289,16 @@ function D:Create(parent, anchor, frameLevel)
     rim.skin = ART:NewSkin(rim, "card", "ARTWORK", 0, panel)
     if rim.skin.pieces[5] then rim.skin.pieces[5]:Hide() end
     self.rim = rim
-    portrait:SetScript("OnModelLoaded", function() D:PoseSpeaker() end)
     self.model = portrait
     -- the speaker keeps talking for as long as the box is open: the talk
     -- animation is restarted whenever it ends (and every few seconds, in
     -- case the client does not report the end)
     D.TALK_ANIM = 60
-    portrait:SetScript("OnAnimFinished", function(m)
-        if panel:IsShown() then pcall(m.SetAnimation, m, D.TALK_ANIM) end
-    end)
     panel:SetScript("OnUpdate", function(_, elapsed)
         D.talkClock = (D.talkClock or 0) + elapsed
         if D.talkClock >= 2.5 then
             D.talkClock = 0
-            pcall(portrait.SetAnimation, portrait, D.TALK_ANIM)
+            pcall(D.model.SetAnimation, D.model, D.TALK_ANIM)
         end
     end)
 
@@ -349,6 +382,16 @@ end
 -- has not cached yet loads a moment later, so the call is repeated until
 -- the model is there (or the speaker changes).
 function D:ShowSpeaker(sp, key)
+    -- a tinted speaker goes in the tinted frame, lit in its colour
+    if self.tintModel then
+        local want = sp.tint and self.tintModel or self.plainModel
+        local other = sp.tint and self.plainModel or self.tintModel
+        other:Hide()
+        if other.ClearModel then pcall(other.ClearModel, other) end
+        want:Show()
+        self.model = want
+        if sp.tint then self:TintModel(want, sp.tint) end
+    end
     local m = self.model
     self.speakerKey = key
     if m.ClearModel then pcall(m.ClearModel, m) end

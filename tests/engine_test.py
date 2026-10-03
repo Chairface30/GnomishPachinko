@@ -2007,6 +2007,16 @@ end
 nbad, nlev, which = ev("balloon_symmetry_probe")()
 check("level balloons come in mirrored pairs or sit on the centre line", nbad == 0 and nlev > 10, f"{nbad} unpaired on {which}; {nlev} levels with balloons")
 
+# Cogwhistle is Tinkmaster's model lit green, in a model frame of his own
+lua(r"""
+GP.Dialog:Preview("cog")
+__cogTint = GP.Dialog.model == GP.Dialog.tintModel and GP.Dialog.tintModel:IsShown() and not GP.Dialog.plainModel:IsShown()
+GP.Dialog:Preview("tink")
+__tinkPlain = GP.Dialog.model == GP.Dialog.plainModel and not GP.Dialog.tintModel:IsShown()
+GP.Dialog:Finish()
+""")
+check("Cogwhistle shows in the green-lit model frame, everyone else in the plain one", ev("__cogTint") and ev("__tinkPlain"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
