@@ -50,7 +50,7 @@ Losing a level (running out of balls) spends one of the day's plays, and out of 
 
 ### Golden Gears
 
-Golden Gears are the pachinko's own currency: mail gold to Chairface Chippendale with "pachinko golden gears" as the subject (or press **Get Golden Gears** at a mailbox and the mail fills itself in) and every gold is one gear. The shop in the side panel sells 3 Suction Tubes for 1 gear, 3 Rings of Fire for 2, 3 Rainbow Balls for 3, and 5 plays for 10. Gears are the only way to buy plays. Special balls are otherwise earned only from bosses and duels. `/pachinko gears` shows your gears, `/pachinko shop <suction|ring|rainbow|plays>` buys, `/pachinko buy <n>` fills the mail for n gears.
+Golden Gears are the pachinko's own currency: mail gold to Chairface Chippendale with "pachinko golden gears" as the subject (or press **Get Golden Gears** at a mailbox and the mail fills itself in) and every gold is one gear. The shop in the side panel sells 3 Suction Tubes for 1 gear, an Extra Green Peg for 1, 3 Rings of Fire for 2, 3 Rainbow Balls for 3, and 5 plays for 10. Gears are the only way to buy plays. Special balls are otherwise earned only from bosses and duels. `/pachinko gears` shows your gears, `/pachinko shop <suction|ring|rainbow|plays>` buys, `/pachinko buy <n>` fills the mail for n gears.
 
 Everything worth cheating at, the gears, the special balls, the plays and the level progress, is kept in an encrypted, checksummed record mirrored to several places outside the addon folder. At logout it leaves the plain save file entirely and comes back from the sealed copy at login, so editing the save changes nothing, an older copy put back cannot restore spent gears, and an edited copy locks the day's plays.
 

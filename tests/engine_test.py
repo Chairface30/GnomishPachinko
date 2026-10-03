@@ -1616,6 +1616,8 @@ __g1 = P:Gears()
 """)
 check("the gear shop: 1 gear 3 suction, 2 gears 3 Rings, 3 gears 3 Rainbows, 10 gears 5 plays",
       ev("__g0 - __g1") == 16 and ev("P:Items().suction - __s0") == 3 and ev("P:Items().ring - __r0") == 3 and ev("P:Items().rainbow - __rb0") == 3 and ev("P:BoughtLeft() - __b0") == 5)
+lua("P:AddGears(5); __gg0 = P:Gears(); __gr0 = P:Items().green or 0; P:Buy('green')")
+check("the gear shop sells an Extra Green Peg for 1 gear", ev("__gg0 - P:Gears()") == 1 and ev("(P:Items().green or 0) - __gr0") == 1)
 lua("P:AddGears(3 - P:Gears()); __g2 = P:Gears(); __okPoor = P:Buy('plays')")
 check("the shop refuses what the gears cannot pay for", ev("__okPoor") == False and ev("P:Gears()") == ev("__g2"))
 # the save is sealed: progress and gears live only in the vault

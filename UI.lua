@@ -758,18 +758,18 @@ function UI:CreateFrame()
     divider(-382)
 
     self.nextBtn = makeButton(side, SIDE_W, 32, "NEXT LEVEL")
-    self.nextBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 182)
+    self.nextBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 164)
     self.nextBtn:SetScript("OnClick", function() UI:NextLevel() end)
     self.retryBtn = makeButton(side, SIDE_W, 26, "Restart level")
-    self.retryBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 150)
+    self.retryBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 136)
     self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current, true) end)
     self.levelsBtn = makeButton(side, SIDE_W, 26, "Level select")
-    self.levelsBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 120)
+    self.levelsBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 108)
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
 
     self.playsText = label("", 0, "GameFontNormal")
     self.playsText:ClearAllPoints()
-    self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 84)
+    self.playsText:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 78)
     self.playsText:SetWidth(SIDE_W)
     self.playsText:SetHeight(30)
     self.playsText:SetJustifyH("CENTER")
@@ -777,20 +777,25 @@ function UI:CreateFrame()
     self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears\n1g each")
     self.buyBtn.text:SetWidth(SIDE_W - 16)
     self.buyBtn.text:SetWordWrap(true)
-    self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 30)
+    self.buyBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 28)
     self.buyBtn:SetScript("OnClick", function() UI:BuyGears() end)
     -- the Golden Gear shop
-    self.gearsText = label("", -396, "GameFontNormal")
+    self.gearsText = label("", -388, "GameFontNormal")
     self.gearsText:SetWidth(SIDE_W)
     self.gearsText:SetJustifyH("CENTER")
     self.shopBtns = {}
     for i, what in ipairs(GP.Plays.SHOP_ORDER) do
         local offer = GP.Plays.SHOP[what]
+        -- two to a row; an odd one out at the end takes the whole row
         local half = (SIDE_W - 4) / 2
-        local b = makeButton(side, half, 32, ("%s\n%d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s"))
-        b.text:SetWidth(half - 8)
+        local last = (i == #GP.Plays.SHOP_ORDER) and (i % 2 == 1)
+        local w = last and SIDE_W or half
+        local b = makeButton(side, w, 28, last and ("%s - %d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s")
+            or ("%s\n%d gear%s"):format(offer.label, offer.cost, offer.cost == 1 and "" or "s"))
+        if GameFontNormalSmall then b.text:SetFontObject(GameFontNormalSmall) end
+        b.text:SetWidth(w - 8)
         b.text:SetWordWrap(true)
-        b:SetPoint("TOPLEFT", side, "TOPLEFT", ((i - 1) % 2) * (half + 4), -416 - math.floor((i - 1) / 2) * 35)
+        b:SetPoint("TOPLEFT", side, "TOPLEFT", last and 0 or ((i - 1) % 2) * (half + 4), -404 - math.floor((i - 1) / 2) * 30)
         b.what = what
         b:SetScript("OnClick", function(self) UI:ShopBuy(self.what) end)
         self.shopBtns[i] = b

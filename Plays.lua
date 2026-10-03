@@ -37,11 +37,12 @@ P.SUBJECT        = "pachinko golden gears"
 P.DEFAULT_GEARS_MAIL = 10
 P.SHOP = {
     suction = { cost = 1,  n = 3, label = "3 Suction Tubes" },
+    green   = { cost = 1,  n = 1, label = "Extra Green Peg" },
     ring    = { cost = 2,  n = 3, label = "3 Rings of Fire" },
     rainbow = { cost = 3,  n = 3, label = "3 Rainbow Balls" },
     plays   = { cost = 10, n = 5, label = "5 plays" },
 }
-P.SHOP_ORDER = { "suction", "ring", "rainbow", "plays" }
+P.SHOP_ORDER = { "suction", "green", "ring", "rainbow", "plays" }
 P.START_ITEMS = { ring = 2, rainbow = 0, green = 1, suction = 1 }
 
 -- Everything that is worth cheating at lives in the vault, sealed: the

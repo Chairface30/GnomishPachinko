@@ -280,7 +280,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         GP:Print(m)
         if ok and GP.UI and GP.UI.frame then GP.UI:UpdateDisplay() end
     elseif msg == "gears" then
-        GP:Print(("Golden Gears: %d. Shop: suction (1), ring (2), rainbow (3), plays (10). /pachinko shop <item>; /pachinko buy <n> fills the mail for n gears."):format(GP.Plays:Gears()))
+        GP:Print(("Golden Gears: %d. Shop: suction (1), green (1), ring (2), rainbow (3), plays (10). /pachinko shop <item>; /pachinko buy <n> fills the mail for n gears."):format(GP.Plays:Gears()))
     elseif msg == "reset" then
         GP:ResetProgress()
     elseif msg == "unlockall" then
