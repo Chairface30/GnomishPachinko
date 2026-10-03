@@ -608,6 +608,11 @@ function UI:CreateFrame()
         ART:Set(b.hl, "glow_soft", 1, 0.85, 0.3)
         if b.hl.SetBlendMode then b.hl:SetBlendMode("ADD") end
         b.hl:Hide()
+        -- a "+n" that floats up off it when it is handed more
+        b.plus = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+        b.plus:SetFont("Fonts\\FRIZQT__.TTF", 22, "THICKOUTLINE")
+        b.plus:SetTextColor(1, 0.9, 0.3)
+        b.plus:Hide()
         -- and a comically fat arrow jabbing at it from a silly angle
         local arrowFrame = CreateFrame("Frame", nil, frame)
         arrowFrame:SetAllPoints(frame)
@@ -1676,15 +1681,11 @@ function UI:ShowResultCard(result, stars)
     card.right:ClearAllPoints()
     card.right:SetPoint("BOTTOM", card, "BOTTOM", half, 34)
     card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
-    card.powerIcon:Hide(); card.powerBlurb:Hide(); card.best:Hide()
-    if result.rewards and #result.rewards > 0 then
-        local parts = {}
-        for _, r in ipairs(result.rewards) do parts[#parts + 1] = ("+%d %s"):format(r.n, E.ITEMS[r.item].name) end
-        card.powerText:SetText("|cffffd700Rewards:|r " .. table.concat(parts, ", "))
-        card.powerText:Show()
-    else
-        card.powerText:Hide()
-    end
+    card.powerIcon:Hide(); card.powerBlurb:Hide()
+    card.powerText:Hide()
+    -- a chapter's rewards are not written on the card: their buttons on the
+    -- left flash and count up instead
+    for _, r in ipairs(result.rewards or {}) do self:FlashItemSlot(r.item, r.n) end
     self.cardSheet:Show()
     card:Show()
 end
@@ -2316,7 +2317,40 @@ function UI:HighlightItems(items)
     end
 end
 
+-- A slot handed more (a chapter's reward): it glows and a "+n" floats up.
+UI.FLASH_SECS = 1.8
+function UI:FlashItemSlot(item, n)
+    for _, b in ipairs(self.itemSlots or {}) do
+        if b.item == item then
+            b.flashAt = GetTime()
+            b.plus:SetText("+" .. tostring(n or 1))
+        end
+    end
+    self:UpdateItemSlots()
+end
+
+function UI:UpdateSlotFlashes(now)
+    for _, b in ipairs(self.itemSlots or {}) do
+        if b.flashAt then
+            local f = (now - b.flashAt) / self.FLASH_SECS
+            if f >= 1 or not b:IsShown() then
+                b.flashAt = nil
+                b.plus:Hide()
+                if not (self.highlighted and self.highlighted[b.item]) then b.hl:Hide() end
+            else
+                b.hl:SetAlpha(1 - f * 0.7)
+                b.hl:Show()
+                b.plus:ClearAllPoints()
+                b.plus:SetPoint("BOTTOM", b, "TOP", 0, 2 + 26 * f)
+                b.plus:SetAlpha(f < 0.7 and 1 or (1 - (f - 0.7) / 0.3))
+                b.plus:Show()
+            end
+        end
+    end
+end
+
 function UI:PulseHighlights(now)
+    self:UpdateSlotFlashes(now)
     if not self.highlighted then return end
     local a = 0.55 + 0.45 * math.sin(now * 6)
     for i, b in ipairs(self.itemSlots or {}) do

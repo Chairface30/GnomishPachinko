@@ -2625,6 +2625,22 @@ end
 check("the Super Slide tutorial's spiral is never green", ev("__spiralGreen") == 0)
 check("level 8 asks 500k for three stars, level 10 less than before", ev("select(2, L:StarScores(8))") == 500000 and ev("(L:StarScores(8))") == 300000 and ev("select(2, L:StarScores(10))") == 260000)
 
+# a chapter's rewards flash on the left instead of being written on the card
+lua(r"""
+GnomishPachinkoDB.dialogs.items = true
+UI:StartLevel(3, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI.cardPrevBest = 0
+UI:ShowResultCard({ cleared = true, score = 5000, objective = "boss", goals = 1, goalTotal = 1, feverTotal = 0, bestCombo = 2, level = 3,
+  rewards = { { item = "ring", n = 1 }, { item = "rainbow", n = 1 }, { item = "suction", n = 1 } } }, 1)
+__rewardText = UI.card.powerText:IsShown()
+__rewardFlash = UI.itemSlots[1].plus:GetText() == "+1" and UI.itemSlots[1].flashAt ~= nil
+__bestShown = UI.card.best:IsShown()
+UI:HideCard()
+""")
+check("a chapter's rewards are not written on the card; their buttons flash +1 instead", not ev("__rewardText") and ev("__rewardFlash"))
+check("the result card's high score line is shown", ev("__bestShown"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
