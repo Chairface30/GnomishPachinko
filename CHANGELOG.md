@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- The map can be arranged by hand (owner): **Move levels** on the map lets each chapter's level nodes be dragged where they should be, the dotted path following; Reset chapter puts one back. Arranged chapters are written into MapLayout.lua (tools/import_map.py) and become every player's map.
+- **The map is laid out by hand:** every chapter's ten levels sit where they were placed one by one (MapLayout.lua), instead of on a path made from the chapter number.
 - Level editor: **the tools on the right are regrouped into sections** that close to their header bar with a click (the ones below move up): Level; Selection and position; Toughness, size and angle; Colors; Mirror, copy and delete; Rails and locks; Moving parts; Files and sharing. Every section starts closed; whichever you open or close stays that way.
 - Level editor: **eggs and gems are their own pieces**, with no bricks attached; build what they rest on yourself. The checks warn about an egg or gem with nothing under it (it would fall at the start). A level's layout brought into the editor keeps its cradle bricks as ordinary bricks.
 - Level editor: the **Mirror while placing** button sits beside Copy L-R, Copy T-B and Copy quad.

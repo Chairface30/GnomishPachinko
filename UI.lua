@@ -2068,15 +2068,11 @@ end
 
 -- The ten nodes climb from the bottom to the boss at the top along a path
 -- that winds differently in every chapter (seeded by the chapter number).
--- A chapter's ten node spots: the owner's own arranging (while it is being
--- done, on the owner's characters), else the hardcoded layout (MapLayout.lua,
+-- A chapter's ten node spots: the layout arranged by hand (MapLayout.lua,
 -- UI.MAP_PATHS), else a winding path made from the chapter number.
 UI.MAP_PATHS = UI.MAP_PATHS or {}
 local function nodePath(chapter)
-    local db = GnomishPachinkoDB
-    local own = db and type(db.mapLayout) == "table" and db.mapLayout[chapter or 1]
-    if own and not (GP.Plays and GP.Plays.IsOwner and GP.Plays:IsOwner()) then own = nil end
-    local fixed = own or UI.MAP_PATHS[chapter or 1]
+    local fixed = UI.MAP_PATHS[chapter or 1]
     if type(fixed) == "table" and #fixed == 10 then
         local path = {}
         for i = 1, 10 do path[i] = { x = fixed[i].x or fixed[i][1], y = fixed[i].y or fixed[i][2] } end
@@ -2191,22 +2187,10 @@ function UI:CreateLevelSelect()
         ART:Set(c.bossMark, "rim", 1, 0.3, 0.3, 0.9)
         if i ~= 10 then c.bossMark:Hide() end
         c:SetScript("OnClick", function(self)
-            if UI.mapArrange then return end
             if self.level and GP:IsUnlocked(self.level) then
                 UI:HideLevelSelect()
                 UI:StartLevel(self.level)
             end
-        end)
-        -- the owner's arranging: press on a node and drag it
-        c.nodeIndex = i
-        local down, up = c:GetScript("OnMouseDown"), c:GetScript("OnMouseUp")
-        c:SetScript("OnMouseDown", function(self, btn)
-            if UI.mapArrange then UI:StartNodeDrag(self) return end
-            if down then down(self, btn) end
-        end)
-        c:SetScript("OnMouseUp", function(self, btn)
-            if UI.mapArrange then UI:EndNodeDrag() return end
-            if up then up(self, btn) end
         end)
         c:SetScript("OnEnter", function(self)
             if not self.level or not GameTooltip then return end
@@ -2269,16 +2253,6 @@ function UI:CreateLevelSelect()
     -- wipes progress after a second click within a few seconds
     panel.reset = makeButton(panel, 150, 24, "Reset progress")
     panel.reset:SetPoint("BOTTOM", 0, 10)
-    -- the owner's arranging of the map: drag the nodes where they should be
-    panel.arrange = makeButton(panel, 120, 24, "Move levels")
-    panel.arrange:SetPoint("BOTTOMLEFT", 10, 10)
-    panel.arrange:SetScript("OnClick", function() UI:ToggleMapArrange() end)
-    panel.arrange:Hide()
-    panel.layoutReset = makeButton(panel, 120, 24, "Reset chapter")
-    panel.layoutReset:SetPoint("BOTTOMRIGHT", -10, 10)
-    panel.layoutReset:SetScript("OnClick", function() UI:ResetMapLayout() end)
-    panel.layoutReset:Hide()
-    panel:SetScript("OnUpdate", function() UI:UpdateNodeDrag() end)
     panel.reset:SetScript("OnClick", function(self)
         if self.armedUntil and GetTime() < self.armedUntil then
             self.armedUntil = nil
@@ -2480,11 +2454,6 @@ function UI:LevelPage(page)
             if n == current then ART:TintSkin(c.skin, 1, 1, 0.8, 1) end
         end
     end
-    local owner = GP.Plays:IsOwner()
-    panel.arrange:SetShown(owner)
-    panel.layoutReset:SetShown(owner and self.mapArrange or false)
-    if not owner then self.mapArrange = nil end
-    if self.mapArrange then for _, c in ipairs(panel.nodes) do c:Enable() end end
     local pathOn = 0
     for n = first + 1, first + L.PER_CHAPTER - 1 do if db.cleared[n] then pathOn = n - first end end
     for i, d in ipairs(panel.pathDots) do
@@ -2493,74 +2462,6 @@ function UI:LevelPage(page)
     end
     local chapterStars = 0
     for n = first + 1, first + L.PER_CHAPTER do chapterStars = chapterStars + (db.stars[n] or 0) end
-end
-
--- ---------------------------------------------------------------------
--- The owner's map arranging: Move levels turns it on; each node is dragged
--- where it should be, the dotted path following; every chapter's spots are
--- saved (GnomishPachinkoDB.mapLayout) for tools/import_map.py to write into
--- MapLayout.lua, where they become every player's map.
-
-function UI:ToggleMapArrange()
-    if not GP.Plays:IsOwner() then return end
-    self.mapArrange = not self.mapArrange
-    self.mapDrag = nil
-    local panel = self.levelPanel
-    panel.arrange.text:SetText(self.mapArrange and "|cff88ff88Done moving|r" or "Move levels")
-    if self.mapArrange then
-        GP:Print("Drag each level where it should be. Every chapter is saved as you go; Done moving when finished, then /reload and ask for the map to be imported.")
-    end
-    self:LevelPage(self.levelPage)
-end
-
--- the cursor in the map's own pixels
-function UI:MapCursor()
-    local panel = self.levelPanel
-    if not (panel and GetCursorPosition) then return nil end
-    local scale = panel:GetEffectiveScale() or 1
-    local cx, cy = GetCursorPosition()
-    local left, top = panel:GetLeft(), panel:GetTop()
-    if not (cx and left and top) then return nil end
-    return cx / scale - left, top - cy / scale
-end
-
-function UI:StartNodeDrag(node)
-    local panel = self.levelPanel
-    local path = {}
-    for i, p in ipairs(panel.path or nodePath(self.levelPage)) do path[i] = { x = p.x, y = p.y } end
-    self.mapDrag = { node = node, i = node.nodeIndex, path = path }
-end
-
-UI.MAP_EDGE = 30            -- nodes are kept this far inside the map
-function UI:UpdateNodeDrag()
-    local d = self.mapDrag
-    if not d then return end
-    local x, y = self:MapCursor()
-    if not x then return end
-    local m = self.MAP_EDGE
-    x = math.max(m, math.min(E.FIELD_W - m, x))
-    y = math.max(70, math.min(E.FIELD_H - 50, y))
-    d.path[d.i] = { x = math.floor(x + 0.5), y = math.floor(y + 0.5) }
-    self.levelPanel:LayPath(self.levelPage, d.path)
-end
-
-function UI:EndNodeDrag()
-    local d = self.mapDrag
-    if not d then return end
-    self:UpdateNodeDrag()
-    self.mapDrag = nil
-    local db = GP:GetDB()
-    db.mapLayout = type(db.mapLayout) == "table" and db.mapLayout or {}
-    local saved = {}
-    for i, p in ipairs(d.path) do saved[i] = { x = p.x, y = p.y } end
-    db.mapLayout[self.levelPage] = saved
-end
-
-function UI:ResetMapLayout()
-    local db = GP:GetDB()
-    if type(db.mapLayout) == "table" then db.mapLayout[self.levelPage] = nil end
-    self.levelPanel:LayPath(self.levelPage)
-    GP:Print(("Chapter %d's levels are back where they were."):format(self.levelPage))
 end
 
 -- ---------------------------------------------------------------------
