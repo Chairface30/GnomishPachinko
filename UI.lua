@@ -1638,7 +1638,7 @@ function UI:SetBoardChrome(shown)
     set(self.portraitBox); set(self.portraitRingFrame); set(self.barrelFrame)
     for _, b in ipairs(self.ballStrip or {}) do if shown then b:Show() else b:Hide() end end
     if not shown then self.ballStripMore:SetText(""); self.ballExtra:Hide() end
-    for _, b in ipairs(self.itemSlots or {}) do set(b) end
+    for _, b in ipairs(self.itemSlots or {}) do if shown and not self:ItemSlotKnown(b.item) then b:Hide() else set(b) end end
     if shown then
         if self.state and not self.state.noBucket and self.state.phase ~= E.PHASE.FEVER then self.bucket:Show() end
         self:UpdateCounters()
@@ -1992,9 +1992,20 @@ function UI:ToggleItem(item)
     self:UpdateItemSlots()
 end
 
+-- A slot shows only once Tinkmaster has explained it: the special balls
+-- with the "items" talk, the Extra Green Peg with its own.
+UI.ITEM_TUTORIAL = { ring = "items", rainbow = "items", suction = "items", green = "green_peg" }
+function UI:ItemSlotKnown(item)
+    local seen = GP:GetDB().dialogs or {}
+    return seen[self.ITEM_TUTORIAL[item] or "items"] and true or false
+end
+
 function UI:UpdateItemSlots()
     local st = self.state
     for _, b in ipairs(self.itemSlots or {}) do
+        local known = self:ItemSlotKnown(b.item)
+        local boardUp = not ((self.levelPanel and self.levelPanel:IsShown()) or (self.playsPanel and self.playsPanel:IsShown()))
+        if known and boardUp then b:Show() else b:Hide() end
         local n = GP:ItemCount(b.item)
         local armed = st and ((b.item == "green") and self.greenBoost or st.armed == b.item)
         local usable = (n > 0 or armed) and st ~= nil

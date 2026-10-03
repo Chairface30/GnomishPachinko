@@ -43,7 +43,9 @@ P.SHOP = {
     plays   = { cost = 10, n = 5, label = "5 plays" },
 }
 P.SHOP_ORDER = { "suction", "green", "ring", "rainbow", "plays" }
-P.START_ITEMS = { ring = 2, rainbow = 0, green = 1, suction = 1 }
+-- a new player starts with nothing: Tinkmaster hands the first ones out
+-- as he explains them
+P.START_ITEMS = { ring = 0, rainbow = 0, green = 0, suction = 0 }
 
 -- Everything that is worth cheating at lives in the vault, sealed: the
 -- gears, the special balls, the plays and the progress. These keys of the

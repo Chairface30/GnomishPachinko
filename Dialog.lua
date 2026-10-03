@@ -150,10 +150,15 @@ D.SCRIPTS = {
         { "host", "Hold the right mouse button to zoom in and line the shot up with the mouth. Go on, clear the whole spiral in one shot." },
     } },
     -- the special balls, and one of each as a gift to try them out
-    { key = "items", when = function(st) return st.level == 2 end, gift = { ring = 1, rainbow = 1, suction = 1 }, lines = {
+    { key = "items", when = function(st) return st.level >= 2 end, gift = { ring = 1, rainbow = 1, suction = 1 }, lines = {
         { "host", "See the buttons to the left of the board? Those are my special balls." },
         { "host", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot." },
         { "host", "Here's one of each, on the house. Go on, give them a try!" },
+    } },
+    -- the Extra Green Peg, the level after the special balls
+    { key = "green_peg", when = function(st) return st.level >= 3 end, gift = { green = 1 }, lines = {
+        { "host", "One more toy for you: the Extra Green Peg. It's the new button under the special balls." },
+        { "host", "Click it on the level card, before you press Play, and the board gets one more green peg. Here's one to try!" },
     } },
     { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end, lines = {
         { "host", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
@@ -356,8 +361,10 @@ function D:Play(list, done)
             for item, n in pairs(sc.gift) do GP.Plays:AddItem(item, n) end
             if GP.Plays.Save then GP.Plays:Save() end
             if GP.UI and GP.UI.UpdateCounters and GP.UI.state then pcall(GP.UI.UpdateCounters, GP.UI) end
+            if GP.UI and GP.UI.UpdateItemSlots then pcall(GP.UI.UpdateItemSlots, GP.UI) end
         end
         db()[sc.key] = true
+        if sc.gift and GP.UI and GP.UI.UpdateItemSlots then pcall(GP.UI.UpdateItemSlots, GP.UI) end
         for n, line in ipairs(sc.lines) do
             local who, clip = line[1], sc.key .. "_" .. n
             if who == "host" then

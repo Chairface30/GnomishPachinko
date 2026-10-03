@@ -2286,6 +2286,26 @@ __plate = b.skin.plate and caps[1].slot == "plate_cap" and caps[3].slot == "plat
 """)
 check("plate buttons have half-gear ends at their true shape (half as wide as tall)", ev("__plate"))
 
+# a new player starts with no special balls and no green pegs, and their
+# buttons stay hidden until Tinkmaster explains them (handing one of each over)
+lua(r"""
+local d = GnomishPachinkoDB.dialogs
+local saved = { items = d.items, green_peg = d.green_peg }
+d.items, d.green_peg = nil, nil
+__startZero = P.START_ITEMS.ring == 0 and P.START_ITEMS.rainbow == 0 and P.START_ITEMS.suction == 0 and P.START_ITEMS.green == 0
+UI:UpdateItemSlots()
+__hiddenBefore = not UI.itemSlots[1]:IsShown() and not UI.itemSlots[4]:IsShown()
+local function script(k) for _, sc in ipairs(GP.Dialog.SCRIPTS) do if sc.key == k then return sc end end end
+GP.Dialog:Play({ script("items") }); GP.Dialog:Finish()
+__ballsShown = UI.itemSlots[1]:IsShown() and not UI.itemSlots[4]:IsShown()
+GP.Dialog:Play({ script("green_peg") }); GP.Dialog:Finish()
+__greenShown = UI.itemSlots[4]:IsShown()
+d.items, d.green_peg = saved.items or true, saved.green_peg or true
+""")
+check("a new player starts with no special balls or green pegs", ev("__startZero"))
+check("the special-ball and green peg buttons stay hidden until Tinkmaster explains each", ev("__hiddenBefore") and ev("__ballsShown") and ev("__greenShown"),
+      f'{ev("__hiddenBefore")} {ev("__ballsShown")} {ev("__greenShown")}')
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
