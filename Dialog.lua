@@ -36,7 +36,8 @@ D.MUMBLES = 6       -- Sounds/mumble1..6.ogg and grumble1..6.ogg
 -- its turn; pitch, its tilt. TEMPORARY: the tuning panel's saved values
 -- (db.mascot.dialogTune) win until they are hardcoded in SPEAKER_VIEWS.
 D.PORTRAIT_W, D.PORTRAIT_H = 110, 120
-D.SPEAKER_VIEW = { z = 0, x = 0, scale = 1, yaw = 0.4, pitch = 0 }
+D.PORTRAIT_CLIP_W = 136      -- the window runs from the box's left edge to just short of the text
+D.SPEAKER_VIEW = { z = 0, x = 0, scale = 1, yaw = 0.4, pitch = 0, cam = 1 }
 D.SPEAKER_VIEWS = {}
 function D:SpeakerView(key)
     local m = GP:GetDB().mascot
@@ -60,7 +61,7 @@ function D:PoseSpeaker()
     m:SetPoint("CENTER", self.portraitClip, "CENTER", v.x, v.z * self.PORTRAIT_H)
     pcall(function()
         if m.SetPortraitZoom then m:SetPortraitZoom(0) end
-        if m.SetCamDistanceScale then m:SetCamDistanceScale(1) end
+        if m.SetCamDistanceScale then m:SetCamDistanceScale(v.cam) end
         m:SetPosition(0, 0, 0)
         m:SetFacing(v.yaw)
     end)
@@ -217,17 +218,29 @@ function D:Create(parent, anchor, frameLevel)
     panel:Hide()
     self.panel = panel
 
-    -- the speaker, whole, in a clipped window on the left: zoom and height
-    -- move and size the model's frame (the client refits a model to its
-    -- frame, undoing SetModelScale), the window keeps it off the text
+    -- the speaker, whole, in a window on the left that runs out to the box's
+    -- edges: the fancy border is drawn again on a layer over the model, so
+    -- the model sits behind it. Zoom and height move and size the model's
+    -- frame (the client refits a model to its frame, undoing SetModelScale).
+    local base = panel:GetFrameLevel()
     local clip = CreateFrame("Frame", nil, panel)
-    clip:SetSize(D.PORTRAIT_W, D.PORTRAIT_H + 30)
-    clip:SetPoint("LEFT", panel, "LEFT", 26, -4)
+    clip:SetPoint("TOPLEFT", panel, "TOPLEFT", 4, -4)
+    clip:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 4, 4)
+    clip:SetWidth(D.PORTRAIT_CLIP_W)
     if clip.SetClipsChildren then pcall(clip.SetClipsChildren, clip, true) end
+    if clip.SetFrameLevel then clip:SetFrameLevel(base + 1) end
     self.portraitClip = clip
     local portrait = CreateFrame("PlayerModel", nil, clip)
     portrait:SetSize(D.PORTRAIT_W, D.PORTRAIT_H)
     portrait:SetPoint("CENTER", clip, "CENTER", 0, 0)
+    if portrait.SetFrameLevel then portrait:SetFrameLevel(base + 2) end
+    -- the border again, over the model (its middle left out)
+    local rim = CreateFrame("Frame", nil, panel)
+    rim:SetAllPoints(panel)
+    if rim.SetFrameLevel then rim:SetFrameLevel(base + 3) end
+    rim.skin = ART:NewSkin(rim, "card", "ARTWORK", 0, panel)
+    if rim.skin.pieces[5] then rim.skin.pieces[5]:Hide() end
+    self.rim = rim
     portrait:SetScript("OnModelLoaded", function() D:PoseSpeaker() end)
     self.model = portrait
     -- the speaker keeps talking for as long as the box is open: the talk
@@ -272,6 +285,8 @@ function D:Create(parent, anchor, frameLevel)
     skip.text:SetText("Skip")
     skip:SetScript("OnClick", function() D:Finish() end)
     panel.skip = skip
+    -- the buttons stay above the border layer
+    if nextBtn.SetFrameLevel then nextBtn:SetFrameLevel(base + 4); skip:SetFrameLevel(base + 4) end
 end
 
 -- Plays a list of conversations, then calls done().

@@ -1978,6 +1978,7 @@ __dlgSaved = GnomishPachinkoDB.mascot.dialogTune.cog.z == -0.3
 GP.Dialog:Finish()
 GnomishPachinkoDB.mascot.dialogTune = nil
 """)
+check("the conversation box draws its border over the speaker", ev("GP.Dialog.rim:GetFrameLevel()") is not None)
 check("the dialog tuner previews a speaker and saves its zoom and height", ev("__dlgId") == "cog" and ev("__dlgShown") and abs(ev("__dlgW") - 2) < 0.01 and ev("__dlgSaved"))
 
 # the balloons follow the picture: mirrored pairs, an odd one only on the centre line

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The speaker in the conversation box sits behind the box's border, in a window that runs to the box's edges. The dialog tuner adds a camera distance slider.
 - **Balloons fit the picture.** A level's balloons come in mirrored pairs, the same size at the same height either side, with an odd one only on the center line. Each level keeps to one arrangement: by the walls, on the flanks, or a center balloon with pairs beside it. No more single balloon stuck somewhere at random.
 - **Temporary dialog tuning panel** left of the window: pick any speaker in the conversation box (the four hosts, Cogwhistle, the five bosses) and set height, sideways, zoom, turn and tilt. The box now shows whole models in a clipped window instead of the head-cropping portrait camera.
 - Pressing **Get Golden Gears** away from a mailbox has Tinkmaster explain, in his own voice, how gears are bought by mail. He says it once; after that, heard or skipped, it is a chat line.

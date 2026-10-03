@@ -1275,7 +1275,7 @@ function UI:CreateDialogTuner(frame)
     local D = GP.Dialog
     if not D then return end
     local panel = CreateFrame("Frame", nil, frame)
-    panel:SetSize(230, 356)
+    panel:SetSize(230, 406)
     panel:SetPoint("TOPRIGHT", frame, "TOPLEFT", -8, -40)
     local bg = panel:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
@@ -1326,6 +1326,7 @@ function UI:CreateDialogTuner(frame)
     slider("scale", 0.3, 5, -170)
     slider("yaw", -3.14, 3.14, -220)
     slider("pitch", -3.14, 3.14, -270)
+    slider("cam", 0.3, 3, -320)
     local show = makeButton(panel, 100, 22, "Show box")
     show:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 8, 8)
     show:SetScript("OnClick", function() GP.Dialog:Preview(UI:TuneSpeakerId()) end)
@@ -1357,7 +1358,7 @@ function UI:RefreshDialogTuner()
     self.tuneLoading = true
     for key, sl in pairs(p.sliders) do sl:SetValue(v[key]) end
     self.tuneLoading = false
-    local names = { z = "Height", x = "Sideways", scale = "Zoom", yaw = "Turn", pitch = "Tilt" }
+    local names = { z = "Height", x = "Sideways", scale = "Zoom (frame)", yaw = "Turn", pitch = "Tilt", cam = "Camera distance" }
     for key, sl in pairs(p.sliders) do
         if sl.textFs then sl.textFs:SetText(("%s: %.2f"):format(names[key], v[key])) end
     end
