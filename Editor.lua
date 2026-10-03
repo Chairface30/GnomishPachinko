@@ -620,6 +620,69 @@ function ED:CycleColor()
     end)
 end
 
+-- One piece's state for a colour: orange / green are "dealt", "never" or
+-- "always"; purple "may" or "never".
+local LETTER = { orange = "o", green = "g", purple = "p" }
+function ED:ColorState(pc, which)
+    local letter = LETTER[which]
+    local excluded = pc.no and pc.no:find(letter, 1, true)
+    if which == "purple" then return (excluded or pc.c) and "never" or "may" end
+    if pc.c == which then return "always" end
+    if excluded or pc.c then return "never" end      -- set to another colour: never this one
+    return "dealt"
+end
+
+function ED:SetColorState(pc, which, state)
+    local letter = LETTER[which]
+    local no = (pc.no or ""):gsub(letter, "")
+    if which == "purple" then
+        if state == "never" then no = no .. letter end
+    else
+        if pc.c == which then pc.c = nil end
+        if state == "always" then pc.c = which
+        elseif state == "never" then
+            no = no .. letter
+            -- set to this colour before, or to the other dealt one: back to dealing
+        end
+    end
+    pc.no = (no ~= "") and no or nil
+    pc.o = nil
+end
+
+-- the selection's state for a colour, "mixed" when the pieces differ, nil with no pegs or bricks
+function ED:SelColorState(which)
+    local state
+    for _, i in ipairs(self:Selected()) do
+        local pc = self.data.pieces[i]
+        if pc.t == "peg" or pc.t == "brick" then
+            local s2 = self:ColorState(pc, which)
+            if state and state ~= s2 then return "mixed" end
+            state = s2
+        end
+    end
+    return state
+end
+
+ED.COLOR_CYCLE = { dealt = "never", never = "always", always = "dealt", mixed = "dealt" }
+function ED:CycleColorState(which)
+    local cur = self:SelColorState(which)
+    if not cur then return self:Status("Select pegs or bricks to set their colors.") end
+    local nextState
+    if which == "purple" then nextState = (cur == "never") and "may" or "never"
+    else nextState = self.COLOR_CYCLE[cur] end
+    self:ForSelected(function(pc)
+        if pc.t == "peg" or pc.t == "brick" then self:SetColorState(pc, which, nextState) end
+    end)
+    local name = which:sub(1, 1):upper() .. which:sub(2)
+    self:Status(("%s: %s for the selected pegs and bricks."):format(name, nextState == "may" and "can land" or nextState))
+end
+
+function ED:ClearColors()
+    self:ForSelected(function(pc)
+        if pc.t == "peg" or pc.t == "brick" then pc.c, pc.no, pc.o = nil, nil, nil end
+    end)
+end
+
 -- Never dealt this colour on any attempt ("o" orange, "g" green, "p" purple).
 function ED:SelExcludes(letter)
     local any, all = false, true
@@ -1288,8 +1351,8 @@ function ED:Create()
     rbtn(0, -342, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
     rbtn(97, -342, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
     rbtn(194, -342, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
-    self.colorBtn = rbtn(0, -367, 140, "Color: dealt", function() ED:CycleColor() end,
-        "Pegs and bricks: dealt at random on every attempt, or set to orange, blue or green for good.")
+    self.colorBtn = rbtn(0, -367, 140, "Colors: all dealt", function() ED:ClearColors() end,
+        "Pegs and bricks back to plain dealing: any color at random on every attempt.")
     rbtn(146, -367, 68, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step between full and half, bars shorter, round pieces smaller.")
     rbtn(218, -367, 68, "Bigger", function() ED:Resize(1) end)
     -- turning by an exact number of degrees, or setting a bar's angle outright
@@ -1313,14 +1376,17 @@ function ED:Create()
     rbtn(0, -492, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
     rbtn(146, -492, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
 
-    -- colours a dealt piece never gets on any attempt
-    self.excludeBtns = {}
-    for k, spec in ipairs({ { "o", "Never orange" }, { "g", "Never green" }, { "p", "Never purple" } }) do
-        local letter, label = spec[1], spec[2]
-        local b = rbtn((k - 1) * 97, -517, 92, label, function() ED:ToggleExclude(letter) end,
-            "Pegs and bricks: never dealt this color on any attempt.")
-        b.label = label
-        self.excludeBtns[letter] = b
+    -- each colour for the selected pegs and bricks: orange and green go
+    -- dealt -> never -> always -> dealt; purple (it hops every shot) can land or never
+    self.colorBtns = {}
+    local tips = {
+        orange = "Orange: dealt at random, never orange, or always orange. Click to go round.",
+        green = "Green: dealt at random, never green, or always green. Click to go round.",
+        purple = "Purple hops to a new peg every shot: let it land here, or never.",
+    }
+    for k, which in ipairs({ "orange", "green", "purple" }) do
+        local b = rbtn((k - 1) * 97, -517, 92, "", function() ED:CycleColorState(which) end, tips[which])
+        self.colorBtns[which] = b
     end
     rtext(-549, "Moving parts", 14)
     self.moverText = rtext(-571, "")
@@ -1491,7 +1557,7 @@ function ED:CreateHelp()
         "",
         "|cffffd700Keys|r (mouse over the board)  Delete removes, arrows nudge (Shift: 10), Q / E turn 5 degrees (Shift: 15), M mirrors, Ctrl+D duplicates, Ctrl+C / Ctrl+V copy and paste at the mouse, Ctrl+A selects all, Ctrl+Z undoes, Escape clears the selection.",
         "",
-        "|cffffd700Colors|r  Pegs and bricks are dealt orange, green and blue at random on every attempt, as on the normal levels. Color sets a piece to orange, blue or green for good; Never orange / green / purple keeps a dealt piece from ever being that color. Set the number of oranges on the right.",
+        "|cffffd700Colors|r  Pegs and bricks are dealt orange, green and blue at random on every attempt, as on the normal levels. Orange and Green each go round dealt, never, always; Purple (it hops every shot) can land or never. Colors: all dealt puts the selection back to plain dealing. Set the number of oranges on the right.",
         "",
         "|cffffd700Goals|r  Any mix: oranges, Long Shots, and every egg and gem you place.",
         "",
@@ -1753,12 +1819,11 @@ function ED:Refresh()
         if not (self.xBox.HasFocus and self.xBox:HasFocus()) then self.xBox:SetText(fmt(cx)) end
         if not (self.yBox.HasFocus and self.yBox:HasFocus()) then self.yBox:SetText(fmt(cy)) end
     end
-    local sc = self:SelColor()
-    self.colorBtn.text:SetText(sc == nil and "Color: -" or (sc == "mixed" and "Color: mixed") or
-        (sc and ("Color: " .. self.COLOR_NAMES[sc]) or "Color: dealt"))
-    for letter, b in pairs(self.excludeBtns or {}) do
-        local on = self:SelExcludes(letter)
-        b.text:SetText((on and "|cff88ff88" or "") .. b.label .. (on and "|r" or ""))
+    local WORDS = { dealt = "dealt", never = "|cffff8866never|r", always = "|cff88ff88always|r", mixed = "mixed", may = "can land" }
+    for which, b in pairs(self.colorBtns or {}) do
+        local state = self:SelColorState(which)
+        local name = which:sub(1, 1):upper() .. which:sub(2)
+        b.text:SetText(state and (name .. ": " .. WORDS[state]) or name)
     end
     local mv = self:SelMover()
     if mv then

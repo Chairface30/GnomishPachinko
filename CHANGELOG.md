@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Level editor: **color buttons go round.** Orange and Green each click through dealt, never, always and back to dealt (making one always makes the other never); Purple, which hops every shot, can land or never. Colors: all dealt puts the selection back to plain dealing.
 - Level editor: **Bigger / Smaller work on every piece**: bricks step between full and half, bars get longer or shorter, and pegs, studs, balloons, bumpers, keys, eggs and gems grow or shrink (an egg's or gem's cradle is rebuilt to fit).
 - Level editor: **exact positions.** X and Y boxes show where the selection is (one piece's spot, or a group's middle) and take typed numbers: Move puts it there (Enter in a box too), Line up X / Line up Y puts every selected piece in a column or row, Spread X / Spread Y spaces them evenly.
 - Test play: a **Back to editor** button in the footer under the board leaves a test at any time.

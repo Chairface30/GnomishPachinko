@@ -4289,6 +4289,30 @@ __resizeGame = gameOk
 check("Smaller works on every kind of piece (bricks to half, bars shorter, round pieces smaller), and the game builds them at that size",
       ev("__resizeStuck") == "" and ev("__resizeGame"), ev("__resizeStuck"))
 
+# the color buttons: orange and green go dealt -> never -> always -> dealt; purple can land or never
+lua(r"""
+ED:NewLevel()
+local i = ED:AddPiece("peg", 200, 300)
+ED.sel = { [i] = true }
+local seq = {}
+for _ = 1, 3 do ED:CycleColorState("orange"); seq[#seq + 1] = ED:SelColorState("orange") end
+local pc = ED.data.pieces[i]
+__orangeCycle = table.concat(seq, ",")
+ED:CycleColorState("green"); ED:CycleColorState("green")     -- always green
+__greenAlways = pc.c == "green" and ED:SelColorState("orange") == "never"
+ED:CycleColorState("orange")     -- set green reads as never orange; one click: always orange
+__switch = pc.c == "orange" and ED:SelColorState("green") == "never"
+ED:ClearColors()
+ED:CycleColorState("purple")
+__purple = ED:SelColorState("purple") == "never" and pc.no == "p"
+ED:CycleColorState("purple")
+__purpleBack = ED:SelColorState("purple") == "may" and pc.no == nil
+__labels = ED.colorBtns.orange.text:GetText()
+""")
+check("Orange and Green buttons go dealt, never, always and back; setting one always makes the other never; Purple can land or never",
+      ev("__orangeCycle") == "never,always,dealt" and ev("__greenAlways") and ev("__switch") and ev("__purple") and ev("__purpleBack"),
+      f'{ev("__orangeCycle")} {ev("__greenAlways")} {ev("__switch")} {ev("__purple")} {ev("__purpleBack")} {ev("__labels")}')
+
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
 ED:NewLevel()
