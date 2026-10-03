@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The tutorial arrows can no longer be mixed up: the Rainbow Ball's comes in from the left side, nearly level, and the Suction Tube's comes in lower from the right.
 - **More style points:** lighting 3 oranges with one ball is a HAT TRICK (+5,000), 5 an ORANGE CRUSH (+12,500), 8 an ORANGE AVALANCHE (+25,000). Coming off a side wall and flying at least 200 pixels without touching anything before lighting a piece is a BANK SHOT (+7,500).
 
 - **The tutorials point, loudly:** with the glow, a comically fat cartoon arrow jabs at each button being talked about, each from its own silly angle, wobbling as it goes.

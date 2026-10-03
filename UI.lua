@@ -1477,7 +1477,9 @@ UI.ITEM_H = 48                        -- a special-ball button in the left colum
 UI.BALL_STRIP_SIZE = 65               -- the balls left, two columns of five
 -- the tutorials' arrows: where each comes in from (an angle from the button,
 -- in radians, 0 = from the right, counter-clockwise), how far, how big
-UI.ARROW_ANGLES = { ring = 0.55, rainbow = -0.42, suction = 0.8, green = -0.6 }
+-- (Rainbow comes in from the left, nearly level, so it cannot be read as
+-- pointing at its neighbours; Suction comes in low from the right.)
+UI.ARROW_ANGLES = { ring = 0.55, rainbow = math.pi - 0.18, suction = 0.28, green = -0.6 }
 UI.ARROW_DIST = 128
 UI.ARROW_W = 120
 UI.ITEMS_Y = 4 + 5 * (65 + 5) + 26     -- under the balls
