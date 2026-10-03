@@ -1135,7 +1135,13 @@ function UI:CreateCard()
     -- to right as the score counts up past its mark
     card.stars = makeStars(card, UI.CARD_STAR, 4)
     for i, s in ipairs(card.stars) do
-        s:SetPoint("TOP", card, "TOP", (i - 2) * (UI.CARD_STAR + 8), -80)
+        -- spread out, each with the score it takes written under it
+        s:SetPoint("TOP", card, "TOP", (i - 2) * UI.CARD_STAR_GAP, -84)
+        local sub = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        sub:SetPoint("TOP", s, "BOTTOM", 0, -2)
+        sub:SetFont("Fonts\\FRIZQT__.TTF", 14, "OUTLINE")
+        sub:SetTextColor(1, 0.85, 0.3)
+        s.sub = sub
         local f = card:CreateTexture(nil, "OVERLAY", nil, 2)
         ART:Set(f, "star", 1, 0.85, 0.2)
         f:SetPoint("LEFT", s, "LEFT", 0, 0)
@@ -1269,9 +1275,12 @@ function UI:ShowStartCard()
     card.line1:SetText(self:ObjectiveText(st))
     ART:Set(card.goalIcon, ART:Goal(st.objective))
     card.goalIcon:Show()
+    -- what each star takes, under it (the first comes with clearing unless the level sets a score)
     local s2, s3, s1 = starMarks(st)
-    card.line2:SetText((s1 and ("|cffffd7001 star|r at %s   "):format(fmtBig(s1)) or "") ..
-        ("|cffffd7002 stars|r at %s   |cffffd7003 stars|r at %s"):format(fmtBig(s2), fmtBig(s3)))
+    card.stars[1].sub:SetText(s1 and fmtBig(s1) or "Clear")
+    card.stars[2].sub:SetText(fmtBig(s2))
+    card.stars[3].sub:SetText(fmtBig(s3))
+    card.line2:SetText("")
     local extra = {}
     if st.author then extra[#extra + 1] = "|cff88ddffLevel by " .. st.author .. "|r" end
     if st.gimmick then extra[#extra + 1] = st.gimmick end
@@ -1723,7 +1732,8 @@ function UI:ShowBoardContents()
     if self.barrelFrame then self.barrelFrame:Show() end
 end
 
-UI.CARD_STAR = 52            -- the level card's stars
+UI.CARD_STAR = 52            -- the level card's stars ...
+UI.CARD_STAR_GAP = 120       -- ... this far apart, centre to centre, each with its score beneath
 UI.CARD_LEVEL = 40           -- the cards sit this far over the board: above Tinkmaster's ring and the cannon
 -- the result card's big stars: centred on the card's top edge plus (x, y)
 UI.BIG_STARS = {
@@ -1738,8 +1748,9 @@ function UI:CardLayout(mode)
     local card = self.card
     local result = mode == "result"
     card.starFrame:SetShown(result)
-    for _, s in ipairs(card.stars) do s:SetShown(not result) end
+    for _, s in ipairs(card.stars) do s:SetShown(not result); s.sub:SetShown(not result) end
     card.line1:SetShown(not result)
+    card.line2:SetShown(true)
     card.title:ClearAllPoints()
     card.line2:ClearAllPoints()
     card.line3:ClearAllPoints()
@@ -1751,9 +1762,14 @@ function UI:CardLayout(mode)
         card.line3:SetPoint("TOP", card.best, "BOTTOM", 0, -10)
     else
         card.title:SetPoint("TOP", card, "TOP", 0, -46)
-        card.line2:SetPoint("TOP", card.line1, "BOTTOM", -22, -10)
+        -- the objective front and centre, right over the Play button (a
+        -- longer one grows upward); the star scores are under the stars
+        card.line1:ClearAllPoints()
+        card.line1:SetPoint("BOTTOM", card.main, "TOP", 22, 16)
+        card.line2:SetPoint("TOP", card, "TOP", 0, -168)
+        card.line2:SetShown(false)
         card.best:ClearAllPoints()
-        card.best:SetPoint("TOP", card.line2, "BOTTOM", 0, -10)
+        card.best:SetPoint("TOP", card, "TOP", 0, -164)
         -- the level card's own sizes and colours
         card.line2:SetFont("Fonts\\FRIZQT__.TTF", 16, "")
         card.line2:SetTextColor(1, 0.82, 0)
@@ -1931,7 +1947,7 @@ UI.VALUE_SIZE = 14           -- the numbers beside the headings
 UI.HEAD_H = 20               -- the word-art headings' height
 
 UI.CARD_W, UI.CARD_H = 450, 560   -- the level card
-UI.CARD_POWER_Y = 290                 -- the card's power row, from its top
+UI.CARD_POWER_Y = 222                 -- the card's power row, from its top (the objective sits low, over Play)
 UI.ITEM_H = 48                        -- a special-ball button in the left column
 UI.BALL_STRIP_SIZE = 65               -- the balls left, two columns of five
 -- the tutorials' arrows: where each comes in from (an angle from the button,
