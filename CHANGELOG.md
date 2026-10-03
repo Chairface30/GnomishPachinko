@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Temporary Gem mass slider** in the owner's Testing fly-out: from light (0.25) to heavy (4); a hit's shove is divided by it, and the label shows the share of the ball's speed a gem takes. Saved; to be written into the game once set.
 - A chapter's rewards are no longer written on the result card: the special-ball buttons on the left glow and a "+1" floats up off each as its count goes up.
 - Fixed: the result card's high score line was hidden.
 

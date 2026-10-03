@@ -2641,6 +2641,32 @@ UI:HideCard()
 check("a chapter's rewards are not written on the card; their buttons flash +1 instead", not ev("__rewardText") and ev("__rewardFlash"))
 check("the result card's high score line is shown", ev("__bestShown"))
 
+# TEMPORARY: the owner's gem mass slider: a heavier gem takes a smaller shove
+lua(r"""
+__unitName, __unitSurname = "Notte", "Sure"
+UI:RefreshTestFlyout()
+local sl = UI.gemMassSlider
+sl:GetScript("OnValueChanged")(sl, 2)
+__massSet = E.GEM_MASS == 2 and GnomishPachinkoDB.tuneGemMass == 2
+local function shove()
+  local st = E:NewLevel(L:Build(23))
+  local gem
+  for _, p in ipairs(st.pegs) do if p.kind == "gem" then gem = p break end end
+  gem.vx, gem.vy = 0, 0
+  E.HitPeg(st, gem, { vx = 300, vy = 0 }, {})
+  return math.abs(gem.vx or 0)
+end
+local heavy = shove()
+E.GEM_MASS = 1
+local normal = shove()
+__massShove = heavy > 0 and math.abs(heavy * 2 - normal) < 0.01
+GnomishPachinkoDB.tuneGemMass = nil
+__unitName, __unitSurname = "Thrall", "Frostwolf"
+UI:RefreshGemMass()
+__massStranger = E.GEM_MASS == 1
+""")
+check("the owner's gem mass slider sets the mass; twice the mass takes half the shove", ev("__massSet") and ev("__massShove") and ev("__massStranger"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
