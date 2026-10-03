@@ -1396,8 +1396,8 @@ function UI:ShowToughDemo(hits)
     local n = #hits
     local egg = hits.kind == "egg"
     f.demoEgg = egg
-    -- the rimmed pegs need no arrow: they are all there is to look at
-    if not egg then f.arrow:Hide() end
+    -- a demo needs no arrow: it is all there is to look at
+    f.arrow:Hide()
     local size = self.SHOWCASE_PEG * (egg and 1.3 or 1)
     f.demoSize = size
     for i, h in ipairs(hits) do

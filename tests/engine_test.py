@@ -2865,11 +2865,11 @@ for k = 0, 80 do
     birdY0 = birdY0 or y
   end
 end
-__eggDemo = seen.egg and seen.cracked and seen.hatched and seen.rise and not d.rim:IsShown() and f.arrow:IsShown()
+__eggDemo = seen.egg and seen.cracked and seen.hatched and seen.rise and not d.rim:IsShown() and not f.arrow:IsShown()
 __eggSeen = (seen.egg and "e" or "") .. (seen.cracked and "c" or "") .. (seen.hatched and "h" or "") .. (seen.rise and "r" or "")
 UI:HideShowcase()
 """)
-check("the egg tutorial shows the egg cracking, hatching and the phoenix rising", ev("__eggDemo"), ev("__eggSeen"))
+check("the egg tutorial shows the egg cracking, hatching and the phoenix rising (no arrow)", ev("__eggDemo"), ev("__eggSeen"))
 
 # the Slider and Sliding Block tutorials show their piece gliding side to side
 lua(r"""
