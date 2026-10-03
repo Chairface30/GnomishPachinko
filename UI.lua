@@ -107,13 +107,33 @@ local function makeButton(parent, w, h, text, nodeSkin)
     end
     btn:SetScript("OnEnter", function(self) if self:IsEnabled() then hoverButton(self, true) end end)
     btn:SetScript("OnLeave", function(self) if self:IsEnabled() then hoverButton(self, false) end end)
+    -- a real press: the plate darkens and its words and icon sink a little
+    -- while held, and a soft click sounds when it is let go over the button
     btn:SetScript("OnMouseDown", function(self)
-        if self:IsEnabled() and not self.nodeSkin and ART.SLOTS[self.skinColor .. "_down"] then ART:SetSkin(self.skin, self.skinColor .. "_down") end
+        if not self:IsEnabled() or self.pressed then return end
+        self.pressed = true
+        ART:TintSkin(self.skin, 0.68, 0.62, 0.55, 1)
+        UI.PressShift(self, 1)
     end)
     btn:SetScript("OnMouseUp", function(self)
-        if self:IsEnabled() and not self.nodeSkin then ART:SetSkin(self.skin, self.skinColor or "button_grey") end
+        if not self.pressed then return end
+        self.pressed = nil
+        UI.PressShift(self, -1)
+        if self:IsEnabled() then
+            local over = self.IsMouseOver and self:IsMouseOver()
+            if over then hoverButton(self, true) else ART:TintSkin(self.skin, 1, 1, 1, self.enabledAlpha or 1) end
+            if over and not self.noClickSound then GP:PlaySfx("click_soft.ogg") end
+        end
     end)
     return btn
+end
+
+-- Pressed buttons: the words (and an icon) sink by PRESS_X, PRESS_Y.
+UI.PRESS_X, UI.PRESS_Y = 1, -2
+function UI.PressShift(btn, dir)
+    for _, r in ipairs({ btn.text, btn.icon }) do
+        if r and r.AdjustPointsOffset then pcall(r.AdjustPointsOffset, r, UI.PRESS_X * dir, UI.PRESS_Y * dir) end
+    end
 end
 
 -- An icon on the left of a button, with the text pushed right of it.
@@ -900,6 +920,7 @@ function UI:CreateFrame()
     self.shopLeaveBtn = makeButton(shop, SIDE_W, 40, "Leave shop")
     self.shopLeaveBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -464)
     self.shopLeaveBtn:SetScript("OnClick", function() UI:ShowShop(false) end)
+    self.shopLeaveBtn.noClickSound = true      -- ShowShop clicks
     -- the owner's characters top up for free (in the shop, under the mail button)
     self.freeBtn = makeButton(self.shopPanel, SIDE_W, 24, "Owner: +" .. GP.Plays.OWNER_GEARS .. " Golden Gears")
     self.freeBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -62 - #GP.Plays.SHOP_ORDER * 48 - 56)
@@ -1084,7 +1105,7 @@ function UI:CreateCard()
     card.boost = CreateFrame("Frame", nil, card)
     card.boost:Hide()
     card.main = logoButton(card, 260, 58, "PLAY", 26)
-    card.main:SetPoint("BOTTOM", 0, 96)
+    card.main:SetPoint("BOTTOM", 0, 92)
     card.left = logoButton(card, 180, 46, "Map", 18)
     card.left:SetPoint("BOTTOMLEFT", 30, 34)
     card.right = logoButton(card, 180, 46, "Retry", 18)
@@ -1136,7 +1157,7 @@ function UI:ShowStartCard()
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right:Hide()
     card.left:ClearAllPoints()
-    card.left:SetPoint("BOTTOM", card, "BOTTOM", 0, 52)       -- alone: centred
+    card.left:SetPoint("BOTTOM", card, "BOTTOM", 0, 34)       -- alone: centred
     self.greenBoost = false
     self.startCardUp = true
     self:RefreshCardChoices()
@@ -1355,9 +1376,10 @@ function UI:ShowResultCard(result, stars)
     styleButton(card.right, GP.Plays:Remaining() >= (self.pendingFail and 2 or 1), 0.45, 0.3, 0.2)
     card.right:Show()
     card.left:ClearAllPoints()                                -- the pair, centred as a group
-    card.left:SetPoint("BOTTOM", card, "BOTTOM", -66, 52)
+    local half = card.left:GetWidth() / 2 + 8                 -- a gap between them, whatever their width
+    card.left:SetPoint("BOTTOM", card, "BOTTOM", -half, 34)
     card.right:ClearAllPoints()
-    card.right:SetPoint("BOTTOM", card, "BOTTOM", 66, 52)
+    card.right:SetPoint("BOTTOM", card, "BOTTOM", half, 34)
     card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
     card.powerIcon:Hide(); card.powerBlurb:Hide(); card.best:Hide()
     if result.rewards and #result.rewards > 0 then

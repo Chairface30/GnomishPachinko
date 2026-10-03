@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed: the result card's Map and Retry buttons overlapped.
+- **Buttons click:** held down, a button's plate darkens and its words sink a little; let go over it, it gives a soft click.
 - The balls left are two and a half times bigger, in two columns of five; the left column is a little wider to hold them.
 - The Extra Green Peg can only be used before a level starts, from the level card; once the level is under way its button is greyed out.
 - A soft click going into the shop and back out.

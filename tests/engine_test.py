@@ -2217,6 +2217,32 @@ check("the level card's buttons wear the logo plate and it shows the best score"
 check("the left column holds Ring, Rainbow, Suction and the Extra Green Peg, under the balls", ev("__slots") == "ring,rainbow,suction,green" and ev("__slotsTop"), ev("__slots"))
 check("the Extra Green Peg works only on the level card; once the level starts it greys out", ev("__boostOn") and ev("__greenNow"))
 
+# buttons press: darker while held, a soft click when let go over them
+lua(r"""
+local b = UI.levelsBtn
+local n0 = #__played_files
+b:GetScript("OnMouseDown")(b)
+__pressedDown = b.pressed == true
+b.IsMouseOver = function() return true end
+b:GetScript("OnMouseUp")(b)
+local clicked = false
+for i = n0 + 1, #__played_files do if __played_files[i]:find("click_soft", 1, true) then clicked = true end end
+__pressClick = clicked and not b.pressed
+""")
+check("a button presses down while held and clicks softly when let go", ev("__pressedDown") and ev("__pressClick"))
+
+# the result card's Map and Retry sit side by side without touching
+lua(r"""
+UI:StartLevel(3, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:ShowResultCard({ cleared = false, score = 10, objective = "classic", goals = 1, goalTotal = 3, feverTotal = 0, bestCombo = 1, level = 3 }, 0)
+local _, _, _, lx = UI.card.left:GetPoint()
+local _, _, _, rx = UI.card.right:GetPoint()
+__gap = (rx - lx) - UI.card.left:GetWidth()
+UI:HideCard()
+""")
+check("the result card's Map and Retry buttons do not overlap", ev("__gap") > 0, str(ev("__gap")))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
