@@ -302,6 +302,54 @@ def plate_button(text, top, bottom, icon):
     return img.resize((W, H), Image.LANCZOS)
 
 
+# The side column's buttons are small copies of the logo: its two cog
+# end-caps, its copper plate between them (a slice from the gap between the
+# logo's words, stretched), and the button's word in the logo's gold.
+LOGO_SOURCE = os.path.join(HERE, "sheets", "logo_source.tga")
+LOGO_CAP = 56            # the end-caps' width in the logo (128 tall)
+LOGO_GAP = (252, 262)    # a text-free column range of the plate
+
+
+def logo_button(text):
+    logo = Image.open(LOGO_SOURCE).convert("RGBA")
+    lw, lh = logo.size
+    cw, ch = 1024, 128
+    img = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+    left = logo.crop((0, 0, LOGO_CAP, lh))
+    right = logo.crop((lw - LOGO_CAP, 0, lw, lh))
+    mid = logo.crop((LOGO_GAP[0], 0, LOGO_GAP[1], lh)).resize((cw - 2 * LOGO_CAP, lh), Image.BICUBIC)
+    img.alpha_composite(mid, (LOGO_CAP, 0))
+    img.alpha_composite(left, (0, 0))
+    img.alpha_composite(right, (cw - LOGO_CAP, 0))
+    # the word in the logo's gold: bright, a dark rim, a soft shadow
+    cap = 50
+    mask = word_mask(text, cap * SS)
+    mask = mask.resize((max(1, mask.width // SS), max(1, mask.height // SS)), Image.LANCZOS)
+    room = cw - 2 * LOGO_CAP - 40
+    if mask.width > room:
+        f = room / mask.width
+        mask = mask.resize((room, max(1, int(mask.height * f))), Image.LANCZOS)
+    mx = (cw - mask.width) // 2
+    my = (ch - mask.height) // 2 + 2
+    sh = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    sh.paste((0, 0, 0, 170), (mx + 3, my + 4), mask)
+    img = Image.alpha_composite(img, sh.filter(ImageFilter.GaussianBlur(3)))
+    o = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    o.paste((70, 34, 8, 255), (mx, my), mask.filter(ImageFilter.MaxFilter(5)))
+    img = Image.alpha_composite(img, o)
+    grad = Image.new("RGBA", mask.size)
+    gd = ImageDraw.Draw(grad)
+    for y in range(mask.height):
+        t = y / max(1, mask.height - 1)
+        k = 1 - t
+        c = (int(200 + 55 * k), int(140 + 100 * k), int(30 + 90 * k))
+        gd.line([(0, y), (mask.width, y)], fill=c + (255,))
+    fl = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    fl.paste(grad, (mx, my), mask)
+    img = Image.alpha_composite(img, fl)
+    return img.resize((W, H), Image.LANCZOS)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--sheet", action="store_true")
@@ -322,7 +370,7 @@ def main():
     for slot, (text, top, bottom, icon) in BUTTONS.items():
         if args.only and slot not in args.only:
             continue
-        img = plate_button(text, top, bottom, icon)
+        img = logo_button(text)
         img.save(os.path.join(OUT, slot + ".tga"), format="TGA")
         made.append((slot, img))
         print("wrote", slot)

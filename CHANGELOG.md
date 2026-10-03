@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The right column, tidied:** the info spreads over the column's height with one text size throughout (13, numbers 14, headings all the same height), so nothing is tiny. The shop's way in is the golden gear with a SHOP header beside it. The line under Get Golden Gears is gone, and the owner's button sits in the shop. Sound and Music are a footer along the bottom.
+- **Next Level, Restart and Level Select look like the logo:** small copper plates with the logo's cog end-caps and gold lettering, cut from the logo itself, instead of bright enamel.
+
 - **The result card counts up:** three big stars start grey and fill with gold from left to right as the score climbs past each star's mark, with a rising chime for each full star.
 - **Restart, Level Select and Next Level are gnomish plates:** colored enamel (copper-red, blue, green) in a riveted brass rim, an icon in a porthole, and the word in cream with the cog-and-piston letters.
 - **The info headings are brass word-art** (Objective, Power, Balls, Score and the rest), every O a cogwheel and every I a piston. The goal heading changes with the objective. `tools/word_art.py` draws them.

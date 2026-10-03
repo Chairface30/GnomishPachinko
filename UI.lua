@@ -605,7 +605,7 @@ function UI:CreateFrame()
     local function settingBox(key, text, y, onChange)
         local cb = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
         cb:SetSize(24, 24)
-        cb:SetPoint("BOTTOMLEFT", side, "TOPLEFT", -4, y)
+        cb:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", y, -2)
         local label = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         label:SetPoint("LEFT", cb, "RIGHT", 2, 1)
         label:SetText(text)
@@ -621,13 +621,13 @@ function UI:CreateFrame()
         self.settingBoxes[key] = cb
         return cb
     end
-    settingBox("sound", "Sound", 30, function(on)
+    settingBox("sound", "Sound", -4, function(on)
         if not on then
             GP:StopVoice()
             if UI.ahhHandle then UI:StopAhh(false) end
         end
     end)
-    settingBox("music", "Music", 6, function(on)
+    settingBox("music", "Music", 110, function(on)
         if not on then UI:StopFanfare(true)
         elseif UI.state and UI.state.phase == E.PHASE.FEVER then UI:StartFanfare(GetTime()) end
     end)
@@ -682,54 +682,57 @@ function UI:CreateFrame()
         return t
     end
 
+    -- one text size for everything (the level's name aside), and the info
+    -- spread over the column's height so nothing is cramped
+    local function body(fs, size, color)
+        fs:SetFont(UI.FONT, size or UI.TEXT_SIZE, "")
+        if color then fs:SetTextColor(color[1], color[2], color[3]) end
+        return fs
+    end
+    local function num(fs, size)
+        fs:SetFont(UI.FONT, size or UI.VALUE_SIZE, "OUTLINE")
+        return fs
+    end
+    local H = UI.HEAD_H
+
     self.levelText = label("", 0, "GameFontNormalLarge")
-    self.levelText:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    self.levelText:SetFont(UI.FONT, 20, "OUTLINE")
     self.levelText:SetTextColor(1, 0.85, 0.2)
-    self.chapterText = label("", -26, "GameFontNormal")
+    self.chapterText = body(label("", -24))
     self.chapterText:SetWidth(SIDE_W)
     self.chapterText:SetJustifyH("LEFT")
-    self.layoutText = label("", -42)
-    self.layoutText:SetTextColor(0.6, 0.55, 0.75)
-    divider(-60)
+    self.layoutText = body(label("", -40), nil, { 0.7, 0.65, 0.85 })
+    divider(-58)
 
-    word("word_objective", 2, -64, 20)
-    self.objectiveText = label("", -84)
+    word("word_objective", 2, -64, H)
+    self.objectiveText = body(label("", -86), nil, { 0.92, 0.92, 1 })
     self.objectiveText:SetWidth(SIDE_W)
     self.objectiveText:SetJustifyH("LEFT")
     self.objectiveText:SetJustifyV("TOP")
-    self.objectiveText:SetHeight(26)
-    self.objectiveText:SetTextColor(0.9, 0.9, 1)
+    self.objectiveText:SetHeight(34)
 
-    self.hostText = label("", -110, "GameFontNormal")
+    self.hostText = body(label("", -122))
     self.hostText:SetWidth(SIDE_W)
     self.hostText:SetJustifyH("LEFT")
-    self.powerIcon = icon(0, -126, 18, "power_multiball")
-    word("word_power", 22, -125, 18)
-    self.powerText = value(-128, "GameFontHighlight")
-    self.powerBlurb = label("", -144)
+    self.powerIcon = icon(0, -142, H, "power_multiball")
+    word("word_power", 24, -142, H)
+    self.powerText = num(value(-144))
+    self.powerBlurb = body(label("", -164), nil, { 0.78, 0.78, 0.88 })
     self.powerBlurb:SetWidth(SIDE_W)
     self.powerBlurb:SetJustifyH("LEFT")
     self.powerBlurb:SetJustifyV("TOP")
-    self.powerBlurb:SetHeight(26)
-    self.powerBlurb:SetTextColor(0.7, 0.7, 0.8)
-    self.powerStatus = label("", -170)
-    self.powerStatus:SetTextColor(0.6, 1, 0.6)
+    self.powerBlurb:SetHeight(30)
+    self.powerStatus = body(label("", -196), nil, { 0.6, 1, 0.6 })
 
-    word("word_balls", 2, -185, 18)
-    self.ballsText = value(-188, "GameFontHighlightLarge")
-    self.goalIcon = icon(0, -210, 18, "goal_orange")
-    self.goalLabel = word("word_goal_classic", 22, -209, 18)
-    self.goalText = value(-212, "GameFontHighlightLarge")
-    word("word_score", 2, -233, 18)
-    self.scoreText = value(-236, "GameFontHighlight")
-    word("word_multiplier", 2, -252, 14)
-    self.multText = value(-254, "GameFontHighlightSmall")
-    word("word_combo", 2, -288, 14)
-    self.comboText = value(-290, "GameFontHighlightSmall")
-    word("word_best", 2, -304, 14)
-    self.bestText = value(-306, "GameFontHighlightSmall")
-    word("word_next_free_ball", 2, -320, 14)
-    self.freeBallText = value(-322, "GameFontHighlightSmall")
+    word("word_balls", 2, -214, H)
+    self.ballsText = num(value(-215), UI.VALUE_SIZE + 2)
+    self.goalIcon = icon(0, -238, H, "goal_orange")
+    self.goalLabel = word("word_goal_classic", 24, -238, H)
+    self.goalText = num(value(-239), UI.VALUE_SIZE + 2)
+    word("word_score", 2, -262, H)
+    self.scoreText = num(value(-263))
+    word("word_multiplier", 2, -286, H)
+    self.multText = num(value(-287))
     local function bar(y, r, g, b)
         local f = CreateFrame("StatusBar", nil, info)
         f:SetSize(SIDE_W, 5)
@@ -744,11 +747,10 @@ function UI:CreateFrame()
         bg:SetVertexColor(0.1, 0.1, 0.14, 0.9)
         return f
     end
-    self.freeBallBar = bar(-336, 0.4, 0.7, 1)
     -- the multiplier: a horizontal trough with a rainbow bar clipped by progress
     local trough = CreateFrame("Frame", nil, info)
     trough:SetSize(SIDE_W, 16)
-    trough:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -270)
+    trough:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -308)
     local gauge = { skin = ART:NewSkin(info, "gauge", "ARTWORK", 0, trough), fill = info:CreateTexture(nil, "ARTWORK", nil, 2), w = SIDE_W - 8 }
     gauge.fill:SetPoint("LEFT", trough, "LEFT", 4, 0)
     gauge.fill:SetSize(gauge.w, 10)
@@ -760,14 +762,20 @@ function UI:CreateFrame()
     end
     gauge:SetValue(0)
     self.multBar = gauge
-    word("word_stars", 2, -344, 14)
-    self.sideStars = makeStars(info, 12, 2)
-    for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 14, -346) end
-    self.starNeedText = label("", -362)
+    word("word_combo", 2, -330, H)
+    self.comboText = num(value(-331))
+    word("word_best", 2, -352, H)
+    self.bestText = num(value(-353))
+    word("word_next_free_ball", 2, -374, H)
+    self.freeBallText = num(value(-375))
+    self.freeBallBar = bar(-396, 0.4, 0.7, 1)
+    word("word_stars", 2, -406, H)
+    self.sideStars = makeStars(info, 18, 2)
+    for i, s in ipairs(self.sideStars) do s:SetPoint("TOPRIGHT", side, "TOPRIGHT", -(3 - i) * 20, -406) end
+    self.starNeedText = body(label("", -428), nil, { 0.72, 0.72, 0.85 })
     self.starNeedText:SetWidth(SIDE_W)
     self.starNeedText:SetJustifyH("LEFT")
-    self.starNeedText:SetTextColor(0.65, 0.65, 0.78)
-    divider(-382)
+    divider(-448)
 
     -- the level buttons are whole pictures: enamelled gnomish plates
     self.nextBtn = makeButton(side, SIDE_W, 30, "", "btn_next")
@@ -796,14 +804,20 @@ function UI:CreateFrame()
     -- the Golden Gear shop
     -- the way in: a fat button at the bottom of the info
     local gearBtn = CreateFrame("Button", nil, info)
-    gearBtn:SetSize(64, 64)
-    gearBtn:SetPoint("TOP", side, "TOP", 0, -388)
+    gearBtn:SetSize(SIDE_W, 58)
+    gearBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -456)
     gearBtn.tex = gearBtn:CreateTexture(nil, "ARTWORK")
-    gearBtn.tex:SetAllPoints()
+    gearBtn.tex:SetSize(56, 56)
+    gearBtn.tex:SetPoint("LEFT", gearBtn, "LEFT", 4, 0)
+    -- the header that says what it is
+    gearBtn.word = gearBtn:CreateTexture(nil, "ARTWORK")
+    ART:Set(gearBtn.word, "word_shop")
+    gearBtn.word:SetSize(172, 172 / 8)
+    gearBtn.word:SetPoint("LEFT", gearBtn.tex, "RIGHT", 6, 0)
     ART:Set(gearBtn.tex, "shop_gear")
     gearBtn.glow = gearBtn:CreateTexture(nil, "BACKGROUND")
-    gearBtn.glow:SetSize(96, 96)
-    gearBtn.glow:SetPoint("CENTER")
+    gearBtn.glow:SetSize(88, 88)
+    gearBtn.glow:SetPoint("CENTER", gearBtn.tex, "CENTER", 0, 0)
     ART:Set(gearBtn.glow, "glow_soft", 1, 0.85, 0.3)
     if gearBtn.glow.SetBlendMode then gearBtn.glow:SetBlendMode("ADD") end
     gearBtn.glow:SetAlpha(0.35)
@@ -854,22 +868,16 @@ function UI:CreateFrame()
         b:SetScript("OnClick", function(self) UI:ShopBuy(self.what) end)
         self.shopBtns[i] = b
     end
-    local shopHow = shop:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     -- the way to get gears, in the shop
     if self.buyBtn.SetParent then self.buyBtn:SetParent(shop) end
     self.buyBtn:ClearAllPoints()
     self.buyBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -62 - #GP.Plays.SHOP_ORDER * 48 - 4)
-    shopHow:SetPoint("TOPLEFT", side, "TOPLEFT", 4, -62 - #GP.Plays.SHOP_ORDER * 48 - 58)
-    shopHow:SetWidth(SIDE_W - 8)
-    shopHow:SetJustifyH("LEFT")
-    shopHow:SetTextColor(0.8, 0.8, 0.9)
-    shopHow:SetText("Golden Gears are 1g each: press Get Golden Gears at a mailbox and the mail fills itself in.")
     self.shopLeaveBtn = makeButton(shop, SIDE_W, 40, "Leave shop")
-    self.shopLeaveBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -392)
+    self.shopLeaveBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -464)
     self.shopLeaveBtn:SetScript("OnClick", function() UI:ShowShop(false) end)
-    -- the owner's characters top up for free
-    self.freeBtn = makeButton(side, SIDE_W, 24, "Owner: +" .. GP.Plays.OWNER_GEARS .. " Golden Gears")
-    self.freeBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 0)
+    -- the owner's characters top up for free (in the shop, under the mail button)
+    self.freeBtn = makeButton(self.shopPanel, SIDE_W, 24, "Owner: +" .. GP.Plays.OWNER_GEARS .. " Golden Gears")
+    self.freeBtn:SetPoint("TOPLEFT", side, "TOPLEFT", 0, -62 - #GP.Plays.SHOP_ORDER * 48 - 56)
     self.freeBtn:SetScript("OnClick", function() UI:ClaimFreePlays() end)
     self.freeBtn:Hide()
 
@@ -1153,6 +1161,11 @@ function UI:UpdateStarFill(now)
         card.fillAnim = nil
     end
 end
+
+UI.FONT = "Fonts\\FRIZQT__.TTF"
+UI.TEXT_SIZE = 13            -- every line of text in the side column
+UI.VALUE_SIZE = 14           -- the numbers beside the headings
+UI.HEAD_H = 20               -- the word-art headings' height
 
 -- After the level: stars, score, what happened, and where to go next.
 function UI:ShowResultCard(result, stars)
