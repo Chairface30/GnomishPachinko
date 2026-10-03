@@ -1029,6 +1029,9 @@ end
 function UI:HideCard()
     self.card:Hide()
     self.cardSheet:Hide()
+    self.card.fillAnim = nil
+    if self.rampHandle and type(StopSound) == "function" then pcall(StopSound, self.rampHandle, 0) end
+    self.rampHandle = nil
     self.cardAt = nil
 end
 
@@ -1153,12 +1156,20 @@ function UI:UpdateStarFill(now)
         end
         if f >= 1 and not s.filled then
             s.filled = true
-            GP:PlaySfx("note" .. (6 + i * 3) .. ".ogg")
+            -- a bottle rocket for each of the first two; the full fanfare for the third
+            if i < 3 then
+                GP:PlaySfx("star_rocket.ogg")
+            else
+                GP:PlaySfx("star_fanfare.ogg")
+                self:Celebrate()
+            end
         end
     end
     if t >= 1 then
         card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(a.score)))
         card.fillAnim = nil
+        if self.rampHandle and type(StopSound) == "function" then pcall(StopSound, self.rampHandle, 300) end
+        self.rampHandle = nil
     end
 end
 
@@ -1183,6 +1194,10 @@ function UI:ShowResultCard(result, stars)
     local m2, m3 = L:StarScores(st.level)
     card.fillAnim = { start = GetTime(), score = result.score or 0, cleared = cleared,
         marks = { m2 * 0.5, m2, m3 }, stars = cleared and stars or 0 }
+    -- a rising sound under the count-up
+    if self.rampHandle and type(StopSound) == "function" then pcall(StopSound, self.rampHandle, 0) end
+    local _, rh = GP:PlaySfx("star_ramp.ogg")
+    self.rampHandle = rh
     local def = E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic
     local goalLine
     if result.duel then
@@ -2855,7 +2870,6 @@ function UI:OnLevelOver(result)
         self:ShowBanner("|cffffd700LEVEL CLEARED!|r",
             ("Score %s  (bins %s)%s"):format(fmtBig(result.score), fmtBig(result.feverTotal or 0), extra), 0)
         -- the stars are revealed on the card, filling as the score counts up
-        if stars >= 3 then self:Celebrate() end
         GP:PlaySfx("clear.ogg")
         GP:PlayVoice(result.duel and "duel_won" or (stars >= 3 and "three_stars" or "level_cleared"))
         if result.crazyGuide then

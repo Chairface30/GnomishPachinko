@@ -2166,13 +2166,24 @@ __early = { w(1), w(2), w(3), card.line1:GetText() }
 __now = __now + 2.5
 UI:UpdateStarFill(GetTime())
 __late = { w(1), w(2), w(3) }
+local rockets, fanfare, ramp = 0, false, false
+for _, f in ipairs(__played_files) do
+  if f:find("star_rocket", 1, true) then rockets = rockets + 1 end
+  if f:find("star_fanfare", 1, true) then fanfare = true end
+  if f:find("star_ramp", 1, true) then ramp = true end
+end
+__starSounds = { rockets, fanfare, ramp }
 UI:HideCard()
 """)
 early, late = dict(ev("__early")), dict(ev("__late"))
 full = ev("UI.CARD_STAR")
+lua("GnomishPachinkoDB.sound = true")
 check("the result card counts the score up and fills the stars from left to right",
       early[3] < full and early[1] > 0 and late[1] == full and late[2] == full and late[3] == full,
       f"{early} {late}")
+snd = dict(ev("__starSounds"))
+check("the count-up has a rising sound, a bottle rocket for each of the first two stars and a fanfare for the third",
+      snd[1] >= 2 and snd[2] and snd[3], str(snd))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

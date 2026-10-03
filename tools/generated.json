@@ -279,6 +279,21 @@
     "prompt": "A ghostly whoosh with a quick cartoon boo as a ball reappears, short.",
     "secs": 0.8
   },
+  "star_fanfare": {
+    "at": "2026-10-02 21:40",
+    "prompt": "A big triumphant brass fanfare with fireworks bursting and a cheering crowd, a grand win, short.",
+    "secs": 3.5
+  },
+  "star_ramp": {
+    "at": "2026-10-02 21:40",
+    "prompt": "A bright rising tally sound, a fast ticking counter climbing in pitch with a building synth whoosh, tension rising, no music, about two seconds.",
+    "secs": 2.2
+  },
+  "star_rocket": {
+    "at": "2026-10-02 21:40",
+    "prompt": "A single bottle rocket: a short rising whistle and a sharp crackling pop, celebratory, short.",
+    "secs": 1.2
+  },
   "start": {
     "at": "2026-10-01 17:40",
     "prompt": "A short cheerful arcade level-start jingle, two bright rising notes.",

@@ -89,6 +89,9 @@ EFFECTS = {
     # moments
     "start":    ("A short cheerful arcade level-start jingle, two bright rising notes.", 1.0, {"keep_tail": True}),
     "slowmo":   ("A dramatic slow-motion whoosh with a single heartbeat thump, short.", 0.9, {}),
+    "star_ramp": ("A bright rising tally sound, a fast ticking counter climbing in pitch with a building synth whoosh, tension rising, no music, about two seconds.", 2.2, {"keep_tail": True}),
+    "star_rocket": ("A single bottle rocket: a short rising whistle and a sharp crackling pop, celebratory, short.", 1.2, {"keep_tail": True}),
+    "star_fanfare": ("A big triumphant brass fanfare with fireworks bursting and a cheering crowd, a grand win, short.", 3.5, {"keep_tail": True}),
     "last_ahh": ("A crowd's hushed, held 'ahhhhhh' of suspense, rising steadily in pitch and growing louder and louder, building tension, no words.", 5.0, {"keep_tail": True}),
     "last_aww": ("A crowd's disappointed 'awwwww', the pitch falling away in sympathy, a sad sigh, short, no words.", 1.6, {"keep_tail": True}),
     "mumble1": ("A cartoon character mumbling nonsense syllables like a muted trombone, wah wah, mrh hrm, friendly and quick, no words, variation 1.", 1.2, {}),
