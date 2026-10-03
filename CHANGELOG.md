@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The last gem's (or egg's) fall is slowed only at the tube:** it drops at full speed and the slow motion and the crowd's "ahhh" kick in only as it is about to drop into the tube (coming down, close above the mouth and lined up with it). If it lands in another cradle or on a ledge instead, the moment ends as soon as it stops dropping, rather than hanging in slow motion while the "ahhh" ran out.
 - **Retrying a duel skips the board you already cleared:** once a duel level's first board is cleared, Retry goes straight to the duel with Cogwhistle, carrying over that board's score as before. Starting the level fresh from the map plays the whole thing.
 - **Cogwhistle no longer runs away with a duel he opens:** when the coin gives him the first shot, he takes a warm-up shot down a middling lane instead of his best one. On a fresh duel board his best opening (often half the oranges and a big combo) left nothing to catch up on, worst of all on level 90. His later turns are unchanged.
 - **Tough pieces show the hits they have left:** a hit strips a layer. A gold-rimmed piece turns steel-rimmed and shows a crack; a steel-rimmed piece loses its rim and becomes a plain piece. The tough pieces' tutorial demo and Bink's line (re-voiced) match.

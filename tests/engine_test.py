@@ -2996,6 +2996,54 @@ UI:HideLevelSelect()
 """)
 check("the Levels button takes the level cleared card off the screen", ev("__cardUpBefore") and ev("__cardGone"), f"{ev('__cardUpBefore')} {ev('__cardGone')}")
 
+# the last gem's fall is slowed only as it comes to the tube, and a gem
+# caught on the way down (a new cradle) ends the moment
+lua(r"""
+function gem_fall_probe()
+  local st = E:NewLevel(L:Build(23))
+  local gem
+  for _, p in ipairs(st.pegs) do
+    if p.kind == "gem" and not gem then gem = p else p.gone = true end
+  end
+  st.goalLeft = 1
+  st.phase = E.PHASE.FLIGHT
+  local events = {}
+  local function park()
+    st.balls = { { x = 30, y = 30, vx = 0, vy = 0, slow = 0 } }
+  end
+  local out = {}
+  -- high up, falling: watched but not slowed
+  park()
+  gem.resting, gem.x, gem.y, gem.vx, gem.vy = false, st.bucket.x, 200, 0, 100
+  st.looseSlow = gem
+  E:Step(st, 1 / 60, events)
+  out.highSlow = st.lastSlow
+  out.highCue = count(events, "last_peg")
+  -- just over the tube's mouth and lined up: slowed, with the cue
+  wipe(events)
+  park()
+  gem.x, gem.y, gem.vx, gem.vy = st.bucket.x, E.FIELD_H - E.BUCKET_H - 6 - gem.r - 60, 0, 220
+  E:Step(st, 1 / 60, events)
+  out.nearSlow = st.lastSlow
+  out.nearCue = count(events, "last_peg")
+  -- caught on the way down: it stops getting lower, and the moment ends
+  wipe(events)
+  st.looseSlow, st.lastSlow = gem, false
+  local y0 = 250
+  for _ = 1, 45 do
+    park()
+    gem.gone, gem.lit, gem.resting = false, false, false
+    gem.x, gem.y, gem.vx, gem.vy = 120, y0, 15, 2
+    E:Step(st, 1 / 60, events)
+  end
+  out.caughtEnds = st.looseSlow == nil
+  return out
+end
+""")
+gf = dict(ev("gem_fall_probe")())
+check("the last gem's fall: no slow-mo high up, slow-mo with the cue just over the tube, and a gem caught on the way ends it",
+      not gf["highSlow"] and gf["highCue"] == 0 and gf["nearSlow"] and gf["nearCue"] == 1 and gf["caughtEnds"], str(gf))
+
 # the last gem's fall: slowed, but the view eases back out to the whole board
 lua(r"""
 UI:StartLevel(23, true)

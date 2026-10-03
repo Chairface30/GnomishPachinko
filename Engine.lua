@@ -232,6 +232,7 @@ E.LOOSE_RESTITUTION = 0.15
 E.LOOSE_DRAG        = 0.9       -- rolling drag: share of the tangent speed lost per second of contact
 E.LOOSE_SLEEP       = 10        -- slower than this ...
 E.LOOSE_SLEEP_SECS  = 0.25      -- ... for this long while touching something: at rest
+E.LOOSE_CAUGHT_SECS = 0.4       -- the last gem's (or egg's) fall is over once it has gone this long without dropping lower
 E.LOOSE_NUDGE       = { egg = 0.08, gem = 0.26 }  -- share of the ball's speed a hit passes on (a gem lighter than an egg)
 -- a gem's mass: the shove a hit gives it is divided by this (set by eye)
 E.GEM_MASS          = 3.5
@@ -1805,16 +1806,16 @@ loosePhysics = function(state, dt, events)
             else
                 if wasResting then p.fellAt, p.fallX, p.fallY = state.time, p.x, p.y end
                 if p.fellAt and not p.settling then
+                p.fallLowY, p.fallLowAt = nil, nil
                     -- a few pixels on from where it rested: it is really falling
                     local dx, dy = p.x - p.fallX, p.y - p.fallY
                     if dx * dx + dy * dy > 16 then
                         p.fellAt = nil
                         push(events, { type = (p.kind == "egg") and "egg_fall" or "gem_free", x = p.x, y = p.y })
+                        -- the last one: watched on its way down, slowed only
+                        -- as it comes to the tube (updateLastPeg)
                         if state.goalLeft == 1 and state.phase == E.PHASE.FLIGHT then
                             state.looseSlow = p
-                            local again = state.lastCueShot == state.shots
-                            state.lastCueShot = state.shots
-                            push(events, { type = "last_peg", x = p.x, y = p.y, again = again })
                         end
                     end
                 end
@@ -1886,6 +1887,23 @@ local function predictGoalHits(state, ball, goals, secs)
     return hits, lastPiece
 end
 
+-- Is this falling piece about to drop into the bucket's tube: coming down,
+-- not far above its mouth, and lined up with where the tube will be when
+-- it gets there?
+E.LOOSE_TUBE_NEAR = 130     -- pixels above the mouth
+function E.LooseNearTube(state, p)
+    if state.noBucket or E.PyramidUp(state) or (p.vy or 0) <= 0 then return false end
+    local r = p.r or E.PEG_R
+    local top = bucketTop()
+    local gap = top - (p.y + r)
+    if gap > E.LOOSE_TUBE_NEAR or p.y - r > top + E.BUCKET_H then return false end
+    local t = math.max(0, gap) / math.max(p.vy, 60)
+    local b = state.bucket
+    local bx = b.x + (b.dir or 0) * E.BUCKET_SPEED * t
+    local gx = p.x + (p.vx or 0) * t
+    return abs(gx - bx) <= E.BUCKET_W / 2 + r
+end
+
 local function updateLastPeg(state, dt, events)
     if state.phase ~= E.PHASE.FLIGHT then
         state.lastSlow = false
@@ -1895,11 +1913,26 @@ local function updateLastPeg(state, dt, events)
     -- the last gem (or egg) on its way down: the moment is its fall
     local ls = state.looseSlow
     if ls then
-        if ls.gone or ls.lit or ls.resting then
+        -- caught on the way down (a new cradle, a ledge): once it has stopped
+        -- making its way down the fall is over, even while it still wobbles
+        -- there, short of the stillness that counts as resting
+        if not ls.fallLowY or ls.y > ls.fallLowY + 2 then
+            ls.fallLowY, ls.fallLowAt = ls.y, state.time
+        end
+        local caught = state.time - ls.fallLowAt >= E.LOOSE_CAUGHT_SECS
+        if ls.gone or ls.lit or ls.resting or caught then
+            ls.fallLowY, ls.fallLowAt = nil, nil
             state.looseSlow = nil
             state.lastSlow = false
         else
-            state.lastSlow = true
+            -- slow motion only as it is about to drop into the tube
+            local near = E.LooseNearTube(state, ls)
+            if near and not state.lastSlow then
+                local again = state.lastCueShot == state.shots
+                state.lastCueShot = state.shots
+                push(events, { type = "last_peg", x = ls.x, y = ls.y, again = again })
+            end
+            state.lastSlow = near
             state.lastPeg = ls
             return
         end
