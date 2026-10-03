@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The stars take their time:** the count-up runs over four and a half seconds at an even pace, and each star pops to life as it fills, swelling and springing back with a burst of light behind it.
 - **Cheat-proofing pass.** Everything that makes or spends Golden Gears, special balls, plays or progress now lives in the addon's private namespace, out of reach of a `/run` line or another addon. Only results the game itself produced are recorded (once each); tutorial gifts are the ones written in the addon and are remembered in the vault; the item counts handed out are copies; levels, stars, best scores and the Crazy Guide are sealed from the addon's own record, so an edit to the live settings is undone at the next save; and the owner check reads the player's name through the client function as it was at login.
 - The cheer at the end of a three-star clear fades out naturally instead of stopping dead.
 

@@ -90,7 +90,7 @@ EFFECTS = {
     "start":    ("A short cheerful arcade level-start jingle, two bright rising notes.", 1.0, {"keep_tail": True}),
     "slowmo":   ("A dramatic slow-motion whoosh with a single heartbeat thump, short.", 0.9, {}),
     "click_soft": ("A single soft, quiet mechanical click, like a small brass toggle switch, very short.", 0.3, {}),
-    "star_ramp": ("A bright rising tally sound, a fast ticking counter climbing in pitch with a building synth whoosh, tension rising, no music, about two seconds.", 2.2, {"keep_tail": True}),
+    "star_ramp": ("A bright rising tally sound, a steady ticking counter slowly climbing in pitch with a building synth whoosh, tension rising, no music.", 4.6, {"keep_tail": True}),
     "star_rocket": ("A single bottle rocket: a short rising whistle and a sharp crackling pop, celebratory, short.", 1.2, {"keep_tail": True}),
     "star_fanfare": ("A big triumphant brass fanfare with fireworks bursting and a cheering crowd, the cheers slowly dying away at the end, a grand win.", 6.0, {"keep_tail": True, "fade_out": 2.0}),
     "last_ahh": ("A crowd's hushed, held 'ahhhhhh' of suspense, rising steadily in pitch and growing louder and louder, building tension, no words.", 5.0, {"keep_tail": True}),

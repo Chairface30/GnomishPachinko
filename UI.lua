@@ -1082,7 +1082,14 @@ function UI:CreateCard()
         fill:SetSize(spec.size, spec.size)
         ART:Set(fill, spec.slot)
         fill:Hide()
-        card.bigStars[i] = { base = base, fill = fill, size = spec.size }
+        -- a burst of light behind it when it pops
+        local glow = sf:CreateTexture(nil, "ARTWORK", nil, spec.layer - 1)
+        glow:SetPoint("CENTER", base, "CENTER", 0, 0)
+        glow:SetSize(spec.size * 1.6, spec.size * 1.6)
+        ART:Set(glow, "glow_soft", 1, 0.9, 0.45)
+        if glow.SetBlendMode then glow:SetBlendMode("ADD") end
+        glow:Hide()
+        card.bigStars[i] = { base = base, fill = fill, glow = glow, size = spec.size }
     end
     card.bigScore = sf:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     card.bigScore:SetPoint("TOP", card, "TOP", 0, UI.BIG_SCORE_Y)
@@ -1288,18 +1295,47 @@ function UI:CardLayout(mode)
         card.line3:SetPoint("TOP", card.best, "BOTTOM", 0, -10)
     end
 end
-UI.STAR_FILL_SECS = 2.0      -- the score counts up (and the stars fill) over this long
+UI.STAR_FILL_SECS = 4.5      -- the score counts up (and the stars fill) over this long
+UI.STAR_POP_SECS = 0.5       -- a star that fills pops: it swells, glows and settles over this long
+UI.STAR_POP_SCALE = 0.4      -- how far it swells
 
 -- The result card's count-up: the score climbs from nothing, and each star
 -- fills with gold from left to right as it passes that star's mark (half
 -- the two-star mark, the two-star mark, the three-star mark); a cleared
 -- level's first star always fills. A chime rises with each full star.
+-- A star that has just filled pops: it swells and springs back, with a
+-- burst of light behind it that fades.
+function UI:UpdateStarPops(now)
+    local card = self.card
+    if not (card and card.bigStars) then return end
+    for _, s in ipairs(card.bigStars) do
+        if s.popAt then
+            local f = (now - s.popAt) / self.STAR_POP_SECS
+            if f >= 1 then
+                s.popAt = nil
+                s.base:SetSize(s.size, s.size)
+                s.fill:SetSize(s.size, s.size)
+                s.glow:Hide()
+            else
+                local k = 1 + self.STAR_POP_SCALE * math.sin(f * math.pi) * (1 - 0.4 * f)
+                s.base:SetSize(s.size * k, s.size * k)
+                s.fill:SetSize(s.size * k, s.size * k)
+                local g = s.size * (1.3 + 1.0 * f)
+                s.glow:SetSize(g, g)
+                s.glow:SetAlpha(1 - f)
+                s.glow:Show()
+            end
+        end
+    end
+end
+
 function UI:UpdateStarFill(now)
     local card = self.card
+    self:UpdateStarPops(now)
     local a = card and card.fillAnim
     if not a then return end
     local t = math.min(1, (now - a.start) / self.STAR_FILL_SECS)
-    local e = 1 - (1 - t) * (1 - t)                 -- quick, then easing in
+    local e = t                                      -- an even climb, so each star has its moment
     local shown = a.score * e
     card.bigScore:SetText(fmtBig(math.floor(shown + 0.5)))
     local prev = 0
@@ -1321,6 +1357,7 @@ function UI:UpdateStarFill(now)
         end
         if f >= 1 and not s.filled then
             s.filled = true
+            s.popAt = now                            -- it pops to life
             -- a bottle rocket for each of the first two; the full fanfare for the third
             if i < 3 then
                 GP:PlaySfx("star_rocket.ogg")
@@ -1361,7 +1398,10 @@ function UI:ShowResultCard(result, stars)
     end
     -- the big stars start empty and fill as the score counts up
     self:CardLayout("result")
-    for _, s in ipairs(card.bigStars) do s.fill:Hide(); s.filled = nil end
+    for _, s in ipairs(card.bigStars) do
+        s.fill:Hide(); s.filled = nil; s.popAt = nil; s.glow:Hide()
+        s.base:SetSize(s.size, s.size); s.fill:SetSize(s.size, s.size)
+    end
     local m2, m3 = L:StarScores(st.level)
     card.fillAnim = { start = GetTime(), score = result.score or 0, cleared = cleared,
         marks = { m2 * 0.5, m2, m3 }, stars = cleared and stars or 0 }
