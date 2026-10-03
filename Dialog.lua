@@ -114,6 +114,7 @@ D.SCRIPTS = {
     { key = "gears_help", when = function() return false end, lines = {
         { "tink", "Golden Gears, is it? They're the pachinko's own coin. One gold buys one gear." },
         { "tink", "Walk up to any mailbox and press Get Golden Gears again. I'll fill the mail out for you: gold to Chairface Chippendale, with pachinko golden gears as the subject." },
+        { "tink", "But mind this: I will not, and I cannot, press Send for you. The Blizzard... ahem, the Gnomish Regulators forbid it! That last button is yours to press." },
         { "tink", "Send it off, and your gears turn up as soon as the gold arrives. Spend them in the shop on special balls, or on more plays!" },
     } },
     -- the very first thing a new player hears

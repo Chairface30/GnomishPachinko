@@ -605,19 +605,22 @@ function P:ApplyPendingFill()
     end
     local price = self:PriceText(p.gears)
     if #failed == 0 then
-        GP:Print("Mail filled out: " .. price .. " to " .. banker .. " for |cffffd700" .. p.gears .. "|r Golden Gears. Press Send to complete.")
+        GP:Print("Mail filled out: " .. price .. " to " .. banker .. " for |cffffd700" .. p.gears .. "|r Golden Gears. |cffffd700Press Send yourself to complete it.|r " .. P.SEND_NOTE)
     else
         GP:Print("|cffff8800Could not fill in: " .. table.concat(failed, ", ") .. ".|r Send " .. price .. " to " .. banker ..
             " with \"" .. self.SUBJECT .. "\" as the subject for |cffffd700" .. p.gears .. "|r Golden Gears.")
     end
 end
 
+-- Said wherever the mail is explained: the player presses Send, never the addon.
+P.SEND_NOTE = "The addon will not, and cannot, press Send for you: the Blizzard (ahem, Gnomish) Regulators forbid it."
+
 -- Fills out the mail for some Golden Gears (1g each).
 function P:FillPurchaseMail(gears)
     gears = floor(tonumber(gears) or self.DEFAULT_GEARS_MAIL)
     if gears < 1 then return false, "Buy at least one Golden Gear (1g)" end
     if not (MailFrame and MailFrame:IsShown()) then
-        return false, "Visit a mailbox first: the helper fills the mail out there. Golden Gears are 1g each, sent to " ..
+        return false, "Visit a mailbox first: the helper fills the mail out there, and you press Send. " .. P.SEND_NOTE .. " Golden Gears are 1g each, sent to " ..
             self:BankerName() .. " with \"" .. self.SUBJECT .. "\" as the subject."
     end
     local copper = gears * self.GEAR_COPPER

@@ -1626,7 +1626,7 @@ function UI:ShowOutOfPlays(reason)
     local panel = self.playsPanel
     panel.text:SetText((reason and (reason .. "\n") or "") ..
         ("You have used all %d free plays for the day."):format(P.FAILS_PER_DAY))
-    panel.how:SetText(("You have %d Golden Gears. Gears are 1g each: mail gold to %s with \"%s\" as the subject, or press the button at a mailbox and it fills in. Bought plays last 24 hours."):format(
+    panel.how:SetText(("You have %d Golden Gears. Gears are 1g each: mail gold to %s with \"%s\" as the subject, or press the button at a mailbox and it fills in; you press Send. " .. P.SEND_NOTE .. " Bought plays last 24 hours."):format(
         P:Gears(), P:BankerName(), P.SUBJECT))
     panel.buy.text:SetText(P:Gears() >= P.SHOP.plays.cost and "Buy 5 plays for 10 Golden Gears" or "Get Golden Gears by mail")
     styleButton(panel.buy, true, 0.55, 0.4, 0.1)

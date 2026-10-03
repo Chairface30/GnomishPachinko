@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Every explanation of buying Golden Gears now says plainly that the addon will not, and cannot, press Send: the Blizzard (ahem, Gnomish) Regulators forbid it. Tinkmaster says so too, in a new voiced line.
 - **The star count-up sounds the part:** a rising tally under the count, a bottle rocket as each of the first two stars fills, and a fanfare with fireworks when the third does.
 - **The right column, tidied:** the info spreads over the column's height with one text size throughout (13, numbers 14, headings all the same height), so nothing is tiny. The shop's way in is the golden gear with a SHOP header beside it. The line under Get Golden Gears is gone, and the owner's button sits in the shop. Sound and Music are a footer along the bottom.
 - **Next Level, Restart and Level Select look like the logo:** small copper plates with the logo's cog end-caps and gold lettering, cut from the logo itself, instead of bright enamel.
