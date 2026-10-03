@@ -856,7 +856,14 @@ hitPeg = function(state, p, ball, events, quiet)
         -- by leaving the board. An egg takes the hit as well.
         if ball then
             local k = (E.LOOSE_NUDGE[p.kind] or 0.2) / ((p.kind == "gem") and E.GEM_MASS or 1)
-            nudgeLoose(p, ball.vx * k, ball.vy * k)
+            if ball.hitClose then
+                -- pushed away from the ball, through the face it struck: a
+                -- square hit drives it straight on, a glancing one barely moves it
+                nudgeLoose(p, ball.hitNx * ball.hitClose * k, ball.hitNy * ball.hitClose * k)
+                ball.hitNx, ball.hitNy, ball.hitClose = nil, nil, nil
+            else
+                nudgeLoose(p, ball.vx * k, ball.vy * k)
+            end
         end
         if p.kind == "gem" then return false end
     end
@@ -1220,6 +1227,9 @@ collideBall = function(state, ball, events, light)
                 else
                     ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
                     local vn = ball.vx * nx + ball.vy * ny
+                    -- the contact, for a loose piece's shove: the line from the
+                    -- ball through the piece, and how fast the ball closed on it
+                    if p.loose then ball.hitNx, ball.hitNy, ball.hitClose = -nx, -ny, math.max(0, -vn) end
                     if vn < 0 then
                         local e = p.bounce or E.RESTITUTION
                         if p.shape == "brick" and not isSolid(p) and light then
@@ -2089,3 +2099,6 @@ function E:Step(state, dt, events)
     end
     return events
 end
+
+-- the collision pass, for the tests
+E.CollideBall = function(...) return collideBall(...) end

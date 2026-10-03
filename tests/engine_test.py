@@ -2725,6 +2725,30 @@ end
 fc_n, fc_early, fc_flag = ev("full_clear_probe")()
 check("lighting every piece pays the FULL CLEAR bonus once, and not before the last one", fc_n == 1 and not fc_early and fc_flag, f"{fc_n} {fc_early} {fc_flag}")
 
+# a gem is pushed along the line from the ball through it, as hard as the ball closed on it
+lua(r"""
+function gem_push(bx, by, vx, vy)
+  local st = E:NewLevel(L:Build(23))
+  local gem
+  for _, p in ipairs(st.pegs) do if p.kind == "gem" then gem = p break end end
+  gem.vx, gem.vy = 0, 0
+  local d = gem.r + E.BALL_R - 2
+  local ball = { x = gem.x + bx * d, y = gem.y + by * d, vx = vx, vy = vy, slow = 0 }
+  st.balls = { ball }
+  st.phase = E.PHASE.FLIGHT
+  st.time = st.time + 1
+  E.CollideBall(st, ball, {}, true)
+  return gem.vx, gem.vy
+end
+""")
+# straight down onto the gem's upper-left face: pushed down and to the right
+gx, gy = ev("gem_push")(-0.7071, -0.7071, 0, 400)
+# a glancing hit along the top edge pushes far less than a square one
+sx, sy = ev("gem_push")(0, -1, 0, 400)
+glx, gly = ev("gem_push")(-0.995, -0.1, 0, 400)
+check("a gem is pushed along the line from the ball through its face, as hard as the ball closed on it",
+      gx > 0 and gy > 0 and abs(gx - gy) < 1 and (sx * sx + sy * sy) > 4 * (glx * glx + gly * gly), f"{gx:.1f},{gy:.1f} square {sy:.1f} glancing {glx:.1f},{gly:.1f}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
