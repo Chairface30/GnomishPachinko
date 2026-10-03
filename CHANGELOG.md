@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The special balls (and the Extra Green Peg) are handed over on the line where the host says so, "Here's one of each", with a chime; until then their buttons show none. Skipping the talk still hands them over.
 - Closing the result card stops everything it set playing: the tally, the rockets, the fanfare and the host's line.
 - A bank shot now needs the ball to go off the wall and straight onto an orange peg; touching anything else first (a blue peg, a brick, a balloon, a bumper, the pyramid) spoils it.
 

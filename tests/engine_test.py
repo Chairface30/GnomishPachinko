@@ -2478,6 +2478,33 @@ __cardQuiet = had > 0 and #__stopped >= stops + had and UI.cardSounds == nil
 """)
 check("closing the result card stops its sounds", ev("__cardQuiet"))
 
+# the special balls arrive on the line that hands them over, not before
+lua(r"""
+GnomishPachinkoDB.dialogs.items = nil
+__ns.VaultGet().gifted = {}
+local D = GP.Dialog
+local items
+for _, sc in ipairs(D.SCRIPTS) do if sc.key == "items" then items = sc end end
+local r0 = P:ItemOf("ring")
+D:Play({ items })                    -- line 1
+__giftEarly = P:ItemOf("ring") == r0
+D:Advance()                          -- line 2
+__giftStill = P:ItemOf("ring") == r0
+D:Advance()                          -- line 3: "Here's one of each"
+__giftNow = P:ItemOf("ring") == r0 + 1
+D:Finish()
+__giftOnce = P:ItemOf("ring") == r0 + 1
+-- skipped early, the gift still comes as the talk closes
+GnomishPachinkoDB.dialogs.items = nil
+__ns.VaultGet().gifted = {}
+local r1 = P:ItemOf("ring")
+D:Play({ items })
+D:Finish()
+__giftSkip = P:ItemOf("ring") == r1 + 1
+""")
+check("the special balls are handed over on \"Here's one of each\", not before; skipping still hands them over",
+      ev("__giftEarly") and ev("__giftStill") and ev("__giftNow") and ev("__giftOnce") and ev("__giftSkip"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

@@ -158,13 +158,13 @@ D.SCRIPTS = {
         { "host", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot.",
             highlight = { "ring", "rainbow", "suction" },
             cues = { { "Ring of Fire", "ring" }, { "Rainbow Ball", "rainbow" }, { "Suction Tube", "suction" }, { "Click one", "ring", "rainbow", "suction" } } },
-        { "host", "Here's one of each, on the house. Go on, give them a try!", highlight = { "ring", "rainbow", "suction" } },
+        { "host", "Here's one of each, on the house. Go on, give them a try!", highlight = { "ring", "rainbow", "suction" }, givesGift = true },
     } },
     -- the Extra Green Peg, the level after the special balls
     { key = "green_peg", when = function(st) return st.level >= 3 end, gift = { green = 1 }, lines = {
         { "host", "One more toy for you: the Extra Green Peg. It's the new button under the special balls.",
             cues = { { "Extra Green Peg", "green" } } },
-        { "host", "Click it on the level card, before you press Play, and the board gets one more green peg. Here's one to try!", highlight = { "green" } },
+        { "host", "Click it on the level card, before you press Play, and the board gets one more green peg. Here's one to try!", highlight = { "green" }, givesGift = true },
     } },
     { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end, lines = {
         { "host", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
@@ -379,10 +379,11 @@ function D:Play(list, done)
     for _, sc in ipairs(list) do
         -- a tutorial's gift comes with it, once per player: the gifts are the
         -- ones written in this file, kept apart, and the vault remembers them
-        local gift = GIFTS[sc.key]
-        if gift and ns.Secure and ns.Secure.Gift(sc.key, gift) then
-            if GP.UI and GP.UI.UpdateCounters and GP.UI.state then pcall(GP.UI.UpdateCounters, GP.UI) end
-            if GP.UI and GP.UI.UpdateItemSlots then pcall(GP.UI.UpdateItemSlots, GP.UI) end
+        -- a gift is handed over on the line that says so ("Here's one of
+        -- each"); skipped before then, it is handed over as the talk closes
+        if GIFTS[sc.key] then
+            self.pendingGifts = self.pendingGifts or {}
+            self.pendingGifts[sc.key] = true
         end
         db()[sc.key] = true
         if sc.gift and GP.UI and GP.UI.UpdateItemSlots then pcall(GP.UI.UpdateItemSlots, GP.UI) end
@@ -392,7 +393,8 @@ function D:Play(list, done)
                 who = GP:Host().id
                 clip = clip .. "_" .. who
             end
-            self.queue[#self.queue + 1] = { who, line[2], clip = clip, highlight = line.highlight, cues = line.cues }
+            self.queue[#self.queue + 1] = { who, line[2], clip = clip, highlight = line.highlight, cues = line.cues,
+                giftKey = line.givesGift and sc.key or nil }
         end
     end
     self.done = done
@@ -441,7 +443,19 @@ function D:UpdateCues()
     if not c.list[c.next] then self.cueLine = nil end
 end
 
+-- Hands over a talk's gift (once: the vault remembers it).
+function D:GiveGift(key)
+    if not (self.pendingGifts and self.pendingGifts[key]) then return end
+    self.pendingGifts[key] = nil
+    if ns.Secure and ns.Secure.Gift(key, GIFTS[key]) then
+        if GP.UI and GP.UI.UpdateCounters and GP.UI.state then pcall(GP.UI.UpdateCounters, GP.UI) end
+        if GP.UI and GP.UI.UpdateItemSlots then pcall(GP.UI.UpdateItemSlots, GP.UI) end
+        GP:PlaySfx("free_ball.ogg")
+    end
+end
+
 function D:Show(line)
+    if line.giftKey then self:GiveGift(line.giftKey) end
     self:StartCues(line)
     local sp = self.SPEAKERS[line[1]] or self.SPEAKERS.tink
     self.panel.name:SetText("|cffffd700" .. sp.name .. "|r")
@@ -523,6 +537,8 @@ function D:Advance()
 end
 
 function D:Finish()
+    -- a talk skipped before its gift line still hands the gift over
+    for key in pairs(self.pendingGifts or {}) do self:GiveGift(key) end
     self.cueLine = nil
     self:SetHighlight(nil)
     self:StopVoice()
