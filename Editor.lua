@@ -32,9 +32,14 @@ ED.TOOL_NAMES = { select = "Select / move", slide = "Super Slide", arc = "Slide 
 -- Bricks come in standard sizes: a full brick and a half one. A row or a
 -- Super Slide is laid in full bricks end to end along the path, and the
 -- last one is cut to fit.
-ED.BRICK_SIZES = { E.BRICK_W / 2, E.BRICK_W }
+ED.BRICK_SIZES = { E.BRICK_W / 2, E.BRICK_W, E.BRICK_W * 1.5, E.BRICK_W * 2 }
 ED.SLIDE_STEP = E.BRICK_W
-ED.MIN_CUT = 6              -- a cut end shorter than this is left off
+ED.MIN_CUT = 3              -- a cut end shorter than this is left off
+-- On a tight bend full bricks meet at too sharp an angle and a fast ball can
+-- punch through the joint: where two half bricks in a row turn by more than
+-- this (radians), they stay halves instead of making one full brick.
+ED.MERGE_TURN = 0.22       -- (half a brick turning this much: a bend tighter than about 67 pixels round)
+ED.JOINT_OVERLAP = 1.5      -- bricks on a bend run this much longer, so their joints close
 ED.CODE_PREFIX = "GPL1"
 
 -- ---------------------------------------------------------------------
@@ -124,8 +129,8 @@ function ED:Sanitize(d)
                 q.x = num(p.x, 0, W, W / 2)
                 q.y = num(p.y, 0, H, 300)
                 if p.a then q.a = num(p.a, -100, 100, 0) end
-                if p.w then q.w = num(p.w, 8, 300, 30) end
-                if p.r then q.r = num(p.r, 6, 40, 12) end
+                if p.w then q.w = num(p.w, 6, 490, 30) end
+                if p.r then q.r = num(p.r, 6, 80, 12) end
                 if p.hp then q.hp = floor(num(p.hp, 1, 3, 1)) end
                 local c = (p.c == "orange" or p.c == "blue" or p.c == "green") and p.c or (p.o and "orange") or nil
                 if c and (q.t == "peg" or q.t == "brick") then q.c = c end
@@ -273,9 +278,11 @@ end
 
 -- round pieces' sizes: smallest, biggest and normal radius, in pixels
 ED.SIZE_RANGE = {
-    peg = { 6, 20, E.PEG_R }, bumper = { 10, 30, E.BUMPER_R }, key = { 7, 16, 10 },
-    egg = { 16, 30, E.EGG_R }, gem = { 14, 28, E.GEM_R }, rblock = { 6, 30, 11 },
+    peg = { 6, 40, E.PEG_R }, bumper = { 10, 60, E.BUMPER_R }, key = { 7, 30, 10 },
+    egg = { 16, 50, E.EGG_R }, gem = { 14, 46, E.GEM_R }, rblock = { 6, 70, 11 },
 }
+ED.BALLOON_MAX = 70         -- past the game's own balloon sizes, a balloon grows 3 pixels a click
+ED.BAR_MAX = 490            -- a bar can run the board's whole width
 function ED:PieceRadius(pc)
     local t = pc.t
     if pc.r and t ~= "balloon" then return pc.r end
@@ -713,12 +720,19 @@ function ED:Resize(step)
             local sizes, k = self.BRICK_SIZES, 1
             for j, w in ipairs(sizes) do if (pc.w or E.BRICK_W) >= w - 0.5 then k = j end end
             pc.w = sizes[math.max(1, math.min(#sizes, k + step))]
-        elseif isBar(pc) then pc.w = math.max(12, math.min(300, (pc.w or 30) + step * 6))
+        elseif isBar(pc) then pc.w = math.max(12, math.min(self.BAR_MAX, (pc.w or 30) + step * 6))
         elseif pc.t == "balloon" then
             local sizes = L.BALLOON_SIZES
-            local k = 1
-            for j, r in ipairs(sizes) do if (pc.r or 16) >= r then k = j end end
-            pc.r = sizes[math.max(1, math.min(#sizes, k + step))]
+            local top = sizes[#sizes]
+            local cur = pc.r or 16
+            if cur > top or (cur >= top and step > 0) then
+                -- beyond the game's own sizes: 3 pixels a click
+                pc.r = math.max(top, math.min(self.BALLOON_MAX, cur + step * 3))
+            else
+                local k = 1
+                for j, r in ipairs(sizes) do if cur >= r then k = j end end
+                pc.r = sizes[math.max(1, math.min(#sizes, k + step))]
+            end
         elseif self.SIZE_RANGE[pc.t] then
             local range = self.SIZE_RANGE[pc.t]
             local lo, hi, def = range[1], range[2], range[3]
@@ -750,10 +764,10 @@ end
 
 -- The dragged path, evened out to points SLIDE_STEP apart along it; a
 -- brick between each pair, end to end, all one rail.
-function ED:SlidePoints(pts)
+function ED:SlidePoints(pts, step)
     if not pts or #pts < 2 then return {} end
     local out = { { pts[1][1], pts[1][2] } }
-    local step = self.SLIDE_STEP
+    step = step or self.SLIDE_STEP
     local need = step
     for k = 2, #pts do
         local ax, ay = pts[k - 1][1], pts[k - 1][2]
@@ -776,19 +790,62 @@ function ED:SlidePoints(pts)
 end
 
 -- rail: true for a Super Slide; a plain row of bricks otherwise
+-- The bricks along a path: points half a brick apart, joined in pairs into
+-- full bricks where the path runs straight enough, left as half bricks on a
+-- tight bend; the end cut to fit. Each is { x0, y0, x1, y1, turn }.
+function ED:SlideBricks(pts)
+    local half = self:SlidePoints(pts, E.BRICK_W / 2)
+    local segs = {}
+    for k = 2, #half do segs[#segs + 1] = { half[k - 1], half[k] } end
+    local function dir(s) return atan2(s[2][2] - s[1][2], s[2][1] - s[1][1]) end
+    local function len(s) return sqrt((s[2][1] - s[1][1]) ^ 2 + (s[2][2] - s[1][2]) ^ 2) end
+    local function turn(a, b)
+        local d = dir(b) - dir(a)
+        while d > pi do d = d - 2 * pi end
+        while d < -pi do d = d + 2 * pi end
+        return abs(d)
+    end
+    local out, i = {}, 1
+    while i <= #segs do
+        local s, nx = segs[i], segs[i + 1]
+        if nx and turn(s, nx) <= self.MERGE_TURN and len(s) + len(nx) <= E.BRICK_W + 0.5 then
+            out[#out + 1] = { s[1][1], s[1][2], nx[2][1], nx[2][2] }
+            i = i + 2
+        else
+            out[#out + 1] = { s[1][1], s[1][2], s[2][1], s[2][2] }
+            i = i + 1
+        end
+    end
+    -- how sharply each brick meets its neighbours
+    for k, b in ipairs(out) do
+        local t = 0
+        for _, j in ipairs({ k - 1, k + 1 }) do
+            local o = out[j]
+            if o then
+                local d = atan2(b[4] - b[2], b[3] - b[1]) - atan2(o[4] - o[2], o[3] - o[1])
+                while d > pi do d = d - 2 * pi end
+                while d < -pi do d = d + 2 * pi end
+                t = math.max(t, abs(d))
+            end
+        end
+        b[5] = t
+    end
+    return out
+end
+
 function ED:AddSlide(pts, plain)
-    local even = self:SlidePoints(pts)
-    if #even < (plain and 2 or 4) then return nil end
+    local bricks = self:SlideBricks(pts)
+    if #bricks < (plain and 1 or 3) then return nil end
     self:PushUndo()
     local used = {}
     for _, pc in ipairs(self.data.pieces) do if pc.rail then used[pc.rail] = true end end
     local name = (not plain) and unusedName("rail", used) or nil
     local made, new = 0, {}
-    for k = 2, #even do
+    for _, bk in ipairs(bricks) do
         if #self.data.pieces >= self.MAX_PIECES then break end
-        local a, b = even[k - 1], even[k]
-        local pc = { t = "brick", x = (a[1] + b[1]) / 2, y = (a[2] + b[2]) / 2,
-            a = atan2(b[2] - a[2], b[1] - a[1]), w = sqrt((b[1] - a[1]) ^ 2 + (b[2] - a[2]) ^ 2), rail = name }
+        local len = sqrt((bk[3] - bk[1]) ^ 2 + (bk[4] - bk[2]) ^ 2)
+        local pc = { t = "brick", x = (bk[1] + bk[3]) / 2, y = (bk[2] + bk[4]) / 2,
+            a = atan2(bk[4] - bk[2], bk[3] - bk[1]), w = len + ((bk[5] > 0.05) and self.JOINT_OVERLAP or 0), rail = name }
         clampToZone(pc)
         self.data.pieces[#self.data.pieces + 1] = pc
         new[#self.data.pieces] = true
@@ -848,7 +905,12 @@ end
 
 function ED:DrawSlidePath(pts)
     self.slideDots = self.slideDots or {}
-    local even = pts and self:SlidePoints(pts) or {}
+    local even = {}
+    if pts then
+        local bricks = self:SlideBricks(pts)
+        if bricks[1] then even[1] = { bricks[1][1], bricks[1][2] } end
+        for _, b in ipairs(bricks) do even[#even + 1] = { b[3], b[4] } end
+    end
     for i, p in ipairs(even) do
         local d = self.slideDots[i]
         if not d then
@@ -1353,7 +1415,7 @@ function ED:Create()
     rbtn(194, -342, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
     self.colorBtn = rbtn(0, -367, 140, "Colors: all dealt", function() ED:ClearColors() end,
         "Pegs and bricks back to plain dealing: any color at random on every attempt.")
-    rbtn(146, -367, 68, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step between full and half, bars shorter, round pieces smaller.")
+    rbtn(146, -367, 68, "Smaller", function() ED:Resize(-1) end, "Every piece: bricks step through half, full, one and a half and double; bars shorter; round pieces smaller.")
     rbtn(218, -367, 68, "Bigger", function() ED:Resize(1) end)
     -- turning by an exact number of degrees, or setting a bar's angle outright
     rbtn(0, -392, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
@@ -2073,7 +2135,7 @@ function ED:OnMouseUp(btn)
             return
         elseif len > 10 then
             i = self:AddPiece(self.tool, (x1 + dr.x0) / 2, (y1 + dr.y0) / 2,
-                { w = math.min(300, len), a = atan2(y1 - dr.y0, x1 - dr.x0) })
+                { w = math.min(self.BAR_MAX, len), a = atan2(y1 - dr.y0, x1 - dr.x0) })
         else
             i = self:AddPiece(self.tool, dr.x0, dr.y0)
         end

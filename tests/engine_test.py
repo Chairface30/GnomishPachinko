@@ -4209,7 +4209,7 @@ for _, pc in ipairs(ED.data.pieces) do
     n = n + 1
     rail = rail or pc.rail
     if pc.rail ~= rail then rail = false end
-    if math.abs(pc.w - E.BRICK_W) < 0.5 then full = full + 1 elseif pc.w < E.BRICK_W then cut = cut + 1 end
+    if math.abs(pc.w - E.BRICK_W) < 2 then full = full + 1 elseif pc.w < E.BRICK_W then cut = cut + 1 end
   end
 end
 local spec = L:BuildCustom(ED:Sanitize(ED.data), 5, 0)
@@ -4312,6 +4312,53 @@ __labels = ED.colorBtns.orange.text:GetText()
 check("Orange and Green buttons go dealt, never, always and back; setting one always makes the other never; Purple can land or never",
       ev("__orangeCycle") == "never,always,dealt" and ev("__greenAlways") and ev("__switch") and ev("__purple") and ev("__purpleBack"),
       f'{ev("__orangeCycle")} {ev("__greenAlways")} {ev("__switch")} {ev("__purple")} {ev("__purpleBack")} {ev("__labels")}')
+
+# bigger than before: round pieces, balloons past the game's sizes, long bars, double bricks
+lua(r"""
+ED:NewLevel()
+local peg = ED:AddPiece("peg", 120, 300)
+local bal = ED:AddPiece("balloon", 245, 300)
+local bar = ED:AddPiece("block", 245, 420)
+local br = ED:AddPiece("brick", 360, 300)
+ED.sel = { [peg] = true, [bal] = true, [bar] = true, [br] = true }
+for _ = 1, 80 do ED:Resize(1) end
+local P = ED.data.pieces
+__big = { peg = ED:PieceRadius(P[peg]), balloon = P[bal].r, bar = P[bar].w, brick = P[br].w }
+local back = L:BuildCustom(ED:Sanitize(ED.data), 5, 0)
+__bigBuilt = true
+for _, p in ipairs(back.pegs) do
+  if p.editIdx == peg and p.r ~= 40 then __bigBuilt = false end
+  if p.editIdx == bal and p.r ~= 70 then __bigBuilt = false end
+end
+""")
+bg = dict(ev("__big"))
+check("Bigger goes well past the old limits (a peg to 40, a balloon to 70, a bar to the board's width, a brick to double) and the game keeps the sizes",
+      bg["peg"] == 40 and bg["balloon"] == 70 and bg["bar"] == 490 and bg["brick"] == 60 and ev("__bigBuilt"), str(bg))
+
+# a slide on a tight bend is laid in half bricks (full ones would meet at too sharp an angle); a gentle one in full bricks
+lua(r"""
+ED:NewLevel()
+ED:AddSlide(ED:CirclePoints(245, 330, 40))
+local tightHalf = 0
+for _, pc in ipairs(ED.data.pieces) do if pc.w < E.BRICK_W * 0.75 then tightHalf = tightHalf + 1 end end
+__tight = tightHalf / #ED.data.pieces
+ED:NewLevel()
+ED:AddSlide(ED:CirclePoints(245, 330, 110))
+local wideFull = 0
+for _, pc in ipairs(ED.data.pieces) do if pc.w >= E.BRICK_W - 0.5 then wideFull = wideFull + 1 end end
+__wide = wideFull / #ED.data.pieces
+-- a ring set turning spins round its own centre, though its gap pulls the middle of its bricks aside
+ED.sel = {}
+for i in ipairs(ED.data.pieces) do ED.sel[i] = true end
+ED:CycleMover(); ED:CycleMover(); ED:CycleMover()     -- slide, lift, wheel
+local spec = L:BuildCustom(ED:Sanitize(ED.data), 5, 0)
+local mv = spec.movers[1]
+__spin = { kind = mv.kind, cx = mv.cx, cy = mv.cy }
+""")
+sp = dict(ev("__spin"))
+check("Slides: half bricks on a tight ring, full bricks on a wide one; a turning ring spins round its true centre",
+      ev("__tight") > 0.8 and ev("__wide") > 0.8 and sp["kind"] == "wheel" and abs(sp["cx"] - 245) < 1 and abs(sp["cy"] - 330) < 1,
+      f'{ev("__tight")} {ev("__wide")} {sp}')
 
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""

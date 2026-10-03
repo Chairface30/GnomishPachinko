@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Level editor: **bigger pieces.** Pegs grow to 40 pixels round, bumpers 60, keys 30, eggs 50, gems 46, steel studs 70 and balloons 70 (past the game's own sizes, 3 pixels a click); bars run up to the board's whole width; bricks come in half, full, one and a half and double.
+- Level editor: a ring or arc set **turning** spins round its own centre (its gap no longer pulls the turn off to one side, which made it wobble).
+- Level editor: slides on a **tight bend** (tighter than about 67 pixels round) are laid in half bricks, and bricks on a bend overlap a little at their joints, so the wall stays closed.
 - Level editor: **color buttons go round.** Orange and Green each click through dealt, never, always and back to dealt (making one always makes the other never); Purple, which hops every shot, can land or never. Colors: all dealt puts the selection back to plain dealing.
 - Level editor: **Bigger / Smaller work on every piece**: bricks step between full and half, bars get longer or shorter, and pegs, studs, balloons, bumpers, keys, eggs and gems grow or shrink (an egg's or gem's cradle is rebuilt to fit).
 - Level editor: **exact positions.** X and Y boxes show where the selection is (one piece's spot, or a group's middle) and take typed numbers: Move puts it there (Enter in a box too), Line up X / Line up Y puts every selected piece in a column or row, Spread X / Spread Y spaces them evenly.

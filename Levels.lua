@@ -1685,6 +1685,36 @@ function L:CustomPieces(pc)
     return out
 end
 
+-- The circle through a set of pieces (a least-squares fit): centre, radius
+-- and how far off it the pieces sit on average. Nil for fewer than three.
+local function fitCircle(list)
+    local n = #list
+    if n < 3 then return nil end
+    local mx, my = 0, 0
+    for _, p in ipairs(list) do mx, my = mx + p.x, my + p.y end
+    mx, my = mx / n, my / n
+    local suu, svv, suv, suuu, svvv, suvv, svuu = 0, 0, 0, 0, 0, 0, 0
+    for _, p in ipairs(list) do
+        local u, v = p.x - mx, p.y - my
+        suu, svv, suv = suu + u * u, svv + v * v, suv + u * v
+        suuu, svvv = suuu + u * u * u, svvv + v * v * v
+        suvv, svuu = suvv + u * v * v, svuu + v * u * u
+    end
+    local det = suu * svv - suv * suv
+    if math.abs(det) < 1e-9 then return nil end
+    local bu, bv = (suuu + suvv) / 2, (svvv + svuu) / 2
+    local uc = (bu * svv - bv * suv) / det
+    local vc = (bv * suu - bu * suv) / det
+    local cx, cy = mx + uc, my + vc
+    local r = 0
+    for _, p in ipairs(list) do r = r + sqrt((p.x - cx) ^ 2 + (p.y - cy) ^ 2) end
+    r = r / n
+    local err = 0
+    for _, p in ipairs(list) do err = err + math.abs(sqrt((p.x - cx) ^ 2 + (p.y - cy) ^ 2) - r) end
+    return cx, cy, r, err / n
+end
+L.FitCircle = fitCircle
+
 -- Orders a rail's bricks along the chain (from the end farthest from their
 -- middle, always the nearest next) and turns them round that middle.
 local function orderRail(list)
@@ -1762,6 +1792,12 @@ function L:BuildCustom(data, n, attempt)
             local cx, cy = 0, 0
             for _, q in ipairs(list) do cx, cy = cx + q.x, cy + q.y end
             cx, cy = cx / #list, cy / #list
+            -- a ring or an arc turns round its own centre, not the middle of its
+            -- pieces (an open ring's gap pulls that off to one side)
+            if mv.k == "wheel" or mv.k == "swing" then
+                local fx, fy, fr, ferr = fitCircle(list)
+                if fx and fr < 600 and ferr < 2.5 then cx, cy = fx, fy end
+            end
             movers[#movers + 1] = { kind = mv.k or "slide", pegs = list, amp = mv.amp or 60,
                 speed = mv.speed or 1, phase = mv.phase or 0, cx = mv.cx or cx, cy = mv.cy or cy }
         end
