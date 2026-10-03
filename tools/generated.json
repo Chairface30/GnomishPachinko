@@ -134,6 +134,16 @@
     "prompt": "A quick cartoon spring boing with a whoosh, something jumping away, short.",
     "secs": 0.5
   },
+  "last_ahh": {
+    "at": "2026-10-02 21:05",
+    "prompt": "A crowd's hushed, held 'ahhhhhh' of suspense, rising steadily in pitch and growing louder and louder, building tension, no words.",
+    "secs": 5.0
+  },
+  "last_aww": {
+    "at": "2026-10-02 21:05",
+    "prompt": "A crowd's disappointed 'awwwww', the pitch falling away in sympathy, a sad sigh, short, no words.",
+    "secs": 1.6
+  },
   "launch": {
     "at": "2026-10-01 17:38",
     "prompt": "A small spring-loaded cannon firing a steel ball, a short mechanical thunk with a quick whoosh, dry.",

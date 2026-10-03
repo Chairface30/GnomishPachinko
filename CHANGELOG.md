@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The last-piece zoom has a crowd:** instead of a whispered "last one", a held "ahhhh" builds through the slow motion until the piece lights and the Fever music cuts in. If the ball misses, it falls away into a sad "awwww".
 - **Every boss has a voice of its own:** the Bolt Golem booms through iron with a metal-room echo, the Gyro Spider hisses and crackles with electricity, the Mechano-Boar snorts and growls, and the Cog Yeti rumbles slow through an ice-cave echo.
 - **The Tin Drake sounds like a small dragon:** a new snarling, hissing voice, pitched up with a growl and a light tin ring, and a new line. In the conversation box it is turned half round to face the player.
 - **The special-ball tutorial comes with a gift:** one Ring of Fire, one Rainbow Ball and one Suction Tube to try, given once with the level 2 talk.

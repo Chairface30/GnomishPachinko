@@ -2343,6 +2343,8 @@ function UI:HandleEvents(now)
     local st = self.state
     for _, ev in ipairs(self.events) do
         local t = ev.type
+        -- the last piece is lit: the "ahhh" gives way to the Fever music
+        if (t == "fever" or t == "duel_last_orange" or t == "level_over") and self.ahhHandle then self:StopAhh(false) end
         local reaction = MASCOT_REACTIONS[t]
         if reaction and not (t == "crack" and ev.peg.kind ~= "boss") and not (t == "last_peg" and ev.again) then
             GP.Mascot:React(reaction)
@@ -2497,10 +2499,10 @@ function UI:HandleEvents(now)
         elseif t == "gem_lost" then
             self:Popup(ev.x, E.FIELD_H - 30, "missed", 0.7, 0.7, 0.8)
         elseif t == "last_peg" then
-            if not ev.again then
-                GP:PlaySfx("slowmo.ogg")
-                GP:PlayVoice("last_one")
-            end
+            if not ev.again then GP:PlaySfx("slowmo.ogg") end
+            -- the crowd holds its breath: an "ahhh" that builds until the
+            -- last piece lights (and the Fever music cuts in) or the ball misses
+            self:StartAhh(now)
         elseif t == "rim" then
             -- the ceramic lip of the bucket
             if now - (self.lastRimSound or 0) > 0.1 then
@@ -2689,10 +2691,45 @@ function UI:OnLevelOver(result)
     self:UpdateDisplay()
 end
 
+-- The last-piece "ahhh": started when the slow-mo zoom keys in, cut when
+-- the piece lights, turned into a sad "awww" when the ball misses it.
+UI.AHH_MISS_GRACE = 0.3     -- the slow-mo has let go this long with the piece still up: a miss
+function UI:StartAhh(now)
+    if self.ahhHandle or (self.awwAt and now - self.awwAt < 1) then return end
+    local ok, handle = GP:PlaySfx("last_ahh.ogg")
+    self.ahhHandle = ok and (handle or true) or nil
+    self.ahhAt = now
+end
+
+function UI:StopAhh(missed)
+    local h = self.ahhHandle
+    self.ahhHandle = nil
+    if type(h) == "number" and type(StopSound) == "function" then pcall(StopSound, h, missed and 150 or 300) end
+    if missed then
+        GP:PlaySfx("last_aww.ogg")
+        self.awwAt = GetTime()
+    end
+end
+
+function UI:WatchAhh(now)
+    if not self.ahhHandle then return end
+    local st = self.state
+    if not st or st.phase ~= E.PHASE.FLIGHT then
+        -- Fever began (handled at its event) or the level is over
+        if not (st and st.phase == E.PHASE.FEVER) then self:StopAhh(false) end
+        return
+    end
+    -- the slow-mo let go and Fever has not begun: the ball missed
+    if not st.lastSlow and self.slowSeenAt and now - self.slowSeenAt > self.AHH_MISS_GRACE then
+        self:StopAhh(true)
+    end
+end
+
 function UI:OnUpdate(dt)
     local now = GetTime()
     local st = self.state
     self:UpdatePopups(now)
+    self:WatchAhh(now)
     if self.bannerUntil and now >= self.bannerUntil then
         self.bannerUntil = nil
         self.banner:SetText("")

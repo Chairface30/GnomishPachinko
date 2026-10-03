@@ -2032,6 +2032,44 @@ __giftOnce2 = n("ring") == r0 + 1
 """)
 check("the special-ball tutorial gives one Ring of Fire, Rainbow Ball and Suction Tube, once", ev("__giftOnce1") and ev("__giftOnce2"))
 
+# the last-piece zoom: a building "ahhh", cut by Fever, or an "awww" on a miss
+lua(r"""
+UI:StartLevel(3, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+GnomishPachinkoDB.sound = true
+local st = UI.state
+st.phase = E.PHASE.FLIGHT
+st.lastPeg = st.pegs[1]
+st.lastSlow = true
+UI.slowSeenAt = GetTime()
+local n0 = #__played_files
+UI.events = { { type = "last_peg", x = 1, y = 1 } }
+UI:HandleEvents(GetTime())
+local function played(name) for i = n0 + 1, #__played_files do if __played_files[i]:find(name, 1, true) then return true end end return false end
+__ahhOn = UI.ahhHandle ~= nil and played("last_ahh")
+-- a miss: the slow-mo lets go and the piece is still up
+st.lastSlow = false
+UI.slowSeenAt = GetTime()
+__now = __now + 0.5
+UI:WatchAhh(GetTime())
+__aww = played("last_aww") and UI.ahhHandle == nil
+-- a hit: Fever cuts the ahh, no aww
+__now = __now + 2
+n0 = #__played_files
+st.lastSlow = true
+UI.slowSeenAt = GetTime()
+UI.events = { { type = "last_peg", x = 1, y = 1 } }
+UI:HandleEvents(GetTime())
+local stops = #__stopped
+UI.events = { { type = "fever" } }
+st.phase = E.PHASE.FEVER
+UI:HandleEvents(GetTime())
+__hitCuts = UI.ahhHandle == nil and #__stopped > stops and not played("last_aww")
+UI:StopFanfare()
+""")
+check("the last-piece zoom builds an 'ahhh' that Fever cuts off, or that turns to 'awww' on a miss",
+      ev("__ahhOn") and ev("__aww") and ev("__hitCuts"), f'{ev("__ahhOn")} {ev("__aww")} {ev("__hitCuts")}')
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
