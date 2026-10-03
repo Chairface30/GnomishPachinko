@@ -7,3 +7,4 @@ package-as: GnomishPachinko
 ignore:
   - tests
   - tools
+  - README.md
