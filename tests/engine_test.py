@@ -4534,6 +4534,43 @@ check("Export shows the code as a block (read back fine) with a Select all butto
 check("Importing a code made on one of the owner's characters is not a submission (no credit); a player's code is",
       ev("__ownImport") and ev("__theirImport"))
 
+# the aim guide meets a moving piece where it will be when the ball gets there, not where it is now
+lua(r"""
+function guide_vs_real(n)
+  local worst, cases = 0, 0
+  for k = 0, 60 do
+    local st = E:NewLevel(L:Build(n))
+    st.time = 0.37 * k
+    E:UpdateMovers(st)
+    st.aim = (k / 60 - 0.5) * 2 * (E.MAX_AIM_DEG - 4) * math.pi / 180
+    local _, hit, gx, gy = E:Guide(st, 2.5)
+    if hit and hit.moving then
+      -- the real ball, same aim, same moment: where is it when it first touches anything?
+      local events = {}
+      E:Launch(st, events)
+      local b = st.balls[1]
+      local px, py
+      for _ = 1, 400 do
+        px, py = b.x, b.y
+        local n0 = #events
+        E:Step(st, E.STEP, events)
+        local touched = false
+        for i = n0 + 1, #events do local e = events[i] if e.peg or e.type == "bounce" then touched = true end end
+        if touched or not st.balls[1] then break end
+      end
+      local d = math.sqrt((px - gx) ^ 2 + (py - gy) ^ 2)
+      cases = cases + 1
+      if d > worst then worst = d end
+    end
+  end
+  return worst, cases
+end
+""")
+gw, gc = ev("guide_vs_real")(21)          # the Slider debut
+gw2, gc2 = ev("guide_vs_real")(121)       # the Sliding Block
+check("the aim guide's ball meets a moving piece within a step of where the real ball does (slider and sliding block levels)",
+      gc + gc2 >= 3 and max(gw, gw2) < 12, f"slider {gw:.1f}px over {gc}, block {gw2:.1f}px over {gc2}")
+
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
 ED:NewLevel()

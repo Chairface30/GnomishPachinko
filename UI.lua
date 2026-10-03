@@ -4045,9 +4045,12 @@ function UI:OnUpdate(dt)
                 GP:PlaySfx("launch.ogg")
             end
         end
-        if self.guideAim ~= st.aim or self.guideDirty then
+        -- with pieces moving the guide changes on its own: drawn again a few times a second
+        local moving = #st.movers > 0 and now - (self.guideAt or 0) >= 0.05
+        if self.guideAim ~= st.aim or self.guideDirty or moving then
             self.guideAim = st.aim
             self.guideDirty = nil
+            self.guideAt = now
             self:DrawGuide()
         end
     end

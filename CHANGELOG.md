@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: the aim guide treated moving pieces as standing still, so its ball met a sliding block (or any moving piece) where the block was when the guide was drawn, often in thin air. The guide (and the Super Guide) now moves the pieces on as the predicted ball flies, and is redrawn continuously while anything moves: it meets the piece where the real ball will.
 - **Test plays end with a card:** the cleared card (the score counting up and the stars filling by the level's own marks, the sweep and fanfare) or the failed card (out of balls, egg lost), titled TEST, with **Back to editor** and **Retry** and no plays line. Nothing is recorded.
 - Level editor: **Export code** shows the code as a block in a scrolling box, with a **Select all** button that selects the whole code for Ctrl+C (the game's clipboard is off limits to addons: an earlier Copy button that tried it caused an error). Import takes a code pasted as a block or as one line.
 - A code made on one of the owner's own characters is not a submission when imported: it carries no builder credit.

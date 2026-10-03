@@ -532,6 +532,31 @@ local function firstContact(state, x, y)
     return nil
 end
 
+-- The guides look ahead in time: moving pieces are set where they will be
+-- as the predicted ball gets there (they keep moving while it flies), and
+-- put back afterwards. guideClock(state) returns a function that moves them
+-- to t seconds from now, and one that puts everything back.
+local function guideClock(state)
+    if #state.movers == 0 then return function() end, function() end end
+    local t0 = state.time
+    local saved = {}
+    for _, mv in ipairs(state.movers) do
+        for _, p in ipairs(mv.pegs) do saved[#saved + 1] = { p, p.x, p.y, p.angle, p.px, p.py } end
+    end
+    local function at(t)
+        state.time = t0 + t
+        E:UpdateMovers(state)
+    end
+    local function restore()
+        state.time = t0
+        for _, s in ipairs(saved) do
+            local p = s[1]
+            p.x, p.y, p.angle, p.px, p.py = s[2], s[3], s[4], s[5], s[6]
+        end
+    end
+    return at, restore
+end
+
 -- Short guide: free flight to the first peg. Returns points and that peg.
 function E:Guide(state, maxT, every)
     maxT, every = maxT or 0.9, every or 0.045
@@ -542,12 +567,14 @@ function E:Guide(state, maxT, every)
     local t, nextSample = 0, every
     local dt = E.STEP
     local first
+    local at, restore = guideClock(state)
     while t < maxT do
         vy = vy + E.GRAVITY * dt
         x, y = x + vx * dt, y + vy * dt
         if x < E.BALL_R then x = E.BALL_R; vx = -vx * E.RESTITUTION end
         if x > W - E.BALL_R then x = W - E.BALL_R; vx = -vx * E.RESTITUTION end
         if y > H then break end
+        at(t + dt)
         first = firstContact(state, x, y)
         if first then
             -- back off to the moment the ball's edge touches the piece:
@@ -567,7 +594,10 @@ function E:Guide(state, maxT, every)
             nextSample = nextSample + every
         end
     end
-    return pts, first, x, y      -- the piece the ball first meets, and where the ball is then
+    -- where the piece it meets will be then (a moving one, before it is put back)
+    local hitX, hitY = first and first.x, first and first.y
+    restore()
+    return pts, first, x, y, hitX, hitY      -- the piece the ball first meets, where the ball is then, and where that piece is then
 end
 
 local collideBall  -- forward
@@ -590,7 +620,9 @@ function E:Simulate(state, maxT, every, maxBounces)
     local t, nextSample = 0, every
     local dt = E.STEP
     local bounces, lastBounce
+    local at, restore = guideClock(state)
     while t < maxT do
+        at(t + dt)
         ball.vy = ball.vy + E.GRAVITY * dt
         ball.x = ball.x + ball.vx * dt
         ball.y = ball.y + ball.vy * dt
@@ -620,6 +652,7 @@ function E:Simulate(state, maxT, every, maxBounces)
             nextSample = nextSample + every
         end
     end
+    restore()
     return pts, bounces or 0
 end
 
