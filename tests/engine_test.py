@@ -2667,6 +2667,40 @@ __massStranger = E.GEM_MASS == 1
 """)
 check("the owner's gem mass slider sets the mass; twice the mass takes half the shove", ev("__massSet") and ev("__massShove") and ev("__massStranger"))
 
+# every obstacle and objective has a tutorial on the first level it appears,
+# and the tutorials with something on the board point an arrow at it
+lua(r"""
+function tutorial_levels()
+  local first, keys = {}, {}
+  for n = 1, 400 do
+    local st = E:NewLevel(L:Build(n))
+    for _, sc in ipairs(GP.Dialog.SCRIPTS) do
+      if not first[sc.key] and sc.when(st) then first[sc.key] = n; keys[#keys + 1] = sc.key end
+    end
+  end
+  local out = {}
+  for _, k in ipairs(keys) do out[#out + 1] = k .. "=" .. first[k] end
+  return table.concat(out, ",")
+end
+for _, sc in ipairs(GP.Dialog.SCRIPTS) do GnomishPachinkoDB.dialogs[sc.key] = true end
+GnomishPachinkoDB.dialogs.gim_slider = nil
+GnomishPachinkoDB.unlocked = 400
+UI:StartLevel(21, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI.card.main:Click()
+local a = UI.spiralArrow
+__pieceHint = a and a:IsShown() and a.piece ~= nil and a.piece.moving == true
+""")
+tl = dict(kv.split("=") for kv in ev("tutorial_levels")().split(","))
+need = ["purple", "rails", "gim_slider", "gim_lifts", "gim_blocks", "gim_wheel", "gim_bumpers", "gim_pendulum", "gim_key_cage",
+        "gim_twin_wheels", "gim_bumper_gate", "gim_key_gate", "gim_sliding_block", "silver_cage", "heavy", "eggs3",
+        "bricks", "balloons", "tough", "eggs", "gems", "mixed", "longshots", "nobucket", "duel"]
+missing = [k for k in need if k not in tl]
+check("every obstacle and objective has a tutorial that some level triggers", not missing, str(missing))
+check("the Slider's tutorial points the arrow at a moving piece after Play", ev("__pieceHint"))
+check("a tutorial is always voiced by the host of its first level (the Slider: Razzle)",
+      all(line[1] == "razzle" for line in [l for sc in ev("GP.Dialog.SCRIPTS").values() if sc.key == "gim_slider" for l in sc.lines.values()]))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

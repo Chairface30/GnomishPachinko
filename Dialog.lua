@@ -100,7 +100,30 @@ function D:TintModel(m, c, power)
     return ok
 end
 
+-- Tutorial helpers: the first live piece that fits, and whether a level
+-- has a given moving setup. A tutorial's `point` names the piece the arrow
+-- points at once Play is pressed (it follows the piece if it moves).
+local function firstPiece(st, test)
+    for _, p in ipairs(st.pegs) do if not p.gone and test(p) then return p end end
+end
+local function hasGimmick(st, name)
+    for token in string.gmatch(st.gimmick or "", "[^+]+") do
+        if token:match("^%s*(.-)%s*$") == name then return true end
+    end
+    return false
+end
+local function gimmickPoint(test)
+    return function(st) return firstPiece(st, test) end
+end
+local function isMoving(p) return p.moving and true or false end
+local function isBumper(p) return p.kind == "bumper" and not p.balloon end
+local function isKey(p) return p.kind == "key" end
+local function plainBlock(p) return p.kind == "block" and not p.scrap and not p.rail and not p.lock and not p.cradle end
+D.TutorialPoint = { firstPiece = firstPiece, hasGimmick = hasGimmick }
+
 -- The conversations. `when` decides whether one belongs to a level's state.
+-- A tutorial is always spoken by the host of the first level it belongs to
+-- (whenever the player meets it), so each line has one voice.
 D.SCRIPTS = {
     -- Tinkmaster's own duel with his brother, and what winning it earns
     { key = "tink_duel", when = function(st) return st.level == GP.Levels.TINK_DUEL_LEVEL end, lines = {
@@ -144,82 +167,136 @@ D.SCRIPTS = {
         { "bink", "Hello hello! Bink, apprentice extraordinaire. It's my turn to run the machine!" },
         { "bink", "My powers are a little magical: a Fireball that burns straight through pegs, and a Spooky Ball that comes back from the bottom." },
     } },
-    { key = "bricks", when = function(st) for _, p in ipairs(st.pegs) do if p.shape == "brick" and not p.cradle then return true end end end, lines = {
-        { "host", "Bricks! They light up just like pegs, and they make lovely ramps." },
+    { key = "bricks", when = function(st) for _, p in ipairs(st.pegs) do if p.shape == "brick" and not p.cradle then return true end end end,
+      point = gimmickPoint(function(p) return p.shape == "brick" and not p.cradle and not p.rail end), lines = {
+        { "tink", "Bricks! They light up just like pegs, and they make lovely ramps." },
     } },
     { key = "slide", when = function(st) return st.level == 8 end, lines = {
-        { "host", "Now this is a beauty: a spiral of bricks." },
-        { "host", "It's a rail! Drop the ball into its mouth on the left and it runs along the inside like a road, all the way round. That's a Super Slide!" },
-        { "host", "Hold the right mouse button to zoom in and line the shot up with the mouth. Go on, clear the whole spiral in one shot." },
+        { "tink", "Now this is a beauty: a spiral of bricks." },
+        { "tink", "It's a rail! Drop the ball into its mouth on the left and it runs along the inside like a road, all the way round. That's a Super Slide!" },
+        { "tink", "Hold the right mouse button to zoom in and line the shot up with the mouth. Go on, clear the whole spiral in one shot." },
     } },
     -- the special balls, and one of each as a gift to try them out
     { key = "items", when = function(st) return st.level >= 2 end, gift = { ring = 1, rainbow = 1, suction = 1 }, lines = {
-        { "host", "See the buttons to the left of the board? Those are my special balls.", highlight = { "ring", "rainbow", "suction" } },
-        { "host", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot.",
+        { "tink", "See the buttons to the left of the board? Those are my special balls.", highlight = { "ring", "rainbow", "suction" } },
+        { "tink", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot.",
             highlight = { "ring", "rainbow", "suction" },
             cues = { { "Ring of Fire", "ring" }, { "Rainbow Ball", "rainbow" }, { "Suction Tube", "suction" }, { "Click one", "ring", "rainbow", "suction" } } },
-        { "host", "Here's one of each, on the house. Go on, give them a try!", highlight = { "ring", "rainbow", "suction" }, givesGift = true },
+        { "tink", "Here's one of each, on the house. Go on, give them a try!", highlight = { "ring", "rainbow", "suction" }, givesGift = true },
     } },
     -- the Extra Green Peg, the level after the special balls
     { key = "green_peg", when = function(st) return st.level >= 3 end, gift = { green = 1 }, lines = {
-        { "host", "One more toy for you: the Extra Green Peg. It's the new button under the special balls.",
+        { "tink", "One more toy for you: the Extra Green Peg. It's the new button under the special balls.",
             cues = { { "Extra Green Peg", "green" } } },
-        { "host", "Click it on the level card, before you press Play, and the board gets one more green peg. Here's one to try!", highlight = { "green" }, givesGift = true },
+        { "tink", "Click it on the level card, before you press Play, and the board gets one more green peg. Here's one to try!", highlight = { "green" }, givesGift = true },
     } },
-    { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end, lines = {
-        { "host", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
-        { "host", "Use them for a ricochet, or curse them when they're in the way." },
+    { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end,
+      point = gimmickPoint(function(p) return p.balloon and not p.post end), lines = {
+        { "mekka", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
+        { "mekka", "Use them for a ricochet, or curse them when they're in the way." },
     } },
-    { key = "tough", when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end, lines = {
-        { "host", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
+    { key = "tough", when = function(st) for _, p in ipairs(st.pegs) do if (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" then return true end end end,
+      point = gimmickPoint(function(p) return (p.maxhp or 1) > 1 and p.kind ~= "egg" and p.kind ~= "boss" end), lines = {
+        { "bink", "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them." },
     } },
-    { key = "eggs", when = function(st) return st.objective == "eggs" or st.objective == "mixed_eggs" end, lines = {
-        { "host", "Phoenix eggs! Two hits hatch one, and the phoenix bursts straight up through everything above it." },
-        { "host", "But mind the bricks holding them. Knock a cradle away and the egg falls. Catch it in the bucket, or the level is lost!" },
+    { key = "eggs", when = function(st) return st.objective == "eggs" or st.objective == "mixed_eggs" end,
+      point = gimmickPoint(function(p) return p.kind == "egg" end), lines = {
+        { "mekka", "Phoenix eggs! Two hits hatch one, and the phoenix bursts straight up through everything above it." },
+        { "mekka", "But mind the bricks holding them. Knock a cradle away and the egg falls. Catch it in the bucket, or the level is lost!" },
     } },
-    { key = "gems", when = function(st) return st.objective == "gems" or st.objective == "mixed_gems" end, lines = {
-        { "host", "Gems on ledges. Hitting a gem only shoves it: knock out the bricks under it and let it drop off the bottom." },
-        { "host", "One that lands in the bucket is a Bucket Drop bonus!" },
+    { key = "gems", when = function(st) return st.objective == "gems" or st.objective == "mixed_gems" end,
+      point = gimmickPoint(function(p) return p.kind == "gem" end), lines = {
+        { "razzle", "Gems on ledges. Hitting a gem only shoves it: knock out the bricks under it and let it drop off the bottom." },
+        { "razzle", "One that lands in the bucket is a Bucket Drop bonus!" },
     } },
-    { key = "mixed", when = function(st) return st.objective == "mixed_eggs" or st.objective == "mixed_gems" end, lines = {
-        { "host", "Two jobs at once from here on: the orange pegs and the eggs or gems. Both, or no clear!" },
+    { key = "mixed", when = function(st) return st.objective == "mixed_eggs" or st.objective == "mixed_gems" end,
+      point = gimmickPoint(function(p) return p.kind == "egg" or p.kind == "gem" end), lines = {
+        { "razzle", "Two jobs at once from here on: the orange pegs and the eggs or gems. Both, or no clear!" },
     } },
-    { key = "keys", when = function(st) for _, p in ipairs(st.pegs) do if p.kind == "key" then return true end end end, lines = {
-        { "host", "A key! Light it and its cage falls away. Sometimes the key is locked behind another cage." },
-    } },
-    { key = "longshots", when = function(st) return st.objective == "longshots" end, lines = {
-        { "host", "Long Shots! Light two orange pegs far apart in one shot. Bank it off a wall and let it fly across." },
+    { key = "longshots", when = function(st) return st.objective == "longshots" end,
+      point = gimmickPoint(function(p) return p.kind == "orange" end), lines = {
+        { "razzle", "Long Shots! Light two orange pegs far apart in one shot. Bank it off a wall and let it fly across." },
     } },
     { key = "nobucket", when = function(st) return st.noBucket end, lines = {
-        { "host", "No bucket on this one. The only free balls are the score marks, so make every ball count." },
+        { "tink", "No bucket on this one. The only free balls are the score marks, so make every ball count." },
     } },
-    { key = "gimmick", when = function(st) return st.gimmick ~= nil end, lines = {
-        { "host", "Moving parts! Time your shot, or use them to bank the ball where you want it." },
+    { key = "purple", when = function(st) return st.level >= 4 end, point = gimmickPoint(function(p) return p.kind == "purple" end), lines = {
+        { "tink", "See the purple peg? It's worth a thousand points, and it hops to a new spot after every shot." },
+    } },
+    { key = "rails", when = function(st) return st.level ~= 8 and firstPiece(st, function(p) return p.rail end) ~= nil end,
+      point = gimmickPoint(function(p) return p.rail and (p.railIdx or 1) == 1 end), lines = {
+        { "mekka", "Another rail! Catch the inside of it and the ball rides the whole curve, lighting every brick." },
+    } },
+    { key = "gim_slider", when = function(st) return hasGimmick(st, "Slider") end, point = gimmickPoint(isMoving), lines = {
+        { "razzle", "A Slider! That row glides back and forth. Aim for where it will be, not where it is." },
+    } },
+    { key = "gim_lifts", when = function(st) return hasGimmick(st, "Lifts") end, point = gimmickPoint(isMoving), lines = {
+        { "bink", "Lifts! These pegs rise and sink in turn. Wait for the one you want to come up to meet you." },
+    } },
+    { key = "gim_blocks", when = function(st) return hasGimmick(st, "Blocks") end, point = gimmickPoint(plainBlock), lines = {
+        { "tink", "Steel blocks. They never light and never break, so bank off them to reach what's behind." },
+    } },
+    { key = "gim_wheel", when = function(st) return hasGimmick(st, "Wheel") end, point = gimmickPoint(isMoving), lines = {
+        { "mekka", "A wheel of pegs, turning round and round. Time your shot to catch it on the way past." },
+    } },
+    { key = "gim_bumpers", when = function(st) return hasGimmick(st, "Bumpers") end, point = gimmickPoint(isBumper), lines = {
+        { "razzle", "Bumpers! Hit one and it kicks the ball away hard. Great for sending a ball back up the board." },
+    } },
+    { key = "gim_pendulum", when = function(st) return hasGimmick(st, "Pendulum") end, point = gimmickPoint(isMoving), lines = {
+        { "bink", "A pendulum on its chain. Catch it at the end of its swing and it flings the ball along with it." },
+    } },
+    { key = "gim_key_cage", when = function(st) return hasGimmick(st, "Key Cage") end, point = gimmickPoint(isKey), lines = {
+        { "tink", "A cage! Those oranges are locked in. Light the gold key somewhere on the board and the cage falls away." },
+    } },
+    { key = "gim_twin_wheels", when = function(st) return hasGimmick(st, "Twin Wheels") end, point = gimmickPoint(isMoving), lines = {
+        { "mekka", "Twin wheels, turning against each other. Thread the ball between them!" },
+    } },
+    { key = "gim_bumper_gate", when = function(st) return hasGimmick(st, "Bumper Gate") end, point = gimmickPoint(isBumper), lines = {
+        { "razzle", "A bumper gate. The slanted bars funnel the ball onto a bumper that throws it right back out." },
+    } },
+    { key = "gim_key_gate", when = function(st) return hasGimmick(st, "Key Gate") end, point = gimmickPoint(isKey), lines = {
+        { "bink", "A gate bar slants over those pegs. Light the key on the far side and the bar drops away." },
+    } },
+    { key = "gim_sliding_block", when = function(st) return hasGimmick(st, "Sliding Block") end,
+      point = gimmickPoint(function(p) return p.moving and p.kind == "block" end), lines = {
+        { "tink", "A sliding steel block, back and forth. Use it as a moving wall to bank your shots." },
+    } },
+    { key = "silver_cage", when = function(st) return firstPiece(st, function(p) return p.lock and p.silver end) ~= nil end,
+      point = gimmickPoint(function(p) return p.kind == "key" and p.silver end), lines = {
+        { "tink", "A cage inside a cage! The gold key sits behind silver bars, so find the silver key first." },
+    } },
+    { key = "heavy", when = function(st) return firstPiece(st, function(p) return (p.maxhp or 1) >= 3 and p.kind ~= "egg" and p.kind ~= "boss" end) ~= nil end,
+      point = gimmickPoint(function(p) return (p.maxhp or 1) >= 3 and p.kind ~= "egg" and p.kind ~= "boss" end), lines = {
+        { "mekka", "Gold-rimmed pegs! These take three hits each. Keep at them." },
+    } },
+    { key = "eggs3", when = function(st) return firstPiece(st, function(p) return p.kind == "egg" and (p.maxhp or 1) >= 3 end) ~= nil end,
+      point = gimmickPoint(function(p) return p.kind == "egg" end), lines = {
+        { "razzle", "These eggs are tougher: three hits to hatch one now." },
     } },
     -- the adversaries, the first time each one turns up
-    { key = "boss_drake", when = function(st) return st.boss and st.boss.ability == "drake" end, lines = {
+    { key = "boss_drake", when = function(st) return st.boss and st.boss.ability == "drake" end, point = function(st) return st.boss end, lines = {
         { "drake", "Hssss! Intruder! Tin Drake online. Dent me, and I only fly faster!" },
-        { "host", "A rogue drake from the workshop! Get the ball down past the pegs and keep hitting it." },
+        { "tink", "A rogue drake from the workshop! Get the ball down past the pegs and keep hitting it." },
     } },
-    { key = "boss_golem", when = function(st) return st.boss and st.boss.ability == "golem" end, lines = {
+    { key = "boss_golem", when = function(st) return st.boss and st.boss.ability == "golem" end, point = function(st) return st.boss end, lines = {
         { "golem", "BOLT GOLEM. SHIELD CYCLE ARMED." },
-        { "host", "It raises a shield every third shot. Two hits break it. And watch for the scrap it throws!" },
+        { "razzle", "It raises a shield every third shot. Two hits break it. And watch for the scrap it throws!" },
     } },
-    { key = "boss_spider", when = function(st) return st.boss and st.boss.ability == "spider" end, lines = {
+    { key = "boss_spider", when = function(st) return st.boss and st.boss.ability == "spider" end, point = function(st) return st.boss end, lines = {
         { "spider", "Skitter skitter. You will never pin the Gyro Spider down." },
-        { "host", "It jumps when you hit it. Keep the ball low and keep it busy." },
+        { "razzle", "It jumps when you hit it. Keep the ball low and keep it busy." },
     } },
-    { key = "boss_boar", when = function(st) return st.boss and st.boss.ability == "boar" end, lines = {
+    { key = "boss_boar", when = function(st) return st.boss and st.boss.ability == "boar" end, point = function(st) return st.boss end, lines = {
         { "boar", "SNORT. CHARGE. SNORT." },
-        { "host", "The Mechano-Boar turns tail every time it's hit. Learn its charge and lead your shots." },
+        { "razzle", "The Mechano-Boar turns tail every time it's hit. Learn its charge and lead your shots." },
     } },
-    { key = "boss_yeti", when = function(st) return st.boss and st.boss.ability == "yeti" end, lines = {
+    { key = "boss_yeti", when = function(st) return st.boss and st.boss.ability == "yeti" end, point = function(st) return st.boss end, lines = {
         { "yeti", "Cog Yeti repairs. Cog Yeti always repairs." },
-        { "host", "Miss it and it heals. Every shot has to count!" },
+        { "tink", "Miss it and it heals. Every shot has to count!" },
     } },
     { key = "duel", when = function(st) return st.objective == "duel" and st.level ~= GP.Levels.TINK_DUEL_LEVEL end, lines = {
         { "cog", "Well, well. My brother's little peg machine. Still playing, I see." },
-        { "host", "Cogwhistle Overspark, Tinkmaster's brother! Clear this board first, friend, then he'll want a duel. Five balls each." },
+        { "mekka", "Cogwhistle Overspark, Tinkmaster's brother! Clear this board first, friend, then he'll want a duel. Five balls each." },
         { "cog", "And every shot that lights no orange costs you five hundred. Do try to keep up." },
     } },
 }

@@ -1339,15 +1339,45 @@ function UI:ShowSpiralHint()
     a:SetPoint("CENTER", self.field, "TOPLEFT", tx - wx * back, -(ty - wy * back))
     if a.SetRotation then a:SetRotation(math.atan2 and math.atan2(-wy, wx) or math.atan(-wy, wx)) end
     a.target = { x = tx, y = ty }
+    a.piece = nil
     a.dir = { x = wx, y = wy }
     a.back = back
     a:Show()
+end
+
+-- A tutorial's arrow on a piece: in from above at a slant (from the side
+-- away from the nearer wall), pointing at it and following it if it moves.
+function UI:ShowPieceHint(piece)
+    if not self.spiralArrow then
+        local f = CreateFrame("Frame", nil, self.field)
+        f:SetAllPoints(self.field)
+        f:SetFrameLevel(self.field:GetFrameLevel() + 20)
+        self.spiralArrow = f:CreateTexture(nil, "OVERLAY")
+        ART:Set(self.spiralArrow, "comic_arrow")
+        self.spiralArrow:SetSize(self.SPIRAL_ARROW_W, self.SPIRAL_ARROW_W / 2)
+    end
+    local a = self.spiralArrow
+    local dx, dy = -0.62, 0.78                       -- from the upper right, down and to the left
+    if piece.x > E.FIELD_W * 0.62 then dx = 0.62 end -- near the right wall: from the upper left
+    local L = math.sqrt(dx * dx + dy * dy)
+    a.dir = { x = dx / L, y = dy / L }
+    a.piece = piece
+    a.reach = (piece.r or (piece.h and piece.h / 2) or E.PEG_R) + 4
+    a.back = self.SPIRAL_ARROW_W / 2 + 6
+    a.target = { x = piece.x - a.dir.x * a.reach, y = piece.y - a.dir.y * a.reach }
+    if a.SetRotation then a:SetRotation(math.atan2 and math.atan2(-a.dir.y, a.dir.x) or math.atan(-a.dir.y, a.dir.x)) end
+    a:Show()
+    self.spiralHintPending = true        -- (gone with the first shot, like the spiral's)
 end
 
 -- It slides in and out along the way the ball should come in, angle fixed.
 function UI:AnimateSpiralHint(now)
     local a = self.spiralArrow
     if not (a and a:IsShown() and a.dir) then return end
+    if a.piece then
+        a.target.x = a.piece.x - a.dir.x * a.reach
+        a.target.y = a.piece.y - a.dir.y * a.reach
+    end
     local pull = a.back + 22 * (0.5 + 0.5 * math.sin(now * 5))
     a:ClearAllPoints()
     a:SetPoint("CENTER", self.field, "TOPLEFT", a.target.x - a.dir.x * pull, -(a.target.y - a.dir.y * pull))
@@ -1375,7 +1405,12 @@ function UI:ShowBoardContents()
     if not self.boardHidden then return end
     self.boardHidden = nil
     self:LayoutPegs()
-    if self.spiralHintPending then self:ShowSpiralHint() end
+    if self.spiralHintPending then self:ShowSpiralHint()
+    elseif self.boardHintScript then
+        local ok, piece = pcall(self.boardHintScript.point, self.state)
+        self.boardHintScript = nil
+        if ok and piece then self:ShowPieceHint(piece) end
+    end
     if self.state and not self.state.noBucket then self.bucket:Show() end
     if self.barrelFrame then self.barrelFrame:Show() end
 end
@@ -2292,7 +2327,11 @@ function UI:StartLevel(n, retry)
     local talk = GP.Dialog and GP.Dialog:For(self.state) or {}
     self.spiralHintPending = nil
     if self.spiralArrow then self.spiralArrow:Hide() end
-    for _, sc in ipairs(talk) do if sc.key == "slide" then self.spiralHintPending = true end end
+    self.boardHintScript = nil
+    for _, sc in ipairs(talk) do
+        if sc.key == "slide" then self.spiralHintPending = true
+        elseif sc.point and not self.boardHintScript then self.boardHintScript = sc end
+    end
     local voice = self.startVoice
     if #talk > 0 then
         self.cardSheet:Show()
