@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The Tin Drake sounds like a small dragon:** a new snarling, hissing voice, pitched up with a growl and a light tin ring, and a new line. In the conversation box it is turned half round to face the player.
 - **The special-ball tutorial comes with a gift:** one Ring of Fire, one Rainbow Ball and one Suction Tube to try, given once with the level 2 talk.
 - Fixed: the speaker's name in the conversation box was half covered by the border.
 - **The conversation box keeps the framing set by eye** for Tinkmaster, Mekkatorque, Razzle, Bink and Cogwhistle. The temporary dialog tuning panel is gone.

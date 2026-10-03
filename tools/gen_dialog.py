@@ -29,14 +29,16 @@ from gen_voice import tts, finish, RATE  # noqa: E402
 OUT = os.path.join(ROOT, "Sounds", "Voice", "dialog")
 DONE_FILE = os.path.join(HERE, "dialog_voiced.json")
 
-# speaker -> (ElevenLabs voice id, v4 delivery tag, machine?)
+# speaker -> (ElevenLabs voice id, v4 delivery tag, effect): effect True runs
+# the voice through the machine (ring modulator), "dragon" through the
+# small-dragon filter
 CAST = {
     "tink":   ("wo6udizrrtpIxWGp2qJk", "[excited, cheerful gnome inventor]", False),   # Northern Terry, the announcer
     "mekka":  ("JBFqnCBsd6RMkjVDRZzb", "[warm, proud, dignified gnome leader]", False),  # George
     "razzle": ("TX3LPaxmHKxFdv7VOQHJ", "[energetic, mischievous young gnome]", False),  # Liam
     "bink":   ("cgSgspJ2msm6clMCkdW9", "[bright, playful gnome apprentice]", False),    # Jessica
     "cog":    ("N2lVS1w4EtoT3dr4eOWO", "[smug, condescending older brother]", False),  # Callum
-    "drake":  ("onwK4e9ZLuTAKqWW03F9", "[cold, flat, mechanical]", True),              # Daniel
+    "drake":  ("2EiwWnXFnvU5JabPnv8n", "[snarling, hissing, raspy little dragon]", "dragon"),  # Clyde
     "golem":  ("pNInz6obpgDQGcFmaJgB", "[booming, robotic, shouting]", True),          # Adam
     "spider": ("SOYHLrjzK2X1ezoPC6cr", "[creepy, whispering, hissing]", True),         # Harry
     "boar":   ("IKne3meq5aSn9XLyUdCD", "[gruff, snorting, aggressive]", True),         # Charlie
@@ -76,6 +78,21 @@ def machine(data):
     return (out / peak * 0.89).astype(np.float32)
 
 
+def dragon(data):
+    """A small tin dragon: pitched up (a little creature), a throaty growl
+    fluttering through it, and a light metallic ring (it is made of tin)."""
+    rate = 1.22                                  # ~3.4 semitones up, a touch quicker
+    n = int(len(data) / rate)
+    src = np.arange(n) * rate
+    up = np.interp(src, np.arange(len(data)), data)
+    t = np.arange(n) / RATE
+    growl = up * (1 + 0.35 * np.sin(2 * np.pi * 31 * t))
+    ring = up * np.sin(2 * np.pi * 110 * t)
+    out = 0.8 * growl + 0.25 * ring
+    peak = np.max(np.abs(out)) or 1
+    return (out / peak * 0.89).astype(np.float32)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--go", action="store_true")
@@ -110,7 +127,9 @@ def main():
     for name, speaker, text in todo:
         voice, tag, is_machine = CAST.get(speaker, CAST["tink"])
         data = finish(tts(key, voice, f"{tag} {text}"))
-        if is_machine:
+        if is_machine == "dragon":
+            data = dragon(data)
+        elif is_machine:
             data = machine(data)
         sf.write(os.path.join(OUT, name + ".ogg"), data, RATE, format="OGG", subtype="VORBIS")
         done[name] = text
