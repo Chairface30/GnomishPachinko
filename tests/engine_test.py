@@ -901,7 +901,7 @@ check("spooky ball re-enters from the top", any(i.spooky > 0 for i in seen.get("
 check("fireball levels get a power event", len(seen.get("fireball", [])) > 0)
 check("the pyramid bounces the ball back up", any(i.pyramid > 0 for i in seen.get("pyramid", [])), str([i.pyramid for i in seen.get("pyramid", [])]))
 check("chain lightning leaps through several pieces", any(i.zapLinks >= 3 for i in seen.get("lightning", [])), str([i.zapLinks for i in seen.get("lightning", [])]))
-check("free ball frenzy hands out extra balls", any(i.frenzyBalls >= 3 for i in seen.get("frenzy", [])), str([i.frenzyBalls for i in seen.get("frenzy", [])]))
+check("free ball frenzy hands out an extra ball", any(i.frenzyBalls >= 1 for i in seen.get("frenzy", [])), str([i.frenzyBalls for i in seen.get("frenzy", [])]))
 
 # fireball passes through: a ball with fire set reaches further than its first contact
 lua(r"""
@@ -2887,11 +2887,13 @@ local a = UI.spiralArrow
 __pieceHint = a and a:IsShown() and a.piece ~= nil and a.piece.moving == true
 """)
 tl = dict(kv.split("=") for kv in ev("tutorial_levels")().split(","))
-need = ["purple", "rails", "gim_slider", "gim_lifts", "gim_blocks", "gim_wheel", "gim_bumpers", "gim_pendulum", "gim_key_cage",
-        "gim_twin_wheels", "gim_bumper_gate", "gim_key_gate", "gim_sliding_block", "silver_cage", "heavy", "eggs3",
+need = ["purple", "rails", "gim_slider", "gim_lifts", "gim_blocks", "gim_pendulum", "gim_key_cage",
+        "silver_cage", "heavy", "eggs3",
         "bricks", "balloons", "tough", "eggs", "gems", "mixed", "longshots", "nobucket", "duel"]
 missing = [k for k in need if k not in tl]
-check("every obstacle and objective has a tutorial that some level triggers", not missing, str(missing))
+check("every obstacle and objective that keeps a tutorial has one some level triggers", not missing, str(missing))
+dropped = [sc.key for sc in ev("GP.Dialog.SCRIPTS").values() if sc.key in ("gim_wheel", "gim_bumpers", "gim_twin_wheels", "gim_bumper_gate", "gim_key_gate", "gim_sliding_block")]
+check("no tutorial for wheels, bumpers, bumper gates, the key gate (level 111) or the sliding block (level 121)", not dropped, str(dropped))
 check("the Slider's tutorial points the arrow at a moving piece after Play", ev("__pieceHint"))
 check("a tutorial is always voiced by the host of its first level (the Slider: Razzle)",
       all(line[1] == "razzle" for line in [l for sc in ev("GP.Dialog.SCRIPTS").values() if sc.key == "gim_slider" for l in sc.lines.values()]))
@@ -3137,7 +3139,7 @@ UI:HideShowcase()
 """)
 check("the egg tutorial shows the egg cracking, hatching and the phoenix rising (no arrow)", ev("__eggDemo"), ev("__eggSeen"))
 
-# the Slider and Sliding Block tutorials show their piece gliding side to side
+# the Slider's tutorial shows its piece gliding side to side
 lua(r"""
 function glide_probe(n, key)
   for _, sc in ipairs(GP.Dialog.SCRIPTS) do GnomishPachinkoDB.dialogs[sc.key] = true end
@@ -3153,8 +3155,7 @@ function glide_probe(n, key)
   return ok and span(xs) > 20 and span(ys) < 1
 end
 """)
-check("the Slider and Sliding Block tutorials show the piece gliding side to side",
-      ev("glide_probe")(21, "gim_slider") and ev("glide_probe")(121, "gim_sliding_block"))
+check("the Slider's tutorial shows the piece gliding side to side", ev("glide_probe")(21, "gim_slider"))
 
 # the Gyro Spider's webs also go where pegs have been cleared
 lua(r"""

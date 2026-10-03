@@ -168,7 +168,7 @@ D.SCRIPTS = {
     } },
     { key = "host_razzle", when = function(st) return GP:HostFor(st.level).id == "razzle" end, lines = {
         { "razzle", "Razzle Sprysprocket here! I've got the fun toys this chapter." },
-        { "razzle", "My Pyramid bounces your ball back up from the bottom, and Free Ball Frenzy hands you three extra balls. Have at it!" },
+        { "razzle", "My Pyramid bounces your ball back up from the bottom, and Free Ball Frenzy hands you an extra ball. Have at it!" },
     } },
     { key = "host_bink", when = function(st) return GP:HostFor(st.level).id == "bink" end, lines = {
         { "bink", "Hello hello! Bink, apprentice extraordinaire. It's my turn to run the machine!" },
@@ -243,30 +243,11 @@ D.SCRIPTS = {
     { key = "gim_blocks", when = function(st) return hasGimmick(st, "Blocks") end, point = gimmickPoint(plainBlock), lines = {
         { "tink", "Steel blocks. They never light and never break, so bank off them to reach what's behind." },
     } },
-    { key = "gim_wheel", when = function(st) return hasGimmick(st, "Wheel") end, point = movingPoint, lines = {
-        { "mekka", "A wheel of pegs, turning round and round. Time your shot to catch it on the way past." },
-    } },
-    { key = "gim_bumpers", when = function(st) return hasGimmick(st, "Bumpers") end, point = gimmickPoint(isBumper), lines = {
-        { "razzle", "Bumpers! Hit one and it kicks the ball away hard. Great for sending a ball back up the board." },
-    } },
     { key = "gim_pendulum", when = function(st) return hasGimmick(st, "Pendulum") end, point = movingPoint, lines = {
         { "bink", "A pendulum on its chain. Catch it at the end of its swing and it flings the ball along with it." },
     } },
     { key = "gim_key_cage", when = function(st) return hasGimmick(st, "Key Cage") end, point = gimmickPoint(isKey), lines = {
         { "tink", "A cage! Those oranges are locked in. Light the gold key somewhere on the board and the cage falls away." },
-    } },
-    { key = "gim_twin_wheels", when = function(st) return hasGimmick(st, "Twin Wheels") end, point = movingPoint, lines = {
-        { "mekka", "Twin wheels, turning against each other. Thread the ball between them!" },
-    } },
-    { key = "gim_bumper_gate", when = function(st) return hasGimmick(st, "Bumper Gate") end, point = gimmickPoint(isBumper), lines = {
-        { "razzle", "A bumper gate. The slanted bars funnel the ball onto a bumper that throws it right back out." },
-    } },
-    { key = "gim_key_gate", when = function(st) return hasGimmick(st, "Key Gate") end, point = gimmickPoint(isKey), lines = {
-        { "bink", "A gate bar slants over those pegs. Light the key on the far side and the bar drops away." },
-    } },
-    { key = "gim_sliding_block", when = function(st) return hasGimmick(st, "Sliding Block") end,
-      point = gimmickPoint(function(p) return p.moving and p.kind == "block" end), lines = {
-        { "tink", "A sliding steel block, back and forth. Use it as a moving wall to bank your shots." },
     } },
     { key = "silver_cage", when = function(st) return firstPiece(st, function(p) return p.lock and p.silver end) ~= nil end,
       point = gimmickPoint(function(p) return p.kind == "key" and p.silver end), lines = {

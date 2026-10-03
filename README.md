@@ -34,7 +34,7 @@ Every level is one of four kinds, marked by a coloured dot on the level select:
 
 ### Powers, power-ups and boosts
 
-Powers unlock one per chapter and the level card lets you pick any you have: Multiball, Super Guide (the bounce path through two bounces for three shots; the Crazy Guide, five, once Tinkmaster beats his brother in their duel on level 90), Space Blast (a burst about an inch across that hits everything near the green peg and throws loose eggs and gems), Fireball, Spooky Ball, Pyramid (a step pyramid over the bucket that throws the ball up toward the walls, crumbling to dust after three strikes), Chain Lightning (a bolt that leaps from the green peg through six more pieces) and Free Ball Frenzy (three extra balls and 5,000 points).
+Powers unlock one per chapter and the level card lets you pick any you have: Multiball, Super Guide (the bounce path through two bounces for three shots; the Crazy Guide, five, once Tinkmaster beats his brother in their duel on level 90), Space Blast (a burst about an inch across that hits everything near the green peg and throws loose eggs and gems), Fireball, Spooky Ball, Pyramid (a step pyramid over the bucket that throws the ball up toward the walls, crumbling to dust after three strikes), Chain Lightning (a bolt that leaps from the green peg through six more pieces) and Free Ball Frenzy (one extra ball and 5,000 points).
 
 Two power-ups can be armed for a shot from the slots at the field's bottom-left: Ring of Fire (the first hit also hits everything in a small ring) and Rainbow Ball (a wide ring). The level card offers one boost, Extra Green Peg. They are earned, never bought: a Ring of Fire for every clear, an Extra Green Peg for three stars, two Rainbow Balls for a boss or a duel won.
 

@@ -192,9 +192,9 @@ E.POWERS = {
     { id = "spooky",    name = "Spooky Ball",     blurb = "A lost ball comes back in from the top." },
     { id = "pyramid",   name = "Pyramid",         blurb = "A step pyramid over the bucket throws the ball back up toward the walls, for three strikes." },
     { id = "lightning", name = "Chain Lightning", blurb = "A bolt leaps from the green peg through six more pieces." },
-    { id = "frenzy",    name = "Free Ball Frenzy", blurb = "Three extra balls and 5,000 points on the spot." },
+    { id = "frenzy",    name = "Free Ball Frenzy", blurb = "One extra ball and 5,000 points on the spot." },
 }
-E.FRENZY_BALLS  = 3
+E.FRENZY_BALLS  = 1
 E.FRENZY_POINTS = 5000
 
 -- Power-ups carried into a shot (armed from the side panel, earned by
