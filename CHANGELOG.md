@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Cogwhistle no longer runs away with a duel he opens:** when the coin gives him the first shot, he takes a warm-up shot down a middling lane instead of his best one. On a fresh duel board his best opening (often half the oranges and a big combo) left nothing to catch up on, worst of all on level 90. His later turns are unchanged.
 - **Tough pieces show the hits they have left:** a hit strips a layer. A gold-rimmed piece turns steel-rimmed and shows a crack; a steel-rimmed piece loses its rim and becomes a plain piece. The tough pieces' tutorial demo and Bink's line (re-voiced) match.
 - **Level 66, the Long Shots tutorial, is redesigned:** just two angled walls of orange pegs in a V, nothing else on the board (no gimmick, rail, balloon, green or rimmed piece). A ball off one wall flies across to the other, so Long Shots come easily.
 - **A wedged ball leaves the board:** a ball that stays in the same spot for a second (stuck between pieces, jittering in place) is taken off as if it had fallen off the bottom.

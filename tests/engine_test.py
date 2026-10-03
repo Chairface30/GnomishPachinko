@@ -2212,6 +2212,32 @@ gz = dict(ev("golem_zap_probe")())
 check("the Bolt Golem starts behind a full shield, and an orange's bolt only knocks a layer off it",
       gz["start"] == ev("E.GOLEM_SHIELD") and gz["afterZap"] == gz["start"] - 1 and gz["hp1"] == gz["hp0"] and gz.get("blocked"), str(gz))
 
+# opening a duel, Cogwhistle takes a warm-up shot, not his best lane: on
+# level 90 his first shot used to score more than the player could catch
+lua(r"""
+function rival_open_probe()
+  local opening, best = 0, 0
+  for seed = 1, 6 do
+    for _, first in ipairs({ true, false }) do
+      local st1 = E:NewLevel(L:Build(90))
+      local st = E:StartDuel(st1, L:Build(90, 0, { stage2 = true }))
+      st.rng = E.NewRng(seed)
+      st.duel.turn = "rival"; st.ballsLeft = st.duel.balls.rival
+      if not first then st.shots = 1 end      -- as if it were a later turn
+      st.aim = E:RivalAim(st)
+      if not first then st.shots = 0 end
+      local events = {}
+      E:Launch(st, events)
+      for _ = 1, 60 * 30 do E:Step(st, 1 / 60, events) if st.phase ~= E.PHASE.FLIGHT then break end end
+      if first then opening = opening + st.duel.scores.rival else best = best + st.duel.scores.rival end
+    end
+  end
+  return opening / 6, best / 6
+end
+""")
+open_avg, best_avg = ev("rival_open_probe")()
+check("level 90: Cogwhistle's opening shot is a warm-up, well under his best lane", open_avg < best_avg * 0.6, f"opening {open_avg:.0f} best {best_avg:.0f}")
+
 # the Long Shots tutorial: two angled walls of orange pegs and nothing else,
 # and plenty of plain shots make a Long Shot
 lua(r"""

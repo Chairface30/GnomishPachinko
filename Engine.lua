@@ -256,6 +256,7 @@ E.DUEL_BALLS   = 5
 E.DUEL_PENALTY = 500         -- a shot that lights no orange costs this, the ball's own points stand
 E.DUEL_STAGE2_ORANGES = 10
 E.RIVAL_THINK  = 1.4        -- seconds the rival shows his aim before firing
+E.RIVAL_OPEN_LO, E.RIVAL_OPEN_HI = 0.35, 0.65   -- his opening shot: a lane from this share of his ranked aims
 E.STYLE_TIERS  = { { run = 20, points = 25000, caption = "UNBELIEVABLE!" }, { run = 12, points = 12500, caption = "AWESOME!" }, { run = 6, points = 5000, caption = "NICE!" } }
 E.AIM_SWING    = 5.0        -- radians a second the launcher swings toward the cursor
 
@@ -1656,6 +1657,13 @@ function E:RivalAim(state)
     end
     table.sort(best, function(u, v) return u.value > v.value end)
     local pick = best[state.rng(1, math.min(3, #best))] or best[1]
+    -- opening the duel he takes a warm-up shot down a middling lane: the
+    -- first shot on a fresh board is worth so much that, at his best, it
+    -- left nothing to catch up on
+    if state.shots == 0 and #best >= 4 then
+        local lo, hi = math.max(2, floor(#best * E.RIVAL_OPEN_LO)), math.max(2, floor(#best * E.RIVAL_OPEN_HI))
+        pick = best[state.rng(lo, hi)] or pick
+    end
     return pick and pick.aim or 0
 end
 
