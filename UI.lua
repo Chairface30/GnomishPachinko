@@ -1246,7 +1246,7 @@ UI.PORTRAIT_STRIPS = 1
 -- once set they are copied into GP.HOSTS and this panel is removed.
 function UI:CreateMascotTuner(frame)
     local panel = CreateFrame("Frame", nil, frame)
-    panel:SetSize(230, 556)
+    panel:SetSize(230, 606)
     panel:SetPoint("TOPRIGHT", frame, "TOPLEFT", -8, -40)
     local bg = panel:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
@@ -1285,7 +1285,7 @@ function UI:CreateMascotTuner(frame)
         return sl
     end
     panel.z = slider("z", "Height (z)", -1, 1, -72)
-    panel.scale = slider("scale", "Zoom (scale)", 0.3, 2.5, -122)
+    panel.scale = slider("scale", "Zoom (scale)", 0.3, 5, -122)
     -- the boss view, shared by every boss (seen on a boss level)
     -- each boss has its own view; the arrows show another boss's model in
     -- place of the board's boss, so all five can be set on one boss level
@@ -1321,8 +1321,9 @@ function UI:CreateMascotTuner(frame)
     bossSlider("pitch", -3.14, 3.14, -330)
     bossSlider("x", -60, 60, -380)
     bossSlider("y", -60, 60, -430)
+    bossSlider("size", 0.5, 4, -480)
     local plat = makeButton(panel, 214, 22, "Platform: shown")
-    plat:SetPoint("TOP", panel, "TOP", 0, -472)
+    plat:SetPoint("TOP", panel, "TOP", 0, -522)
     plat:SetScript("OnClick", function()
         local db = GP:GetDB()
         db.mascot = db.mascot or {}
@@ -1404,7 +1405,7 @@ function UI:RefreshTuner()
     p.bossTitle:SetText(def and def.name or "")
     p.platBtn.text:SetText(view.noPlatform and "Platform: hidden" or "Platform: shown")
     self.tuneLoading = false
-    local names = { view = "View angle (up = from above)", dist = "Camera distance", pitch = "Model tilt", yaw = "Model turn", x = "Boss x", y = "Boss y" }
+    local names = { view = "View angle (up = from above)", dist = "Camera distance", pitch = "Model tilt", yaw = "Model turn", x = "Boss x", y = "Boss y", size = "Boss size (frame)" }
     for key, sl in pairs(p.boss) do
         if sl.textFs then sl.textFs:SetText(("%s: %.2f"):format(names[key], view[key])) end
     end
@@ -1965,7 +1966,7 @@ end
 -- (pitch), turned (yaw) and rolled toward the camera, and nudged off the
 -- boss's centre by x, y pixels. TEMPORARY: the tuning panel's boss sliders
 -- override BOSS_VIEW until the values are hardcoded.
-UI.BOSS_VIEW = { view = 1.2, dist = 1, pitch = 0, yaw = 0, x = 0, y = 0 }
+UI.BOSS_VIEW = { view = 1.2, dist = 1, pitch = 0, yaw = 0, x = 0, y = 0, size = 1 }
 UI.BOSS_VIEWS = {}      -- per boss id: overrides of BOSS_VIEW, plus noPlatform
 function UI:BossView(id)
     local m = GP:GetDB().mascot
@@ -1998,11 +1999,15 @@ function UI:PoseBossModel()
     local m = self.bossModel
     local v = self:BossView(self.bossModelFor)
     self.bossViewCache = v
+    m:SetSize(E.BOSS_R * 3.2 * v.size, E.BOSS_R * 3.2 * v.size)
     if self.bossModelNpc then
         if v.noPlatform then self.bossPlatform:Hide() else self.bossPlatform:Show() end
     end
     pcall(function()
-        if m.SetCamera then m:SetCamera(0) end
+        -- the whole model (camera 0, the portrait camera, crops it)
+        if m.SetPortraitZoom then m:SetPortraitZoom(0) end
+        if m.SetCamDistanceScale then m:SetCamDistanceScale(1) end
+        if m.RefreshCamera then m:RefreshCamera() end
         m:SetPosition(0, 0, 0)
         m:SetFacing(0)
     end)

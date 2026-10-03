@@ -102,7 +102,10 @@ function M:Pose()
         model:SetPoint("CENTER", self.anchor, "CENTER", 0, z * self.baseH)
     end
     pcall(function()
-        if model.SetCamera then model:SetCamera(0) end
+        -- the whole model, head to feet: camera 0 is the client's portrait
+        -- camera, which frames the head and crops the rest
+        if model.SetPortraitZoom then model:SetPortraitZoom(0) end
+        if model.SetCamDistanceScale then model:SetCamDistanceScale(1) end
         model:SetPosition(0, 0, 0)
         model:SetFacing(s.facing or 0.35)
         if model.SetModelScale then model:SetModelScale(1) end
