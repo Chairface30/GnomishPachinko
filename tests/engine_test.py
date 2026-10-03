@@ -2016,6 +2016,22 @@ GP.Dialog:Finish()
 """)
 check("Cogwhistle shows in the green-lit model frame, everyone else in the plain one", ev("__cogTint") and ev("__tinkPlain"))
 
+# the special-ball tutorial gives one of each to try, once
+lua(r"""
+GnomishPachinkoDB.dialogs.items = nil
+local function n(k) return P:Items()[k] or 0 end
+local r0, b0, s0 = n("ring"), n("rainbow"), n("suction")
+local items
+for _, sc in ipairs(GP.Dialog.SCRIPTS) do if sc.key == "items" then items = sc end end
+GP.Dialog:Play({ items })
+GP.Dialog:Finish()
+__giftOnce1 = n("ring") == r0 + 1 and n("rainbow") == b0 + 1 and n("suction") == s0 + 1
+GP.Dialog:Play({ items })
+GP.Dialog:Finish()
+__giftOnce2 = n("ring") == r0 + 1
+""")
+check("the special-ball tutorial gives one Ring of Fire, Rainbow Ball and Suction Tube, once", ev("__giftOnce1") and ev("__giftOnce2"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

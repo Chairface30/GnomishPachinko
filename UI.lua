@@ -210,7 +210,7 @@ local TIPS = {
     { key = "webs",      when = function(st) return st.boss and st.boss.ability == "spider" end, text = "Tinkmaster: \"The Gyro Spider spins webs after every shot. Touch one and the ball is caught, web and all. A fireball burns them away.\"" },
     { key = "nobucket",  when = function(st) return st.noBucket end, text = "Tinkmaster: \"No bucket on this one. The only free balls are the score marks, so make every ball count.\"" },
     { key = "keys",      when = function(st) for _, p in ipairs(st.pegs) do if p.kind == "key" then return true end end end, text = "Tinkmaster: \"A key! Light it and its cage falls away. Sometimes the key is behind another lock.\"" },
-    { key = "items",     when = function(st) return st.level == 2 end, text = "Tinkmaster: \"Two slots at the bottom-left: Ring of Fire and Rainbow Ball. Click one to arm it for your next shot. You earn more by clearing levels.\"" },
+    { key = "items",     when = function(st) return st.level == 2 end, text = "Tinkmaster: \"The slots at the bottom-left hold the special balls: Ring of Fire, Rainbow Ball and Suction Tube. Click one to arm it for your next shot. Here's one of each to try; bosses give more.\"" },
     { key = "gimmick",   when = function(st) return st.gimmick ~= nil end, text = "Tinkmaster: \"Moving parts! Time your shot with the pieces, or use them to bank the ball where you want it.\"" },
 }
 

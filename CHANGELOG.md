@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The special-ball tutorial comes with a gift:** one Ring of Fire, one Rainbow Ball and one Suction Tube to try, given once with the level 2 talk.
 - Fixed: the speaker's name in the conversation box was half covered by the border.
 - **The conversation box keeps the framing set by eye** for Tinkmaster, Mekkatorque, Razzle, Bink and Cogwhistle. The temporary dialog tuning panel is gone.
 - **Cogwhistle looks the evil brother:** Tinkmaster's own model, lit pure, strong green. Any speaker can be given a tint; tinted speakers use a model frame of their own so the light never spills onto the others.

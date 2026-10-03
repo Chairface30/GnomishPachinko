@@ -141,9 +141,11 @@ D.SCRIPTS = {
         { "host", "It's a rail! Drop the ball into its mouth on the left and it runs along the inside like a road, all the way round. That's a Super Slide!" },
         { "host", "Hold the right mouse button to zoom in and line the shot up with the mouth. Go on, clear the whole spiral in one shot." },
     } },
-    { key = "items", when = function(st) return st.level == 2 end, lines = {
+    -- the special balls, and one of each as a gift to try them out
+    { key = "items", when = function(st) return st.level == 2 end, gift = { ring = 1, rainbow = 1, suction = 1 }, lines = {
         { "host", "See the buttons to the left of the board? Those are my special balls." },
         { "host", "Ring of Fire burns a small circle, Rainbow Ball a big one, and the Suction Tube pulls a falling ball into the bucket. Click one before you shoot." },
+        { "host", "Here's one of each, on the house. Go on, give them a try!" },
     } },
     { key = "balloons", when = function(st) for _, p in ipairs(st.pegs) do if p.balloon and not p.post then return true end end end, lines = {
         { "host", "Balloons! They never light, but they bounce the ball off at whatever angle it strikes them." },
@@ -339,6 +341,12 @@ function D:Play(list, done)
     end
     self.queue = {}
     for _, sc in ipairs(list) do
+        -- a script's gift comes with it, the once it is played
+        if sc.gift and not db()[sc.key] and GP.Plays and GP.Plays.AddItem then
+            for item, n in pairs(sc.gift) do GP.Plays:AddItem(item, n) end
+            if GP.Plays.Save then GP.Plays:Save() end
+            if GP.UI and GP.UI.UpdateCounters and GP.UI.state then pcall(GP.UI.UpdateCounters, GP.UI) end
+        end
         db()[sc.key] = true
         for n, line in ipairs(sc.lines) do
             local who, clip = line[1], sc.key .. "_" .. n
