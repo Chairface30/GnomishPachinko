@@ -98,7 +98,7 @@ E.ORANGE_RUNS   = {
     { n = 8, points = 25000, name = "ORANGE AVALANCHE", caption = "8 ORANGES!" },
 }
 -- off a side wall and a good way across before lighting a piece: a bank shot
-E.BANK_DIST     = 200       -- pixels flown from the wall, touching nothing, before the hit
+E.BANK_DX       = 220       -- the orange must be this far across the board from where the ball met the wall
 E.BANK_POINTS   = 7500
 E.SLIDE_RATIO   = 0.42      -- a brick contact this grazing slides instead of bouncing
 E.SLIDE_RUN     = 6         -- bricks lit in one slide for the Super Slide award
@@ -830,7 +830,7 @@ hitPeg = function(state, p, ball, events, quiet)
     if p.lit or p.gone or isSolid(p) then return false end
     if p.cooldown and state.time < p.cooldown then return false end
     if ball and ball.bankX then
-        if p.kind == "orange" and (ball.bankDist or 0) >= E.BANK_DIST and state.phase ~= E.PHASE.FEVER then
+        if p.kind == "orange" and abs(p.x - ball.bankX) >= E.BANK_DX and state.phase ~= E.PHASE.FEVER then
             style(state, "BANK SHOT", events, p.x, p.y, E.BANK_POINTS, "BANK SHOT!")
         end
         ball.bankX = nil
@@ -1385,13 +1385,12 @@ local function integrateBall(state, ball, dt, events)
     end
 
     local R = E.BALL_R
-    -- the flight since the last side wall, for a bank shot
-    if ball.bankX then ball.bankDist = (ball.bankDist or 0) + sqrt(ball.vx * ball.vx + ball.vy * ball.vy) * dt end
+    -- a side wall remembered, for a bank shot
     local offWall = (ball.x < R and ball.vx < 0) or (ball.x > W - R and ball.vx > 0)
     if ball.x < R then ball.x = R; if ball.vx < 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.y < R then ball.y = R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
-    if offWall and not ball.rail then ball.bankX, ball.bankDist = ball.x, 0 end
+    if offWall and not ball.rail then ball.bankX = ball.x end
 
     collideBall(state, ball, events, true)
     collidePyramid(state, ball, events)

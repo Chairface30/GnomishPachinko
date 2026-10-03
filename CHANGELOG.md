@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A bank shot now counts by how far across the board it goes: the orange must be at least 220 pixels sideways from where the ball met the wall (about half the board), not just a long flight.
 - Fixed: a blue title banner showed for a moment behind the opening talk. A level no longer opens with a banner; the level card shows its title and objective.
 - The Suction Tube's tutorial arrow comes in lower still, nearly level from the right.
 - **The board waits for Play:** while the level card (and any talk before it) is up, the board shows only its painted backdrop; the pieces, bucket, cannon, boss and ribbon appear when Play is pressed.

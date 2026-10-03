@@ -2430,26 +2430,28 @@ function bonus_probe()
   st.balls = { b2 }
   E:Step(st, 1 / 60, events)
   local wallSet = b2.bankX ~= nil
-  b2.bankDist = E.BANK_DIST + 10
   local orange
   for _, p in ipairs(st.pegs) do if p.kind == "orange" and not p.lit then orange = p break end end
+  -- the wall on the far side from the orange
+  b2.bankX = (orange.x < E.FIELD_W / 2) and (E.FIELD_W - E.BALL_R) or E.BALL_R
   st.time = st.time + 1
   E.HitPeg(st, orange, b2, events)
   local bank = false
   for _, e in ipairs(events) do if e.type == "style" and e.name == "BANK SHOT" then bank = true end end
-  -- a short hop off the wall is no bank shot
+  -- an orange close to the wall it came off is no bank shot
   wipe(events)
   st.shotStyles = {}
-  b2.bankX, b2.bankDist = 1, 50
-  for _, p in ipairs(st.pegs) do if p.kind == "blue" and not p.lit then blue = p break end end
+  local near
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" and not p.lit then near = p break end end
+  b2.bankX = near.x + E.BANK_DX * 0.5
   st.time = st.time + 1
-  E.HitPeg(st, blue, b2, events)
+  E.HitPeg(st, near, b2, events)
   local shortBank = false
   for _, e in ipairs(events) do if e.type == "style" and e.name == "BANK SHOT" then shortBank = true end end
   -- off the wall, but a blue peg first: no bank shot, even for the orange after
   wipe(events)
   st.shotStyles = {}
-  b2.bankX, b2.bankDist = 1, 500
+  b2.bankX = 1
   local blue2, orange2
   for _, p in ipairs(st.pegs) do
     if p.kind == "blue" and not p.lit and not blue2 then blue2 = p end
@@ -2466,7 +2468,7 @@ end
 """)
 runs, wallSet, bank, shortBank, blueFirst = ev("bonus_probe")()
 check("lighting 3 and 5 oranges with one ball pays HAT TRICK and ORANGE CRUSH", "HAT TRICK" in runs and "ORANGE CRUSH" in runs, runs)
-check("off the wall, far enough, straight onto an orange pays a BANK SHOT; a short hop or anything touched first does not",
+check("off the wall and straight onto an orange far across the board pays a BANK SHOT; one near the wall, or anything touched first, does not",
       wallSet and bank and not shortBank and not blueFirst, f"{wallSet} {bank} {shortBank} {blueFirst}")
 
 # closing the result card silences what it started
