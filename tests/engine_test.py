@@ -48,6 +48,7 @@ function time() return __clock + math.floor(__now) end
 UIParent = nil
 UISpecialFrames = {}
 tinsert = table.insert
+strmatch, strfind, strsub, strlen, strbyte, strchar = string.match, string.find, string.sub, string.len, string.byte, string.char
 function BreakUpLargeNumbers(n) return tostring(n) end
 __printed = {}
 DEFAULT_CHAT_FRAME = { AddMessage = function(_, m) __printed[#__printed + 1] = m end }
@@ -3959,7 +3960,9 @@ __lvl = { name = "Two Walls", author = "Thrall Frostwolf", objective = "classic"
 __code = ED:Encode(__lvl)
 __back = ED:Decode(__code)
 __cut = select(2, ED:Decode(__code:sub(1, -5)))
-local tampered = __code:gsub("Two Walls", "Two Halls")
+-- one letter changed in the middle of the code
+local mid = math.floor(#__code / 2)
+local tampered = __code:sub(1, mid - 1) .. (__code:sub(mid, mid) == "a" and "b" or "a") .. __code:sub(mid + 1)
 __changed = select(2, ED:Decode(tampered))
 __junk = select(2, ED:Decode("hello"))
 -- a code that tries to slip in code to run, or silly numbers, comes out as plain data
@@ -3978,6 +3981,22 @@ h = ev("__hostile")
 check("a hostile code is cleaned: unknown pieces dropped, numbers kept on the board, odd ids stripped, unknown goal means oranges",
       len(list(h.pieces.values())) == 2 and h.pieces[1].x == ev("E.FIELD_W") and h.pieces[1].y == 0
       and h.pieces[2].id == "abc" and h.goals.oranges, str(dict(h)))
+
+# codes are packed with LibDeflate: much shorter, letters and digits only, and the old plain codes still read
+lua(r"""
+local d = ED:FromSpec(L:Build(81))
+d.name = "Packed"
+local packed, plain = ED:Encode(d), ED:Encode(d, true)
+__packedLen, __plainLen = #packed, #plain
+__packedSafe = packed:match("^GPL2:[%w%(%)]+$") ~= nil
+local back = ED:Decode(ED:FormatCode(packed))
+__packedBack = back and #back.pieces == #d.pieces and back.name == "Packed"
+local old = ED:Decode(plain)
+__plainBack = old and #old.pieces == #d.pieces
+__packedCut = select(2, ED:Decode(packed:sub(1, -9))) ~= nil
+""")
+check(f"level codes are packed with LibDeflate: letters, digits and brackets only, about {ev('__plainLen') // max(1, ev('__packedLen'))}x shorter ({ev('__packedLen')} vs {ev('__plainLen')} characters), read back from a block; old plain codes still import; a cut-short one is refused",
+      ev("__packedSafe") and ev("__packedLen") * 2 < ev("__plainLen") and ev("__packedBack") and ev("__plainBack") and ev("__packedCut"))
 
 # an editor level builds into a playable board: pinned oranges, dealt colors,
 # a key and its cage, a moving group, a rail in order round its middle
@@ -4593,7 +4612,7 @@ lua(r"""
 local isOwner = GP.Plays.IsOwner
 GP.Plays.IsOwner = function() return false end
 local code = ED:ExportCode()
-__exported = code:sub(1, 5) == "GPL1:"
+__exported = code:sub(1, 5) == "GPL2:"
 __importRefused = not ED:Import(code)
 ED.data.level = 37
 ED:Approve(37)

@@ -8,6 +8,8 @@
 ## SavedVariablesPerCharacter: GnomishPachinkoChar
 ## OptionalDeps: LibScrying
 
+Libs\LibStub\LibStub.lua
+Libs\LibDeflate\LibDeflate.lua
 Core.lua
 Art.lua
 Engine.lua

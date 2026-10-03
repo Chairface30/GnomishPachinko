@@ -199,10 +199,22 @@ local function checksum(s)
     return sum
 end
 
-function ED:Encode(data)
+-- Codes are squeezed with LibDeflate (zlib, with its own check) and written
+-- in letters, digits and brackets only: "GPL2:...". Without the library the
+-- plain form "GPL1:length:checksum:text" is written, and both are read.
+ED.CODE_PREFIX_PACKED = "GPL2"
+local function deflate() return LibStub and LibStub("LibDeflate", true) end
+ED.Deflate = deflate
+
+function ED:Encode(data, plain)
     local out = {}
     ser(self:Sanitize(data), out, 0)
     local body = table.concat(out)
+    local LD = not plain and deflate()
+    if LD then
+        local ok, packed = pcall(function() return LD:EncodeForPrint(LD:CompressZlib(body, { level = 9 })) end)
+        if ok and packed then return self.CODE_PREFIX_PACKED .. ":" .. packed end
+    end
     return ("%s:%d:%d:%s"):format(self.CODE_PREFIX, #body, checksum(body), body)
 end
 
@@ -269,6 +281,21 @@ function ED:Decode(code)
     if type(code) ~= "string" then return nil, "No code." end
     -- a code shown as a block comes back with its line breaks: they are not part of it
     code = code:gsub("[\r\n]", ""):gsub("^%s+", ""):gsub("%s+$", "")
+    local packed = code:match("^" .. self.CODE_PREFIX_PACKED .. ":(.*)$")
+    if packed then
+        local LD = deflate()
+        if not LD then return nil, "This game can't read packed codes." end
+        packed = packed:gsub("%s", "")
+        local ok, body = pcall(function()
+            local raw = LD:DecodeForPrint(packed)
+            return raw and LD:DecompressZlib(raw)
+        end)
+        if not ok or type(body) ~= "string" then return nil, "The code is cut short, changed or garbled: copy all of it." end
+        if #body > 120000 then return nil, "The code is too long." end
+        local okp, v = pcall(parse, body)
+        if not okp or type(v) ~= "table" then return nil, "The code could not be read." end
+        return self:Sanitize(v)
+    end
     local prefix, n, sum, body = code:match("^(%w+):(%d+):(%d+):(.*)$")
     if prefix ~= self.CODE_PREFIX then return nil, "That is not a Gnomish Pachinko level code." end
     if #body ~= tonumber(n) then return nil, "The code is cut short or has extra text: copy all of it." end

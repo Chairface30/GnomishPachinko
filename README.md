@@ -97,3 +97,8 @@ Pure Lua, no build step. `tests/engine_test.py` (needs `pip install lupa`) build
 ## License
 
 Copyright (c) 2026 Chairface. All Rights Reserved. See [LICENSE](LICENSE): you may play it, but no part of it may be copied, changed or redistributed without permission.
+
+## Libraries
+
+- [LibDeflate](https://github.com/SafeteeWoW/LibDeflate) by Haoqian He (zlib License, see `Libs/LibDeflate/LICENSE.txt`) packs the level editor's codes.
+- LibStub (public domain) loads it.
