@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Each star pops all the way:** as it fills it flies up, spins a full turn and drops back into place. Only a three-star clear brings the fanfare, and with it a shower of little stars shooting out of the big ones like bottle rockets.
 - **The tutorials point:** while the host talks about the special balls, their buttons glow; as each one is named (Ring of Fire, Rainbow Ball, Suction Tube) only that one lights up. The Extra Green Peg's button glows the same way in its talk.
 - **The stars take their time:** the count-up runs over four and a half seconds at an even pace, and each star pops to life as it fills, swelling and springing back with a burst of light behind it.
 - **Cheat-proofing pass.** Everything that makes or spends Golden Gears, special balls, plays or progress now lives in the addon's private namespace, out of reach of a `/run` line or another addon. Only results the game itself produced are recorded (once each); tutorial gifts are the ones written in the addon and are remembered in the vault; the item counts handed out are copies; levels, stars, best scores and the Crazy Guide are sealed from the addon's own record, so an edit to the live settings is undone at the next save; and the owner check reads the player's name through the client function as it was at login.

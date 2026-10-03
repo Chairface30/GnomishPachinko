@@ -2188,6 +2188,7 @@ for _ = 1, 60 do
   __now = __now + 0.08
   UI:UpdateStarFill(GetTime())
   for _, st_ in ipairs(card.bigStars) do if st_.popAt and st_.base:GetWidth() > st_.size + 1 then popped = true end end
+  for _, sp in ipairs(card.sparks) do if sp.rocket and sp:IsShown() then __rockets = true end end
 end
 __popped = popped
 __now = __now + 1
@@ -2210,7 +2211,8 @@ lua("__cardTop = UI.card:GetFrameLevel() > UI.portraitRingFrame:GetFrameLevel() 
 check("the cards sit over Tinkmaster's ring, and the big stars over the card itself", ev("__cardTop"))
 check("the conversation box and its buttons sit over the cards, so they can be clicked",
       ev("GP.Dialog.panel:GetFrameLevel() > UI.card.starFrame:GetFrameLevel() and GP.Dialog.panel:GetFrameLevel() > UI.cardSheet:GetFrameLevel()"))
-check("the stars fill slowly, each popping (a swell and a glow) as it fills, then settle", ev("__slow") and ev("__popped") and ev("__settled"))
+check("the stars fill slowly, each popping up and spinning as it fills, then settle", ev("__slow") and ev("__popped") and ev("__settled"))
+check("three stars send a shower of little stars shooting out", ev("__rockets") == True)
 check("the result card counts the score up and fills the stars from left to right",
       early[3] < full and early[1] > 0 and late[1] == full and late[2] == full and late[3] == full,
       f"{early} {late}")

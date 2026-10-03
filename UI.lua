@@ -1096,7 +1096,15 @@ function UI:CreateCard()
         ART:Set(glow, "glow_soft", 1, 0.9, 0.45)
         if glow.SetBlendMode then glow:SetBlendMode("ADD") end
         glow:Hide()
-        card.bigStars[i] = { base = base, fill = fill, glow = glow, size = spec.size }
+        card.bigStars[i] = { base = base, fill = fill, glow = glow, size = spec.size, x = spec.x, y = spec.y }
+    end
+    card.sparks = {}
+    for i = 1, UI.STAR_ROCKETS do
+        local t = sf:CreateTexture(nil, "OVERLAY", nil, 6)
+        ART:Set(t, "star", 1, 0.9, 0.35)
+        if t.SetBlendMode then t:SetBlendMode("ADD") end
+        t:Hide()
+        card.sparks[i] = t
     end
     card.bigScore = sf:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
     card.bigScore:SetPoint("TOP", card, "TOP", 0, UI.BIG_SCORE_Y)
@@ -1303,8 +1311,11 @@ function UI:CardLayout(mode)
     end
 end
 UI.STAR_FILL_SECS = 4.5      -- the score counts up (and the stars fill) over this long
-UI.STAR_POP_SECS = 0.5       -- a star that fills pops: it swells, glows and settles over this long
-UI.STAR_POP_SCALE = 0.4      -- how far it swells
+UI.STAR_POP_SECS = 1.0       -- a star that fills pops up, spins all the way round and drops back, over this long
+UI.STAR_POP_LIFT = 70        -- how high it pops, in pixels
+UI.STAR_POP_SCALE = 0.25     -- how much it swells at the top
+UI.STAR_ROCKETS = 30         -- little stars that shoot out of the three on a three-star clear
+UI.ROCKET_GRAVITY = 520
 
 -- The result card's count-up: the score climbs from nothing, and each star
 -- fills with gold from left to right as it passes that star's mark (half
@@ -1318,19 +1329,78 @@ function UI:UpdateStarPops(now)
     for _, s in ipairs(card.bigStars) do
         if s.popAt then
             local f = (now - s.popAt) / self.STAR_POP_SECS
+            local lift, k, angle = 0, 1, 0
             if f >= 1 then
                 s.popAt = nil
-                s.base:SetSize(s.size, s.size)
-                s.fill:SetSize(s.size, s.size)
                 s.glow:Hide()
             else
-                local k = 1 + self.STAR_POP_SCALE * math.sin(f * math.pi) * (1 - 0.4 * f)
-                s.base:SetSize(s.size * k, s.size * k)
-                s.fill:SetSize(s.size * k, s.size * k)
+                -- up fast, a full turn at the top, then down with a little bounce
+                if f < 0.3 then
+                    local u = f / 0.3
+                    lift = self.STAR_POP_LIFT * (1 - (1 - u) * (1 - u))
+                elseif f < 0.75 then
+                    lift = self.STAR_POP_LIFT
+                else
+                    local u = (f - 0.75) / 0.25
+                    lift = self.STAR_POP_LIFT * (1 - u * u) + math.sin(u * math.pi) * 6 * (1 - u)
+                end
+                if f > 0.15 and f < 0.8 then
+                    local u = (f - 0.15) / 0.65
+                    angle = -2 * math.pi * (u * u * (3 - 2 * u))
+                end
+                k = 1 + self.STAR_POP_SCALE * math.sin(math.min(1, f / 0.8) * math.pi)
                 local g = s.size * (1.3 + 1.0 * f)
                 s.glow:SetSize(g, g)
                 s.glow:SetAlpha(1 - f)
                 s.glow:Show()
+            end
+            s.base:ClearAllPoints()
+            s.base:SetPoint("CENTER", card, "TOP", s.x, s.y + lift)
+            s.base:SetSize(s.size * k, s.size * k)
+            s.fill:SetSize(s.size * k, s.size * k)
+            if s.fill.SetTexCoord then s.fill:SetTexCoord(0, 1, 0, 1) end
+            if s.base.SetRotation then s.base:SetRotation(angle); s.fill:SetRotation(angle) end
+        end
+    end
+end
+
+-- Three stars: little stars shoot out of the big ones like bottle rockets.
+function UI:StarRockets(now)
+    local card = self.card
+    local n = #card.sparks
+    for i, t in ipairs(card.sparks) do
+        local s = card.bigStars[((i - 1) % 3) + 1]
+        local a = -math.pi / 2 + (math.random() - 0.5) * 2.2
+        local sp = 260 + math.random() * 260
+        t.rx, t.ry = s.x, s.y + self.STAR_POP_LIFT * 0.5
+        t.vx, t.vy = math.cos(a) * sp, -math.sin(a) * sp
+        t.born, t.life = now + (i / n) * 0.35, 1.1 + math.random() * 0.5
+        t.size = 10 + math.random() * 12
+        t.spin = (math.random() - 0.5) * 12
+        t.rocket = true
+    end
+end
+
+function UI:UpdateRockets(now)
+    local card = self.card
+    if not (card and card.sparks) then return end
+    for _, t in ipairs(card.sparks) do
+        if t.rocket then
+            local e = now - t.born
+            if e < 0 then
+                t:Hide()
+            elseif e >= t.life then
+                t.rocket = nil
+                t:Hide()
+            else
+                local x = t.rx + t.vx * e
+                local y = t.ry + t.vy * e - 0.5 * self.ROCKET_GRAVITY * e * e
+                t:ClearAllPoints()
+                t:SetPoint("CENTER", card, "TOP", x, y)
+                t:SetSize(t.size, t.size)
+                t:SetAlpha(1 - e / t.life)
+                if t.SetRotation then t:SetRotation(t.spin * e) end
+                t:Show()
             end
         end
     end
@@ -1339,6 +1409,7 @@ end
 function UI:UpdateStarFill(now)
     local card = self.card
     self:UpdateStarPops(now)
+    self:UpdateRockets(now)
     local a = card and card.fillAnim
     if not a then return end
     local t = math.min(1, (now - a.start) / self.STAR_FILL_SECS)
@@ -1369,7 +1440,10 @@ function UI:UpdateStarFill(now)
             if i < 3 then
                 GP:PlaySfx("star_rocket.ogg")
             else
+                -- all three: the fanfare, and the shower of little stars
+                GP:PlaySfx("star_rocket.ogg")
                 GP:PlaySfx("star_fanfare.ogg")
+                self:StarRockets(now)
                 self:Celebrate()
             end
         end
@@ -1408,6 +1482,10 @@ function UI:ShowResultCard(result, stars)
     for _, s in ipairs(card.bigStars) do
         s.fill:Hide(); s.filled = nil; s.popAt = nil; s.glow:Hide()
         s.base:SetSize(s.size, s.size); s.fill:SetSize(s.size, s.size)
+        s.base:ClearAllPoints(); s.base:SetPoint("CENTER", card, "TOP", s.x, s.y)
+        if s.base.SetRotation then s.base:SetRotation(0); s.fill:SetRotation(0) end
+    end
+    for _, t in ipairs(card.sparks) do t.rocket = nil; t:Hide()
     end
     local m2, m3 = L:StarScores(st.level)
     card.fillAnim = { start = GetTime(), score = result.score or 0, cleared = cleared,
