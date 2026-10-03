@@ -121,6 +121,16 @@ local function buttonIcon(btn, slot, size)
     return icon
 end
 
+-- A button in the logo's style: the blank logo plate (9-slice, so its cog
+-- ends keep their shape at any width) with the words in gold over it.
+local function logoButton(parent, w, h, text, size)
+    local b = makeButton(parent, w, h, text or "", "btn_logo")
+    b.text:SetFont("Fonts\\FRIZQT__.TTF", size or 16, "OUTLINE")
+    b.text:SetTextColor(1, 0.86, 0.35)
+    b.logo = true
+    return b
+end
+
 local function makeStars(parent, size, gap, layer)
     local stars = {}
     for i = 1, 3 do
@@ -542,18 +552,21 @@ function UI:CreateFrame()
     self.bannerSub = sub
     -- power-up slots: armed for the next shot
     self.itemSlots = {}
-    for i, id in ipairs({ "ring", "rainbow", "suction" }) do
-        local b = makeButton(frame, LEFT_W, 30, "")
-        b:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", EDGE, EDGE + (3 - i) * 36)
+    for i, id in ipairs({ "ring", "rainbow", "suction", "green" }) do
+        local b = logoButton(frame, LEFT_W, UI.ITEM_H, "", 16)
+        b:SetPoint("TOPLEFT", frame, "TOPLEFT", EDGE, -(TOP_H + UI.ITEMS_Y + (i - 1) * (UI.ITEM_H + 6)))
         b.item = id
-        buttonIcon(b, ART:Item(id), 20)
+        buttonIcon(b, ART:Item(id), UI.ITEM_H - 8)
+        b.icon:ClearAllPoints()
+        b.icon:SetPoint("LEFT", b, "LEFT", 10, 0)
         b:SetScript("OnClick", function(self) UI:ToggleItem(self.item) end)
         b:SetScript("OnEnter", function(self)
             if not GameTooltip then return end
             GameTooltip:SetOwner(self, "ANCHOR_TOP")
             GameTooltip:AddLine(E.ITEMS[self.item].name)
             GameTooltip:AddLine(E.ITEMS[self.item].blurb, 0.8, 0.8, 0.9, true)
-            GameTooltip:AddLine("Earned by clearing levels. Click to arm for the next shot.", 0.6, 0.6, 0.7, true)
+            GameTooltip:AddLine(self.item == "green" and "Before a level: click to add it when you press Play. During a level: click to add a green peg now."
+                or "Earned from bosses or bought with Golden Gears. Click to arm for the next shot.", 0.6, 0.6, 0.7, true)
             GameTooltip:Show()
         end)
         b:SetScript("OnLeave", function(self)
@@ -954,7 +967,7 @@ end
 function UI:CreateCard()
     local FW, FH = E.FIELD_W, E.FIELD_H
     local card = CreateFrame("Frame", nil, self.frame)
-    card:SetSize(430, 470)
+    card:SetSize(UI.CARD_W, UI.CARD_H)
     card:SetPoint("CENTER", self.view, "CENTER", 0, 10)
     card:SetFrameLevel(self.field:GetFrameLevel() + 6)
     card.skin = ART:NewSkin(card, "card", "BACKGROUND", 0)
@@ -971,14 +984,14 @@ function UI:CreateCard()
     self.cardSheet = sheet
 
     card.title = card:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    card.title:SetPoint("TOP", 0, -56)
-    card.title:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
-    card.title:SetWidth(340)
+    card.title:SetPoint("TOP", 0, -46)
+    card.title:SetFont("Fonts\\FRIZQT__.TTF", 24, "OUTLINE")
+    card.title:SetWidth(UI.CARD_W - 60)
     -- three big stars; on the result card each fills with gold from left
     -- to right as the score counts up past its mark
     card.stars = makeStars(card, UI.CARD_STAR, 4)
     for i, s in ipairs(card.stars) do
-        s:SetPoint("TOP", card, "TOP", (i - 2) * (UI.CARD_STAR + 8), -84)
+        s:SetPoint("TOP", card, "TOP", (i - 2) * (UI.CARD_STAR + 8), -80)
         local f = card:CreateTexture(nil, "OVERLAY", nil, 2)
         ART:Set(f, "star", 1, 0.85, 0.2)
         f:SetPoint("LEFT", s, "LEFT", 0, 0)
@@ -987,43 +1000,59 @@ function UI:CreateCard()
         s.fill = f
     end
     card.line1 = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    card.line1:SetPoint("TOP", 18, -146)
-    card.line1:SetWidth(300)
-    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
+    card.line1:SetPoint("TOP", 22, -144)
+    card.line1:SetWidth(UI.CARD_W - 110)
+    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
     card.goalIcon = card:CreateTexture(nil, "ARTWORK")
-    card.goalIcon:SetSize(34, 34)
+    card.goalIcon:SetSize(44, 44)
     card.goalIcon:SetPoint("RIGHT", card.line1, "LEFT", -6, 0)
     ART:Set(card.goalIcon, "goal_orange")
     card.goalIcon:Hide()
     card.line2 = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.line2:SetPoint("TOP", card.line1, "BOTTOM", 0, -8)
-    card.line2:SetWidth(330)
+    card.line2:SetPoint("TOP", card.line1, "BOTTOM", -22, -10)
+    card.line2:SetWidth(UI.CARD_W - 60)
+    card.line2:SetFont("Fonts\\FRIZQT__.TTF", 16, "")
+    -- the best score on this level, big
+    card.best = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    card.best:SetPoint("TOP", card.line2, "BOTTOM", 0, -10)
+    card.best:SetWidth(UI.CARD_W - 60)
+    card.best:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
     card.line3 = card:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    card.line3:SetPoint("TOP", card.line2, "BOTTOM", 0, -8)
-    card.line3:SetWidth(330)
-    card.line3:SetTextColor(0.75, 0.75, 0.85)
-    -- the master selector: any power unlocked so far
-    card.powerPrev = makeButton(card, 46, 34, "<")
-    card.powerPrev:SetPoint("TOP", card.line3, "BOTTOM", -150, -6)
-    card.powerPrev.text:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
-    card.powerNext = makeButton(card, 46, 34, ">")
-    card.powerNext:SetPoint("TOP", card.line3, "BOTTOM", 150, -6)
-    card.powerNext.text:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
+    card.line3:SetPoint("TOP", card.best, "BOTTOM", 0, -10)
+    card.line3:SetWidth(UI.CARD_W - 60)
+    card.line3:SetFont("Fonts\\FRIZQT__.TTF", 14, "")
+    card.line3:SetTextColor(0.8, 0.8, 0.9)
+    -- the master selector: any power unlocked so far, with its icon and what it does
+    card.powerPrev = logoButton(card, 74, 46, "<", 24)
+    card.powerPrev:SetPoint("TOPLEFT", card, "TOPLEFT", 30, -UI.CARD_POWER_Y)
+    card.powerNext = logoButton(card, 74, 46, ">", 24)
+    card.powerNext:SetPoint("TOPRIGHT", card, "TOPRIGHT", -30, -UI.CARD_POWER_Y)
+    card.powerIcon = card:CreateTexture(nil, "ARTWORK")
+    card.powerIcon:SetSize(44, 44)
+    card.powerIcon:SetPoint("TOPLEFT", card, "TOPLEFT", 112, -UI.CARD_POWER_Y)
+    ART:Set(card.powerIcon, "power_multiball")
     card.powerText = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    card.powerText:SetPoint("TOP", card.line3, "BOTTOM", 0, -12)
-    card.powerText:SetWidth(230)
+    card.powerText:SetPoint("TOPLEFT", card.powerIcon, "TOPRIGHT", 8, -2)
+    card.powerText:SetPoint("RIGHT", card.powerNext, "LEFT", -6, 0)
+    card.powerText:SetJustifyH("LEFT")
+    card.powerText:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
+    card.powerBlurb = card:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    card.powerBlurb:SetPoint("TOPLEFT", card.powerPrev, "BOTTOMLEFT", 0, -8)
+    card.powerBlurb:SetPoint("TOPRIGHT", card.powerNext, "BOTTOMRIGHT", 0, -8)
+    card.powerBlurb:SetJustifyH("CENTER")
+    card.powerBlurb:SetFont("Fonts\\FRIZQT__.TTF", 14, "")
+    card.powerBlurb:SetTextColor(0.85, 0.85, 0.95)
     card.powerPrev:SetScript("OnClick", function() UI:CyclePower(-1) end)
     card.powerNext:SetScript("OnClick", function() UI:CyclePower(1) end)
-    -- the Extra Green Peg boost
-    card.boost = makeButton(card, 300, 26, "")
-    card.boost:SetPoint("TOP", card.powerText, "BOTTOM", 0, -10)
-    card.boost:SetScript("OnClick", function() UI:ToggleGreenBoost() end)
-    card.main = makeButton(card, 150, 32, "PLAY")
-    card.main:SetPoint("BOTTOM", 0, 92)
-    card.left = makeButton(card, 110, 26, "Map")
-    card.left:SetPoint("BOTTOMLEFT", 30, 32)
-    card.right = makeButton(card, 110, 26, "Retry")
-    card.right:SetPoint("BOTTOMRIGHT", -30, 32)
+    -- the Extra Green Peg lives in the left column now; a stand-in keeps old calls safe
+    card.boost = CreateFrame("Frame", nil, card)
+    card.boost:Hide()
+    card.main = logoButton(card, 260, 58, "PLAY", 26)
+    card.main:SetPoint("BOTTOM", 0, 96)
+    card.left = logoButton(card, 180, 46, "Map", 18)
+    card.left:SetPoint("BOTTOMLEFT", 30, 34)
+    card.right = logoButton(card, 180, 46, "Retry", 18)
+    card.right:SetPoint("BOTTOMRIGHT", -30, 34)
 end
 
 function UI:HideCard()
@@ -1044,7 +1073,7 @@ function UI:ShowStartCard()
     for _, s in ipairs(card.stars) do s.fill:Hide() end
     setStars(card.stars, GP:GetDB().stars[st.level] or 0)
     -- the goal, big and gold, with its icon: most players never read small print
-    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
+    card.line1:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
     card.line1:SetTextColor(1, 0.85, 0.25)
     card.line1:SetText(self:ObjectiveText(st))
     ART:Set(card.goalIcon, ART:Goal(st.objective))
@@ -1055,7 +1084,8 @@ function UI:ShowStartCard()
     if st.gimmick then extra[#extra + 1] = st.gimmick end
     if st.duel then extra[#extra + 1] = st.duel.blurb end
     local best = GP:GetDB().best[st.level]
-    if best then extra[#extra + 1] = "Best " .. fmtBig(best) end
+    card.best:SetText(best and ("Best score  |cffffd700%s|r"):format(fmtBig(best)) or "|cff9999aaNo score yet|r")
+    card.best:Show()
     self.cardTip = nil
     card.line3:SetText(table.concat(extra, "  -  "))
     card.main.text:SetText("PLAY")
@@ -1070,7 +1100,7 @@ function UI:ShowStartCard()
     card.left:SetPoint("BOTTOM", card, "BOTTOM", 0, 52)       -- alone: centred
     self.greenBoost = false
     self:RefreshCardChoices()
-    card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.boost:Show()
+    card.powerPrev:Show(); card.powerNext:Show(); card.powerText:Show(); card.powerIcon:Show(); card.powerBlurb:Show()
     self.cardSheet:Show()
     card:Show()
 end
@@ -1078,13 +1108,13 @@ end
 function UI:RefreshCardChoices()
     local st, card = self.state, self.card
     local name, blurb = powerName(st.power)
-    card.powerText:SetText(("%s's power: |cff88ff88%s|r"):format(GP:HostFor(st.level).name:match("(%S+)$") or "", name))
+    card.powerText:SetText(("%s's power\n|cff88ff88%s|r"):format(GP:HostFor(st.level).name:match("(%S+)$") or "", name))
+    card.powerBlurb:SetText(blurb or "")
+    ART:Set(card.powerIcon, ART:Power(st.power))
     local many = #GP:UnlockedPowers(st.level) > 1
     styleButton(card.powerPrev, many, 0.3, 0.3, 0.45)
     styleButton(card.powerNext, many, 0.3, 0.3, 0.45)
-    local n = GP:ItemCount("green")
-    card.boost.text:SetText(("Extra Green Peg (%d): %s"):format(n, self.greenBoost and "|cff88ff88ON|r" or "off"))
-    styleButton(card.boost, n > 0 or self.greenBoost, 0.25, 0.4, 0.25)
+    self:UpdateItemSlots()
 end
 
 function UI:CyclePower(dir)
@@ -1098,6 +1128,26 @@ function UI:CyclePower(dir)
     GP:GetDB().lastPower = st.power
     self:RefreshCardChoices()
     self:UpdateDisplay()
+end
+
+-- The Extra Green Peg from the left column: before a level (the card is
+-- up) it is the boost added at Play; during a level it adds a green peg now.
+function UI:UseGreenPeg()
+    local st = self.state
+    if not st then return end
+    if self.card and self.card:IsShown() and st.phase == E.PHASE.AIM and (st.shots or 0) == 0 then
+        return self:ToggleGreenBoost()
+    end
+    if st.phase ~= E.PHASE.AIM or GP:ItemCount("green") <= 0 then return end
+    if GP:SpendItem("green") then
+        local p = E:AddGreen(st)
+        if p then
+            self:LayoutPegs(true)
+            self:Popup(p.x, p.y - 16, "EXTRA GREEN", 0.6, 1, 0.6)
+            GP:PlaySfx("free_ball.ogg")
+        end
+        self:UpdateItemSlots()
+    end
 end
 
 function UI:ToggleGreenBoost()
@@ -1178,6 +1228,11 @@ UI.TEXT_SIZE = 13            -- every line of text in the side column
 UI.VALUE_SIZE = 14           -- the numbers beside the headings
 UI.HEAD_H = 20               -- the word-art headings' height
 
+UI.CARD_W, UI.CARD_H = 450, 560   -- the level card
+UI.CARD_POWER_Y = 290                 -- the card's power row, from its top
+UI.ITEM_H = 48                        -- a special-ball button in the left column
+UI.ITEMS_Y = 330                      -- under the column of balls
+
 -- After the level: stars, score, what happened, and where to go next.
 function UI:ShowResultCard(result, stars)
     local st = self.state
@@ -1243,6 +1298,7 @@ function UI:ShowResultCard(result, stars)
     card.right:ClearAllPoints()
     card.right:SetPoint("BOTTOM", card, "BOTTOM", 66, 52)
     card.powerPrev:Hide(); card.powerNext:Hide(); card.boost:Hide()
+    card.powerIcon:Hide(); card.powerBlurb:Hide(); card.best:Hide()
     if result.rewards and #result.rewards > 0 then
         local parts = {}
         for _, r in ipairs(result.rewards) do parts[#parts + 1] = ("+%d %s"):format(r.n, E.ITEMS[r.item].name) end
@@ -1809,6 +1865,7 @@ end
 -- Power-ups
 
 function UI:ToggleItem(item)
+    if item == "green" then return self:UseGreenPeg() end
     local st = self.state
     if not st or st.phase ~= E.PHASE.AIM then return end
     if st.armed == item then
@@ -1823,9 +1880,10 @@ function UI:UpdateItemSlots()
     local st = self.state
     for _, b in ipairs(self.itemSlots or {}) do
         local n = GP:ItemCount(b.item)
-        local armed = st and st.armed == b.item
-        b.text:SetText(("x%d%s"):format(n, armed and " |cff88ff88ARMED|r" or ""))
-        styleButton(b, (n > 0 or armed) and st ~= nil, armed and 0.2 or 0.35, armed and 0.5 or 0.3, 0.25)
+        local armed = st and ((b.item == "green") and self.greenBoost or st.armed == b.item)
+        b.text:SetText(armed and ("x%d\n|cff88ff88%s|r"):format(n, b.item == "green" and "ON" or "ARMED") or ("x%d"):format(n))
+        styleButton(b, (n > 0 or armed) and st ~= nil, 0.35, 0.3, 0.45)
+        if armed and b.skin then ART:TintSkin(b.skin, 0.6, 1, 0.6, 1) end
     end
 end
 

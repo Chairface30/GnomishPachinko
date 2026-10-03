@@ -91,6 +91,7 @@ slot("word_shop", 512, 64, { note = "side panel heading in brass word-art (tools
 slot("btn_next",    512, 64, { note = "Next Level: green enamel plate, riveted brass rim, chevrons in a porthole (tools/word_art.py)" })
 slot("btn_restart", 512, 64, { note = "Restart: copper-red enamel plate, a turning arrow in a porthole (tools/word_art.py)" })
 slot("btn_levels",  512, 64, { note = "Level Select: blue enamel plate, a little map in a porthole (tools/word_art.py)" })
+slot("btn_logo",    512, 64, { inset = 28, edge = 16, note = "a blank logo plate (cog end-caps, copper plate) for buttons whose words change; 9-slice so the caps keep their shape at any width (tools/word_art.py)" })
 slot("shop_gear", 128, 128, { note = "the shop button: a shiny golden gear (tools/word_art.py)" })
 slot("dot",     32, 32,  { tint = true, note = "a soft dot: aim guide, lightning bolt, map path" })
 slot("star",    32, 32,  { tint = true, note = "a five-point star, gold when earned, grey when not" })

@@ -2185,6 +2185,38 @@ snd = dict(ev("__starSounds"))
 check("the count-up has a rising sound, a bottle rocket for each of the first two stars and a fanfare for the third",
       snd[1] >= 2 and snd[2] and snd[3], str(snd))
 
+# the level card: logo-plate buttons, a big best score; the special balls and
+# the Extra Green Peg sit under the balls in the left column
+lua(r"""
+UI:StartLevel(4, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:ShowStartCard()
+local c = UI.card
+__cardLogo = c.main.skin.name == "btn_logo" and c.left.skin.name == "btn_logo" and c.powerPrev.skin.name == "btn_logo"
+__cardBest = c.best:IsShown()
+local ids = {}
+for _, b in ipairs(UI.itemSlots) do ids[#ids + 1] = b.item end
+__slots = table.concat(ids, ",")
+local pt = { UI.itemSlots[1]:GetPoint() }
+__slotsTop = pt[1] == "TOPLEFT"
+-- the green slot on the card toggles the boost; in play it adds a green peg now
+P:AddItem("green", 2)
+UI.itemSlots[4]:Click()
+__boostOn = UI.greenBoost == true
+UI.itemSlots[4]:Click()
+UI:HideCard()
+local before = 0
+for _, q in ipairs(UI.state.pegs) do if q.kind == "green" then before = before + 1 end end
+local n0 = GP:ItemCount("green")
+UI.itemSlots[4]:Click()
+local after = 0
+for _, q in ipairs(UI.state.pegs) do if q.kind == "green" then after = after + 1 end end
+__greenNow = after == before + 1 and GP:ItemCount("green") == n0 - 1
+""")
+check("the level card's buttons wear the logo plate and it shows the best score", ev("__cardLogo") and ev("__cardBest"))
+check("the left column holds Ring, Rainbow, Suction and the Extra Green Peg, under the balls", ev("__slots") == "ring,rainbow,suction,green" and ev("__slotsTop"), ev("__slots"))
+check("the Extra Green Peg slot is the boost on the level card and a green peg at once in play", ev("__boostOn") and ev("__greenNow"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

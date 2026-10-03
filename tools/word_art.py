@@ -321,6 +321,9 @@ def logo_button(text):
     img.alpha_composite(mid, (LOGO_CAP, 0))
     img.alpha_composite(left, (0, 0))
     img.alpha_composite(right, (cw - LOGO_CAP, 0))
+    if not text:
+        # the blank plate: buttons whose words change draw them in the game
+        return img.resize((W, H), Image.LANCZOS)
     # the word in the logo's gold: bright, a dark rim, a soft shadow
     cap = 50
     mask = word_mask(text, cap * SS)
@@ -367,6 +370,9 @@ def main():
         g = gear_sprite(128)
         g.save(os.path.join(OUT, "shop_gear.tga"), format="TGA")
         print("wrote shop_gear")
+    if not args.only or "btn_logo" in args.only:
+        logo_button("").save(os.path.join(OUT, "btn_logo.tga"), format="TGA")
+        print("wrote btn_logo")
     for slot, (text, top, bottom, icon) in BUTTONS.items():
         if args.only and slot not in args.only:
             continue

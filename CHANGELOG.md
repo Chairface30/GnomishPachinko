@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **A bigger level card:** larger text throughout, the best score on a line of its own, the power with its icon and what it does, and every button in the logo's style (a blank logo plate that keeps its cog ends at any width, gold words on it).
+- **The left column's special balls are big and sit under the balls:** Ring of Fire, Rainbow Ball, Suction Tube and now the Extra Green Peg, each a logo-plate button with a large icon. The green peg is the level boost while the card is up, and adds a green peg on the spot during play.
+
 - Every explanation of buying Golden Gears now says plainly that the addon will not, and cannot, press Send: the Blizzard (ahem, Gnomish) Regulators forbid it. Tinkmaster says so too, in a new voiced line.
 - **The star count-up sounds the part:** a rising tally under the count, a bottle rocket as each of the first two stars fills, and a fanfare with fireworks when the third does.
 - **The right column, tidied:** the info spreads over the column's height with one text size throughout (13, numbers 14, headings all the same height), so nothing is tiny. The shop's way in is the golden gear with a SHOP header beside it. The line under Get Golden Gears is gone, and the owner's button sits in the shop. Sound and Music are a footer along the bottom.
