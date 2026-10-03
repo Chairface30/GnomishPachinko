@@ -1896,6 +1896,7 @@ local pts = { UI.bossBg:GetPoint() }
 __barY = -(pts[5] or 0)
 __bossY = b.y
 """)
+check("the boss's name is not printed on the board and its bar stays on it", not ev("UI.bossName:IsShown()") and ev("__barY") <= ev("E.FIELD_H"))
 check("the boss's bar sits below it and a hurt boss shows no cracks", ev("__barY") > ev("__bossY") and not ev("__bossCrack"), f'{ev("__barY")} {ev("__bossY")} {ev("__bossCrack")}')
 
 # Chain Lightning draws a bolt that grows link by link, then is gone

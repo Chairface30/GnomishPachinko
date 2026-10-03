@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The boss's health bar sits just under it, always on the board and over its model; its name is no longer printed on the board.
 - **Each host and boss keeps the framing set by eye** (height and zoom per host; view angle, distance, turn, tilt, offset, size and platform per boss). The temporary tuning panel is gone.
 - The boss's health bar and name sit below it, and a hurt boss no longer shows cracks.
 - Hosts and bosses show their whole model, head to feet. They used the client's portrait camera, which crops to the head. The boss tuning has a Size slider for the model's frame.

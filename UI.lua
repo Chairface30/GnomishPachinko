@@ -421,14 +421,19 @@ function UI:CreateFrame()
     bm:SetScript("OnModelLoaded", function() UI:PoseBossModel() end)
     self.bossModel = bm
 
-    -- the boss's health bar and name
-    local bossBg = field:CreateTexture(nil, "OVERLAY", nil, 5)
+    -- the boss's health bar, on a frame over the boss's model (a model
+    -- frame draws over its parent's textures); no name on the board
+    local barFrame = CreateFrame("Frame", nil, field)
+    barFrame:SetAllPoints(field)
+    if barFrame.SetFrameLevel then barFrame:SetFrameLevel((bm.GetFrameLevel and bm:GetFrameLevel() or 1) + 2) end
+    self.bossBarFrame = barFrame
+    local bossBg = barFrame:CreateTexture(nil, "OVERLAY", nil, 5)
     bossBg:SetSize(72, 7)
     bossBg:SetTexture(WHITE)
     bossBg:SetVertexColor(0.1, 0.1, 0.12, 0.9)
     bossBg:Hide()
     self.bossBg = bossBg
-    local bossFill = field:CreateTexture(nil, "OVERLAY", nil, 6)
+    local bossFill = barFrame:CreateTexture(nil, "OVERLAY", nil, 6)
     bossFill:SetSize(70, 5)
     bossFill:SetTexture(WHITE)
     bossFill:SetVertexColor(0.9, 0.2, 0.2, 1)
@@ -1733,7 +1738,7 @@ function UI:LayoutPegs(midLevel)
     end
     if st.boss then
         self.bossName:SetText(st.boss.bossName or "Boss")
-        self.bossBg:Show(); self.bossFill:Show(); self.bossName:Show()
+        self.bossBg:Show(); self.bossFill:Show(); self.bossName:Hide()
         if not midLevel then self:LoadBossModel(st.boss.ability) end
     else
         self.bossBg:Hide(); self.bossFill:Hide(); self.bossName:Hide()
@@ -2980,10 +2985,8 @@ function UI:Render(now)
     -- the boss's bar follows it
     local b = st.boss
     if b and not b.gone then
-        -- below the boss: the bar, and its name under the bar
-        local view = self.bossViewCache or {}
-        local below = (self.bossModelReady and E.BOSS_R * 1.6 * (view.size or 1) or E.BOSS_R) + 10
-        local y = b.y + below
+        -- just below the boss's body, kept on the board
+        local y = math.min(b.y + E.BOSS_R + 10, E.FIELD_H - 8)
         placeAt(self.bossBg, field, b.x, y)
         self.bossFill:ClearAllPoints()
         self.bossFill:SetPoint("LEFT", self.bossBg, "LEFT", 1, 0)
