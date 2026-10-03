@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: the sad "awww" could play as the last-piece zoom began, on a shot that then hit. It now plays only when the ball has truly missed: the shot ends with the piece standing, or the slow motion stays off for most of a second.
 - The first Gyro Spider (level 30) has 8 health instead of 9.
 - Fixed: a duel could be lost with the higher score, when Cogwhistle lit the last orange. The last orange now pays a 25,000 bonus and ends the duel, and the scores always decide it.
 - **The last-piece zoom has a crowd:** instead of a whispered "last one", a held "ahhhh" builds through the slow motion until the piece lights and the Fever music cuts in. If the ball misses, it falls away into a sad "awwww".

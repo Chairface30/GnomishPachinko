@@ -2050,10 +2050,18 @@ UI.events = { { type = "last_peg", x = 1, y = 1 } }
 UI:HandleEvents(GetTime())
 local function played(name) for i = n0 + 1, #__played_files do if __played_files[i]:find(name, 1, true) then return true end end return false end
 __ahhOn = UI.ahhHandle ~= nil and played("last_ahh")
--- a miss: the slow-mo lets go and the piece is still up
+-- a short gap in the slow-mo mid-approach is not a miss
 st.lastSlow = false
-UI.slowSeenAt = GetTime()
-__now = __now + 0.5
+UI:WatchAhh(GetTime())
+__now = __now + 0.3
+UI:WatchAhh(GetTime())
+st.lastSlow = true
+UI:WatchAhh(GetTime())
+__noEarlyAww = not played("last_aww") and UI.ahhHandle ~= nil
+-- a miss: the slow-mo lets go for good and the piece is still up
+st.lastSlow = false
+UI:WatchAhh(GetTime())
+__now = __now + 1
 UI:WatchAhh(GetTime())
 __aww = played("last_aww") and UI.ahhHandle == nil
 -- a hit: Fever cuts the ahh, no aww
@@ -2071,7 +2079,7 @@ __hitCuts = UI.ahhHandle == nil and #__stopped > stops and not played("last_aww"
 UI:StopFanfare()
 """)
 check("the last-piece zoom builds an 'ahhh' that Fever cuts off, or that turns to 'awww' on a miss",
-      ev("__ahhOn") and ev("__aww") and ev("__hitCuts"), f'{ev("__ahhOn")} {ev("__aww")} {ev("__hitCuts")}')
+      ev("__ahhOn") and ev("__noEarlyAww") and ev("__aww") and ev("__hitCuts"), f'{ev("__ahhOn")} {ev("__noEarlyAww")} {ev("__aww")} {ev("__hitCuts")}')
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

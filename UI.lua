@@ -2692,12 +2692,15 @@ end
 
 -- The last-piece "ahhh": started when the slow-mo zoom keys in, cut when
 -- the piece lights, turned into a sad "awww" when the ball misses it.
-UI.AHH_MISS_GRACE = 0.3     -- the slow-mo has let go this long with the piece still up: a miss
+UI.AHH_MISS_GRACE = 0.8     -- the slow-mo has stayed off this long, piece still up: a miss
+                            -- (it lets go briefly mid-approach, so a short gap is not one)
 function UI:StartAhh(now)
     if self.ahhHandle or (self.awwAt and now - self.awwAt < 1) then return end
     local ok, handle = GP:PlaySfx("last_ahh.ogg")
     self.ahhHandle = ok and (handle or true) or nil
     self.ahhAt = now
+    self.ahhSlowOffAt = nil
+    self.ahhTarget = self.state and self.state.lastPeg
 end
 
 function UI:StopAhh(missed)
@@ -2713,14 +2716,22 @@ end
 function UI:WatchAhh(now)
     if not self.ahhHandle then return end
     local st = self.state
-    if not st or st.phase ~= E.PHASE.FLIGHT then
-        -- Fever began (handled at its event) or the level is over
-        if not (st and st.phase == E.PHASE.FEVER) then self:StopAhh(false) end
-        return
+    local target = self.ahhTarget or (st and st.lastPeg)
+    local hit = target and (target.lit or target.gone)
+    if not st or st.phase == E.PHASE.FEVER or hit then
+        -- the piece is lit: the "ahhh" just ends (Fever's music takes over)
+        return self:StopAhh(false)
     end
-    -- the slow-mo let go and Fever has not begun: the ball missed
-    if not st.lastSlow and self.slowSeenAt and now - self.slowSeenAt > self.AHH_MISS_GRACE then
-        self:StopAhh(true)
+    if st.phase ~= E.PHASE.FLIGHT then
+        -- the shot is over and the piece still stands: that was the miss
+        return self:StopAhh(true)
+    end
+    -- the slow-mo let go and has stayed off: the ball went past
+    if st.lastSlow then
+        self.ahhSlowOffAt = nil
+    else
+        self.ahhSlowOffAt = self.ahhSlowOffAt or now
+        if now - self.ahhSlowOffAt > self.AHH_MISS_GRACE then self:StopAhh(true) end
     end
 end
 
