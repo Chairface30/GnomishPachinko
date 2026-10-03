@@ -319,7 +319,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         GP:ToggleUnlimited()
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. /pachinko editor - the level editor. /pachinko colorblind - marks on the colored pegs. " ..
-            "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
+            "/pachinko plays - plays left and the next daily plays. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
             "/pachinko sound - toggle sound. /pachinko music - toggle the music. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
     end
 end

@@ -958,6 +958,12 @@ function UI:CreateFrame()
     self.playsText:ClearAllPoints()
     self.playsText:SetPoint("LEFT", frameTex, "RIGHT", 8, 0)
     self.playsText:Hide()        -- the word says it
+    -- the daily claim: a gold button over the words while plays wait to be claimed
+    self.claimBtn = makeButton(side, SIDE_W - 104, 28, "Claim " .. GP.Plays.FREE_PER_DAY .. " daily plays")
+    self.claimBtn:SetPoint("LEFT", frameTex, "RIGHT", 6, 0)
+    if self.claimBtn.text then self.claimBtn.text:SetFont("Fonts\\FRIZQT__.TTF", 12, "OUTLINE") end
+    self.claimBtn:SetScript("OnClick", function() UI:ClaimDaily() end)
+    self.claimBtn:Hide()
     self.buyBtn = makeButton(side, SIDE_W, 48, "Get Golden Gears\n1g each")   -- placed in the shop below
     self.buyBtn.text:SetWidth(SIDE_W - 16)
     self.buyBtn.text:SetWordWrap(true)
@@ -2509,8 +2515,8 @@ function UI:ShowOutOfPlays(reason)
     local P = GP.Plays
     local panel = self.playsPanel
     panel.text:SetText((reason and (reason .. "\n") or "") ..
-        ("You have used all %d free plays for the day."):format(P.FAILS_PER_DAY))
-    panel.how:SetText(("You have %d Golden Gears. Gears are 1g each: mail gold to %s with \"%s\" as the subject, or press the button at a mailbox and it fills in; you press Send. " .. P.SEND_NOTE .. " Bought plays last 24 hours."):format(
+        "You are out of plays. " .. P:ClaimText())
+    panel.how:SetText(("You have %d Golden Gears. Gears are 1g each: mail gold to %s with \"%s\" as the subject, or press the button at a mailbox and it fills in; you press Send. " .. P.SEND_NOTE .. " Bought plays never expire."):format(
         P:Gears(), P:BankerName(), P.SUBJECT))
     panel.buy.text:SetText(P:Gears() >= P.SHOP.plays.cost and "Buy 5 plays for 10 Golden Gears" or "Get Golden Gears by mail")
     styleButton(panel.buy, true, 0.55, 0.4, 0.1)
@@ -2537,7 +2543,9 @@ function UI:UpdatePlaysPanel()
         end
         return
     end
-    self.playsPanel.wait:SetText("Next free play in |cffffd700" .. P:FormatWait(P:NextFreeIn()) .. "|r")
+    local ready, wait = P:ClaimState()
+    self.playsPanel.wait:SetText(ready and ("|cffffd700Your daily plays are ready: press Claim.|r")
+        or (wait and ("Next daily plays in |cffffd700" .. P:FormatWait(wait) .. "|r") or ""))
 end
 
 -- The right column shows the info or, while shopping, the Golden Gear shop
@@ -2576,6 +2584,18 @@ function UI:ShopBuy(what)
     local ok, msg = GP.Plays:Buy(what)
     GP:Print(msg)
     if ok then GP:PlaySfx("unlock.ogg") end
+    self:UpdateDisplay()
+    if self.playsPanel and self.playsPanel:IsShown() then self:UpdatePlaysPanel() end
+end
+
+-- The daily free plays, claimed with the button (never on their own).
+function UI:ClaimDaily()
+    local P = GP.Plays
+    local add = P:ClaimDaily()
+    if add > 0 then
+        self:ShowBanner("|cffffd700DAILY PLAYS!|r", ("+%d free plays (%d in all)"):format(add, P:Remaining()), 2)
+        GP:PlaySfx("free_ball.ogg")
+    end
     self:UpdateDisplay()
     if self.playsPanel and self.playsPanel:IsShown() then self:UpdatePlaysPanel() end
 end
@@ -4750,6 +4770,9 @@ function UI:UpdateDisplay()
     local P = GP.Plays
     local free, bought = P:FreeLeft(), P:BoughtLeft()
     self.playsNum:SetText(tostring(free + bought))
+    local claimReady = P:ClaimState()
+    self.claimBtn:SetShown(claimReady)
+    self.playsWord:SetShown(not claimReady)
     self.playsText:SetText("")
     styleButton(self.buyBtn, true, 0.5, 0.38, 0.1)
     self.gearsText:SetText(("|cffffd700Golden Gears: %d|r"):format(P:Gears()))
@@ -4762,6 +4785,13 @@ end
 
 function UI:Show()
     self:Initialize()
+    if GP.Plays:ClaimState() then
+        C_Timer.After(0.5, function()
+            if UI.frame and UI.frame:IsShown() and GP.Plays:ClaimState() then
+                UI:ShowBanner("|cffffd700DAILY PLAYS READY|r", "Press Claim beside your plays", 3)
+            end
+        end)
+    end
     if not self.state then
         self:StartLevel(GP:GetDB().current or 1)
     else

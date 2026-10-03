@@ -1,5 +1,11 @@
 # Gnomish Pachinko — Changelog
 
+## Unreleased
+
+- **Daily plays are claimed:** every 24 hours a **Claim 5 daily plays** button appears beside your plays (and a banner says so when you open the game). Nothing is added until you press it, and a missed day is not made up. Free plays build up to 50; at 50 no claim comes, and the 24 hours start again once you drop below. Free plays are spent first.
+- **Bought plays never expire** (they lasted 24 hours) and have no limit.
+- The minimap tooltip is short: your level and how many are cleared, plays left, when the next daily plays are ready, and the clicks. No stars, gears or mail text.
+
 ## Gnomish Pachinko v0.7.0 (2026-10-03)
 
 The first tagged release. Version 1.0 waits until the bosses have their final mechanics.

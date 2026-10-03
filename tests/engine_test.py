@@ -1566,17 +1566,20 @@ function vault_probe()
   P:Load()
   out.afterReinstall = P:Remaining()
   out.healed = GnomishPachinkoChar.plays == GnomishPachinkoSaved.plays
-  -- an older copy with fewer fails merges in: the union wins
+  -- an older copy with more free plays merges in: the least generous wins
   local old = P:Decode(keep)
-  table.remove(old.fails)
+  old.free = 3
   GnomishPachinkoChar.plays = P:Encode(old)
   __ns.VaultSet(nil)
   P:Load()
-  out.mergedFails = #__ns.VaultGet().fails
-  -- a day later the free plays are back and the lot has expired
+  out.mergedFree = P:FreeLeft()
+  -- a day later: the bought plays are still there, and the daily plays wait to be claimed
   __clock = __clock + 24 * 3600 + 1
   __ns.VaultSet(nil)
   P:Load()
+  out.nextDayBefore = P:Remaining()
+  out.claimReady = (P:ClaimState())
+  out.claimed = P:ClaimDaily()
   out.nextDay = P:Remaining()
   -- an edited copy locks the day
   local hacked = keep:sub(1, 20) .. "A" .. keep:sub(22)
@@ -1588,6 +1591,7 @@ function vault_probe()
   __clock = __clock + 24 * 3600 + 1
   __ns.VaultSet(nil)
   P:Load()
+  P:ClaimDaily()
   out.unlockedAgain = P:Remaining()
   return out
 end
@@ -1598,9 +1602,52 @@ check("the stored copy is an opaque encrypted blob that decodes back", v["prefix
 check("five losses use the day's plays and block play", v["spent"] == 0 and v["blocked"] and 0 < v["wait"] <= 24 * 3600 and v["mirrorsAgree"], str(dict(v)))
 check("a bought lot adds five plays, spent after the free ones", v["bought"] == 5 and v["boughtSpent"] == 4)
 check("deleting one copy (a reinstall) changes nothing and the copy is re-minted", v["afterReinstall"] == 4 and v["healed"])
-check("copies merge as a union of fails", v["mergedFails"] == 5, str(v["mergedFails"]))
-check("a day later the free plays are back and the bought lot is gone", v["nextDay"] == 5, str(v["nextDay"]))
-check("an edited copy locks the day, and the lock lifts a day later", v["tampered"] and v["unlockedAgain"] == 5, f"{v['tampered']} {v['unlockedAgain']}")
+check("copies merge to the least generous free balance", v["mergedFree"] == 0, str(v["mergedFree"]))
+check("a day later bought plays are still there (they never expire) and the daily plays wait to be claimed, then add five",
+      v["nextDayBefore"] == 4 and v["claimReady"] and v["claimed"] == 5 and v["nextDay"] == 9, str(dict(v)))
+check("an edited copy locks the day, and a day later the daily plays can be claimed again", v["tampered"] and v["unlockedAgain"] == 5, f"{v['tampered']} {v['unlockedAgain']}")
+
+# the daily claim: never on its own, no making up missed days, topped out at 50, the clock stopped at the cap
+lua(r"""
+function claim_probe()
+  local out = {}
+  local r = __ns.VaultGet()
+  r.free, r.lots, r.claimAt = 3, {}, __clock - 1
+  out.notAuto = P:FreeLeft() == 3
+  __clock = __clock + 72 * 3600          -- three days away
+  out.noStack = P:ClaimDaily() == 5 and P:FreeLeft() == 8
+  out.onceADay = P:ClaimDaily() == 0
+  local _, wait = P:ClaimState()
+  out.dayWait = wait and wait > 23 * 3600 and wait <= 24 * 3600
+  -- near the cap a claim only tops up to 50
+  r.free, r.claimAt = 48, __clock - 1
+  out.topUp = P:ClaimDaily() == 2 and P:FreeLeft() == 50
+  -- at the cap the clock stops: nothing to claim, no countdown
+  r.claimAt = __clock - 1
+  local ready, w = P:ClaimState()
+  out.capped = not ready and w == nil and P:ClaimDaily() == 0
+  -- falling under 50 starts the 24 hours again
+  P:RecordFail()
+  local ready2, w2 = P:ClaimState()
+  out.restart = P:FreeLeft() == 49 and not ready2 and w2 and w2 > 23 * 3600
+  __clock = __clock + 24 * 3600 + 1
+  out.afterDay = P:ClaimDaily() == 1 and P:FreeLeft() == 50
+  -- bought plays have no limit, never expire, and are spent after the free ones
+  r.free = 0
+  P:AddLots(20)
+  __clock = __clock + 30 * 24 * 3600
+  out.boughtKept = P:BoughtLeft() == 100
+  r.free = 2
+  P:RecordFail()
+  out.freeFirst = P:FreeLeft() == 1 and P:BoughtLeft() == 100
+  r.free, r.lots, r.claimAt = 5, {}, __clock + 24 * 3600
+  return out
+end
+""")
+cl = dict(ev("claim_probe")())
+check("daily plays: never added on their own, a missed day is not made up, one claim a day, a claim tops out at 50, the clock stops at 50 and restarts 24 hours after falling under",
+      cl["notAuto"] and cl["noStack"] and cl["onceADay"] and cl["dayWait"] and cl["topUp"] and cl["capped"] and cl["restart"] and cl["afterDay"], str(cl))
+check("bought plays have no limit, never expire, and are spent after the free ones", cl["boughtKept"] and cl["freeFirst"], str(cl))
 check("the banker name decodes", ev("P:BankerName()") == "Chairface Chippendale", ev("P:BankerName()"))
 check("a stranger is not an owner and gets nothing for free", not ev("P:IsOwner()") and not ev("(P:GrantFree())"))
 owners_ok = True
@@ -1757,7 +1804,7 @@ lua("UI:HideLevelSelect()")
 lua('SlashCmdList["GNOMISHPACHINKO"]("999")')
 check("slash refuses a locked level", any("not unlocked" in m for m in ev("__printed").values()))
 lua('__n = #__printed; SlashCmdList["GNOMISHPACHINKO"]("plays")')
-check("/pachinko plays reports the plays left", ev("#__printed") == ev("__n") + 1 and "Plays left today" in ev("__printed[#__printed]"))
+check("/pachinko plays reports the plays left and the next daily claim", ev("#__printed") == ev("__n") + 1 and "Plays left" in ev("__printed[#__printed]") and "daily plays" in ev("__printed[#__printed]"))
 lua('__n = #__printed; SlashCmdList["GNOMISHPACHINKO"]("buy")')
 check("/pachinko buy away from a mailbox explains the mail", "mailbox" in ev("__printed[#__printed]"))
 
@@ -2064,6 +2111,35 @@ __noTool = panel.arrange == nil and UI.ToggleMapArrange == nil
 UI:HideLevelSelect()
 """)
 check("the map places each chapter's levels where MapLayout.lua says, and the Move levels tool is gone", ev("__fixed") and ev("__noTool"))
+
+# the minimap tooltip: level, cleared, plays left, the next daily claim, and the clicks; no stars, gears or mail
+lua(r"""
+GameTooltip = { lines = {} }
+function GameTooltip:SetOwner() self.lines = {} end
+function GameTooltip:AddLine(t) self.lines[#self.lines + 1] = t end
+function GameTooltip:Show() end
+function GameTooltip:Hide() end
+GP.Minimap.button:GetScript("OnEnter")(GP.Minimap.button)
+__tip = table.concat(GameTooltip.lines, "\n")
+GameTooltip = nil
+""")
+tip = ev("__tip")
+check("the minimap tooltip is short: level and cleared, plays left, the next daily plays, the clicks (no stars, gears, mail or bought split)",
+      "cleared" in tip and "Plays left" in tip and "daily plays" in tip.lower() and "Left-click" in tip
+      and "star" not in tip and "Gear" not in tip and "mail" not in tip.lower() and "bought" not in tip, tip)
+
+# the Claim button shows while the daily plays are ready, and claims them
+lua(r"""
+local r = __ns.VaultGet()
+r.free, r.claimAt = 2, __clock - 1
+UI:UpdateDisplay()
+__claimShown = UI.claimBtn:IsShown() and not UI.playsWord:IsShown()
+UI.claimBtn:Click()
+__claimDone = P:FreeLeft() == 7 and not UI.claimBtn:IsShown() and UI.playsWord:IsShown()
+r.free, r.claimAt = 5, __clock + 24 * 3600
+UI:UpdateDisplay()
+""")
+check("a Claim button stands beside the plays while the daily plays are ready; pressing it adds them and it goes", ev("__claimShown") and ev("__claimDone"))
 
 # the boss's bar and name sit below it, and a hurt boss shows no cracks
 lua(r"""
@@ -3330,7 +3406,7 @@ check("the Gyro Spider's webs also pop up where pegs have been cleared, not only
 # a retry uses a play; a lost level has already paid for its attempt
 lua(r"""
 local P = GP.Plays
-__ns.VaultGet().fails = {}
+__ns.VaultGet().free = 5
 UI:StartLevel(2, true)
 UI:HideCard()
 local r0 = P:Remaining()
@@ -3349,7 +3425,7 @@ local r2 = P:Remaining()
 UI:Retry()
 local r3 = P:Remaining()
 __retry = { r0 - r1, r1 - r2, r2 - r3, UI.card.main:IsShown() and UI.card.main.text:GetText() or "" }
-__ns.VaultGet().fails = {}
+__ns.VaultGet().free = 5
 """)
 rt = list(ev("__retry").values())
 check("a retry uses a play (mid-level), a loss uses one, and a retry after a loss is not charged twice",

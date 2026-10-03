@@ -1,11 +1,12 @@
 --[[
     Gnomish Pachinko - Plays.lua
-    The day's plays. Losing a level (out of balls) spends one play; you get
-    FAILS_PER_DAY free plays in any rolling 24 hours, and more can be
-    bought by mailing gold to the casino banker (the same banker, mail
-    hook and purchase flow as Chairface's Casino: PRICE_COPPER buys
-    PLAYS_PER_LOT plays that last 24 hours). Clearing a level never costs
-    a play.
+    Plays. Losing a level (out of balls) or retrying one spends a play;
+    clearing one never does. Free plays are a balance: every 24 hours the
+    player may claim FREE_PER_DAY more (a Claim button in the game; they
+    are never added on their own, and a missed day is not made up). The
+    free balance tops out at FREE_CAP: at the cap no claim comes, and the
+    24 hours start again once it falls below. Bought plays (Golden Gears
+    in the shop) have no limit and never expire. Free plays are spent first.
 
     THE PLAYS VAULT
     The record of fails and bought plays is encrypted, checksummed and
@@ -37,7 +38,9 @@ local VAULT
 local UnitName = UnitName
 local S              -- the namespace's secure functions (filled in below)
 
-P.FAILS_PER_DAY  = 5
+P.FREE_PER_DAY   = 5             -- a day's claim
+P.FREE_CAP       = 50            -- the most free plays that can be held
+P.FAILS_PER_DAY  = P.FREE_PER_DAY
 P.WINDOW         = 24 * 60 * 60
 P.PLAYS_PER_LOT  = 5
 P.CVAR           = "gnomishPachinkoCache"
@@ -356,9 +359,10 @@ local function prune(rec, t)
     end
     table.sort(keep)
     rec.fails = keep
+    -- bought plays never expire: a lot stays until it is spent
     local lots = {}
     for _, l in ipairs(rec.lots) do
-        if l.ts > t - P.WINDOW and l.left > 0 then lots[#lots + 1] = l end
+        if l.left > 0 then lots[#lots + 1] = l end
     end
     table.sort(lots, function(a, b) return a.ts < b.ts end)
     rec.lots = lots
@@ -399,8 +403,31 @@ local function merge(records)
         if (rec.rev or 0) > ((newest and newest.rev) or -1) then newest = rec end
     end
     newest = newest or {}
+    -- the free balance: the least any copy gives; the next claim: the latest
+    -- any copy sets (an old copy put back cannot hand out plays again)
+    local free, claimAt
+    for _, rec in ipairs(records) do
+        if type(rec.free) == "number" then free = free and math.min(free, rec.free) or rec.free end
+        if type(rec.claimAt) == "number" then claimAt = claimAt and math.max(claimAt, rec.claimAt) or rec.claimAt end
+    end
     return { fails = fails, lots = lots, ts = now(), rev = newest.rev or 0,
-        gears = newest.gears, items = newest.items, prog = newest.prog }
+        gears = newest.gears, items = newest.items, prog = newest.prog, free = free, claimAt = claimAt }
+end
+
+-- A record from before the free balance: the day's free plays it still had
+-- become the balance, and the next claim comes when its oldest loss would
+-- have given one back (or a day from now). A new player starts with a day's.
+local function migrate(rec, t)
+    if type(rec.free) == "number" then return end
+    local used, oldest = 0, nil
+    for _, f in ipairs(rec.fails) do
+        if f > t - P.WINDOW then
+            used = used + 1
+            if not oldest or f < oldest then oldest = f end
+        end
+    end
+    rec.free = math.max(0, P.FREE_PER_DAY - used)
+    rec.claimAt = oldest and (oldest + P.WINDOW) or (t + P.WINDOW)
 end
 
 function P:Load()
@@ -412,10 +439,12 @@ function P:Load()
         elseif rec == false then tampered = true end
     end
     local rec = merge(records)
+    migrate(rec, t)
     if tampered then
-        -- an edited copy: the day's plays are gone
+        -- an edited copy: every play is gone, and the next claim is a day off
         rec.fails = {}
-        for _ = 1, self.FAILS_PER_DAY do rec.fails[#rec.fails + 1] = t end
+        rec.free = 0
+        rec.claimAt = t + self.WINDOW
         rec.lots = {}
         self.tampered = true
     end
@@ -536,7 +565,9 @@ local function rec(self)
 end
 
 function P:FreeLeft()
-    return math.max(0, self.FAILS_PER_DAY - #rec(self).fails)
+    local r = rec(self)
+    migrate(r, now())
+    return math.max(0, floor(r.free or 0))
 end
 
 function P:BoughtLeft()
@@ -553,18 +584,44 @@ function P:CanPlay()
     return self:Remaining() > 0
 end
 
--- Seconds until the next free play comes back (the oldest fail expires).
-function P:NextFreeIn()
+-- The daily claim: ready (true/false), and the seconds until it is (nil
+-- while the free balance is at the cap: the clock is stopped).
+function P:ClaimState()
     local r = rec(self)
-    if #r.fails < self.FAILS_PER_DAY then return 0 end
-    return math.max(0, r.fails[1] + self.WINDOW - now())
+    migrate(r, now())
+    if (r.free or 0) >= self.FREE_CAP then return false, nil end
+    local wait = math.max(0, (r.claimAt or 0) - now())
+    return wait <= 0, wait
 end
 
--- A lost level: a free play first, then the oldest bought lot.
+-- Claims the day's free plays, up to the cap. Returns how many were added.
+function P:ClaimDaily()
+    local ready = self:ClaimState()
+    if not ready then return 0 end
+    local r = rec(self)
+    local add = math.min(self.FREE_PER_DAY, self.FREE_CAP - floor(r.free or 0))
+    r.free = floor(r.free or 0) + add
+    r.claimAt = now() + self.WINDOW
+    self:Save()
+    if GP.UI and GP.UI.OnPlaysChanged then GP.UI:OnPlaysChanged() end
+    return add
+end
+
+-- Seconds until the next claim (0: ready now; nil: stopped at the cap).
+function P:NextFreeIn()
+    local _, wait = self:ClaimState()
+    return wait
+end
+
+-- A lost level: a free play first, then the oldest bought lot. Falling
+-- below the cap starts the 24 hours to the next claim.
 function P:RecordFail()
     local r = rec(self)
-    if #r.fails < self.FAILS_PER_DAY then
-        r.fails[#r.fails + 1] = now()
+    migrate(r, now())
+    if (r.free or 0) > 0 then
+        local wasCapped = r.free >= self.FREE_CAP
+        r.free = r.free - 1
+        if wasCapped and r.free < self.FREE_CAP then r.claimAt = now() + self.WINDOW end
     elseif r.lots[1] then
         r.lots[1].left = r.lots[1].left - 1
         if r.lots[1].left <= 0 then table.remove(r.lots, 1) end
@@ -668,14 +725,16 @@ function P:FormatWait(secs)
     return math.max(1, m) .. "m"
 end
 
+-- When the next daily plays can be claimed, as a line.
+function P:ClaimText()
+    local ready, wait = self:ClaimState()
+    if ready then return ("Daily plays ready: open Gnomish Pachinko and claim %d."):format(self.FREE_PER_DAY) end
+    if not wait then return ("Daily plays wait while you hold %d free plays."):format(self.FREE_CAP) end
+    return "Next daily plays in " .. self:FormatWait(wait) .. "."
+end
+
 function P:StatusText()
-    local free, bought = self:FreeLeft(), self:BoughtLeft()
-    local s = "Plays left today: |cffffd700" .. (free + bought) .. "|r (" .. free .. " of " .. self.FAILS_PER_DAY .. " free"
-    if bought > 0 then s = s .. ", " .. bought .. " bought" end
-    s = s .. ")."
-    if free == 0 then s = s .. " Next free play in " .. self:FormatWait(self:NextFreeIn()) .. "." end
-    s = s .. " Golden Gears: |cffffd700" .. self:Gears() .. "|r (5 plays cost 10; gears are 1g each by mail to " .. self:BankerName() .. ")."
-    return s
+    return "Plays left: |cffffd700" .. self:Remaining() .. "|r.  " .. self:ClaimText()
 end
 
 -- ---------------------------------------------------------------------
