@@ -4508,12 +4508,12 @@ local shown = ED.codePanel.box:GetText()
 __block = shown:find("\n", 1, true) ~= nil and ED.codePanel.copy:IsShown()
 local back = ED:Decode(shown)
 __fromBlock = back ~= nil and #back.pieces == 30 and back.name == "Block Test"
--- Copy: the client's clipboard where it has one, else the code selected for Ctrl+C
-local got
-CopyToClipboard = function(t) got = t end
-__copied = ED:CopyCode() == true and got == ED.codePanel.code
+-- Select all: never the client's clipboard (protected: calling it is blocked), just the code selected for Ctrl+C
+local called = false
+CopyToClipboard = function() called = true end
+__copied = not called
+__selected = ED:CopyCode() == false and not called and ED.codePanel.hint:GetText():find("Ctrl+C", 1, true) ~= nil
 CopyToClipboard = nil
-__selected = ED:CopyCode() == false and ED.codePanel.hint:GetText():find("Ctrl+C", 1, true) ~= nil
 ED.codePanel:Hide()
 -- a code made on one of the owner's characters, imported: not a submission, no credit
 local isOwner, nameOf = GP.Plays.IsOwner, GP.Plays.IsOwnerName
@@ -4529,7 +4529,7 @@ ED:Import(theirs)
 __theirImport = ED.data.imported == true and ED.data.author == "Jaina Proudmoore"
 GP.Plays.IsOwner, GP.Plays.IsOwnerName = isOwner, nameOf
 """)
-check("Export shows the code as a block (read back fine) with a Copy button: to the clipboard where the client allows, else selected for Ctrl+C",
+check("Export shows the code as a block (read back fine) with a Select all button that selects it for Ctrl+C and never calls the protected clipboard",
       ev("__block") and ev("__fromBlock") and ev("__copied") and ev("__selected"))
 check("Importing a code made on one of the owner's characters is not a submission (no credit); a player's code is",
       ev("__ownImport") and ev("__theirImport"))

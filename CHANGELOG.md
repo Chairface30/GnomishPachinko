@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Level editor: **Export code** shows the code as a block in a scrolling box, with a **Copy** button (straight to the clipboard where the game allows it, otherwise the whole code is selected for Ctrl+C). Import takes a code pasted as a block or as one line.
+- Level editor: **Export code** shows the code as a block in a scrolling box, with a **Select all** button that selects the whole code for Ctrl+C (the game's clipboard is off limits to addons: an earlier Copy button that tried it caused an error). Import takes a code pasted as a block or as one line.
 - A code made on one of the owner's own characters is not a submission when imported: it carries no builder credit.
 - Level editor: **star scores.** Type the score for 1, 2 and 3 stars (blank keeps them automatic: the first star for clearing, the others worked out from the board); the left column shows the marks the level ends up with. A level that sets a 1-star score gives no star for a clear below it (it still counts as cleared). The level card, the info panel and the result card's stars use the level's own marks.
 - **Super Slides follow physics.** A ball takes a rail only coming in grazing along the inside of a bend (a little more steeply at either end), rides it to the end of that bend, and leaves at exactly the speed it came in (slow balls are no longer sped up). The outside of a bend, a square hit, or a straight rail is an ordinary brick, so a ball no longer floats along the outside of a curve. On an S-shaped rail the ride ends where the bend turns the other way.

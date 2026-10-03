@@ -1617,28 +1617,16 @@ function ED:FormatCode(code)
     return table.concat(out, "\n")
 end
 
--- Copy: straight to the clipboard where the client lets an addon do that;
--- otherwise the whole code is selected, ready for Ctrl+C.
+-- Copy: the whole code selected, ready for Ctrl+C. The client's clipboard
+-- function is protected: an addon calling it is blocked (an error pcall
+-- cannot catch), so it is never touched.
 function ED:CopyCode()
     local p = self.codePanel
-    local code = p and p.code
-    if not code then return end
-    local copied = false
-    for _, fn in ipairs({ rawget(_G, "CopyToClipboard"), C_Clipboard and C_Clipboard.SetText }) do
-        if not copied and type(fn) == "function" then
-            local ok = pcall(fn, code)
-            if ok then copied = true end
-        end
-    end
+    if not (p and p.code) then return end
     p.box:SetFocus()
     p.box:HighlightText()
-    if copied then
-        self:Status("The level code is on the clipboard: paste it in a comment on CurseForge.")
-        p.hint:SetText("|cff88ff88Copied to the clipboard.|r Paste it in a comment on the Gnomish Pachinko page on CurseForge.")
-    else
-        p.hint:SetText("|cffffd700The whole code is selected: press Ctrl+C to copy it|r (the game won't let an addon copy for you), then paste it in a comment on CurseForge.")
-    end
-    return copied
+    p.hint:SetText("|cffffd700The whole code is selected: press Ctrl+C to copy it,|r then paste it in a comment on the Gnomish Pachinko page on CurseForge.")
+    return false
 end
 
 function ED:CreateCodePanel()
@@ -1686,7 +1674,7 @@ function ED:CreateCodePanel()
     bg:EnableMouse(true)
     bg:SetScript("OnMouseDown", function() eb:SetFocus() end)
     p.box = eb
-    p.copy = button(p, 120, 26, "Copy", function() ED:CopyCode() end, "Copy the code, to paste in a comment on CurseForge.")
+    p.copy = button(p, 120, 26, "Select all", function() ED:CopyCode() end, "Select the whole code, then press Ctrl+C to copy it.")
     p.copy:SetPoint("BOTTOM", -66, 20)
     p.go = button(p, 120, 26, "Import", function() if ED:Import(p.box:GetText()) then p:Hide() end end)
     p.go:SetPoint("BOTTOM", -66, 20)
@@ -1701,7 +1689,7 @@ function ED:ShowCode(export)
     if export then
         if #self.data.pieces == 0 then return self:Status("Nothing to export yet.") end
         p.title:SetText("Level code")
-        p.hint:SetText("Press Copy, then paste the whole code in a comment on the Gnomish Pachinko page on CurseForge.")
+        p.hint:SetText("Press Select all, then Ctrl+C to copy the code, and paste it in a comment on the Gnomish Pachinko page on CurseForge.")
         p.code = self:ExportCode()
         p.box:SetText(self:FormatCode(p.code))
         p.go:Hide()
