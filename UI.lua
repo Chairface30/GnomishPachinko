@@ -1006,7 +1006,11 @@ function UI:ShowResultCard(result, stars)
     setStars(card.stars, cleared and stars or 0)
     local def = E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic
     local goalLine
-    if result.duel then goalLine = ("YOU %s  -  %s %s"):format(fmtBig(result.duel.you), result.duel.name, fmtBig(result.duel.rival))
+    if result.duel then
+        goalLine = ("YOU %s  -  %s %s"):format(fmtBig(result.duel.you), result.duel.name, fmtBig(result.duel.rival))
+        if result.duel.lastOrange then
+            goalLine = goalLine .. "\n" .. ((result.duel.lastOrange == "you") and "You lit the last orange" or (result.duel.name .. " lit the last orange"))
+        end
     elseif result.objective == "boss" then goalLine = cleared and "Boss beaten" or "The boss survived"
     else goalLine = ("%d of %d %s"):format(result.goals, result.goalTotal, def.goalWord) end
     card.line1:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
@@ -2391,6 +2395,13 @@ function UI:HandleEvents(now)
             GP:PlaySfx("clear.ogg")
             GP:PlayVoice("duel_start")
             self.duelStartAt = now + 2.6
+        elseif t == "duel_last_orange" then
+            if ev.side == "you" then
+                self:ShowBanner("|cffffd700LAST ORANGE!|r", "You take the duel", 2)
+            else
+                self:ShowBanner("|cffff6060LAST ORANGE!|r", (st.duel and st.duel.name or "The rival") .. " takes the duel", 2)
+            end
+            GP:PlaySfx("fever.ogg")
         elseif t == "duel_turn" then
             self:OnDuelTurn(ev.turn, now)
         elseif t == "duel_penalty" then

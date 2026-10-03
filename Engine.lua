@@ -208,10 +208,12 @@ E.LOOSE_BLAST_KICK  = 260       -- a Space Blast throws loose pieces away from i
 
 -- The duel: no piece to hit. Stage one is a board to clear; then the
 -- rival steps up and the two of you shoot turn and turn about on one
--- shared board, DUEL_BALLS each. Highest duel score wins. A shot that
--- lights no orange costs its shooter DUEL_PENALTY of their duel score.
+-- shared board, DUEL_BALLS each. Whoever lights the last orange wins the
+-- duel there and then, keeping every point of that shot; if the balls run
+-- out first, the higher duel score wins. No Fever and no end bonus in a
+-- duel. A shot that lights no orange costs its shooter DUEL_PENALTY.
 E.RIVAL = { id = "cogwhistle", name = "Cogwhistle Overspark",
-    blurb = "Tinkmaster's older brother. Clear the board, then beat his score in a duel: five balls each, turn and turn about, and a shot that lights no orange costs a quarter of your score." }
+    blurb = "Tinkmaster's older brother. Clear the board, then duel him: five balls each, turn and turn about. Whoever lights the last orange wins; otherwise the higher score. A shot that lights no orange costs 500." }
 E.DUEL_BALLS   = 5
 E.DUEL_PENALTY = 500         -- a shot that lights no orange costs this, the ball's own points stand
 E.DUEL_STAGE2_ORANGES = 10
@@ -902,7 +904,18 @@ lightPeg = function(state, p, ball, events, quiet, at)
         push(events, { type = "stage_clear" })
         return
     end
-    if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then startFever(state, events) end
+    if p.goal and state.goalLeft <= 0 and state.phase ~= E.PHASE.FEVER then
+        local d = state.duel
+        if d and d.stage == 2 then
+            -- the last orange decides the duel (no Fever) once the shot is done
+            if not d.lastOrange then
+                d.lastOrange = d.turn
+                push(events, { type = "duel_last_orange", side = d.turn })
+            end
+        else
+            startFever(state, events)
+        end
+    end
 end
 
 -- Touched pieces leave on their own after LIT_SECS, ball or no ball.
@@ -1261,12 +1274,15 @@ end
 local function finishLevel(state, events)
     local cleared = state.goalLeft <= 0
     local d = state.duel
-    if d and d.stage == 2 then cleared = d.scores.you > d.scores.rival end
+    if d and d.stage == 2 then
+        if d.lastOrange then cleared = d.lastOrange == "you"
+        else cleared = d.scores.you > d.scores.rival end
+    end
     if d and d.stage == 1 then cleared = false end
     if state.eggLost then cleared = false end
     state.result = {
         eggLost = state.eggLost or nil,
-        duel = d and d.stage == 2 and { you = d.scores.you, rival = d.scores.rival, name = d.name } or nil,
+        duel = d and d.stage == 2 and { you = d.scores.you, rival = d.scores.rival, name = d.name, lastOrange = d.lastOrange } or nil,
         cleared = cleared,
         score = state.score,
         goals = state.goalHit,
@@ -1466,6 +1482,7 @@ end
 local function duelTurnOver(state, events)
     local d = state.duel
     if not d or d.stage ~= 2 then return false end
+    if d.lastOrange then return true end    -- the last orange is lit: decided
     if state.goalHitThisShot == 0 and state.shots > 0 then
         local lost = math.min(E.DUEL_PENALTY, d.scores[d.turn])
         if lost > 0 then
