@@ -2871,6 +2871,25 @@ UI:HideShowcase()
 """)
 check("the egg tutorial shows the egg cracking, hatching and the phoenix rising", ev("__eggDemo"), ev("__eggSeen"))
 
+# the Slider and Sliding Block tutorials show their piece gliding side to side
+lua(r"""
+function glide_probe(n, key)
+  for _, sc in ipairs(GP.Dialog.SCRIPTS) do GnomishPachinkoDB.dialogs[sc.key] = true end
+  GnomishPachinkoDB.dialogs[key] = nil
+  GnomishPachinkoDB.unlocked = 400
+  UI:StartLevel(n, true)
+  local f = UI.showcase
+  local ok = GP.Dialog:IsShown() and f and f:IsShown() and f.mover ~= nil and f.mover.kind == "slide"
+  local xs, ys = {}, {}
+  for k = 0, 20 do UI:AnimateShowcase(f.startAt + k * 0.1); xs[#xs + 1] = f.x; ys[#ys + 1] = f.y end
+  local function span(t) local lo, hi = math.huge, -math.huge for _, v in ipairs(t) do lo = math.min(lo, v); hi = math.max(hi, v) end return hi - lo end
+  GP.Dialog:Finish()
+  return ok and span(xs) > 20 and span(ys) < 1
+end
+""")
+check("the Slider and Sliding Block tutorials show the piece gliding side to side",
+      ev("glide_probe")(21, "gim_slider") and ev("glide_probe")(121, "gim_sliding_block"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
