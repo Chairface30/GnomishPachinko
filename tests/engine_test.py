@@ -2220,6 +2220,13 @@ function feel_probe()
     end
   end
   out.railKeeps = first ~= nil and minRatio > 0.98
+  -- and once on, the ride lights every brick of the rail
+  local railTotal, railLit = 0, 0
+  for _, p in ipairs(st.pegs) do
+    if p.rail then railTotal = railTotal + 1; if p.lit or p.gone then railLit = railLit + 1 end end
+  end
+  out.railAll = railTotal > 0 and railLit == railTotal
+  out.railCounts = railLit .. "/" .. railTotal
   -- the same shot with the rail already lit: no ride, no speed
   st = E:NewLevel(L:Build(8))
   for _, p in ipairs(st.pegs) do if p.rail then p.lit = true; p.hitAt = 0 end end
@@ -2262,6 +2269,7 @@ end
 """)
 r = ev("feel_probe")()
 check("a Super Slide keeps its speed for the whole ride", r["railKeeps"])
+check("a Super Slide, once taken, lights every brick of its rail", r["railAll"], str(r["railCounts"]))
 check("a lit Super Slide brick is no rail: the ball does not ride it", not r["litRides"])
 check("a gem cannot balance on the point of a peg", r["gemTips"])
 check("an egg falls the moment its cradle is lit, not when the bricks fade", r["eggFalls"])
@@ -2290,29 +2298,21 @@ end
 lvl1, lvl2, b1, b2 = ev("guide_levels_probe")()
 check("Super Guide shows three bounces, and six when earned again while it runs", lvl1 == 1 and lvl2 == 2 and b1 <= 3 and b2 <= 6 and b2 >= b1, f"{lvl1} {lvl2} {b1} {b2}")
 
-# a rail stays whole through the shot: a ball coming back across it later still rides it
+# a lit rail brick leaves on the same clock as any lit piece
 lua(r"""
-function rail_return_probe()
-  local spec = L:Build(11)
-  local keep, cx, cy = {}
-  for _, p in ipairs(spec.pegs) do if p.rail then keep[#keep + 1] = p; cx, cy = p.railCx, p.railCy end end
-  spec.pegs = keep
-  local st = E:NewLevel(spec)
+function rail_expire_probe()
+  local st = E:NewLevel(L:Build(8))
   local events = {}
+  local brick
+  for _, p in ipairs(st.pegs) do if p.rail then brick = p break end end
+  brick.lit = true; brick.hitAt = st.time
   st.phase = E.PHASE.FLIGHT
-  st.balls = { { x = cx - 40, y = cy - 60, vx = 0, vy = 0, slow = 0 } }
-  local rode2 = 0
-  for i = 1, 600 do
-    -- a second ball arrives three seconds later, long after the first lit the bricks
-    if i == 360 then st.balls[#st.balls + 1] = { x = cx - 40, y = cy - 60, vx = 0, vy = 0, slow = 0, tag = 2 } end
-    if i < 360 and #st.balls == 0 then st.balls[1] = { x = 20, y = 30, vx = 0, vy = 0, slow = 0 } end   -- keep the shot going
-    E:Step(st, 1 / 120, events)
-    for _, b in ipairs(st.balls) do if b.tag == 2 and b.rail then rode2 = rode2 + 1 end end
-  end
-  return rode2
+  st.balls = {}
+  for _ = 1, math.ceil((E.LIT_SECS + 0.3) * 60) do E:Step(st, 1 / 60, events) end
+  return brick.gone == true
 end
 """)
-check("a rail stays whole through the shot, so a ball coming back three seconds later still rides it", ev("rail_return_probe")() > 10)
+check("a lit Super Slide brick leaves after LIT_SECS like any lit piece", ev("rail_expire_probe")())
 
 # this round's rules
 lua(r"""

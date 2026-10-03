@@ -127,7 +127,8 @@ local function brickCurve(add, f, count, group, rng, skip, extra)
             local len = sqrt((x - prevx) ^ 2 + (y - prevy) ^ 2)
             if not (skip and rng() < skip) then
                 local b = brick(mx, my, ang, len + 1, E.BRICK_H)
-                if extra then for k, v in pairs(extra) do b[k] = v end end
+                if extra then for key, v in pairs(extra) do b[key] = v end end
+                if b.rail then b.railIdx = k end      -- its place along the rail
                 add(b, group)
             end
         end

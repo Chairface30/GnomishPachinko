@@ -961,41 +961,119 @@ local function brickFrame(q)
     return c, s, nx * side, ny * side
 end
 
-local function railStep(state, ball, events)
+-- A Super Slide: once a ball takes a rail it rides the whole of it. The
+-- rail's bricks, in their order along the curve, make a path along their
+-- inner faces; the ball runs along it at the speed it came on with, lights
+-- every brick it passes, and leaves off the far end along the last brick.
+-- (Searching for the nearest brick each step let a fast ball slip off at a
+-- joint and leave bricks unlit.)
+local function railPath(state, rail)
+    local list = {}
+    for i, q in ipairs(state.pegs) do
+        if q.rail == rail and not q.gone then list[#list + 1] = { q = q, order = q.railIdx or i } end
+    end
+    table.sort(list, function(x, y) return x.order < y.order end)
     local R = E.BALL_R
-    local best, bestD, bx, by, bnx, bny
-    for _, q in ipairs(state.pegs) do
-        -- a brick lit before this ride is no rail any more; the ones this
-        -- ride has lit carry it on
-        if q.rail == ball.rail and not q.gone and (not q.lit or q.rideId == ball.rideId) then
-            local c, s, nx, ny = brickFrame(q)
-            local dx, dy = ball.x - q.x, ball.y - q.y
-            local lx = dx * c + dy * s
-            local ly = dx * nx + dy * ny            -- along the inner face's normal
-            if abs(lx) <= q.w / 2 + R * 1.3 and ly > -q.h and ly < q.h / 2 + R + 14 then
-                local d = abs(ly - (q.h / 2 + R))
-                if not bestD or d < bestD then
-                    best, bestD = q, d
-                    bx, by = q.x + c * lx + nx * (q.h / 2 + R + 0.2), q.y + s * lx + ny * (q.h / 2 + R + 0.2)
-                    bnx, bny = nx, ny
-                end
-            end
+    local pts = {}
+    for k, e in ipairs(list) do
+        local q = e.q
+        local c, s, nx, ny = brickFrame(q)
+        local off = q.h / 2 + R + 0.2
+        pts[k] = { x = q.x + nx * off, y = q.y + ny * off, q = q, c = c, s = s }
+    end
+    if #pts == 0 then return nil end
+    -- run on past the first and last bricks' outer ends
+    local function along(p, other)
+        local dx, dy = p.x - other.x, p.y - other.y
+        local d = sqrt(dx * dx + dy * dy)
+        if d < 0.001 then return 0, 0 end
+        return dx / d, dy / d
+    end
+    if #pts >= 2 then
+        local ux, uy = along(pts[1], pts[2])
+        local w = pts[1].q.w / 2
+        table.insert(pts, 1, { x = pts[1].x + ux * w, y = pts[1].y + uy * w })
+        local vx, vy = along(pts[#pts], pts[#pts - 1])
+        w = pts[#pts].q.w / 2
+        pts[#pts + 1] = { x = pts[#pts].x + vx * w, y = pts[#pts].y + vy * w }
+    end
+    -- arc length at each point
+    pts[1].s = 0
+    for k = 2, #pts do
+        local dx, dy = pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y
+        pts[k].s = pts[k - 1].s + sqrt(dx * dx + dy * dy)
+    end
+    return pts
+end
+
+-- the point and direction at arc length s
+local function railAt(pts, s)
+    for k = 2, #pts do
+        if s <= pts[k].s or k == #pts then
+            local a, b = pts[k - 1], pts[k]
+            local seg = b.s - a.s
+            local f = seg > 0 and (s - a.s) / seg or 0
+            if f < 0 then f = 0 elseif f > 1 then f = 1 end
+            local tx, ty = 0, 0
+            if seg > 0 then tx, ty = (b.x - a.x) / seg, (b.y - a.y) / seg end
+            return a.x + (b.x - a.x) * f, a.y + (b.y - a.y) * f, tx, ty
         end
     end
-    if not best then
-        ball.railLost, ball.railLostAt = ball.rail, state.time     -- remembered a moment, in case it catches the rail again
-        ball.rail = nil
-        return
+    return pts[1].x, pts[1].y, 0, 0
+end
+
+-- The ball takes the rail at brick p: where along it, and which way.
+local function startRide(state, ball, p, events)
+    local pts = railPath(state, ball.rail)
+    if not pts or #pts < 2 then ball.rail = nil return end
+    -- the nearest point of the path
+    local bestS, bestD = 0, nil
+    for k = 2, #pts do
+        local a, b = pts[k - 1], pts[k]
+        local dx, dy = b.x - a.x, b.y - a.y
+        local L2 = dx * dx + dy * dy
+        local f = L2 > 0 and ((ball.x - a.x) * dx + (ball.y - a.y) * dy) / L2 or 0
+        if f < 0 then f = 0 elseif f > 1 then f = 1 end
+        local px, py = a.x + dx * f, a.y + dy * f
+        local d = (ball.x - px) ^ 2 + (ball.y - py) ^ 2
+        if not bestD or d < bestD then bestD, bestS = d, a.s + (b.s - a.s) * f end
     end
-    ball.x, ball.y = bx, by
-    local vn = ball.vx * bnx + ball.vy * bny
-    ball.vx, ball.vy = ball.vx - vn * bnx, ball.vy - vn * bny
-    -- the ride never slows: the ball keeps the speed it came onto the rail with
-    local sp = sqrt(ball.vx * ball.vx + ball.vy * ball.vy)
-    local keep = ball.railSpeed or sp
-    if sp > 0.001 then ball.vx, ball.vy = ball.vx / sp * keep, ball.vy / sp * keep end
-    if not best.lit then best.rideId = ball.rideId end
-    hitPeg(state, best, ball, events)
+    local _, _, tx, ty = railAt(pts, bestS)
+    local dir = (ball.vx * tx + ball.vy * ty) >= 0 and 1 or -1
+    ball.ride = { pts = pts, s = bestS, dir = dir }
+end
+
+local function railStep(state, ball, events, dt)
+    local ride = ball.ride
+    if not ride then ball.rail = nil return end
+    local pts = ride.pts
+    local speed = ball.railSpeed or 300
+    local s0 = ride.s
+    ride.s = ride.s + ride.dir * speed * (dt or 0)
+    local endS = pts[#pts].s
+    -- light every brick the ball has passed this step
+    local lo, hi = math.min(s0, ride.s), math.max(s0, ride.s)
+    for k = 1, #pts do
+        local p = pts[k]
+        if p.q and p.s >= lo - 0.5 and p.s <= hi + 0.5 and not p.q.gone and not p.done then
+            p.done = true
+            if not p.q.lit then p.q.rideId = ball.rideId end
+            hitPeg(state, p.q, ball, events)
+        end
+    end
+    local x, y, tx, ty = railAt(pts, math.max(0, math.min(endS, ride.s)))
+    ball.x, ball.y = x, y
+    ball.vx, ball.vy = tx * speed * ride.dir, ty * speed * ride.dir
+    if ride.s <= 0 or ride.s >= endS then
+        -- off the end: away along the rail's last stretch
+        for k = 1, #pts do
+            local p = pts[k]
+            if p.q and not p.done and not p.q.gone then p.done = true; hitPeg(state, p.q, ball, events) end
+        end
+        ball.ride = nil
+        ball.railLost, ball.railLostAt = ball.rail, state.time
+        ball.rail = nil
+    end
 end
 E.RailStep = railStep
 
@@ -1035,7 +1113,9 @@ collideBall = function(state, ball, events, light)
                     end
                     ball.railSpeed = math.max(E.RAIL_MIN_SPEED * 3, now)
                     ball.x, ball.y = ball.x + nx * depth, ball.y + ny * depth
-                    railStep(state, ball, events)
+                    startRide(state, ball, p, events)
+                    if ball.rail then railStep(state, ball, events, 0) end
+                    return
                 elseif ball.fire and light and not isSolid(p) and p.kind ~= "boss" and not p.loose then
                     -- a fireball burns through: hit it, keep flying
                     hitPeg(state, p, ball, events)
@@ -1226,16 +1306,20 @@ local function bucketCheck(state, body, events, radius)
 end
 
 local function integrateBall(state, ball, dt, events)
-    ball.vy = ball.vy + E.GRAVITY * dt
-    ball.x = ball.x + ball.vx * dt
-    ball.y = ball.y + ball.vy * dt
+    if ball.rail then
+        -- on a Super Slide the rail carries the ball
+        railStep(state, ball, events, dt)
+    else
+        ball.vy = ball.vy + E.GRAVITY * dt
+        ball.x = ball.x + ball.vx * dt
+        ball.y = ball.y + ball.vy * dt
+    end
 
     local R = E.BALL_R
     if ball.x < R then ball.x = R; if ball.vx < 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.x > W - R then ball.x = W - R; if ball.vx > 0 then ball.vx = -ball.vx * E.RESTITUTION end end
     if ball.y < R then ball.y = R; if ball.vy < 0 then ball.vy = -ball.vy * E.RESTITUTION end end
 
-    if ball.rail then railStep(state, ball, events) end
     collideBall(state, ball, events, true)
     collidePyramid(state, ball, events)
     if ball.webbed then
