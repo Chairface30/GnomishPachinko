@@ -1300,9 +1300,14 @@ function UI:PlayFromCard()
     self:UpdateDisplay()
 end
 
--- While a tutorial is spoken the board is still empty, so the piece it is
--- about is shown on its own, where it sits, on a layer above the talk box:
--- a soft glow behind it and the goofy arrow jabbing and wobbling at it.
+-- While a tutorial is spoken the board is still empty, so a sample of the
+-- piece it is about is put up on its own, big, in the middle above the talk
+-- box: a soft glow behind it and the goofy arrow jabbing and wobbling at it.
+-- It is only there for the talk: gone before the level card shows.
+UI.SHOWCASE_X = E.FIELD_W / 2
+UI.SHOWCASE_Y = 205          -- above the talk box (field pixels from the top)
+UI.SHOWCASE_PEG = 64         -- a round piece's sample is drawn this big
+UI.SHOWCASE_BRICK = 1.6      -- a brick's sample, this many times its size
 UI.SHOWCASE_ANGLE = 0.62         -- the arrow comes in from the upper right (from the upper left near the right wall)
 UI.SHOWCASE_DIST = 82
 function UI:ShowShowcase(piece)
@@ -1323,22 +1328,22 @@ function UI:ShowShowcase(piece)
     local slot = pieceSlot(piece, "")
     ART:Set(f.piece, slot)
     if piece.shape == "brick" then
-        f.piece:SetSize(ART:Size(slot, piece.w, piece.h))
-        if f.piece.SetRotation then f.piece:SetRotation(-(piece.angle or 0)) end
-        f.size = math.max(piece.w, piece.h)
+        local w, h = piece.w * self.SHOWCASE_BRICK, piece.h * self.SHOWCASE_BRICK
+        f.piece:SetSize(ART:Size(slot, w, h))
+        if f.piece.SetRotation then f.piece:SetRotation(0) end      -- shown level, a sample
+        f.size = w
     else
-        local r = piece.r or E.PEG_R
-        f.piece:SetSize(ART:Size(slot, r * 2 + 2))
+        f.piece:SetSize(ART:Size(slot, self.SHOWCASE_PEG))
         if f.piece.SetRotation then f.piece:SetRotation(0) end
-        f.size = r * 2
+        f.size = self.SHOWCASE_PEG
     end
     f.piece:ClearAllPoints()
-    f.piece:SetPoint("CENTER", self.field, "TOPLEFT", piece.x, -piece.y)
+    f.piece:SetPoint("CENTER", self.field, "TOPLEFT", self.SHOWCASE_X, -self.SHOWCASE_Y)
     f.glow:SetSize(f.size * 3 + 30, f.size * 3 + 30)
     f.glow:ClearAllPoints()
     f.glow:SetPoint("CENTER", f.piece, "CENTER", 0, 0)
-    f.x, f.y = piece.x, piece.y
-    f.side = (piece.x > E.FIELD_W * 0.62) and -1 or 1
+    f.x, f.y = self.SHOWCASE_X, self.SHOWCASE_Y
+    f.side = 1
     f.startAt = GetTime()
     f:Show()
 end
