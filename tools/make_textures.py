@@ -158,6 +158,30 @@ def half_shield(w, h, color=(1, 1, 1)):
     return img
 
 
+def cb_mark(size, shape):
+    """Colorblind marks: a white shape with a dark outline, readable on any peg."""
+    big = size * SS
+    img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    c = big / 2
+    if shape == "triangle":
+        pts = [(c, big * 0.12), (big * 0.9, big * 0.84), (big * 0.1, big * 0.84)]
+    elif shape == "plus":
+        a, b = big * 0.36, big * 0.64
+        pts = [(a, big * 0.1), (b, big * 0.1), (b, a), (big * 0.9, a), (big * 0.9, b), (b, b),
+               (b, big * 0.9), (a, big * 0.9), (a, b), (big * 0.1, b), (big * 0.1, a), (a, a)]
+    else:
+        pts = []
+        for k in range(10):
+            ang = -math.pi / 2 + k * math.pi / 5
+            r = big * (0.44 if k % 2 == 0 else 0.19)
+            pts.append((c + r * math.cos(ang), c + r * math.sin(ang)))
+    d.polygon(pts, fill=(255, 255, 255, 255), outline=(20, 16, 30, 255))
+    # a thick dark outline
+    d.line(pts + [pts[0]], fill=(20, 16, 30, 255), width=max(2, int(big * 0.07)), joint="curve")
+    return img
+
+
 def soft_glow(size, color=(1, 1, 1), sigma=0.33):
     big = size * SS
     img = Image.new("RGBA", (big, big), (0, 0, 0, 0))
@@ -989,6 +1013,9 @@ def make_all(slots, only, from_base):
     put("crack", crack_img(64))
     put("dot", dot_img(32))
     put("star", star_img(32))
+    put("cb_orange", cb_mark(32, "triangle"))
+    put("cb_green", cb_mark(32, "plus"))
+    put("cb_purple", cb_mark(32, "star"))
     put("blast", burst(128))
     put("pyramid", step_pyramid_img(512, 128))
     for i in range(1, 5):

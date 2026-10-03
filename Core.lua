@@ -43,6 +43,18 @@ function GP:Version()
     return self.VERSION_FALLBACK
 end
 
+-- Colorblind mode: a mark on every orange, green and purple piece (blue has
+-- none), so the colors never have to be told apart by hue alone.
+function GP:ToggleColorblind(on)
+    local db = self:GetDB()
+    if on == nil then on = not db.colorblind end
+    db.colorblind = on and true or false
+    self:Print("Colorblind mode " .. (db.colorblind and "on: orange pieces wear a triangle, green a plus, the purple a star." or "off."))
+    if self.UI and self.UI.settingBoxes and self.UI.settingBoxes.colorblind then self.UI.settingBoxes.colorblind:SetChecked(db.colorblind) end
+    if self.Editor and self.Editor.frame and self.Editor.frame:IsShown() then self.Editor:Redraw() end
+    return db.colorblind
+end
+
 function GP:GetDB()
     GnomishPachinkoDB = GnomishPachinkoDB or {}
     local db = GnomishPachinkoDB
@@ -295,6 +307,8 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         if ok and GP.UI and GP.UI.frame then GP.UI:UpdateDisplay() end
     elseif msg == "gears" then
         GP:Print(("Golden Gears: %d. Shop: suction (1), green (1), ring (2), rainbow (3), plays (10). /pachinko shop <item>; /pachinko buy <n> fills the mail for n gears."):format(GP.Plays:Gears()))
+    elseif msg == "colorblind" or msg == "colourblind" then
+        GP:ToggleColorblind()
     elseif msg == "editor" or msg == "edit" then
         GP.Editor:Toggle()
     elseif msg == "reset" then
@@ -304,7 +318,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     elseif msg == "unlimited" then
         GP:ToggleUnlimited()
     else
-        GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. /pachinko editor - the level editor. " ..
+        GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. /pachinko editor - the level editor. /pachinko colorblind - marks on the colored pegs. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
             "/pachinko sound - toggle sound. /pachinko music - toggle the music. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
     end

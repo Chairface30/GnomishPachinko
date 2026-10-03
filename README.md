@@ -2,7 +2,7 @@
 
 A peg-shooting puzzle game for World of Warcraft (WoW Forever). No gold is ever won: 400 generated levels of pegs, bricks, eggs, gems and bosses to clear, one chapter of ten levels for each of forty places of the original Azeroth.
 
-Open it with `/pachinko` (or `/gp`).
+Open it with `/pachinko` (or `/gp`). `/pachinko colorblind` (or the Colorblind box under the side panel) puts a mark on every orange (triangle), green (plus) and purple (star) piece.
 
 ## Level editor
 

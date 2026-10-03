@@ -2130,6 +2130,7 @@ function ED:TexFor(i)
         t.rim = f:CreateTexture(nil, "ARTWORK", nil, 0)
         t.body = f:CreateTexture(nil, "ARTWORK", nil, 1)
         t.sel = f:CreateTexture(nil, "OVERLAY", nil, 2)
+        t.cb = f:CreateTexture(nil, "OVERLAY", nil, 3)
         t.tag = f:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         t.tag:SetFont("Fonts\\FRIZQT__.TTF", 9, "OUTLINE")
         self.pieceTex[i] = t
@@ -2194,6 +2195,17 @@ function ED:DrawPiece(i, pc)
     else
         t.rim:Hide()
     end
+    -- colorblind mode: the mark of a piece set to a colour
+    local cbSlot = GP:GetDB().colorblind == true and GP.UI.CB_SLOT and GP.UI.CB_SLOT[pc.c or ""]
+    if cbSlot then
+        ART:Set(t.cb, cbSlot)
+        local sz = isBar(pc) and 15 or math.max(11, self:PieceRadius(pc) * 1.35)
+        t.cb:SetSize(sz, sz)
+        place(t.cb, f, pc.x, pc.y)
+        t.cb:Show()
+    else
+        t.cb:Hide()
+    end
     -- an egg's or gem's cradle, drawn faintly
     local k = 0
     for j = 2, #made do
@@ -2226,7 +2238,7 @@ function ED:DrawPiece(i, pc)
 end
 
 function ED:HidePiece(t)
-    t.body:Hide(); t.sel:Hide(); t.rim:Hide(); t.tag:Hide()
+    t.body:Hide(); t.sel:Hide(); t.rim:Hide(); t.tag:Hide(); t.cb:Hide()
     for _, e in ipairs(t.extra) do e:Hide() end
 end
 

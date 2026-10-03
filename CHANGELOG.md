@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Colorblind mode** (a Colorblind box beside Sound and Music, or /pachinko colorblind; off by default): every unlit orange piece wears a white triangle, green a plus and the purple a star (blue has none), so no color has to be told apart by hue. The level editor shows the same marks on pieces set to a color.
 - Level editor: **Redo** (button and Ctrl+Y) beside Undo.
 - Level editor: **mirror while placing**, left-right, top-bottom or quad: every piece placed (pegs, bars, rows, Super Slides, arcs, circles) gets copies across the board's middle lines. A mirrored slide is a rail of its own and a mirrored key opens only its own cage.
 - Level editor: **Preview motion** shows the moving parts moving right on the editor board; any change stops it.

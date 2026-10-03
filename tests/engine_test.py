@@ -1997,6 +1997,57 @@ __cardLayout = c.stars[1].sub:GetText() == "Clear" and c.stars[2].sub:GetText() 
 """)
 check("Level card: the stars spread out with each one's score beneath, no star-score line, and the objective sits centred right over Play", ev("__cardLayout"))
 
+# colorblind mode: a mark on unlit orange, green and purple pieces, none on blue; toggled by box and slash command
+lua(r"""
+GnomishPachinkoDB.colorblind = nil
+GnomishPachinkoDB.unlocked = 400
+UI:StartLevel(3)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+UI:PlayFromCard()
+local st = UI.state
+__advance(2.5)        -- past the intro fade
+local function mark(kind)
+  for i, p in ipairs(st.pegs) do
+    if p.kind == kind and not p.lit then
+      local t = UI.pegTex[i]
+      return t, p
+    end
+  end
+end
+local out = { offByDefault = not GnomishPachinkoDB.colorblind and not UI.settingBoxes.colorblind:GetChecked() }
+local t0, _ = mark("orange")
+out.noneWhenOff = not (t0.cb and t0.cb:IsShown())
+SlashCmdList["GNOMISHPACHINKO"]("colorblind")
+__advance(0.1)
+local to, po = mark("orange")
+local tb = mark("blue")
+local tg = mark("green")
+out.orange = to.cb and to.cb:IsShown() and to.cbSlot == "cb_orange"
+out.blue = not (tb.cb and tb.cb:IsShown())
+out.green = tg and tg.cb and tg.cb:IsShown() and tg.cbSlot == "cb_green"
+out.boxFollows = UI.settingBoxes.colorblind:GetChecked() == true
+-- a lit piece drops its mark
+po.lit = true
+__advance(0.1)
+out.litHides = not to.cb:IsShown()
+-- the purple's mark follows it when it hops
+E:MovePurple(st)
+__advance(0.1)
+local tp = mark("purple")
+out.purple = tp and tp.cb and tp.cb:IsShown() and tp.cbSlot == "cb_purple"
+-- the box turns it off again
+UI.settingBoxes.colorblind:SetChecked(false)
+UI.settingBoxes.colorblind:Click()
+__advance(0.1)
+local anyShown = false
+for _, t in ipairs(UI.pegTex) do if t.cb and t.cb:IsShown() then anyShown = true end end
+out.offAgain = not anyShown and GnomishPachinkoDB.colorblind == false
+__cb = out
+""")
+cb = dict(ev("__cb"))
+check("Colorblind mode: off by default; on (slash command), orange pieces wear a triangle, green a plus, the purple a star that follows it, blue none; a lit piece drops it; the box turns it off",
+      all(cb.values()), str(cb))
+
 # the boss's bar and name sit below it, and a hurt boss shows no cracks
 lua(r"""
 UI:StartLevel(10, true)

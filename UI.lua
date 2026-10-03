@@ -214,6 +214,10 @@ local function starMarks(st)
 end
 UI.StarMarks = starMarks
 
+-- Colorblind mode's marks: the slot for a piece's colour (blue has none).
+local CB_SLOT = { orange = "cb_orange", green = "cb_green", purple = "cb_purple" }
+UI.CB_SLOT = CB_SLOT
+
 -- The ball's picture: fire, rainbow, spooky, electric, winged in Fever.
 local function ballSlot(ball, st, now, electricUntil)
     if ball.fire or ball.item == "ring" then return "ball_fire" end
@@ -738,7 +742,7 @@ function UI:CreateFrame()
     side:SetPoint("TOPLEFT", view, "TOPRIGHT", GAP, 0)
     -- the settings: sound and music, each with its own box
     self.settingBoxes = {}
-    local function settingBox(key, text, y, onChange)
+    local function settingBox(key, text, y, onChange, offByDefault)
         local cb = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
         cb:SetSize(24, 24)
         cb:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", y, -2)
@@ -747,13 +751,14 @@ function UI:CreateFrame()
         label:SetText(text)
         cb.label = label
         cb.key = key
-        cb:SetScript("OnShow", function(self) self:SetChecked(GP:GetDB()[self.key] ~= false) end)
+        local function isOn() local v = GP:GetDB()[key]; if offByDefault then return v == true end return v ~= false end
+        cb:SetScript("OnShow", function(self) self:SetChecked(isOn()) end)
         cb:SetScript("OnClick", function(self)
             local on = self:GetChecked() and true or false
             GP:GetDB()[self.key] = on
             if onChange then onChange(on) end
         end)
-        cb:SetChecked(GP:GetDB()[key] ~= false)
+        cb:SetChecked(isOn())
         self.settingBoxes[key] = cb
         return cb
     end
@@ -763,10 +768,13 @@ function UI:CreateFrame()
             if UI.ahhHandle then UI:StopAhh(false) end
         end
     end)
-    settingBox("music", "Music", 110, function(on)
+    settingBox("music", "Music", 70, function(on)
         if not on then UI:StopFanfare(true)
         elseif UI.state and UI.state.phase == E.PHASE.FEVER then UI:StartFanfare(GetTime()) end
     end)
+    settingBox("colorblind", "Colorblind", 140, function(on)
+        if GP.Editor and GP.Editor.frame and GP.Editor.frame:IsShown() then GP.Editor:Redraw() end
+    end, true)
     self.side = side
     -- the info (level, objective, host and power, balls, score, stars) lives
     -- on a frame of its own; the Golden Gear shop takes the same space when
@@ -1708,7 +1716,7 @@ end
 -- cannon, no boss, no ribbon, no guide; only its painted backdrop.
 function UI:HideBoardContents()
     self.boardHidden = true
-    for _, t in ipairs(self.pegTex or {}) do t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide() end
+    for _, t in ipairs(self.pegTex or {}) do t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); if t.cb then t.cb:Hide() end end
     for _, b in ipairs(self.ballTex or {}) do b:Hide() end
     for _, a in pairs(self.ballAura or {}) do if a.Hide then a:Hide() end end
     for _, t in ipairs(self.trail or {}) do t:Hide() end
@@ -2876,6 +2884,23 @@ local function placeAt(tex, field, x, y)
     tex:SetPoint("CENTER", field, "TOPLEFT", x, -y)
 end
 
+-- One piece's colorblind mark: shown while it is unlit and on the board,
+-- upright even on a turned brick, sized to the piece.
+function UI:ColorMark(t, p, on)
+    local slot = on and not p.post and not p.lit and not p.gone and not t.sweepAt and t.shown ~= "gone"
+        and t.disc:IsShown() and CB_SLOT[p.kind]
+    if slot then
+        if not t.cb then t.cb = self.field:CreateTexture(nil, "OVERLAY", nil, 3) end
+        if t.cbSlot ~= slot then ART:Set(t.cb, slot); t.cbSlot = slot end
+        local size = (p.shape == "brick") and math.min(16, p.h + 6) or math.max(11, (p.r or E.PEG_R) * 1.35)
+        t.cb:SetSize(size, size)
+        placeAt(t.cb, self.field, p.x, p.y)
+        t.cb:Show()
+    elseif t.cb and t.cb:IsShown() then
+        t.cb:Hide()
+    end
+end
+
 function UI:LayoutPegs(midLevel)
     local st = self.state
     local field = self.field
@@ -2955,13 +2980,13 @@ function UI:LayoutPegs(midLevel)
         self.pegIndex[p] = i
         -- the Fever balloons have pictures of their own (postTex)
         if p.post then
-            t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide()
+            t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); if t.cb then t.cb:Hide() end
             t.shown = "post"
         end
     end
     for i = #st.pegs + 1, #self.pegTex do
         local t = self.pegTex[i]
-        t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide()
+        t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); if t.cb then t.cb:Hide() end
         t.shown = "gone"
     end
     if st.boss then
@@ -4189,7 +4214,7 @@ function UI:Render(now)
             -- a Fever balloon (drawn by postTex): any texture left at this
             -- index from a bigger board stays hidden
             if t and t.shown ~= "post" then
-                t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide()
+                t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); if t.cb then t.cb:Hide() end
                 t.shown = "post"
             end
         elseif t then
@@ -4197,7 +4222,7 @@ function UI:Render(now)
                 -- the win sweep
                 local a = 1 - (now - t.sweepAt) / 0.35
                 if a <= 0 then
-                    if t.shown ~= "gone" then t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); t.shown = "gone" end
+                    if t.shown ~= "gone" then t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); if t.cb then t.cb:Hide() end; t.shown = "gone" end
                 elseif now >= t.sweepAt then
                     if not t.sweepSparked then
                         t.sweepSparked = true
@@ -4210,7 +4235,7 @@ function UI:Render(now)
                 local alpha = 1 - age / 0.35
                 if alpha <= 0 then
                     if t.shown ~= "gone" then
-                        t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide()
+                        t.disc:Hide(); t.ring:Hide(); t.rim:Hide(); t.crack:Hide(); if t.cb then t.cb:Hide() end
                         t.shown = "gone"
                     end
                 else
@@ -4348,6 +4373,16 @@ function UI:Render(now)
                     t.disc:SetRotation(-(p.x - (t.x0 or p.x)) / (p.r or E.PEG_R))
                 end
             end
+        end
+    end
+
+    -- colorblind mode: a mark on every unlit orange, green and purple piece
+    local cbOn = GP:GetDB().colorblind == true
+    if cbOn or self.cbShowing then
+        self.cbShowing = cbOn
+        for i, p in ipairs(st.pegs) do
+            local t = self.pegTex[i]
+            if t then self:ColorMark(t, p, cbOn) end
         end
     end
 
