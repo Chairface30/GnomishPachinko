@@ -2718,6 +2718,20 @@ function UI:UpdateDuelHud()
     self.duelRival:Show()
 end
 
+-- The goal's word-art heading shrinks to leave room for its count on the
+-- right ("ORANGE PEGS LEFT" ran under "20 / 20"), kept level with it.
+UI.GOAL_WORD_X, UI.GOAL_WORD_Y = 24, -238
+function UI:FitGoalLabel()
+    local lbl, txt = self.goalLabel, self.goalText
+    if not (lbl and txt) then return end
+    local H = UI.HEAD_H
+    local room = SIDE_W - 6 - (txt:GetStringWidth() or 0) - 10 - UI.GOAL_WORD_X
+    local h = math.max(10, math.min(H, room / 8))
+    lbl:SetSize(h * 8, h)
+    lbl:ClearAllPoints()
+    lbl:SetPoint("TOPLEFT", self.side, "TOPLEFT", UI.GOAL_WORD_X, UI.GOAL_WORD_Y - (H - h) / 2)
+end
+
 function UI:OnDuelTurn(turn, now)
     local st = self.state
     if turn == "rival" then
@@ -4459,6 +4473,7 @@ function UI:UpdateCounters()
     else
         self.goalText:SetText(st.goalLeft .. " / " .. st.goalTotal)
     end
+    self:FitGoalLabel()
     if st.duel and st.duel.stage == 2 then
         self.objectiveText:SetText(("Duel: YOU %s  -  %s %s"):format(fmtBig(st.duel.scores.you), st.duel.name, fmtBig(st.duel.scores.rival)))
     end

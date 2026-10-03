@@ -75,6 +75,7 @@ function Obj:GetWidth() return rawget(self, "_w") or 0 end
 function Obj:GetHeight() return rawget(self, "_h") or 0 end
 function Obj:SetText(t) rawset(self, "_text", t) end
 function Obj:GetText() return rawget(self, "_text") end
+function Obj:GetStringWidth() return #tostring(rawget(self, "_text") or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "") * 8 end
 function Obj:GetFrameLevel() return rawget(self, "_level") or 1 end
 function Obj:SetFrameLevel(n) rawset(self, "_level", n) end
 function Obj:SetShown(v) if v then self:Show() else self:Hide() end end
@@ -1947,6 +1948,17 @@ __plain = not t.rim:IsShown() and not t.crack:IsShown()
 """)
 check("a gold piece hit once turns steel with a crack, hit again a plain peg", ev("__gold") and ev("__steel") and ev("__plain"),
       f'{ev("__gold")} {ev("__steel")} {ev("__plain")}')
+
+# the goal's heading shrinks to leave room for its count: they never overlap
+lua(r"""
+UI:StartLevel(1, true)
+UI.state.goalLeft, UI.state.goalTotal = 25, 25
+UI:UpdateDisplay()
+local p = { UI.goalLabel:GetPoint() }
+__goalRight = (p[4] or 0) + UI.goalLabel:GetWidth()
+__goalValueLeft = 240 - 6 - UI.goalText:GetStringWidth()
+""")
+check("the goal's word-art heading ends before its count starts", ev("__goalRight") < ev("__goalValueLeft"), f'{ev("__goalRight")} < {ev("__goalValueLeft")}')
 
 # the boss's bar and name sit below it, and a hurt boss shows no cracks
 lua(r"""

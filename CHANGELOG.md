@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: the goal's count in the info panel ("20 / 20") ran into the end of its heading ("ORANGE PEGS LEFT"). The heading now shrinks to leave room for the count.
 - **Free Ball Frenzy gives 1 extra ball** (was 3), still with its 5,000 points. Razzle's line is re-voiced to match.
 - **Fewer tutorials:** the Wheel, Twin Wheels, Bumpers, Bumper Gate, Key Gate (level 111) and Sliding Block (level 121) no longer stop for a talk.
 - **The last gem's (or egg's) fall is slowed only at the tube:** it drops at full speed and the slow motion and the crowd's "ahhh" kick in only as it is about to drop into the tube (coming down, close above the mouth and lined up with it). If it lands in another cradle or on a ledge instead, the moment ends as soon as it stops dropping, rather than hanging in slow motion while the "ahhh" ran out.
