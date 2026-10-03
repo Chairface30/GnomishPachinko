@@ -1948,7 +1948,10 @@ function UI:ShowResultCard(result, stars)
     local st = self.state
     local card = self.card
     local cleared = result.cleared
-    if result.duel then
+    local test = self.customTest ~= nil
+    if test then
+        card.title:SetText(cleared and "|cffffd700TEST CLEARED!|r" or (result.eggLost and "|cffff6060TEST: EGG LOST|r" or "|cffff6060TEST: OUT OF BALLS|r"))
+    elseif result.duel then
         card.title:SetText(cleared and "|cffffd700YOU WON!|r" or ("|cffff6060" .. result.duel.name:upper() .. " WON|r"))
     else
         card.title:SetText(cleared and "|cffffd700LEVEL CLEARED!|r" or "|cffff6060OUT OF BALLS|r")
@@ -1987,14 +1990,14 @@ function UI:ShowResultCard(result, stars)
     local newBest = (result.score or 0) > prev and prev > 0
     card.best:SetFont("Fonts\\FRIZQT__.TTF", 18, "OUTLINE")
     card.best:SetTextColor(1, 0.85, 0.3)
-    card.best:SetText(("High score  |cffffffff%s|r%s"):format(fmtBig(high), newBest and "  |cff88ff88NEW!|r" or ""))
+    card.best:SetText(("%s  |cffffffff%s|r%s"):format(test and "Best this test" or "High score", fmtBig(high), newBest and "  |cff88ff88NEW!|r" or ""))
     card.best:Show()
     card.line3:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
     card.line3:SetTextColor(0.75, 0.9, 1)
     local third = ("Best combo  |cffffffff%d|r"):format(result.bestCombo or 0)
-    if not cleared then third = third .. ("\n|cffffb0a0Plays left today: %d|r"):format(GP.Plays:Remaining()) end
+    if not cleared and not test then third = third .. ("\n|cffffb0a0Plays left today: %d|r"):format(GP.Plays:Remaining()) end
     card.line3:SetText(third)
-    if cleared and st.level < L.COUNT and GP:IsUnlocked(st.level + 1) then
+    if cleared and not test and st.level < L.COUNT and GP:IsUnlocked(st.level + 1) then
         card.main.text:SetText("NEXT LEVEL")
         card.main:SetScript("OnClick", function() UI:HideCard(); UI:NextLevel() end)
         styleButton(card.main, true, 0.2, 0.55, 0.25)
@@ -2002,12 +2005,17 @@ function UI:ShowResultCard(result, stars)
     else
         card.main:Hide()
     end
-    card.left.text:SetText("Map")
-    card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect(); if not GP.Plays:CanPlay() then UI:ShowOutOfPlays() end end)
+    if test then
+        card.left.text:SetText("Back to editor")
+        card.left:SetScript("OnClick", function() UI:HideCard(); UI:BackToEditor() end)
+    else
+        card.left.text:SetText("Map")
+        card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect(); if not GP.Plays:CanPlay() then UI:ShowOutOfPlays() end end)
+    end
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right.text:SetText("Retry")
     card.right:SetScript("OnClick", function() UI:Retry() end)
-    styleButton(card.right, GP.Plays:CanPlay(), 0.45, 0.3, 0.2)
+    styleButton(card.right, test or GP.Plays:CanPlay(), 0.45, 0.3, 0.2)
     card.right:Show()
     card.left:ClearAllPoints()                                -- the pair, centred as a group
     local half = card.left:GetWidth() / 2 + 8                 -- a gap between them, whatever their width
@@ -3793,14 +3801,37 @@ end
 
 -- An editor level, test-played: the score and stars in a banner, then back
 -- to the editor. Nothing is recorded.
+-- An editor level's test ends like a real level: the sweep, the banner and
+-- the cleared (stars filling with the score) or failed card. Nothing is
+-- recorded; the card offers Retry and Back to editor.
 function UI:OnCustomOver(result)
-    local spec = self.state
     local marks = self.customStars or {}
     local stars = result.cleared and L.StarsFromMarks(result.score, marks[1], marks[2], marks[3]) or 0
-    self:ShowBanner(result.cleared and "|cffffd700TEST: CLEARED|r" or "|cffff8060TEST: NOT CLEARED|r",
-        ("Score %s  -  %d star%s"):format(fmtBig(result.score), stars, stars == 1 and "" or "s"), 3)
-    GP:PlaySfx(result.cleared and "clear.ogg" or "lost.ogg")
-    self.customBackAt = GetTime() + 3
+    self.cardPrevBest = self.customBest or 0
+    self.customBest = math.max(self.customBest or 0, result.score or 0)
+    self.cardAt = GetTime() + 1.8
+    self.cardResult, self.cardStars = result, stars
+    if result.cleared then
+        local k = 0
+        for i, p in ipairs(self.state.pegs) do
+            local t = self.pegTex[i]
+            if t and not p.gone then
+                k = k + 1
+                t.sweepAt = GetTime() + 0.4 + k * 0.03
+            end
+        end
+        self:ShowBanner("|cffffd700TEST CLEARED!|r", "", 0)
+        GP:PlaySfx("clear.ogg")
+        GP:PlayVoice(stars >= 3 and "three_stars" or "level_cleared")
+    else
+        local goalWord = (E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic).goalWord
+        local progress = result.eggLost and "An egg fell off the board." or ("%d of %d %s."):format(result.goals, result.goalTotal, goalWord)
+        self:ShowBanner(result.eggLost and "|cffff6060EGG LOST|r" or "|cffff6060OUT OF BALLS|r", progress, 0)
+        GP:PlaySfx("fail.ogg")
+        GP:PlayVoice("out_of_balls")
+    end
+    self:HideGuide()
+    self:UpdateDisplay()
 end
 
 -- Leave a test early (or after it ends) for the editor.
@@ -3819,6 +3850,7 @@ function UI:StartCustom(data, n)
     -- the map (where the editor is opened from) gives way to the board
     if self.levelPanel and self.levelPanel:IsShown() then self:HideLevelSelect() end
     if self.playsPanel and self.playsPanel:IsShown() then self.playsPanel:Hide(); self:SetBoardChrome(true) end
+    self.customBest = 0
     local ok = self:StartLevel(n or 1, false, { custom = data })
     self.customStars = self.state and self.state.stars
     return ok

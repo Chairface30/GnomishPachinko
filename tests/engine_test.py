@@ -4593,9 +4593,28 @@ st.balls = {}
 st.ballsLeft = 0
 for _ = 1, 10 do E:Step(st, 1 / 30, UI.events) end
 UI:HandleEvents(GetTime())
-__overSeen = UI.customBackAt ~= nil
 __advance(4)
-__back = ED.frame:IsShown() and not ED.testing
+-- the cleared card, as for a real level, with Back to editor and Retry; nothing about plays
+local card = UI.card
+__overSeen = card:IsShown() and (card.title:GetText() or ""):find("TEST CLEARED", 1, true) ~= nil
+  and card.left.text:GetText() == "Back to editor" and card.right.text:GetText() == "Retry"
+  and not (card.line3:GetText() or ""):find("Plays left", 1, true) and card.fillAnim ~= nil
+card.left:Click()
+__back = ED.frame:IsShown() and not ED.testing and not card:IsShown()
+-- a test that runs out of balls: the failed card, and Retry plays the test again
+ED:Test()
+UI:PlayFromCard()
+st = UI.state
+st.phase = E.PHASE.FLIGHT
+st.balls = {}
+st.ballsLeft = 0
+for _ = 1, 10 do E:Step(st, 1 / 30, UI.events) end
+UI:HandleEvents(GetTime())
+__advance(4)
+__failCard = card:IsShown() and (card.title:GetText() or ""):find("TEST: OUT OF BALLS", 1, true) ~= nil
+card.right:Click()
+__retried = UI.customTest ~= nil and UI.state.custom == true and UI.state ~= st
+UI:BackToEditor()
 -- the footer button leaves a test early
 ED:Test()
 UI:PlayFromCard()
@@ -4604,8 +4623,10 @@ __earlyBack = ED.frame:IsShown() and not UI.toEditorBtn:IsShown()
 __noRecord = GnomishPachinkoDB.best[1] == bestBefore
 UI.customTest = nil
 """)
-check("Test play runs the level on the board (the map closes, no builder named on the card), records nothing, and returns to the editor; Back to editor in the footer leaves early",
-      ev("__testing") and ev("__back") and ev("__noRecord") and ev("__toEditorShown") and ev("__earlyBack"), f'{ev("__testing")} {ev("__back")} {ev("__noRecord")} {ev("__overSeen")}')
+check("Test play runs the level on the board (the map closes, no builder named on the card), records nothing; Back to editor in the footer leaves early",
+      ev("__testing") and ev("__noRecord") and ev("__toEditorShown") and ev("__earlyBack"), f'{ev("__testing")} {ev("__noRecord")} {ev("__toEditorShown")} {ev("__earlyBack")}')
+check("A test ends with the cleared card (stars filling, Back to editor and Retry, no plays line) or the failed card; Retry plays the test again",
+      ev("__overSeen") and ev("__back") and ev("__failCard") and ev("__retried"), f'{ev("__overSeen")} {ev("__back")} {ev("__failCard")} {ev("__retried")}')
 
 # sharing: everyone exports; only the owner imports and approves, and an approved level replaces the generated one
 lua(r"""

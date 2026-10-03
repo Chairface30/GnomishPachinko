@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Test plays end with a card:** the cleared card (the score counting up and the stars filling by the level's own marks, the sweep and fanfare) or the failed card (out of balls, egg lost), titled TEST, with **Back to editor** and **Retry** and no plays line. Nothing is recorded.
 - Level editor: **Export code** shows the code as a block in a scrolling box, with a **Select all** button that selects the whole code for Ctrl+C (the game's clipboard is off limits to addons: an earlier Copy button that tried it caused an error). Import takes a code pasted as a block or as one line.
 - A code made on one of the owner's own characters is not a submission when imported: it carries no builder credit.
 - Level editor: **star scores.** Type the score for 1, 2 and 3 stars (blank keeps them automatic: the first star for clearing, the others worked out from the board); the left column shows the marks the level ends up with. A level that sets a 1-star score gives no star for a clear below it (it still counts as cleared). The level card, the info panel and the result card's stars use the level's own marks.
