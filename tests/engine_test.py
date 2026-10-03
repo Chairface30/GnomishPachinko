@@ -1284,16 +1284,20 @@ local function snap() local t = {} for k, v in pairs(P:Items()) do t[k] = v end 
 __i0 = snap()
 GP:RecordResult({ level = 3, cleared = true, score = 999999999, objective = 'classic', goals = 3, goalTotal = 3 })
 __i1 = snap()
+GnomishPachinkoDB.cleared[10] = nil
 GP:RecordResult({ level = 10, cleared = true, score = 999999999, objective = 'boss', goals = 1, goalTotal = 1 })
 __i2 = snap()
+GP:RecordResult({ level = 10, cleared = true, score = 999999999, objective = 'boss', goals = 1, goalTotal = 1 })
+__i3 = snap()
 local db = GnomishPachinkoDB
 db.cleared[3], db.stars[3], db.best[3], db.cleared[10], db.stars[10], db.best[10] = nil, nil, nil, nil, nil, nil
 db.unlocked = 1
 """)
-i0, i1, i2 = dict(ev("__i0")), dict(ev("__i1")), dict(ev("__i2"))
-check("only bosses give special balls: an ordinary three-star clear gives nothing",
-      i1 == i0 and i2["ring"] == i1["ring"] + 2 and i2["rainbow"] == i1["rainbow"] + 1 and i2["suction"] == i1["suction"] + 2 and i2["green"] == i1["green"] + 1,
-      f"{i0} {i1} {i2}")
+i0, i1, i2, i3 = dict(ev("__i0")), dict(ev("__i1")), dict(ev("__i2")), dict(ev("__i3"))
+check("clearing a chapter gives one of each special ball, the first time only; an ordinary clear gives nothing",
+      i1 == i0 and i2["ring"] == i1["ring"] + 1 and i2["rainbow"] == i1["rainbow"] + 1 and i2["suction"] == i1["suction"] + 1
+      and i2["green"] == i1["green"] and i3 == i2,
+      f"{i0} {i1} {i2} {i3}")
 hosts = [ev(f"GP:HostFor({n}).id") for n in (1, 11, 21, 31, 41)]
 check("four gnome hosts take the chapters in turn", hosts == ["tink", "mekka", "razzle", "bink", "tink"], str(hosts))
 check("the level card offers the host's two powers",

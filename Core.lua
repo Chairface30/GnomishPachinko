@@ -93,6 +93,8 @@ end
 
 -- Records a finished level. Returns the stars earned this time and the
 -- plays left for the day (a lost level spends one).
+GP.CHAPTER_REWARDS = { { item = "ring", n = 1 }, { item = "rainbow", n = 1 }, { item = "suction", n = 1 } }
+
 function GP:RecordResult(result)
     -- only a result the engine itself produced counts, and only once
     if not (type(result) == "table" and ns.issued and ns.issued[result]) then
@@ -102,12 +104,13 @@ function GP:RecordResult(result)
     local db = self:GetDB()
     local n = result.level
     local stars = self.Levels:StarsFor(n, result.score, result.cleared)
+    local wasCleared = db.cleared and db.cleared[n]
     if not result.cleared then self.Plays:RecordFail() end
-    -- rewards come from bosses (and duels) only: special balls, a suction
-    -- tube and an Extra Green Peg; everything else is bought with gears
+    -- clearing a chapter (its last level, the boss or the duel) gives one of
+    -- each special ball, the first time only; everything else is bought with gears
     local rewards = {}
-    if result.cleared and (result.objective == "boss" or result.duel) then
-        for _, r in ipairs({ { item = "ring", n = 2 }, { item = "rainbow", n = 1 }, { item = "suction", n = 2 }, { item = "green", n = 1 } }) do
+    if result.cleared and n % self.Levels.PER_CHAPTER == 0 and not wasCleared then
+        for _, r in ipairs(self.CHAPTER_REWARDS) do
             ns.Secure.AddItem(r.item, r.n)
             rewards[#rewards + 1] = r
         end
