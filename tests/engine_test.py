@@ -2805,7 +2805,7 @@ GP.Dialog:Finish()
 UI:ShowToughDemo({ 2, 3 })
 local f = UI.showcase
 local d1, d2 = f.demoTex[1], f.demoTex[2]
-__demoShown = f:IsShown() and not f.piece:IsShown() and d1.rim:IsShown() and d2.rim:IsShown()
+__demoShown = f:IsShown() and not f.piece:IsShown() and d1.rim:IsShown() and d2.rim:IsShown() and not f.arrow:IsShown()
 local r1, r2 = d1.rimColor, d2.rimColor
 __demoRims = r1[3] > r2[3]          -- steel is cooler, gold warmer
 local seen = { cracked = false, lit = false, ball = false }
@@ -2821,7 +2821,7 @@ __demoReset = d1.state == 2 and not d1.crack:IsShown()
 __demoSeen = seen.cracked and seen.lit and seen.ball
 UI:HideShowcase()
 """)
-check("the tough pieces' tutorial shows a steel and a gold rimmed peg bouncing a ball, cracking, then lighting",
+check("the tough pieces' tutorial shows a steel and a gold rimmed peg bouncing a ball, cracking, then lighting (no arrow)",
       ev("__demoShown") and ev("__demoRims") and ev("__demoSeen") and ev("__demoReset"),
       f"{ev('__demoShown')} {ev('__demoRims')} {ev('__demoSeen')} {ev('__demoReset')}")
 
@@ -2865,7 +2865,7 @@ for k = 0, 80 do
     birdY0 = birdY0 or y
   end
 end
-__eggDemo = seen.egg and seen.cracked and seen.hatched and seen.rise and not d.rim:IsShown()
+__eggDemo = seen.egg and seen.cracked and seen.hatched and seen.rise and not d.rim:IsShown() and f.arrow:IsShown()
 __eggSeen = (seen.egg and "e" or "") .. (seen.cracked and "c" or "") .. (seen.hatched and "h" or "") .. (seen.rise and "r" or "")
 UI:HideShowcase()
 """)

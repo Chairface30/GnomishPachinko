@@ -1326,6 +1326,7 @@ function UI:ShowShowcase(piece)
     local f = self.showcase
     -- an ordinary showcase: no tough-piece demo samples
     f.demoN = nil
+    f.arrow:Show()
     for _, d in ipairs(f.demoTex or {}) do d.rim:Hide(); d.disc:Hide(); d.crack:Hide(); d.ball:Hide(); if d.bird then d.bird:Hide() end end
     f.piece:Show()
     local slot = pieceSlot(piece, "")
@@ -1395,6 +1396,8 @@ function UI:ShowToughDemo(hits)
     local n = #hits
     local egg = hits.kind == "egg"
     f.demoEgg = egg
+    -- the rimmed pegs need no arrow: they are all there is to look at
+    if not egg then f.arrow:Hide() end
     local size = self.SHOWCASE_PEG * (egg and 1.3 or 1)
     f.demoSize = size
     for i, h in ipairs(hits) do
