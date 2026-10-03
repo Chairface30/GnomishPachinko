@@ -1376,25 +1376,6 @@ check("an egg whose nest is cleared falls, and the bucket saves and hatches it",
 fell, saved, lost, goal_hit, phase, cleared, egg_lost = ev("egg_fall_probe")(False)
 check("an egg off the board loses the level", fell == 1 and lost == 1 and phase == "OVER" and cleared == False and egg_lost == True, f"fell {fell} lost {lost} {phase} {cleared} {egg_lost}")
 
-# Play On: three more balls after running out, not after a lost egg
-lua(r"""
-function play_on_probe()
-  local spec = L:Build(1)
-  spec.pegs = { { shape = "peg", x = 60, y = 450, kind = "orange", goal = true } }
-  spec.goal = 1
-  local st = E:NewLevel(spec)
-  st.ballsLeft = 1
-  st.aim = 0
-  local events = {}
-  E:Launch(st, events)
-  for _ = 1, 400 do E:Step(st, 1 / 60, events) wipe(events) if st.phase == E.PHASE.OVER then break end end
-  local over = st.phase == E.PHASE.OVER and st.result and not st.result.cleared
-  local ok = E:PlayOn(st)
-  return over, ok, st.ballsLeft, st.phase
-end
-""")
-over, ok, balls, phase = ev("play_on_probe")()
-check("Play On after running out of balls gives three more and the level carries on", over and ok and balls == 3 and phase == "AIM", f"{over} {ok} {balls} {phase}")
 
 # a Long Shot level: two long shots finish it
 lua(r"""
@@ -2917,6 +2898,35 @@ end
 on_spot, web_total = ev("web_spot_probe")()
 check("the Gyro Spider's webs also pop up where pegs have been cleared, not only in open space",
       on_spot > 0 and on_spot < web_total, f"{on_spot} of {web_total}")
+
+# a retry uses a play; a lost level has already paid for its attempt
+lua(r"""
+local P = GP.Plays
+__ns.VaultGet().fails = {}
+UI:StartLevel(2, true)
+UI:HideCard()
+local r0 = P:Remaining()
+UI.retryBtn:GetScript("OnClick")(UI.retryBtn)          -- mid-level
+local r1 = P:Remaining()
+-- lose the level: the loss costs a play, the retry after it does not
+local st = UI.state
+st.ballsLeft = 0
+st.balls = {}
+st.phase = E.PHASE.FLIGHT
+local events = {}
+for _ = 1, 600 do E:Step(st, 1 / 60, events) if st.phase == E.PHASE.OVER then break end end
+UI.events = events
+UI:HandleEvents(GetTime())
+local r2 = P:Remaining()
+UI:Retry()
+local r3 = P:Remaining()
+__retry = { r0 - r1, r1 - r2, r2 - r3, UI.card.main:IsShown() and UI.card.main.text:GetText() or "" }
+__ns.VaultGet().fails = {}
+""")
+rt = list(ev("__retry").values())
+check("a retry uses a play (mid-level), a loss uses one, and a retry after a loss is not charged twice",
+      rt[0] == 1 and rt[1] == 1 and rt[2] == 0, str(rt))
+check("there is no Play On", ev("E.PlayOn") is None and "PLAY ON" not in open("UI.lua", encoding="utf-8").read())
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

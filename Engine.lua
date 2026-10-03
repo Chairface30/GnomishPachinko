@@ -214,7 +214,6 @@ E.OBJECTIVES = {
     duel    = { name = "Duel",    goalWord = "orange pegs", text = "Light every orange peg while the boss takes its turns" },
     longshots = { name = "Long Shots", goalWord = "long shots", text = "Make Long Shots: light two orange pegs far apart in one shot" },
 }
-E.PLAY_ON_BALLS = 3         -- a continue after running out of balls
 E.PHOENIX_POINTS = 5000     -- an egg saved in the bucket
 -- Loose pieces (eggs and gems) are bodies: gravity pulls them, the bricks
 -- of their cradle hold them up, and they roll when a ball or a blast
@@ -1324,18 +1323,6 @@ collideBall = function(state, ball, events, light)
             end
         end
     end
-end
-
--- Play On: after running out of balls, three more and the level carries on.
--- Not in a duel's second stage, and not after a lost egg.
-function E:PlayOn(state)
-    if state.phase ~= E.PHASE.OVER or not state.result or state.result.cleared then return false end
-    if state.eggLost or (state.duel and state.duel.stage == 2) then return false end
-    state.result = nil
-    state.ballsLeft = state.ballsLeft + E.PLAY_ON_BALLS
-    state.phase = E.PHASE.AIM
-    self:MovePurple(state)
-    return true
 end
 
 -- A pre-level Extra Green Peg: one unlit plain blue peg turns green.

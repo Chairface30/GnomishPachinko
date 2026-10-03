@@ -46,7 +46,7 @@ Every cleared level earns one to three stars by score. The marks come from the l
 
 ### Plays
 
-Losing a level (running out of balls) spends one of the day's plays, and out of balls on an ordinary level you can Play On with three more balls for a play. You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back.
+Losing a level (running out of balls) spends one of the day's plays, and so does a Retry (starting a level over, or replaying one you just cleared). You get five free plays in any rolling 24 hours; clearing a level never costs one. When they are gone the game shows how long until the next free play comes back.
 
 ### Golden Gears
 

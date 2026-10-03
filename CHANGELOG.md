@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Play On is gone,** and **a retry uses a play**: starting a level over (the Retry button beside the board, or on the result card after a clear) spends one of the day's plays. A lost level still costs one play, and retrying it after the loss does not cost a second.
 - The Gyro Spider's webs can also pop up right where a peg has been cleared, as well as in the open spaces.
 - The phoenix egg tutorials show an egg being hit: it cracks, hatches on the last hit (two, or three for the tougher eggs), and the phoenix climbs out of it and away, over and over while the host talks, with no arrow.
 - The moving-piece tutorials (Slider, Lifts, Wheel, Pendulum, Twin Wheels) show a plain moving piece instead of whatever moved first (the Lifts talk showed the purple peg), and show it moving: lifts bob, sliders glide, wheels circle, pendulums swing.

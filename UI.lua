@@ -862,7 +862,7 @@ function UI:CreateFrame()
     self.nextBtn:SetScript("OnClick", function() UI:NextLevel() end)
     self.retryBtn = makeButton(side, SIDE_W, 30, "", "btn_restart")
     self.retryBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 92)
-    self.retryBtn:SetScript("OnClick", function() UI:StartLevel(UI.state and UI.state.level or GP:GetDB().current, true) end)
+    self.retryBtn:SetScript("OnClick", function() UI:Retry() end)
     self.levelsBtn = makeButton(side, SIDE_W, 30, "", "btn_levels")
     self.levelsBtn:SetPoint("BOTTOMLEFT", side, "BOTTOMLEFT", 0, 60)
     self.levelsBtn:SetScript("OnClick", function() UI:ShowLevelSelect() end)
@@ -1934,20 +1934,15 @@ function UI:ShowResultCard(result, stars)
         card.main:SetScript("OnClick", function() UI:HideCard(); UI:NextLevel() end)
         styleButton(card.main, true, 0.2, 0.55, 0.25)
         card.main:Show()
-    elseif self.pendingFail then
-        card.main.text:SetText(("PLAY ON  (+%d balls, 1 play)"):format(E.PLAY_ON_BALLS))
-        card.main:SetScript("OnClick", function() UI:PlayOn() end)
-        styleButton(card.main, GP.Plays:CanPlay(), 0.2, 0.55, 0.25)
-        card.main:Show()
     else
         card.main:Hide()
     end
-    card.left.text:SetText(self.pendingFail and "End level" or "Map")
-    card.left:SetScript("OnClick", function() UI:SettlePendingFail(); UI:HideCard(); UI:ShowLevelSelect(); if not GP.Plays:CanPlay() then UI:ShowOutOfPlays() end end)
+    card.left.text:SetText("Map")
+    card.left:SetScript("OnClick", function() UI:HideCard(); UI:ShowLevelSelect(); if not GP.Plays:CanPlay() then UI:ShowOutOfPlays() end end)
     styleButton(card.left, true, 0.35, 0.3, 0.45)
     card.right.text:SetText("Retry")
-    card.right:SetScript("OnClick", function() UI:SettlePendingFail(); UI:HideCard(); UI:StartLevel(st.level, true) end)
-    styleButton(card.right, GP.Plays:Remaining() >= (self.pendingFail and 2 or 1), 0.45, 0.3, 0.2)
+    card.right:SetScript("OnClick", function() UI:Retry() end)
+    styleButton(card.right, GP.Plays:CanPlay(), 0.45, 0.3, 0.2)
     card.right:Show()
     card.left:ClearAllPoints()                                -- the pair, centred as a group
     local half = card.left:GetWidth() / 2 + 8                 -- a gap between them, whatever their width
@@ -2248,11 +2243,8 @@ end
 function UI:ShowLevelSelect()
     self:Initialize()
     -- a card still up (the level card, or the cleared/failed card) goes
-    -- first, whichever button opened the map; an unanswered Play On is settled
-    if self.card and self.card:IsShown() then
-        self:SettlePendingFail()
-        self:HideCard()
-    end
+    -- first, whichever button opened the map
+    if self.card and self.card:IsShown() then self:HideCard() end
     local current = (self.state and self.state.level) or GP:GetDB().current or 1
     self.levelPage = math.floor((current - 1) / L.PER_CHAPTER) + 1
     self:LevelPage(self.levelPage)
@@ -2474,7 +2466,6 @@ end
 -- retry=true deals the colours again (oranges land on other pegs).
 function UI:StartLevel(n, retry)
     self:Initialize()
-    self:SettlePendingFail()
     if not GP:IsUnlocked(n) then n = GP:GetDB().unlocked or 1 end
     if not GP.Plays:CanPlay() then
         self:ShowOutOfPlays()
@@ -3673,44 +3664,28 @@ function UI:HandleEvents(now)
     for i = #self.events, 1, -1 do self.events[i] = nil end
 end
 
--- A loss is recorded when the player gives up on it (Retry, Map, End
--- Level, or starting something else); Play On carries the level on first.
-function UI:SettlePendingFail()
-    if not self.pendingFail then return end
-    local result = self.pendingFail
-    self.pendingFail = nil
-    GP:RecordResult(result)
-    self:UpdateDisplay()
-end
-
-function UI:PlayOn()
+-- Retry (the button beside the board, or on the result card): a retry uses
+-- a play. A lost level has already paid for its attempt; starting over in
+-- the middle of one, or replaying one just cleared, spends a play here.
+function UI:Retry()
     local st = self.state
-    if not st or not self.pendingFail then return end
-    if not GP.Plays:CanPlay() then return end
-    if not E:PlayOn(st) then return end
-    GP.Plays:RecordFail()          -- the continue costs a play
-    self.pendingFail = nil
-    self:HideCard()
-    self:ShowBanner("|cff88ff88PLAY ON!|r", ("%d more balls"):format(E.PLAY_ON_BALLS), 2)
-    GP:PlaySfx("free_ball.ogg")
-    GP:PlayVoice("free_ball")
-    GP.Mascot:React("start")
-    self:UpdateDisplay()
+    local n = st and st.level or GP:GetDB().current or 1
+    if not GP.Plays:CanPlay() then
+        self:ShowOutOfPlays()
+        self:UpdateDisplay()
+        return false
+    end
+    local paid = st and st.result and not st.result.cleared
+    if not paid then GP.Plays:RecordFail() end
+    if self.card then self:HideCard() end
+    return self:StartLevel(n, true)
 end
 
 function UI:OnLevelOver(result)
     local db = GP:GetDB()
     local prevBest = db.best[result.level] or 0
     self.cardPrevBest = prevBest
-    local stars, playsLeft
-    local canPlayOn = not result.cleared and not result.duel and not result.eggLost
-    if canPlayOn then
-        -- not recorded yet: the card offers Play On
-        self.pendingFail = result
-        stars, playsLeft = 0, GP.Plays:Remaining()
-    else
-        stars, playsLeft = GP:RecordResult(result)
-    end
+    local stars, playsLeft = GP:RecordResult(result)
     GP.Mascot:React(result.cleared and "cleared" or "failed")
     self.cardAt = GetTime() + 1.8
     self.cardResult, self.cardStars = result, stars
@@ -3748,7 +3723,7 @@ function UI:OnLevelOver(result)
             progress .. ("  Plays left today: %d."):format(playsLeft), 0)
         GP:PlaySfx("fail.ogg")
         GP:PlayVoice(playsLeft <= 0 and "out_of_plays" or (result.duel and "duel_lost" or "out_of_balls"))
-        if playsLeft <= 0 and not self.pendingFail then
+        if playsLeft <= 0 then
             self:ShowOutOfPlays(("You ran out of balls on level %d."):format(result.level))
         end
     end
