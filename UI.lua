@@ -972,6 +972,7 @@ function UI:CreateFrame()
     self:CreateLevelSelect()
     self:CreatePlaysPanel()
     self:CreateCard()
+    self:CreateTestFlyout(frame)
     -- the talk box over everything, the cards (and their big stars) included
     if GP.Dialog then GP.Dialog:Create(frame, view, field:GetFrameLevel() + UI.CARD_LEVEL + 30) end
     -- the host's box: a round frame centred over the field's top edge, the model inside it
@@ -1756,6 +1757,49 @@ UI.PORTRAIT_STRIPS = 1
 
 UI.TUBE_DIM = 0.38      -- an unscored Fever tube is drawn this dark
 
+-- The testing buttons, for the owner's characters only, in a fly-out on
+-- the right side of the window: a tab that opens a panel holding them.
+function UI:CreateTestFlyout(frame)
+    local tab = makeButton(frame, 96, 30, "Testing")
+    tab:SetPoint("TOPLEFT", frame, "TOPRIGHT", -8, -110)
+    tab:SetFrameLevel(frame:GetFrameLevel() + 60)
+    local fly = CreateFrame("Frame", nil, frame)
+    fly:SetSize(204, 20)
+    fly:SetPoint("TOPLEFT", tab, "BOTTOMLEFT", 0, -4)
+    fly:SetFrameLevel(frame:GetFrameLevel() + 60)
+    fly.skin = ART:NewSkin(fly, "card", "BACKGROUND", 0)
+    fly:EnableMouse(true)
+    fly:Hide()
+    local title = fly:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("TOP", fly, "TOP", 0, -14)
+    title:SetText("|cffffd700Testing (owner only)|r")
+    local list = { self.levelPanel.unlock, self.levelPanel.unlimited, self.freeBtn, self.levelPanel.reset }
+    for i, b in ipairs(list) do
+        if b.SetParent then b:SetParent(fly) end
+        b:ClearAllPoints()
+        b:SetPoint("TOP", fly, "TOP", 0, -36 - (i - 1) * 34)
+        b:SetWidth(180)
+        b:SetFrameLevel(fly:GetFrameLevel() + 2)
+    end
+    fly:SetHeight(36 + #list * 34 + 12)
+    tab:SetScript("OnClick", function()
+        if fly:IsShown() then fly:Hide() else UI:RefreshTestFlyout(); fly:Show() end
+    end)
+    self.testTab, self.testFly = tab, fly
+    self:RefreshTestFlyout()
+end
+
+function UI:RefreshTestFlyout()
+    if not self.testTab then return end
+    local owner = GP.Plays:IsOwner()
+    if owner then self.testTab:Show() else self.testTab:Hide(); self.testFly:Hide() end
+    local lp = self.levelPanel
+    if owner then
+        lp.unlimited.text:SetText(GP:Unlimited() and "Unlimited: on" or "Unlimited: off")
+        for _, b in ipairs({ lp.unlock, lp.unlimited, self.freeBtn, lp.reset }) do b:Show() end
+    end
+end
+
 -- The board's chrome: the host's box, the balls-left strip, the special-ball
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
 function UI:SetBoardChrome(shown)
@@ -1819,16 +1863,9 @@ function UI:LevelPage(page)
     styleButton(panel.next10, page < pages, 0.3, 0.3, 0.45)
     styleButton(panel.back, true, 0.35, 0.3, 0.45)
     styleButton(panel.reset, true, 0.45, 0.2, 0.2)
-    if GP.Plays:IsOwner() then
-        styleButton(panel.unlock, true, 0.2, 0.5, 0.25)
-        panel.unlock:Show()
-        panel.unlimited.text:SetText(GP:Unlimited() and "Unlimited: on" or "Unlimited: off")
-        styleButton(panel.unlimited, true, 0.2, 0.5, 0.25)
-        panel.unlimited:Show()
-    else
-        panel.unlock:Hide()
-        panel.unlimited:Hide()
-    end
+    styleButton(panel.unlock, true, 0.2, 0.5, 0.25)
+    styleButton(panel.unlimited, true, 0.2, 0.5, 0.25)
+    self:RefreshTestFlyout()
     if panel.reset.armedUntil and GetTime() >= panel.reset.armedUntil then
         panel.reset.armedUntil = nil
         panel.reset.text:SetText("Reset progress")
@@ -1927,11 +1964,8 @@ function UI:ShowOutOfPlays(reason)
     panel.buy.text:SetText(P:Gears() >= P.SHOP.plays.cost and "Buy 5 plays for 10 Golden Gears" or "Get Golden Gears by mail")
     styleButton(panel.buy, true, 0.55, 0.4, 0.1)
     styleButton(panel.levels, true, 0.35, 0.3, 0.45)
-    if P:IsOwner() then
-        styleButton(panel.free, true, 0.2, 0.5, 0.25)
+    if false then        -- the owner's gears button lives in the Testing fly-out now
         panel.free:Show()
-        panel.how:ClearAllPoints()
-        panel.how:SetPoint("TOP", panel.free, "BOTTOM", 0, -10)
     else
         panel.free:Hide()
         panel.how:ClearAllPoints()
@@ -3957,12 +3991,8 @@ function UI:UpdateDisplay()
     for _, b in ipairs(self.shopBtns) do
         styleButton(b, P:Gears() >= P.SHOP[b.what].cost, 0.5, 0.38, 0.1)
     end
-    if P:IsOwner() then
-        styleButton(self.freeBtn, true, 0.2, 0.5, 0.25)
-        self.freeBtn:Show()
-    else
-        self.freeBtn:Hide()
-    end
+    styleButton(self.freeBtn, true, 0.2, 0.5, 0.25)
+    self:RefreshTestFlyout()
 end
 
 function UI:Show()
