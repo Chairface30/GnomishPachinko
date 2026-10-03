@@ -224,9 +224,8 @@ E.LOOSE_DRAG        = 0.9       -- rolling drag: share of the tangent speed lost
 E.LOOSE_SLEEP       = 10        -- slower than this ...
 E.LOOSE_SLEEP_SECS  = 0.25      -- ... for this long while touching something: at rest
 E.LOOSE_NUDGE       = { egg = 0.08, gem = 0.26 }  -- share of the ball's speed a hit passes on (a gem lighter than an egg)
--- a gem's mass: the shove a hit gives it is divided by this. TEMPORARY: the
--- owner's Gem mass slider (Testing fly-out) sets it until it is hardcoded.
-E.GEM_MASS          = 1
+-- a gem's mass: the shove a hit gives it is divided by this (set by eye)
+E.GEM_MASS          = 3.5
 E.LOOSE_TIP         = 260       -- balanced on a single point, a piece tips off it this hard (pixels a second squared)
 -- A hatched egg's phoenix flies straight up off the board, lighting every
 -- piece in a column twice the egg's width.

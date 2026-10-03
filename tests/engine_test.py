@@ -776,7 +776,8 @@ function play_level(n, aimMode, forcePower)
       if b.x < 0 or b.x > E.FIELD_W or b.y < 0 then info.escaped = true end
     end
     for _, e in ipairs(events) do
-      if e.type == "fever" then info.fever = st.goalLeft end
+      -- (a last gem or egg can roll out after the last ball is gone: no ball for Fever)
+      if e.type == "fever" then info.fever = st.goalLeft; info.feverNoBall = (#st.balls == 0 and st.ballsLeft == 0) end
       if e.type == "bin" then info.bins = info.bins + 1 end
       if e.type == "power" then info.powers = info.powers + 1 end
       if e.type == "bucket" then info.buckets = info.buckets + 1 end
@@ -814,13 +815,13 @@ for n in list(range(1, 61)) + list(range(190, 210)) + list(range(381, 401)):
         scores.append((n, r.score, ev(f"L:StarsFor({n}, {r.score}, true)")))
         if info.fever != 0 and not info.duel:
             problems.append((n, "fever timing", info.fever))
-        if (r.ballsLeft != 0 or info.bins < 1) and not info.duel:
+        if (r.ballsLeft != 0 or info.bins < 1) and not info.duel and not info.feverNoBall:
             problems.append((n, "leftover balls not fired", r.ballsLeft, info.bins))
         if r.feverTotal < 1000 * info.bins and not info.duel:
             problems.append((n, "bins not scored", r.feverTotal, info.bins))
         if r.score > max_cleared_score:
             max_cleared_score = r.score
-        if r.binScore not in (1000, 10000, 25000) and not info.duel:
+        if r.binScore not in (1000, 10000, 25000) and not info.duel and not info.feverNoBall:
             problems.append((n, "bin", r.binScore))
     elif info.fever is not None and not info.duel:
         problems.append((n, "fever without clear"))
@@ -2642,31 +2643,6 @@ UI:HideCard()
 check("a chapter's rewards are not written on the card; their buttons flash +1 instead", not ev("__rewardText") and ev("__rewardFlash"))
 check("the result card's high score line is shown", ev("__bestShown"))
 
-# TEMPORARY: the owner's gem mass slider: a heavier gem takes a smaller shove
-lua(r"""
-__unitName, __unitSurname = "Notte", "Sure"
-UI:RefreshTestFlyout()
-local sl = UI.gemMassSlider
-sl:GetScript("OnValueChanged")(sl, 2)
-__massSet = E.GEM_MASS == 2 and GnomishPachinkoDB.tuneGemMass == 2
-local function shove()
-  local st = E:NewLevel(L:Build(23))
-  local gem
-  for _, p in ipairs(st.pegs) do if p.kind == "gem" then gem = p break end end
-  gem.vx, gem.vy = 0, 0
-  E.HitPeg(st, gem, { vx = 300, vy = 0 }, {})
-  return math.abs(gem.vx or 0)
-end
-local heavy = shove()
-E.GEM_MASS = 1
-local normal = shove()
-__massShove = heavy > 0 and math.abs(heavy * 2 - normal) < 0.01
-GnomishPachinkoDB.tuneGemMass = nil
-__unitName, __unitSurname = "Thrall", "Frostwolf"
-UI:RefreshGemMass()
-__massStranger = E.GEM_MASS == 1
-""")
-check("the owner's gem mass slider sets the mass; twice the mass takes half the shove", ev("__massSet") and ev("__massShove") and ev("__massStranger"))
 
 # every obstacle and objective has a tutorial on the first level it appears,
 # and the tutorials with something on the board point an arrow at it
@@ -2788,6 +2764,19 @@ end
 """)
 spared, zapped = ev("iron_probe")()
 check("the Tin Drake's iron takes an orange's lightning (nearest piece destroyed, boss spared); without iron the drake is zapped", spared and zapped, f"{spared} {zapped}")
+
+# the side panel's Levels button clears a result card off the screen
+lua(r"""
+UI:StartLevel(1, true)
+UI:ShowBoardContents()
+UI:HideCard()
+UI:ShowResultCard({ level = 1, cleared = true, score = 50000, goals = 1, goalTotal = 1, objective = "classic", feverTotal = 0, bestCombo = 1 }, 1)
+__cardUpBefore = UI.card:IsShown()
+UI.levelsBtn:GetScript("OnClick")(UI.levelsBtn)
+__cardGone = not UI.card:IsShown() and UI.levelPanel:IsShown()
+UI:HideLevelSelect()
+""")
+check("the Levels button takes the level cleared card off the screen", ev("__cardUpBefore") and ev("__cardGone"), f"{ev('__cardUpBefore')} {ev('__cardGone')}")
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Fixed: the Levels button beside the board opened the map behind the level cleared card, which stayed on screen. Any card is now closed first.
+- Gems are heavier: a hit shoves a gem 3.5 times less than before. The temporary Gem mass slider is gone from the Testing fly-out.
 - **Super Slides are earned, not handed out.** A ride lights only the bricks the ball actually glides past; hitting the lead brick no longer lights the whole chain. And the ball takes a rail only in at a mouth (either end brick) or coming in grazing along the face (within about 35 degrees); a squarer hit on a brick mid-chain is an ordinary brick hit that bounces and lights just that brick.
 - **The last orange no longer decides a duel.** Its 25,000 bonus is gone: lighting it pays only the peg's own points and ends the duel (there is nothing left to shoot for), and the higher score wins. Cogwhistle's challenge line is re-voiced to match.
 - The level card for a duel level (20, 40, 60 and on) no longer prints the rival's long description under the goal; the duel's rules are still in the map tooltip.
@@ -14,7 +16,6 @@
 - A tutorial is always voiced by the host of the first level it belongs to, whenever the player meets it (the special balls by Tinkmaster, the Slider by Razzle, and so on).
 - **Every obstacle and objective gets a tutorial:** a voiced talk from the chapter's host on the first level it appears, and after Play a cartoon arrow that slides in on the thing itself (following it if it moves) until the first shot. New talks: the purple peg, small rails, each moving setup on its own (Slider, Lifts, Blocks, Wheel, Bumpers, Pendulum, Key Cage, Twin Wheels, Bumper Gate, Key Gate, Sliding Block), cages inside cages, three-hit pegs and three-hit eggs. The existing ones (bricks, balloons, tough pegs, eggs, gems, mixed, Long Shots, the bosses) now point too.
 
-- **Temporary Gem mass slider** in the owner's Testing fly-out: from light (0.25) to heavy (4); a hit's shove is divided by it, and the label shows the share of the ball's speed a gem takes. Saved; to be written into the game once set.
 - A chapter's rewards are no longer written on the result card: the special-ball buttons on the left glow and a "+1" floats up off each as its count goes up.
 - Fixed: the result card's high score line was hidden.
 

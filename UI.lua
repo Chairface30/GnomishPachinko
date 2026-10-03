@@ -2027,26 +2027,7 @@ function UI:CreateTestFlyout(frame)
         b:SetWidth(180)
         b:SetFrameLevel(fly:GetFrameLevel() + 2)
     end
-    -- TEMPORARY: the gems' mass, set by eye (saved; hardcoded once set)
-    local sl = CreateFrame("Slider", "GnomishPachinkoGemMass", fly, "OptionsSliderTemplate")
-    sl:SetPoint("TOP", fly, "TOP", 0, -36 - #list * 34 - 18)
-    sl:SetWidth(170)
-    sl:SetMinMaxValues(0.25, 4)
-    sl:SetValueStep(0.05)
-    if sl.SetObeyStepOnDrag then sl:SetObeyStepOnDrag(true) end
-    sl.textFs = _G["GnomishPachinkoGemMassText"]
-    local low, high = _G["GnomishPachinkoGemMassLow"], _G["GnomishPachinkoGemMassHigh"]
-    if low and low.SetText then low:SetText("light") end
-    if high and high.SetText then high:SetText("heavy") end
-    sl:SetScript("OnValueChanged", function(self, v)
-        if UI.gemMassLoading then return end
-        v = math.floor(v * 100 + 0.5) / 100
-        GP:GetDB().tuneGemMass = v
-        E.GEM_MASS = v
-        UI:RefreshGemMass()
-    end)
-    self.gemMassSlider = sl
-    fly:SetHeight(36 + #list * 34 + 12 + 56)
+    fly:SetHeight(36 + #list * 34 + 12)
     tab:SetScript("OnClick", function()
         if fly:IsShown() then fly:Hide() else UI:RefreshTestFlyout(); fly:Show() end
     end)
@@ -2054,27 +2035,9 @@ function UI:CreateTestFlyout(frame)
     self:RefreshTestFlyout()
 end
 
--- TEMPORARY: the saved gem mass (owner characters only) into the engine,
--- and the slider's label: the mass and the share of the ball's speed a hit
--- passes on to a gem.
-function UI:RefreshGemMass()
-    local owner = GP.Plays:IsOwner()
-    local m = owner and tonumber(GP:GetDB().tuneGemMass) or nil
-    E.GEM_MASS = m or 1
-    local sl = self.gemMassSlider
-    if not sl then return end
-    self.gemMassLoading = true
-    sl:SetValue(E.GEM_MASS)
-    self.gemMassLoading = false
-    if sl.textFs then
-        sl.textFs:SetText(("Gem mass %.2f  (a hit passes on %d%%)"):format(E.GEM_MASS, math.floor(E.LOOSE_NUDGE.gem / E.GEM_MASS * 100 + 0.5)))
-    end
-end
-
 function UI:RefreshTestFlyout()
     if not self.testTab then return end
     local owner = GP.Plays:IsOwner()
-    self:RefreshGemMass()
     if owner then self.testTab:Show() else self.testTab:Hide(); self.testFly:Hide() end
     local lp = self.levelPanel
     if owner then
@@ -2109,6 +2072,12 @@ end
 
 function UI:ShowLevelSelect()
     self:Initialize()
+    -- a card still up (the level card, or the cleared/failed card) goes
+    -- first, whichever button opened the map; an unanswered Play On is settled
+    if self.card and self.card:IsShown() then
+        self:SettlePendingFail()
+        self:HideCard()
+    end
     local current = (self.state and self.state.level) or GP:GetDB().current or 1
     self.levelPage = math.floor((current - 1) / L.PER_CHAPTER) + 1
     self:LevelPage(self.levelPage)
