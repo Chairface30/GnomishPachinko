@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The Tin Drake gets faster, faster:** it speeds up from its own starting speed as it weakens (before, its first hit could slow it down), reaching 2.2 times that speed near death in chapter 1 and more in each later chapter, up to a cap.
 - Clearing a chapter (its boss or duel) gives one each of Ring of Fire, Rainbow Ball and Suction Tube, the first time only; replaying it gives nothing more. (It used to give two Rings, a Rainbow, two Suction Tubes and a green peg every time.)
 - The Tin Drake faces the camera in the conversation box.
 - **The result card's lines, tidied:** under the title, what happened (Done! or Missed:), then the level's high score (NEW! when you just beat it), then the best combo. The Fever points and the star marks are gone, and each line has its own size and colour so it reads easily.

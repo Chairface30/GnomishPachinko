@@ -2557,6 +2557,27 @@ check("the result card shows the high score (with NEW!) and the best combo, with
       "High score" in rc_best and ("5,000" in rc_best or "5000" in rc_best) and "NEW" in rc_best and "Best combo" in rc_combo and "9" in rc_combo
       and "Fever" not in rc_combo and "stars at" not in rc_combo, f"{rc_best} | {rc_combo}")
 
+# the Tin Drake speeds up as it weakens, more in later chapters
+lua(r"""
+function drake_ratio(n)
+  local st = E:NewLevel(L:Build(n))
+  local b = st.boss
+  local s0 = math.abs(b.mover.speed)
+  b.hp = b.maxhp
+  st.time = st.time + 1
+  E.HitPeg(st, b, { vx = 0, vy = 100 }, {})
+  local s1 = math.abs(b.mover.speed)
+  b.hp = 3
+  st.time = st.time + 1
+  E.HitPeg(st, b, { vx = 0, vy = 100 }, {})
+  return s1 / s0, math.abs(b.mover.speed) / s0
+end
+""")
+r1a, r1b = ev("drake_ratio")(10)
+r6a, r6b = ev("drake_ratio")(130)      # the next Tin Drake (chapter 13)
+check("the Tin Drake never slows when first hit, speeds up as it weakens, and more in later chapters",
+      r1a >= 1 and r1b > r1a and r6b > r1b, f"ch1 {r1a:.2f}->{r1b:.2f}  ch13 {r6a:.2f}->{r6b:.2f}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

@@ -146,6 +146,11 @@ E.BOSS_KICK   = 220
 -- does BOSS_HIT_DAMAGE, and every orange peg lit on a boss level zaps it
 -- for BOSS_ZAP_DAMAGE (a shield stops only the ball, not a zap).
 E.BOSS_HIT_DAMAGE = 2
+-- the Tin Drake's speed-up: at its last point of health it flies (1 + gain)
+-- times as fast as it started; gain grows with the chapter, up to a cap
+E.DRAKE_GAIN = 1.2
+E.DRAKE_GAIN_PER_CHAPTER = 0.1
+E.DRAKE_MAX_SPEED = 3.4
 E.BOSS_ZAP_DAMAGE = 1
 E.BOSS_BAND   = { y0 = 590, y1 = 700, y = 640 }     -- in Levels' design space: below the pattern zone, above the bucket
 E.SCRAP_R        = 11        -- a boss's scrap block
@@ -790,8 +795,15 @@ end
 bossReact = function(state, p, events)
     local mv = p.mover
     if p.ability == "drake" and mv then
+        -- flies faster as it weakens, and the later the chapter the faster it
+        -- gets: from its own starting speed up to (1 + gain) times it at the end
         local dir = mv.speed < 0 and -1 or 1
-        setMoverSpeed(mv, state.time, dir * (0.6 + 1.0 * (1 - p.hp / p.maxhp)))
+        p.baseSpeed = p.baseSpeed or math.abs(mv.speed)
+        local chapter = math.floor(((state.level or 1) - 1) / 10) + 1
+        local gain = E.DRAKE_GAIN + E.DRAKE_GAIN_PER_CHAPTER * (chapter - 1)
+        local hurt = 1 - math.max(0, p.hp) / p.maxhp
+        local speed = math.min(E.DRAKE_MAX_SPEED, p.baseSpeed * (1 + gain * hurt))
+        setMoverSpeed(mv, state.time, dir * speed)
     elseif p.ability == "spider" then
         p.bx = 100 + state.rng() * (W - 200)
         push(events, { type = "boss_hop", x = p.x, y = p.y })
