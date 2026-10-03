@@ -82,9 +82,9 @@
  "host_mekka_2": "While I host, the green pegs give you my inventions: Space Blast, or Chain Lightning. Choose wisely!",
  "host_razzle_1": "Razzle Sprysprocket here! I've got the fun toys this chapter.",
  "host_razzle_2": "My Pyramid bounces your ball back up from the bottom, and Free Ball Frenzy hands you three extra balls. Have at it!",
- "intro_1": "Well hello there! Tinkmaster Overspark, chief engineer of Tinker Town, at your service.",
- "intro_2": "This is my finest invention: the Gnomish Pachinko! Point with the mouse, click to shoot.",
- "intro_3": "Light every orange peg and the board is yours. Ten balls a level.",
+ "intro_1": "Fair warning: the bosses are still a work in progress. They may change completely in a later version.",
+ "intro_2": "Got ideas? New gnome hosts with new powers, new obstacles, new bosses? Send them in on the Gnomish Pachinko page on CurseForge!",
+ "intro_3": "Now, enough chatter! Step right up, grab the lever, and give her a whirl. Go on, off you go, and mind the sparks!",
  "intro_4": "Hit a green peg and you get my power: Multiball, or my Super Guide. Pick one on the level card. Off you go!",
  "items_1_bink": "See the buttons to the left of the board? Those are my special balls.",
  "items_1_mekka": "See the buttons to the left of the board? Those are my special balls.",
@@ -134,7 +134,8 @@
  "tough_1_mekka": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them.",
  "tough_1_razzle": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them.",
  "tough_1_tink": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them.",
- "welcome_1": "Welcome, welcome! Tinkmaster Overspark here, and you've found the Gnomish Pachinko!",
- "welcome_2": "Fair warning: the bosses are still a work in progress. They may change completely in a later version.",
- "welcome_3": "Got ideas? New gnome hosts with new powers, new obstacles, new bosses? Send them in on the Gnomish Pachinko page on CurseForge!"
+ "welcome_1": "Well hello there! Tinkmaster Overspark, chief engineer of Tinker Town, at your service.",
+ "welcome_2": "This is my finest invention: the Gnomish Pachinko Machine! Point with the mouse, click to shoot.",
+ "welcome_3": "Light every orange peg and the board is yours. Ten balls a level.",
+ "welcome_4": "Hit a green peg and you get my power: Multiball, or my Super Guide. Pick one on the level card before you start."
 }

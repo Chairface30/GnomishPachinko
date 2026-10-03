@@ -119,15 +119,15 @@ D.SCRIPTS = {
     } },
     -- the very first thing a new player hears
     { key = "welcome", when = function(st) return st.level == 1 end, lines = {
-        { "tink", "Welcome, welcome! Tinkmaster Overspark here, and you've found the Gnomish Pachinko!" },
-        { "tink", "Fair warning: the bosses are still a work in progress. They may change completely in a later version." },
-        { "tink", "Got ideas? New gnome hosts with new powers, new obstacles, new bosses? Send them in on the Gnomish Pachinko page on CurseForge!" },
+        { "tink", "Well hello there! Tinkmaster Overspark, chief engineer of Tinker Town, at your service." },
+        { "tink", "This is my finest invention: the Gnomish Pachinko Machine! Point with the mouse, click to shoot." },
+        { "tink", "Light every orange peg and the board is yours. Ten balls a level." },
+        { "tink", "Hit a green peg and you get my power: Multiball, or my Super Guide. Pick one on the level card before you start." },
     } },
     { key = "intro", when = function(st) return st.level == 1 end, lines = {
-        { "tink", "Well hello there! Tinkmaster Overspark, chief engineer of Tinker Town, at your service." },
-        { "tink", "This is my finest invention: the Gnomish Pachinko! Point with the mouse, click to shoot." },
-        { "tink", "Light every orange peg and the board is yours. Ten balls a level." },
-        { "tink", "Hit a green peg and you get my power: Multiball, or my Super Guide. Pick one on the level card. Off you go!" },
+        { "tink", "Fair warning: the bosses are still a work in progress. They may change completely in a later version." },
+        { "tink", "Got ideas? New gnome hosts with new powers, new obstacles, new bosses? Send them in on the Gnomish Pachinko page on CurseForge!" },
+        { "tink", "Now, enough chatter! Step right up, grab the lever, and give her a whirl. Go on, off you go, and mind the sparks!" },
     } },
     { key = "host_mekka", when = function(st) return GP:HostFor(st.level).id == "mekka" end, lines = {
         { "mekka", "High Tinker Mekkatorque, at your service. Tinkmaster tells me you're rather good at this." },

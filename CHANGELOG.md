@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The opening talk runs in a new order (Tinkmaster's welcome and how to play first, then the work-in-progress note and the call for ideas), and ends with him ushering the player up to the machine and sending them off.
 - **New players start with no special balls and no green pegs,** and those buttons stay hidden until Tinkmaster explains them: the special balls on level 2 (with one of each to try), the Extra Green Peg in a new voiced talk on level 3 (with one to try). Players past those levels hear the talk on their next level.
 
 - **Button ends are true half gears:** every plate button is drawn as a half-cog end on each side, at its real shape whatever the button's height, with the logo's copper plate between them. Before, the plate's ends were sliced and stretched, and the cogs came out misshapen on taller buttons.
