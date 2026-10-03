@@ -2152,6 +2152,28 @@ check("Restart, Level Select and Next Level wear their gnomish plates",
 lua("UI:StartLevel(15, true); __eggWord = UI.goalLabel.slot")
 check("the info headings are word-art; the goal heading follows the objective", ev("__eggWord") == "word_goal_eggs", str(ev("__eggWord")))
 
+# the result card: the score counts up and the stars fill left to right
+lua(r"""
+UI:StartLevel(3, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+local s2, s3 = L:StarScores(3)
+UI:ShowResultCard({ cleared = true, score = s3 + 10, objective = "classic", goals = 3, goalTotal = 3, feverTotal = 0, bestCombo = 1 }, 3)
+local card = UI.card
+local function w(i) local f = card.stars[i].fill return f:IsShown() and f:GetWidth() or 0 end
+__now = __now + 0.3
+UI:UpdateStarFill(GetTime())
+__early = { w(1), w(2), w(3), card.line1:GetText() }
+__now = __now + 2.5
+UI:UpdateStarFill(GetTime())
+__late = { w(1), w(2), w(3) }
+UI:HideCard()
+""")
+early, late = dict(ev("__early")), dict(ev("__late"))
+full = ev("UI.CARD_STAR")
+check("the result card counts the score up and fills the stars from left to right",
+      early[3] < full and early[1] > 0 and late[1] == full and late[2] == full and late[3] == full,
+      f"{early} {late}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)

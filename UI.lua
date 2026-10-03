@@ -966,10 +966,20 @@ function UI:CreateCard()
     card.title:SetPoint("TOP", 0, -56)
     card.title:SetFont("Fonts\\FRIZQT__.TTF", 20, "OUTLINE")
     card.title:SetWidth(340)
-    card.stars = makeStars(card, 30, 4)
-    for i, s in ipairs(card.stars) do s:SetPoint("TOP", card, "TOP", (i - 2) * 36, -90) end
+    -- three big stars; on the result card each fills with gold from left
+    -- to right as the score counts up past its mark
+    card.stars = makeStars(card, UI.CARD_STAR, 4)
+    for i, s in ipairs(card.stars) do
+        s:SetPoint("TOP", card, "TOP", (i - 2) * (UI.CARD_STAR + 8), -84)
+        local f = card:CreateTexture(nil, "OVERLAY", nil, 2)
+        ART:Set(f, "star", 1, 0.85, 0.2)
+        f:SetPoint("LEFT", s, "LEFT", 0, 0)
+        f:SetSize(UI.CARD_STAR, UI.CARD_STAR)
+        f:Hide()
+        s.fill = f
+    end
     card.line1 = card:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    card.line1:SetPoint("TOP", 18, -128)
+    card.line1:SetPoint("TOP", 18, -146)
     card.line1:SetWidth(300)
     card.line1:SetFont("Fonts\\FRIZQT__.TTF", 12, "")
     card.goalIcon = card:CreateTexture(nil, "ARTWORK")
@@ -1019,6 +1029,8 @@ function UI:ShowStartCard()
     local st = self.state
     local card = self.card
     card.title:SetText(("|cffffd700%d. %s|r"):format(st.level, st.title or ""))
+    card.fillAnim = nil
+    for _, s in ipairs(card.stars) do s.fill:Hide() end
     setStars(card.stars, GP:GetDB().stars[st.level] or 0)
     -- the goal, big and gold, with its icon: most players never read small print
     card.line1:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
@@ -1099,6 +1111,49 @@ function UI:PlayFromCard()
     self:UpdateDisplay()
 end
 
+UI.CARD_STAR = 52            -- the result card's stars
+UI.STAR_FILL_SECS = 2.0      -- the score counts up (and the stars fill) over this long
+
+-- The result card's count-up: the score climbs from nothing, and each star
+-- fills with gold from left to right as it passes that star's mark (half
+-- the two-star mark, the two-star mark, the three-star mark); a cleared
+-- level's first star always fills. A chime rises with each full star.
+function UI:UpdateStarFill(now)
+    local card = self.card
+    local a = card and card.fillAnim
+    if not a then return end
+    local t = math.min(1, (now - a.start) / self.STAR_FILL_SECS)
+    local e = 1 - (1 - t) * (1 - t)                 -- quick, then easing in
+    local shown = a.score * e
+    card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(math.floor(shown + 0.5))))
+    local prev = 0
+    for i, s in ipairs(card.stars) do
+        local lo, hi = prev, a.marks[i]
+        prev = hi
+        local f = 0
+        if a.cleared then
+            f = (hi > lo) and (shown - lo) / (hi - lo) or 1
+            if i == 1 then f = math.max(f, e) end   -- a clear always earns the first
+            if f < 0 then f = 0 elseif f > 1 then f = 1 end
+        end
+        if f > 0 then
+            s.fill:SetWidth(self.CARD_STAR * f)
+            if s.fill.SetTexCoord then s.fill:SetTexCoord(0, f, 0, 1) end
+            s.fill:Show()
+        else
+            s.fill:Hide()
+        end
+        if f >= 1 and not s.filled then
+            s.filled = true
+            GP:PlaySfx("note" .. (6 + i * 3) .. ".ogg")
+        end
+    end
+    if t >= 1 then
+        card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(a.score)))
+        card.fillAnim = nil
+    end
+end
+
 -- After the level: stars, score, what happened, and where to go next.
 function UI:ShowResultCard(result, stars)
     local st = self.state
@@ -1109,7 +1164,12 @@ function UI:ShowResultCard(result, stars)
     else
         card.title:SetText(cleared and "|cffffd700LEVEL CLEARED!|r" or "|cffff6060OUT OF BALLS|r")
     end
-    setStars(card.stars, cleared and stars or 0)
+    -- the stars start grey and fill as the score counts up
+    setStars(card.stars, 0)
+    for _, s in ipairs(card.stars) do s.fill:Hide(); s.filled = nil end
+    local m2, m3 = L:StarScores(st.level)
+    card.fillAnim = { start = GetTime(), score = result.score or 0, cleared = cleared,
+        marks = { m2 * 0.5, m2, m3 }, stars = cleared and stars or 0 }
     local def = E.OBJECTIVES[result.objective] or E.OBJECTIVES.classic
     local goalLine
     if result.duel then
@@ -1123,7 +1183,7 @@ function UI:ShowResultCard(result, stars)
     card.line1:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
     card.line1:SetTextColor(1, 1, 1)
     card.goalIcon:Hide()
-    card.line1:SetText(("Score |cffffd700%s|r"):format(fmtBig(result.score)))
+    card.line1:SetText("Score |cffffd7000|r")
     card.line2:SetText((cleared and "|cff66ff66done|r  " or "|cffff6060missed|r  ") .. goalLine)
     local s2, s3 = L:StarScores(st.level)
     local third = ("Fever %s  -  best combo %d  -  2 stars at %s, 3 at %s"):format(
@@ -2780,9 +2840,8 @@ function UI:OnLevelOver(result)
         end
         local extra = result.score > prevBest and prevBest > 0 and "  |cff88ff88New best!|r" or ""
         self:ShowBanner("|cffffd700LEVEL CLEARED!|r",
-            ("%d of 3 stars  -  Score %s  (bins %s)%s"):format(stars, fmtBig(result.score), fmtBig(result.feverTotal or 0), extra), 0)
-        setStars(self.bannerStars, stars)
-        for _, s in ipairs(self.bannerStars) do s:Show() end
+            ("Score %s  (bins %s)%s"):format(fmtBig(result.score), fmtBig(result.feverTotal or 0), extra), 0)
+        -- the stars are revealed on the card, filling as the score counts up
         if stars >= 3 then self:Celebrate() end
         GP:PlaySfx("clear.ogg")
         GP:PlayVoice(result.duel and "duel_won" or (stars >= 3 and "three_stars" or "level_cleared"))
@@ -2896,6 +2955,7 @@ function UI:OnUpdate(dt)
         self.shotTextUntil = nil
         self.shotText:SetText("")
     end
+    self:UpdateStarFill(now)
     if self.cardAt and now >= self.cardAt then
         self.cardAt = nil
         if self.cardResult and not (self.playsPanel and self.playsPanel:IsShown()) then
