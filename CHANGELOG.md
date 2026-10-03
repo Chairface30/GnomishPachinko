@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fixed: the speaker's name in the conversation box was half covered by the border.
 - **The conversation box keeps the framing set by eye** for Tinkmaster, Mekkatorque, Razzle, Bink and Cogwhistle. The temporary dialog tuning panel is gone.
 - **Cogwhistle looks the evil brother:** Tinkmaster's own model, lit pure, strong green. Any speaker can be given a tint; tinted speakers use a model frame of their own so the light never spills onto the others.
 - **Super Guide tracks two bounces.** It no longer grows when earned again; it just runs for more shots.

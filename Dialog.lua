@@ -294,10 +294,16 @@ function D:Create(parent, anchor, frameLevel)
         end
     end)
 
-    panel.name = panel:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    -- the name and the line, on a layer over the border copy (which would
+    -- otherwise cover the top of the name)
+    local words = CreateFrame("Frame", nil, panel)
+    words:SetAllPoints(panel)
+    if words.SetFrameLevel then words:SetFrameLevel(base + 4) end
+    panel.words = words
+    panel.name = words:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
     panel.name:SetPoint("TOPLEFT", panel, "TOPLEFT", 146, -30)
     panel.name:SetFont("Fonts\\FRIZQT__.TTF", 15, "OUTLINE")
-    panel.text = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    panel.text = words:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     panel.text:SetPoint("TOPLEFT", panel.name, "BOTTOMLEFT", 0, -8)
     panel.text:SetWidth(260)
     panel.text:SetJustifyH("LEFT")
