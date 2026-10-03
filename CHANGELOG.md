@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Scored Fever tubes stand out:** unscored tubes are dimmed and their points grayed; a scored tube lights up with a pulsing glow behind it and over its letter.
 - The boss's health bar sits just under it, always on the board and over its model; its name is no longer printed on the board.
 - **Each host and boss keeps the framing set by eye** (height and zoom per host; view angle, distance, turn, tilt, offset, size and platform per boss). The temporary tuning panel is gone.
 - The boss's health bar and name sit below it, and a hurt boss no longer shows cracks.

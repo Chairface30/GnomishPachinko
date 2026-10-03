@@ -476,14 +476,28 @@ function UI:CreateFrame()
         bin:SetPoint("BOTTOM", field, "BOTTOMLEFT", (i - 0.5) * binW, 0)
         bin:SetFrameLevel(field:GetFrameLevel() + 1)
         bin.letter = (E.FEVER_LETTERS[i] or "g"):lower()
-        bin.tube = bin:CreateTexture(nil, "BACKGROUND")
+        bin.tube = bin:CreateTexture(nil, "BACKGROUND", nil, 1)
         bin.tube:SetAllPoints(bin)
         ART:Set(bin.tube, "fever_tube_" .. bin.letter)
+        -- a scored tube glows: a halo behind it and a shine over its letter
+        bin.halo = bin:CreateTexture(nil, "BACKGROUND", nil, 0)
+        bin.halo:SetSize(bin:GetWidth() * 1.5, (E.FEVER_TUBE_H + 6) * 1.5)
+        bin.halo:SetPoint("CENTER", bin, "CENTER", 0, 0)
+        ART:Set(bin.halo, "glow_soft", 1, 0.85, 0.3)
+        if bin.halo.SetBlendMode then bin.halo:SetBlendMode("ADD") end
+        bin.halo:Hide()
+        bin.shine = bin:CreateTexture(nil, "ARTWORK", nil, 1)
+        bin.shine:SetSize(bin:GetWidth() * 0.8, bin:GetWidth() * 0.8)
+        bin.shine:SetPoint("CENTER", bin, "CENTER", 0, -6)
+        ART:Set(bin.shine, "glow_soft", 1, 0.95, 0.6)
+        if bin.shine.SetBlendMode then bin.shine:SetBlendMode("ADD") end
+        bin.shine:Hide()
         -- the points it pays, under the board
         bin.label = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
         bin.label:SetPoint("TOP", field, "BOTTOMLEFT", (i - 0.5) * binW, -4)
         bin.label:SetFont("Fonts\\FRIZQT__.TTF", 13, "OUTLINE")
-        bin.label:SetText("|cffffd700" .. fmtBig(pts) .. "|r")
+        bin.label:SetText(fmtBig(pts))
+        bin.label:SetTextColor(1, 0.84, 0)
         bin.label:Hide()
         bin:SetScript("OnShow", function(self) self.label:Show() end)
         bin:SetScript("OnHide", function(self) self.label:Hide() end)
@@ -1245,6 +1259,8 @@ end
 -- copy picks its own idle fidgets.)
 UI.PORTRAIT_STRIPS = 1
 
+UI.TUBE_DIM = 0.38      -- an unscored Fever tube is drawn this dark
+
 -- The board's chrome: the host's box, the balls-left strip, the special-ball
 -- buttons and the bucket. Hidden while the map or the out-of-plays panel covers the board.
 function UI:SetBoardChrome(shown)
@@ -1510,8 +1526,9 @@ function UI:StartLevel(n, retry)
     if self.state.noBucket then self.bucket:Hide() end
     ART:Set(self.fieldBg, ART:FieldBackdrop(n))
     for _, bin in ipairs(self.bins) do
-        bin.litShown = false
+        bin.litShown = nil
         ART:Set(bin.tube, "fever_tube_" .. bin.letter)
+        bin.halo:Hide(); bin.shine:Hide()
     end
     for _, t in ipairs(self.postTex) do t:Hide() end
     self.splashAt, self.flashAt, self.electricUntil, self.calloutUntil = nil, nil, nil, nil
@@ -3089,13 +3106,28 @@ function UI:Render(now)
             b:SetPoint("CENTER", field, "TOPLEFT", b.x, -b.y)
         end
     end
-    -- the Fever cups light as they score
+    -- the Fever tubes: unscored ones stand dim, scored ones light up and
+    -- glow, so it is plain at a glance which are done
     if st.phase == E.PHASE.FEVER then
+        local pulse = 0.65 + 0.35 * math.sin(now * 6)
         for i, bin in ipairs(self.bins) do
             local lit = st.binsLit[i] and true or false
             if bin.litShown ~= lit then
                 bin.litShown = lit
                 ART:Set(bin.tube, "fever_tube_" .. bin.letter .. (lit and "_lit" or ""))
+                if lit then
+                    bin.tube:SetVertexColor(1, 1, 1, 1)
+                    bin.halo:Show(); bin.shine:Show()
+                    bin.label:SetTextColor(1, 1, 1)
+                else
+                    bin.tube:SetVertexColor(UI.TUBE_DIM, UI.TUBE_DIM, UI.TUBE_DIM + 0.04, 1)
+                    bin.halo:Hide(); bin.shine:Hide()
+                    bin.label:SetTextColor(0.55, 0.55, 0.6)
+                end
+            end
+            if lit then
+                bin.halo:SetAlpha(0.55 + 0.45 * pulse)
+                bin.shine:SetAlpha(0.35 * pulse)
             end
         end
     end
