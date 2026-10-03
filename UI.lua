@@ -1464,7 +1464,11 @@ end
 
 function UI:BuyGears()
     local ok, err = GP.Plays:FillPurchaseMail(GP.Plays.DEFAULT_GEARS_MAIL)
-    if not ok then GP:Print(err) end
+    if ok then return end
+    -- away from a mailbox: Tinkmaster explains it, once (heard or skipped)
+    if not (MailFrame and MailFrame:IsShown()) and GP.Dialog and GP.Dialog.PlayOnce
+        and GP.Dialog:PlayOnce("gears_help") then return end
+    GP:Print(err)
 end
 
 function UI:ShopBuy(what)

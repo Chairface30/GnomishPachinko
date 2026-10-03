@@ -33,6 +33,12 @@ D.MUMBLES = 6       -- Sounds/mumble1..6.ogg and grumble1..6.ogg
 
 -- The conversations. `when` decides whether one belongs to a level's state.
 D.SCRIPTS = {
+    -- not tied to a level: played the first time Get Golden Gears is pressed away from a mailbox
+    { key = "gears_help", when = function() return false end, lines = {
+        { "tink", "Golden Gears, is it? They're the pachinko's own coin. One gold buys one gear." },
+        { "tink", "Walk up to any mailbox and press Get Golden Gears again. I'll fill the mail out for you: gold to Chairface Chippendale, with pachinko golden gears as the subject." },
+        { "tink", "Send it off, and your gears turn up as soon as the gold arrives. Spend them in the shop on special balls, or on more plays!" },
+    } },
     { key = "intro", when = function(st) return st.level == 1 end, lines = {
         { "tink", "Well hello there! Tinkmaster Overspark, chief engineer of Tinker Town, at your service." },
         { "tink", "This is my finest invention: the Gnomish Pachinko! Point with the mouse, click to shoot." },
@@ -125,6 +131,16 @@ local function db()
     local d = GP:GetDB()
     d.dialogs = d.dialogs or {}
     return d.dialogs
+end
+
+-- Plays one conversation by key if it has not been shown yet (and nothing
+-- else is talking). Returns true if it started.
+function D:PlayOnce(key, done)
+    if db()[key] or self:IsShown() then return false end
+    for _, sc in ipairs(self.SCRIPTS) do
+        if sc.key == key then return self:Play({ sc }, done) end
+    end
+    return false
 end
 
 -- The conversations this level brings that have not been shown yet.

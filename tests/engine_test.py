@@ -1951,6 +1951,21 @@ fev, dec, over, cleared, lastSide = ev("duel_last_probe")()
 check("in a duel the last orange wins it outright (even on a lower score), with no Fever",
       not fev and dec and over and cleared == False and lastSide == "rival", f"{fev} {dec} {over} {cleared} {lastSide}")
 
+# Get Golden Gears away from a mailbox: Tinkmaster explains, the first time only
+lua(r"""
+UI:StartLevel(2, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+GnomishPachinkoDB.dialogs = GnomishPachinkoDB.dialogs or {}
+GnomishPachinkoDB.dialogs.gears_help = nil
+local printed = #__printed
+UI:BuyGears()
+__gearsTalk = GP.Dialog:IsShown() and #__printed == printed
+GP.Dialog:Finish()
+UI:BuyGears()
+__gearsOnce = not GP.Dialog:IsShown() and #__printed == printed + 1
+""")
+check("Get Golden Gears away from a mailbox: Tinkmaster explains once, then a chat line", ev("__gearsTalk") and ev("__gearsOnce"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
