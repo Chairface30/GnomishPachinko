@@ -2415,6 +2415,10 @@ function UI:HandleEvents(now)
             GP:PlaySfx("clear.ogg")
             GP:PlayVoice("duel_start")
             self.duelStartAt = now + 2.6
+        elseif t == "boss_zap" then
+            -- an orange lit on a boss level: a bolt from it to the boss
+            self:ShowBolt({ { x = ev.x, y = ev.y }, { x = ev.bx, y = ev.by } }, now)
+            GP:PlaySfx("zap.ogg")
         elseif t == "duel_last_orange" then
             local who = (ev.side == "you") and "You" or (st.duel and st.duel.name or "The rival")
             self:ShowBanner((ev.side == "you") and "|cffffd700LAST ORANGE!|r" or "|cffff6060LAST ORANGE!|r",

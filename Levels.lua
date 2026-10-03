@@ -1019,6 +1019,7 @@ function L:BossFor(n)
     local def = E.BOSSES[self.BOSS_ORDER[((k - 1) % #self.BOSS_ORDER) + 1]]
     return def, self.BOSS_HP[n] or (8 + floor(chapter * 0.6))
 end
+L.BOSS_ZAPPERS_EXTRA = 4     -- a boss level's oranges: its health and this many more
 -- set by hand where the formula played too tough
 L.BOSS_HP = { [30] = 8 }     -- the first Gyro Spider
 
@@ -1412,6 +1413,13 @@ function L:Build(n, attempt, opts)
         if orange > #order - floorBlue then orange = #order - floorBlue end
         if mixed then goal = goal + orange elseif objective ~= "longshots" then goal = orange end
     end
+    -- a boss level deals oranges too, not as goals but as zappers: each one
+    -- lit zaps the boss, and there are a few more than its health
+    if objective == "boss" then
+        orange = (bossHp or 8) + L.BOSS_ZAPPERS_EXTRA
+        local floorBlue = math.max(2, floor(#order * 0.25))
+        if orange > #order - floorBlue then orange = #order - floorBlue end
+    end
     for i = #order, 2, -1 do
         local j = rng(1, i)
         order[i], order[j] = order[j], order[i]
@@ -1444,13 +1452,13 @@ function L:Build(n, attempt, opts)
     local given, coloured = 0, 0
     for _, idx in ipairs(order) do
         local p = pegs[idx]
-        if p.forceOrange and given < forced then p.kind = "orange"; p.goal = objective ~= "longshots"; given = given + 1 end
+        if p.forceOrange and given < forced then p.kind = "orange"; p.goal = objective ~= "longshots" and objective ~= "boss"; given = given + 1 end
     end
     for _, idx in ipairs(order) do
         local p = pegs[idx]
         if not (p.forceOrange and p.kind == "orange") then
             coloured = coloured + 1
-            if coloured <= orange - given then p.kind = "orange"; p.goal = objective ~= "longshots"
+            if coloured <= orange - given then p.kind = "orange"; p.goal = objective ~= "longshots" and objective ~= "boss"
             elseif coloured <= orange - given + greens then p.kind = "green"
             else p.kind = "blue" end
         end

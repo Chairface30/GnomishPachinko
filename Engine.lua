@@ -129,6 +129,11 @@ E.BUMPER_KICK   = 260
 -- bumper so the ball comes back up for more.
 E.BOSS_BOUNCE = 1.0
 E.BOSS_KICK   = 220
+-- A boss is worn down by good play, not one lucky bounce: a direct hit
+-- does BOSS_HIT_DAMAGE, and every orange peg lit on a boss level zaps it
+-- for BOSS_ZAP_DAMAGE (a shield stops only the ball, not a zap).
+E.BOSS_HIT_DAMAGE = 2
+E.BOSS_ZAP_DAMAGE = 1
 E.BOSS_BAND   = { y0 = 590, y1 = 700, y = 640 }     -- in Levels' design space: below the pattern zone, above the bucket
 E.SCRAP_R        = 11        -- a boss's scrap block
 E.SCRAP_PER_SHOT = 2         -- thrown after a shot that hit it
@@ -829,7 +834,7 @@ hitPeg = function(state, p, ball, events, quiet)
         push(events, { type = "shield", peg = p, x = p.x, y = p.y, left = p.shield })
         return true
     end
-    p.hp = (p.hp or 1) - 1
+    p.hp = (p.hp or 1) - ((p.kind == "boss") and E.BOSS_HIT_DAMAGE or 1)
     if p.hp > 0 then
         p.crackAt = state.time
         local pts = (E.CHIP_POINTS[p.kind] or 10) * E:ScoreMultiplier(E:Progress(state))
@@ -879,6 +884,22 @@ lightPeg = function(state, p, ball, events, quiet, at)
     state.shotPegs = state.shotPegs + 1
     state.shotPoints = state.shotPoints + pts
     if p.kind == "key" and p.unlocks then unlock(state, p, events) end
+    -- on a boss level every orange lit zaps the boss
+    local boss = state.boss
+    if p.kind == "orange" and boss and boss ~= p and not boss.lit and not boss.gone and state.objective == "boss" then
+        state.bossHitThisShot = true
+        push(events, { type = "boss_zap", x = p.x, y = p.y, bx = boss.x, by = boss.y })
+        do       -- a zap goes past a shield: the shield only stops the ball
+            boss.hp = (boss.hp or 1) - E.BOSS_ZAP_DAMAGE
+            if boss.hp > 0 then
+                boss.crackAt = state.time
+                push(events, { type = "crack", peg = boss, points = 0, x = boss.x, y = boss.y, hp = boss.hp, quiet = true })
+            else
+                boss.hp = 0
+                lightPeg(state, boss, nil, events, true)
+            end
+        end
+    end
     -- a Super Slide: bricks lit one after another along a ride
     if p.shape == "brick" and ball then
         if ball.slideAt and state.time - ball.slideAt <= E.SLIDE_GAP then ball.slideRun = (ball.slideRun or 0) + 1

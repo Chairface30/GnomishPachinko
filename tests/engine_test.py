@@ -216,8 +216,9 @@ for n in range(1, 401):
             problems.append((n, "longshots", spec.goal, counts["orange"], counts["goal"]))
     elif spec.objective == "boss":
         bosses.add(spec.boss.id)
-        if counts["boss"] != 1 or spec.goal != 1 or spec.gimmick or counts["orange"] != 0:
-            problems.append((n, "boss", counts["boss"], spec.gimmick))
+        # oranges deal in as zappers: not goals, about the boss's health and a few more
+        if counts["boss"] != 1 or spec.goal != 1 or spec.gimmick or counts["orange"] < spec.boss.hp:
+            problems.append((n, "boss", counts["boss"], spec.gimmick, counts["orange"], spec.boss.hp))
     elif spec.objective == "duel":
         duels.add(spec.duel.id)
         if counts["boss"] != 0 or spec.gimmick or counts["orange"] != spec.goal or spec.goal < 8 or spec.duel.stage != 1:
@@ -590,8 +591,9 @@ abilities = {}
 for n in (10, 30, 50, 70, 110):
     info = boss_probe(n)
     abilities[info.ability] = info
-    check(f"level {n}: the {info.name} slides, takes {info.maxhp} hits and dies into Fever",
-          info.moved and info.chips == info.maxhp - 1 and info.down == 1 and info.fever == 1 and info.phase == "FEVER",
+    hits = -(-info.maxhp // ev("E.BOSS_HIT_DAMAGE"))
+    check(f"level {n}: the {info.name} slides, takes {hits} direct hits ({info.maxhp} health) and dies into Fever",
+          info.moved and info.chips == hits - 1 and info.down == 1 and info.fever == 1 and info.phase == "FEVER",
           f"moved {info.moved} chips {info.chips}/{info.maxhp} down {info.down} fever {info.fever} {info.phase}")
 check("the Tin Drake speeds up when hit", abilities["drake"].speedChanged)
 check("the Gyro Spider hops when hit", abilities["spider"].hops > 0)
@@ -2081,6 +2083,27 @@ UI:StopFanfare()
 check("the last-piece zoom builds an 'ahhh' that Fever cuts off, or that turns to 'awww' on a miss",
       ev("__ahhOn") and ev("__noEarlyAww") and ev("__aww") and ev("__hitCuts"), f'{ev("__ahhOn")} {ev("__noEarlyAww")} {ev("__aww")} {ev("__hitCuts")}')
 
+# a boss is worn down by good play: an orange lit zaps it, a direct hit does two
+lua(r"""
+function boss_zap_probe()
+  local st = E:NewLevel(L:Build(10))
+  local events = {}
+  local b = st.boss
+  local hp0 = b.hp
+  local orange
+  for _, p in ipairs(st.pegs) do if p.kind == "orange" then orange = p break end end
+  E.HitPeg(st, orange, { vx = 0, vy = 100 }, events)
+  local afterZap = b.hp
+  local zapEv = false
+  for _, e in ipairs(events) do if e.type == "boss_zap" then zapEv = true end end
+  st.time = st.time + 1
+  E.HitPeg(st, b, { vx = 0, vy = 100 }, events)
+  return hp0 - afterZap, afterZap - b.hp, zapEv
+end
+""")
+zap, hit, zapEv = ev("boss_zap_probe")()
+check("on a boss level an orange lit zaps the boss for 1, a direct hit does 2", zap == 1 and hit == 2 and zapEv, f"{zap} {hit} {zapEv}")
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
@@ -2525,7 +2548,7 @@ function round_probe()
     st.time = st.time + 0.1
     E.HitPeg(st, b, { vx = 0, vy = 100 }, events)
   end
-  out.bossThree = hp0 - b.hp == 3
+  out.bossThree = hp0 - b.hp == 3 * E.BOSS_HIT_DAMAGE
   -- after a shot that hit it, the boss throws scrap
   wipe(events)
   st.phase = E.PHASE.FLIGHT
