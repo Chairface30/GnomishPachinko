@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Star marks set by hand where the formula misjudged: level 8 (the Super Slide) asks 300,000 for two stars and 500,000 for three; level 10 (the first boss) asks 150,000 for two and 260,000 for three, down from 420,000 and 637,000.
+- No green pieces on the Super Slide tutorial's spiral (level 8, which is the spiral alone): its greens are blue, so the ride is never interrupted by a power.
+- **The Super Slide tutorial points the way:** on level 8, after its talk, a cartoon arrow slides in and out along the way the ball should come in, pointing along the spiral's mouth into the inside of its lead brick, at the angle that catches the rail. It disappears with the first shot.
 - **The Tin Drake gets faster, faster:** it speeds up from its own starting speed as it weakens (before, its first hit could slow it down), reaching 2.2 times that speed near death in chapter 1 and more in each later chapter, up to a cap.
 - Clearing a chapter (its boss or duel) gives one each of Ring of Fire, Rainbow Ball and Suction Tube, the first time only; replaying it gives nothing more. (It used to give two Rings, a Rainbow, two Suction Tubes and a green peg every time.)
 - The Tin Drake faces the camera in the conversation box.

@@ -638,6 +638,12 @@ end }
 -- left, where its outer arm runs down and to the left in line with a ball
 -- from the cannon, so a shot that grazes the mouth runs along the inside
 -- of the arm and round the spiral to its middle.
+L.SLIDE_TUTORIAL = 8
+-- two-star and three-star marks set by hand (nil keeps the formula's)
+L.STAR_MARKS = {
+    [8]  = { 300000, 500000 },       -- the Super Slide tutorial: stars for a big ride
+    [10] = { 150000, 260000 },       -- the first boss: the formula asked far too much
+}
 L.SPIRAL8 = { a0 = -3.00, turns = 1.5, r0 = 48, r1 = 175, cy = 330, count = 30 }
 STARTERS[8] = { name = "Super Slide", build = function(rng, add)
     local sp = L.SPIRAL8
@@ -1468,6 +1474,14 @@ function L:Build(n, attempt, opts)
         end
     end
 
+    -- the Super Slide tutorial (level 8) is the spiral alone, and no green
+    -- goes on it: the ride is never interrupted by a power
+    if n == self.SLIDE_TUTORIAL then
+        for _, g in ipairs(pegs) do
+            if g.rail and g.kind == "green" then g.kind = "blue" end
+        end
+    end
+
     -- tough pieces: a steel rim and two (or three) hits to light
     local toughShare, heavyShare = self:ToughShare(n), self:HeavyShare(n)
     local tough = 0
@@ -1526,5 +1540,8 @@ function L:Build(n, attempt, opts)
         power = self:PowerFor(chapter),
     }
     spec.stars = { self:ParFor(spec) }
+    -- star marks set by hand where the formula misjudged a level
+    local mark = self.STAR_MARKS[n]
+    if mark then spec.stars = { mark[1] or spec.stars[1], mark[2] or spec.stars[2] } end
     return spec
 end

@@ -1295,6 +1295,59 @@ function UI:PlayFromCard()
     self:UpdateDisplay()
 end
 
+-- The Super Slide tutorial's arrow: the fat cartoon arrow, still, pointing
+-- along the spiral's mouth into the inside face of its lead brick, the way
+-- a ball should come in to catch the rail. Gone with the first shot.
+UI.SPIRAL_ARROW_W = 96
+UI.SPIRAL_ARROW_TILT = 0.35      -- how far the way in leans into the brick
+function UI:ShowSpiralHint()
+    local st = self.state
+    if not st then return end
+    local list = {}
+    for _, p in ipairs(st.pegs) do if p.rail == "spiral" and not p.gone then list[#list + 1] = p end end
+    table.sort(list, function(a, b) return (a.railIdx or 0) < (b.railIdx or 0) end)
+    local b1, b2 = list[1], list[2]
+    if not (b1 and b2) then return end
+    -- along the rail, and the inner face's normal (toward the spiral's middle)
+    local dx, dy = b2.x - b1.x, b2.y - b1.y
+    local L = math.sqrt(dx * dx + dy * dy)
+    if L < 0.001 then return end
+    dx, dy = dx / L, dy / L
+    local nx, ny = -dy, dx
+    if ((b1.railCx or b1.x) - b1.x) * nx + ((b1.railCy or b1.y) - b1.y) * ny < 0 then nx, ny = -nx, -ny end
+    -- the spot on the inside face, and the way in, leaning into the brick
+    local tx, ty = b1.x + nx * (E.BRICK_H / 2 + 4), b1.y + ny * (E.BRICK_H / 2 + 4)
+    local wx, wy = dx - nx * self.SPIRAL_ARROW_TILT, dy - ny * self.SPIRAL_ARROW_TILT
+    local wl = math.sqrt(wx * wx + wy * wy)
+    wx, wy = wx / wl, wy / wl
+    if not self.spiralArrow then
+        local f = CreateFrame("Frame", nil, self.field)
+        f:SetAllPoints(self.field)
+        f:SetFrameLevel(self.field:GetFrameLevel() + 20)
+        self.spiralArrow = f:CreateTexture(nil, "OVERLAY")
+        ART:Set(self.spiralArrow, "comic_arrow")
+        self.spiralArrow:SetSize(self.SPIRAL_ARROW_W, self.SPIRAL_ARROW_W / 2)
+    end
+    local a = self.spiralArrow
+    local back = self.SPIRAL_ARROW_W / 2 + 6
+    a:ClearAllPoints()
+    a:SetPoint("CENTER", self.field, "TOPLEFT", tx - wx * back, -(ty - wy * back))
+    if a.SetRotation then a:SetRotation(math.atan2 and math.atan2(-wy, wx) or math.atan(-wy, wx)) end
+    a.target = { x = tx, y = ty }
+    a.dir = { x = wx, y = wy }
+    a.back = back
+    a:Show()
+end
+
+-- It slides in and out along the way the ball should come in, angle fixed.
+function UI:AnimateSpiralHint(now)
+    local a = self.spiralArrow
+    if not (a and a:IsShown() and a.dir) then return end
+    local pull = a.back + 22 * (0.5 + 0.5 * math.sin(now * 5))
+    a:ClearAllPoints()
+    a:SetPoint("CENTER", self.field, "TOPLEFT", a.target.x - a.dir.x * pull, -(a.target.y - a.dir.y * pull))
+end
+
 -- Until Play is pressed the board stands empty: no pieces, no bucket, no
 -- cannon, no boss, no ribbon, no guide; only its painted backdrop.
 function UI:HideBoardContents()
@@ -1317,6 +1370,7 @@ function UI:ShowBoardContents()
     if not self.boardHidden then return end
     self.boardHidden = nil
     self:LayoutPegs()
+    if self.spiralHintPending then self:ShowSpiralHint() end
     if self.state and not self.state.noBucket then self.bucket:Show() end
     if self.barrelFrame then self.barrelFrame:Show() end
 end
@@ -2198,6 +2252,9 @@ function UI:StartLevel(n, retry)
     GP.Mascot:React("start")
     self:UpdateDisplay()
     local talk = GP.Dialog and GP.Dialog:For(self.state) or {}
+    self.spiralHintPending = nil
+    if self.spiralArrow then self.spiralArrow:Hide() end
+    for _, sc in ipairs(talk) do if sc.key == "slide" then self.spiralHintPending = true end end
     local voice = self.startVoice
     if #talk > 0 then
         self.cardSheet:Show()
@@ -3468,6 +3525,11 @@ function UI:OnUpdate(dt)
     if not st then return end
     if self.levelPanel and self.levelPanel:IsShown() then return end
     if self.boardHidden then return end          -- the level card is up: nothing on the board yet
+    if self.spiralHintPending and st and (st.shots or 0) > 0 then
+        self.spiralHintPending = nil
+        if self.spiralArrow then self.spiralArrow:Hide() end
+    end
+    self:AnimateSpiralHint(now)
 
     if st.phase == E.PHASE.AIM then
         self:AimAtCursor(dt)

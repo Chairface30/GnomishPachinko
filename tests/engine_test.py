@@ -248,7 +248,8 @@ for n in range(1, 401):
     if counts["goal"] != spec.goal and spec.objective != "longshots":
         problems.append((n, "goal flags", counts["goal"], spec.goal))
     if counts["green"] != 2:
-        problems.append((n, "greens", counts["green"]))
+        if not (n == 8 and counts["green"] == 0):     # the Super Slide tutorial has none
+            problems.append((n, "greens", counts["green"]))
     if n < 31 and counts["tough"] > 0:
         problems.append((n, "tough too early"))
     if counts["tough"] > 0:
@@ -2577,6 +2578,52 @@ r1a, r1b = ev("drake_ratio")(10)
 r6a, r6b = ev("drake_ratio")(130)      # the next Tin Drake (chapter 13)
 check("the Tin Drake never slows when first hit, speeds up as it weakens, and more in later chapters",
       r1a >= 1 and r1b > r1a and r6b > r1b, f"ch1 {r1a:.2f}->{r1b:.2f}  ch13 {r6a:.2f}->{r6b:.2f}")
+
+# the Super Slide tutorial: a still arrow at the spiral's lead brick, gone with the first shot
+lua(r"""
+GnomishPachinkoDB.dialogs.slide = nil
+GnomishPachinkoDB.unlocked = math.max(GnomishPachinkoDB.unlocked or 1, 8)
+UI:StartLevel(8, true)
+if GP.Dialog:IsShown() then GP.Dialog:Finish() end
+__hintBeforePlay = UI.spiralArrow == nil or not UI.spiralArrow:IsShown()
+UI.card.main:Click()
+__hintShown = UI.spiralArrow ~= nil and UI.spiralArrow:IsShown()
+-- it points at the inside of the lead brick, near it
+local lead
+for _, p in ipairs(UI.state.pegs) do if p.rail == "spiral" and (not lead or p.railIdx < lead.railIdx) then lead = p end end
+local t = UI.spiralArrow.target
+__hintNear = t and math.abs(t.x - lead.x) < 20 and math.abs(t.y - lead.y) < 20
+local _, _, _, x1, y1 = UI.spiralArrow:GetPoint()
+__advance(0.15)
+local _, _, _, x2, y2 = UI.spiralArrow:GetPoint()
+-- it moved, and along its own line
+local mx, my = x2 - x1, -(y2 - y1)
+local d = UI.spiralArrow.dir
+__hintSlides = (math.abs(mx) + math.abs(my)) > 0.5 and math.abs(mx * d.y - my * d.x) < 0.01 * (math.abs(mx) + math.abs(my)) + 0.01
+UI.state.shots = 1
+__advance(0.1)
+__hintGone = not UI.spiralArrow:IsShown()
+""")
+check("the Super Slide tutorial's arrow slides along the way in to the spiral's lead brick after Play, gone with the first shot",
+      ev("__hintBeforePlay") and ev("__hintShown") and ev("__hintNear") and ev("__hintSlides") and ev("__hintGone"),
+      f'{ev("__hintBeforePlay")} {ev("__hintShown")} {ev("__hintNear")} {ev("__hintGone")}')
+
+# no green on the Super Slide tutorial's spiral, whatever the retry
+lua(r"""
+__spiralGreen = 0
+__spiralGreensTotal = true
+for attempt = 0, 12 do
+  local spec = L:Build(8, attempt)
+  local g = 0
+  for _, p in ipairs(spec.pegs) do
+    if p.kind == "green" then g = g + 1 end
+    if p.rail and p.kind == "green" then __spiralGreen = __spiralGreen + 1 end
+  end
+  if g ~= 2 then __spiralGreensTotal = false end
+end
+""")
+check("the Super Slide tutorial's spiral is never green", ev("__spiralGreen") == 0)
+check("level 8 asks 500k for three stars, level 10 less than before", ev("select(2, L:StarScores(8))") == 500000 and ev("(L:StarScores(8))") == 300000 and ev("select(2, L:StarScores(10))") == 260000)
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
