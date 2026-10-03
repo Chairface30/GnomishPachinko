@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Level editor: **the tools on the right are regrouped into sections** that close to their header bar with a click (the ones below move up): Level; Selection and position; Toughness, size and angle; Colors; Mirror, copy and delete; Rails and locks; Moving parts; Files and sharing. Which are open is remembered; Rails and Moving parts start closed so the rest fits.
+- Level editor: **the tools on the right are regrouped into sections** that close to their header bar with a click (the ones below move up): Level; Selection and position; Toughness, size and angle; Colors; Mirror, copy and delete; Rails and locks; Moving parts; Files and sharing. Every section starts closed; whichever you open or close stays that way.
 - Level editor: **eggs and gems are their own pieces**, with no bricks attached; build what they rest on yourself. The checks warn about an egg or gem with nothing under it (it would fall at the start). A level's layout brought into the editor keeps its cradle bricks as ordinary bricks.
 - Level editor: the **Mirror while placing** button sits beside Copy L-R, Copy T-B and Copy quad.
 - Level editor: the snap grid sits at the snap's own spacing, 5, 10 or 20 pixels (5 and 10 both drew a 10-pixel grid), every fourth line a little stronger.

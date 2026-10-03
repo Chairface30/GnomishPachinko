@@ -1809,14 +1809,16 @@ function ED:LayoutSections()
     self.problemText:SetPoint("TOPLEFT", self.frame, "TOPLEFT", rx, y - 56)
 end
 
--- which sections are closed: remembered; at first, the two used least, so
--- everything else fits in the window
-ED.SECTIONS_CLOSED_AT_FIRST = { links = true, moving = true }
+-- which sections are closed: every one at first, then whatever the player
+-- leaves open or shut is remembered (sectionsV marks the layout that rule
+-- belongs to, so states saved under the earlier rule start over once)
+ED.SECTIONS_VERSION = 2
 function ED:Collapsed()
     local db = self:DB()
-    if type(db.collapsed) ~= "table" then
+    if type(db.collapsed) ~= "table" or db.sectionsV ~= self.SECTIONS_VERSION then
         db.collapsed = {}
-        for k, v in pairs(self.SECTIONS_CLOSED_AT_FIRST) do db.collapsed[k] = v end
+        for _, sec in ipairs(self.sections or {}) do db.collapsed[sec.key] = true end
+        db.sectionsV = self.SECTIONS_VERSION
     end
     return db.collapsed
 end

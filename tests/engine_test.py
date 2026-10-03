@@ -4789,25 +4789,33 @@ check("Editor: mirror while placing makes 2 (left-right), 2 (top-bottom) or 4 (q
 check("Editor: the owner's Approved levels list loads and removes approved levels, and is hidden for everyone else",
       q["approvedLoad"] and q["approvedRemove"] and q["approvedHidden"], str(q))
 
-# the right-hand tools in sections that open and close; closing one moves the rest up
+# the right-hand tools in sections: all closed at first, each opens to show its tools (the rest move down), and stays as left
 lua(r"""
 ED:Show()
 GnomishPachinkoDB.editor.collapsed = nil
+GnomishPachinkoDB.editor.sectionsV = nil
 ED:LayoutSections()
+local allClosed = true
+for _, sec in ipairs(ED.sections) do if sec.body:IsShown() then allClosed = false end end
 local pos = ED.sections.position
 local y0 = select(5, pos.head:GetPoint())
 ED:ToggleSection("level")
 local y1 = select(5, pos.head:GetPoint())
-__closed = not ED.sections.level.body:IsShown() and y1 > y0 and GnomishPachinkoDB.editor.collapsed.level == true
-__firstClosed = not ED.sections.links.body:IsShown() and not ED.sections.moving.body:IsShown()
+__opened = allClosed and ED.sections.level.body:IsShown() and y1 < y0
+-- remembered: another layout pass (a reload) keeps it open
+ED:LayoutSections()
+__kept = ED.sections.level.body:IsShown() and GnomishPachinkoDB.editor.collapsed.level == false
 ED:ToggleSection("level")
-__reopened = ED.sections.level.body:IsShown() and select(5, pos.head:GetPoint()) == y0 and ED.nameBox:IsShown()
+__closedAgain = not ED.sections.level.body:IsShown() and select(5, pos.head:GetPoint()) == y0
 local keys = {}
 for _, sec in ipairs(ED.sections) do keys[#keys + 1] = sec.key end
 __sections = table.concat(keys, ",")
+-- the rest of the suite works with every section open
+for _, sec in ipairs(ED.sections) do GnomishPachinkoDB.editor.collapsed[sec.key] = false end
+ED:LayoutSections()
 """)
-check("Editor tools sit in sections (level, position, shape, colors, mirror, rails, moving, files) that close to their header and open again, the rest moving up",
-      ev("__closed") and ev("__reopened") and ev("__firstClosed") and ev("__sections") == "level,position,shape,color,mirror,links,moving,files", ev("__sections"))
+check("Editor tool sections (level, position, shape, colors, mirror, rails, moving, files) all start closed, open with a click (the rest move down), and stay as left",
+      ev("__opened") and ev("__kept") and ev("__closedAgain") and ev("__sections") == "level,position,shape,color,mirror,links,moving,files", ev("__sections"))
 
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
