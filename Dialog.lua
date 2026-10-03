@@ -48,7 +48,7 @@ D.SPEAKER_VIEWS = {
     razzle = { z = -0.31, x = 17.71, scale = 1.91, yaw = -0.2,  pitch = 0, cam = 1 },
     bink   = { z = -0.4,  x = 8.19,  scale = 2.11, yaw = 0.4,   pitch = 0, cam = 1 },
     cog    = { z = -0.26, x = 12.95, scale = 4.18, yaw = -0.05, pitch = 0, cam = 2.08 },
-    drake  = { yaw = 0.4 - math.pi },       -- turned half round: it faced away
+    drake  = { yaw = 0.4 },                 -- facing the camera (a half turn had him facing away)
 }
 function D:SpeakerView(key)
     local fixed = (key and self.SPEAKER_VIEWS[key]) or {}
