@@ -1017,8 +1017,10 @@ function L:BossFor(n)
     local k = floor((chapter + 1) / 2)
     if n > self.TINK_DUEL_LEVEL then k = k - 1 end
     local def = E.BOSSES[self.BOSS_ORDER[((k - 1) % #self.BOSS_ORDER) + 1]]
-    return def, 8 + floor(chapter * 0.6)
+    return def, self.BOSS_HP[n] or (8 + floor(chapter * 0.6))
 end
+-- set by hand where the formula played too tough
+L.BOSS_HP = { [30] = 8 }     -- the first Gyro Spider
 
 -- Star marks come from the level itself: what its pieces are worth at a
 -- middling multiplier, one Fever bin, and the bins of the balls a good

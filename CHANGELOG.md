@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The first Gyro Spider (level 30) has 8 health instead of 9.
 - Fixed: a duel could be lost with the higher score, when Cogwhistle lit the last orange. The last orange now pays a 25,000 bonus and ends the duel, and the scores always decide it.
 - **The last-piece zoom has a crowd:** instead of a whispered "last one", a held "ahhhh" builds through the slow motion until the piece lights and the Fever music cuts in. If the ball misses, it falls away into a sad "awwww".
 - **Every boss has a voice of its own:** the Bolt Golem booms through iron with a metal-room echo, the Gyro Spider hisses and crackles with electricity, the Mechano-Boar snorts and growls, and the Cog Yeti rumbles slow through an ice-cave echo.
