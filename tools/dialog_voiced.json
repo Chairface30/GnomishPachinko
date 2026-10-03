@@ -124,5 +124,8 @@
  "tough_1_bink": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them.",
  "tough_1_mekka": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them.",
  "tough_1_razzle": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them.",
- "tough_1_tink": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them."
+ "tough_1_tink": "Steel-rimmed pieces take two hits, gold-rimmed three. They crack first, so keep at them.",
+ "welcome_1": "Welcome, welcome! Tinkmaster Overspark here, and you've found the Gnomish Pachinko!",
+ "welcome_2": "Fair warning: the bosses are still a work in progress. They may change completely in a later version.",
+ "welcome_3": "Got ideas? New gnome hosts with new powers, new obstacles, new bosses? Send them in on the Gnomish Pachinko page on CurseForge!"
 }

@@ -104,6 +104,8 @@ local function new(name)
 end
 function Obj:CreateTexture() return new() end
 function Obj:CreateLine() return new() end
+function Obj:SetChecked(v) rawset(self, "_checked", v and true or false) end
+function Obj:GetChecked() return rawget(self, "_checked") end
 function Obj:SetPoint(...) rawset(self, "_point", { ... }) end
 function Obj:GetPoint() local p = rawget(self, "_point") if p then return table.unpack(p) end end
 function Obj:CreateFontString() return new() end
@@ -2103,6 +2105,32 @@ end
 """)
 zap, hit, zapEv = ev("boss_zap_probe")()
 check("on a boss level an orange lit zaps the boss for 1, a direct hit does 2", zap == 1 and hit == 2 and zapEv, f"{zap} {hit} {zapEv}")
+
+# settings: a box for the sound and one for the music
+lua(r"""
+UI:StartLevel(1, true)
+local db = GP:GetDB()
+local boxes = UI.settingBoxes
+boxes.music:SetChecked(false); boxes.music:GetScript("OnClick")(boxes.music)
+local n0 = #__played_files
+UI:StartFanfare(GetTime())
+__musicOff = db.music == false and #__played_files == n0
+boxes.music:SetChecked(true); boxes.music:GetScript("OnClick")(boxes.music)
+UI:StartFanfare(GetTime())
+__musicOn = db.music == true and #__played_files == n0 + 1
+UI:StopFanfare(true)
+boxes.sound:SetChecked(false); boxes.sound:GetScript("OnClick")(boxes.sound)
+n0 = #__played_files
+GP:PlaySfx("zap.ogg")
+__soundOff = db.sound == false and #__played_files == n0
+boxes.sound:SetChecked(true); boxes.sound:GetScript("OnClick")(boxes.sound)
+-- the welcome comes first for a new player
+GnomishPachinkoDB.dialogs.welcome, GnomishPachinkoDB.dialogs.intro = nil, nil
+local talk = GP.Dialog:For({ level = 1, pegs = {} })
+__welcomeFirst = talk[1] and talk[1].key == "welcome"
+""")
+check("the window has a Sound box and a Music box, each switching its own sounds", ev("__musicOff") and ev("__musicOn") and ev("__soundOff"))
+check("a new player is welcomed first, with the bosses' work-in-progress note", ev("__welcomeFirst"))
 
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""

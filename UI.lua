@@ -598,6 +598,37 @@ function UI:CreateFrame()
     local side = CreateFrame("Frame", nil, frame)
     side:SetSize(SIDE_W, FH)
     side:SetPoint("TOPLEFT", view, "TOPRIGHT", GAP, 0)
+    -- the settings: sound and music, each with its own box
+    self.settingBoxes = {}
+    local function settingBox(key, text, y, onChange)
+        local cb = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+        cb:SetSize(24, 24)
+        cb:SetPoint("BOTTOMLEFT", side, "TOPLEFT", -4, y)
+        local label = cb:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        label:SetPoint("LEFT", cb, "RIGHT", 2, 1)
+        label:SetText(text)
+        cb.label = label
+        cb.key = key
+        cb:SetScript("OnShow", function(self) self:SetChecked(GP:GetDB()[self.key] ~= false) end)
+        cb:SetScript("OnClick", function(self)
+            local on = self:GetChecked() and true or false
+            GP:GetDB()[self.key] = on
+            if onChange then onChange(on) end
+        end)
+        cb:SetChecked(GP:GetDB()[key] ~= false)
+        self.settingBoxes[key] = cb
+        return cb
+    end
+    settingBox("sound", "Sound", 30, function(on)
+        if not on then
+            GP:StopVoice()
+            if UI.ahhHandle then UI:StopAhh(false) end
+        end
+    end)
+    settingBox("music", "Music", 6, function(on)
+        if not on then UI:StopFanfare(true)
+        elseif UI.state and UI.state.phase == E.PHASE.FEVER then UI:StartFanfare(GetTime()) end
+    end)
     self.side = side
 
     local function label(text, y, template)
@@ -2214,7 +2245,7 @@ end
 -- The clearing fanfare: starts when the last goal piece lights, loops
 -- while the leftover balls fly, stops when the level is over.
 function UI:StartFanfare(now)
-    local _, handle = GP:PlaySfx("fever_music.ogg")
+    local _, handle = GP:PlayMusic("fever_music.ogg")
     self.fanfareHandle = handle
     self.fanfareAt = now
 end

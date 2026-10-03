@@ -19,7 +19,8 @@ local DEFAULTS = {
     tips = {},             -- first-encounter tips already shown
     lastPower = nil,       -- the power picked on the level card
     current = 1,           -- level the window opens on
-    sound = true,
+    sound = true,          -- sound effects and voices
+    music = true,          -- the music (Fever)
     voice = true,          -- the announcer's lines (Sounds/Voice)
     minimap = { hide = false, angle = 220 },
     scale = 1,
@@ -47,6 +48,13 @@ function GP:GetDB()
     end
     self.db = db
     return db
+end
+
+-- Music: its own switch, apart from the sound effects.
+function GP:PlayMusic(file)
+    local db = self.db or self:GetDB()
+    if db.music == false then return end
+    return PlaySoundFile("Interface\\AddOns\\GnomishPachinko\\Sounds\\" .. file, "SFX")
 end
 
 function GP:PlaySfx(file)
@@ -213,7 +221,7 @@ end
 function GP:ResetProgress()
     -- keep the settings, wipe the progress (gears, special balls and plays stay)
     local keep = GnomishPachinkoDB or {}
-    GnomishPachinkoDB = { sound = keep.sound, voice = keep.voice, minimap = keep.minimap, mascot = keep.mascot }
+    GnomishPachinkoDB = { sound = keep.sound, music = keep.music, voice = keep.voice, minimap = keep.minimap, mascot = keep.mascot }
     self.db = nil
     self:GetDB()
     self.Plays:Save()
@@ -248,6 +256,11 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         local db = GP:GetDB()
         db.sound = not db.sound
         GP:Print("Sound " .. (db.sound and "on" or "off") .. ".")
+    elseif msg == "music" then
+        local db = GP:GetDB()
+        db.music = db.music == false
+        GP:Print("Music " .. (db.music and "on" or "off") .. ".")
+        if not db.music and GP.UI and GP.UI.StopFanfare then GP.UI:StopFanfare(true) end
     elseif msg == "voice" then
         local db = GP:GetDB()
         db.voice = not db.voice
@@ -277,7 +290,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. " ..
             "/pachinko plays - plays left today. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
-            "/pachinko sound - toggle sound. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
+            "/pachinko sound - toggle sound. /pachinko music - toggle the music. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
     end
 end
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Sound and Music boxes** above the right column: one switches the sound effects and voices, the other the music, each on its own.
+- **A welcome for new players:** Tinkmaster greets them, warns that the bosses are a work in progress and may change completely, and asks for ideas (new gnome hosts and powers, obstacles, bosses) on the CurseForge page.
+
 - **Bosses fall to good play, not lucky bounces.** Boss levels now deal orange pegs (the boss's health and four more; they are not goals). Every orange you light zaps the boss with a bolt for 1 damage, and a direct hit does 2. The Bolt Golem's shield stops only the ball, not a zap. In simulated play a careful player now beats nearly every boss. Before, only a direct hit counted, and from a fresh board only about one aim in seven touched the boss at all.
 - Fixed: the sad "awww" could play as the last-piece zoom began, on a shot that then hit. It now plays only when the ball has truly missed: the shot ends with the piece standing, or the slow motion stays off for most of a second.
 - The first Gyro Spider (level 30) has 8 health instead of 9.

@@ -116,6 +116,12 @@ D.SCRIPTS = {
         { "tink", "Walk up to any mailbox and press Get Golden Gears again. I'll fill the mail out for you: gold to Chairface Chippendale, with pachinko golden gears as the subject." },
         { "tink", "Send it off, and your gears turn up as soon as the gold arrives. Spend them in the shop on special balls, or on more plays!" },
     } },
+    -- the very first thing a new player hears
+    { key = "welcome", when = function(st) return st.level == 1 end, lines = {
+        { "tink", "Welcome, welcome! Tinkmaster Overspark here, and you've found the Gnomish Pachinko!" },
+        { "tink", "Fair warning: the bosses are still a work in progress. They may change completely in a later version." },
+        { "tink", "Got ideas? New gnome hosts with new powers, new obstacles, new bosses? Send them in on the Gnomish Pachinko page on CurseForge!" },
+    } },
     { key = "intro", when = function(st) return st.level == 1 end, lines = {
         { "tink", "Well hello there! Tinkmaster Overspark, chief engineer of Tinker Town, at your service." },
         { "tink", "This is my finest invention: the Gnomish Pachinko! Point with the mouse, click to shoot." },
