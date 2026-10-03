@@ -2181,8 +2181,18 @@ function UI:CreateLevelSelect()
     panel.back:SetPoint("TOP", self.view, "BOTTOM", 90, -2)
     panel.back:SetScript("OnClick", function() UI:HideLevelSelect() end)
     panel.editor:Hide(); panel.back:Hide()
-    panel:SetScript("OnShow", function() panel.editor:Show(); panel.back:Show() end)
-    panel:SetScript("OnHide", function() panel.editor:Hide(); panel.back:Hide() end)
+    -- while an editor level is being test-played: the way back to the editor,
+    -- in the same footer (it steps aside while the map is open)
+    local toEditor = makeButton(self.frame, 170, 24, "Back to editor")
+    toEditor:SetPoint("TOP", self.view, "BOTTOM", 0, -2)
+    toEditor:SetScript("OnClick", function() UI:BackToEditor() end)
+    toEditor:Hide()
+    self.toEditorBtn = toEditor
+    panel:SetScript("OnShow", function() panel.editor:Show(); panel.back:Show(); toEditor:Hide() end)
+    panel:SetScript("OnHide", function()
+        panel.editor:Hide(); panel.back:Hide()
+        if UI.customTest then toEditor:Show() end
+    end)
     -- wipes progress after a second click within a few seconds
     panel.reset = makeButton(panel, 150, 24, "Reset progress")
     panel.reset:SetPoint("BOTTOM", 0, 10)
@@ -2534,6 +2544,9 @@ function UI:StartLevel(n, retry, opts)
     self:Initialize()
     local custom = opts and opts.custom
     self.customTest = custom
+    if self.toEditorBtn then
+        if custom and not (self.levelPanel and self.levelPanel:IsShown()) then self.toEditorBtn:Show() else self.toEditorBtn:Hide() end
+    end
     if not custom and not GP:IsUnlocked(n) then n = GP:GetDB().unlocked or 1 end
     if not custom and not GP.Plays:CanPlay() then
         self:ShowOutOfPlays()
@@ -3784,6 +3797,16 @@ function UI:OnCustomOver(result)
     self.customBackAt = GetTime() + 3
 end
 
+-- Leave a test early (or after it ends) for the editor.
+function UI:BackToEditor()
+    self.customBackAt = nil
+    if self.toEditorBtn then self.toEditorBtn:Hide() end
+    if GP.Editor then
+        GP.Editor.testing = true
+        GP.Editor:ReturnFromTest()
+    end
+end
+
 -- Test-play an editor level on the board.
 function UI:StartCustom(data, n)
     self:Show()
@@ -3942,8 +3965,7 @@ function UI:OnUpdate(dt)
     end
     GP.Mascot:Tick(now)
     if self.customBackAt and now >= self.customBackAt then
-        self.customBackAt = nil
-        if GP.Editor and GP.Editor.ReturnFromTest then GP.Editor:ReturnFromTest() end
+        self:BackToEditor()
     end
     if self.duelStartAt and now >= self.duelStartAt then
         self.duelStartAt = nil

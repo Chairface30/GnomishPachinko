@@ -416,6 +416,48 @@ function ED:RotateSelected(da, cx, cy)
     end
 end
 
+-- the numbers in the X and Y boxes (nil where a box is empty or not a number)
+function ED:TypedXY()
+    local function read(box)
+        local v = tonumber(box and box:GetText() or "")
+        if not v or v ~= v or abs(v) > 10000 then return nil end
+        return v
+    end
+    return read(self.xBox), read(self.yBox)
+end
+
+function ED:MoveTo()
+    local list = self:Selected()
+    if #list == 0 then return self:Status("Select some pieces first.") end
+    local x, y = self:TypedXY()
+    if not x and not y then return self:Status("Type an X or a Y.") end
+    local cx, cy = self:Centre(list)
+    self:PushUndo()
+    self:MoveSelected(x and (x - cx) or 0, y and (y - cy) or 0)
+    self:Refresh()
+end
+
+function ED:LineUp(axis)
+    local x, y = self:TypedXY()
+    local v = (axis == "x") and x or y
+    if not v then return self:Status("Type the " .. axis:upper() .. " to line them up on.") end
+    self:ForSelected(function(pc)
+        if axis == "x" then pc.x = v else pc.y = v end
+        clampToZone(pc)
+    end)
+end
+
+function ED:Spread(axis)
+    local list = self:Selected()
+    if #list < 3 then return self:Status("Select at least three pieces to space them out.") end
+    local pieces = self.data.pieces
+    table.sort(list, function(a, b) return pieces[a][axis] < pieces[b][axis] end)
+    local lo, hi = pieces[list[1]][axis], pieces[list[#list]][axis]
+    self:PushUndo()
+    for k, i in ipairs(list) do pieces[i][axis] = lo + (hi - lo) * (k - 1) / (#list - 1) end
+    self:Refresh()
+end
+
 -- the number in the degrees box
 function ED:Degrees()
     local v = tonumber(self.degBox and self.degBox:GetText() or "")
@@ -1059,7 +1101,7 @@ local function editBox(parent, w, h)
 end
 
 ED.FIELD_X, ED.FIELD_Y = 176, -96
-ED.FRAME_W, ED.FRAME_H = 1010, 900
+ED.FRAME_W, ED.FRAME_H = 1010, 950
 
 function ED:Create()
     if self.frame then return end
@@ -1215,69 +1257,86 @@ function ED:Create()
 
     rtext(-250, "Selection", 14)
     self.selText = rtext(-272, "")
-    rbtn(0, -292, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
-    rbtn(97, -292, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
-    rbtn(194, -292, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
-    self.colorBtn = rbtn(0, -317, 140, "Color: dealt", function() ED:CycleColor() end,
+    -- where the selection is: one piece's own spot, or a group's middle
+    rtext(-296, "X")
+    self.xBox = editBox(frame, 52, 20)
+    self.xBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 16, -292)
+    self.xBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:MoveTo() end)
+    local ylab = text(frame, 12)
+    ylab:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 78, -296)
+    ylab:SetText("Y")
+    self.yBox = editBox(frame, 52, 20)
+    self.yBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 94, -292)
+    self.yBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:MoveTo() end)
+    rbtn(156, -292, 130, "Move", function() ED:MoveTo() end,
+        "One piece: put it at X, Y. Several: move the group so its middle is at X, Y. Enter in a box does the same. Field pixels: X 0 to 490 left to right, Y 0 to 700 top to bottom.")
+    rbtn(0, -317, 68, "Line up X", function() ED:LineUp("x") end, "Every selected piece to the X in the box (a column).")
+    rbtn(73, -317, 68, "Line up Y", function() ED:LineUp("y") end, "Every selected piece to the Y in the box (a row).")
+    rbtn(146, -317, 68, "Spread X", function() ED:Spread("x") end, "Space the selected pieces evenly from left to right, between the outermost two.")
+    rbtn(218, -317, 68, "Spread Y", function() ED:Spread("y") end, "Space the selected pieces evenly from top to bottom, between the outermost two.")
+    rbtn(0, -342, 92, "Normal", function() ED:SetHp(1) end, "One hit to light.")
+    rbtn(97, -342, 92, "Steel", function() ED:SetHp(2) end, "Two hits (an egg: two to hatch).")
+    rbtn(194, -342, 92, "Gold", function() ED:SetHp(3) end, "Three hits.")
+    self.colorBtn = rbtn(0, -367, 140, "Color: dealt", function() ED:CycleColor() end,
         "Pegs and bricks: dealt at random on every attempt, or set to orange, blue or green for good.")
-    rbtn(146, -317, 68, "Smaller", function() ED:Resize(-1) end, "Bars shorter, balloons and studs smaller.")
-    rbtn(218, -317, 68, "Bigger", function() ED:Resize(1) end)
+    rbtn(146, -367, 68, "Smaller", function() ED:Resize(-1) end, "Bars shorter, balloons and studs smaller.")
+    rbtn(218, -367, 68, "Bigger", function() ED:Resize(1) end)
     -- turning by an exact number of degrees, or setting a bar's angle outright
-    rbtn(0, -342, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
+    rbtn(0, -392, 40, "-", function() ED:TurnBy(-1) end, "Turn the selection round its middle by the degrees in the box, anticlockwise (Q / E turn 5).")
     self.degBox = editBox(frame, 46, 20)
-    self.degBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -343)
+    self.degBox:SetPoint("TOPLEFT", frame, "TOPLEFT", rx + 50, -393)
     self.degBox:SetText("15")
     if self.degBox.SetJustifyH then self.degBox:SetJustifyH("CENTER") end
     self.degBox:SetScript("OnEnterPressed", function(eb) eb:ClearFocus(); ED:TurnBy(1) end)
-    rbtn(102, -342, 40, "+", function() ED:TurnBy(1) end, "Turn the selection by the degrees in the box, clockwise. Enter in the box does the same.")
-    rbtn(148, -342, 138, "Set angle", function() ED:SetAngle() end,
+    rbtn(102, -392, 40, "+", function() ED:TurnBy(1) end, "Turn the selection by the degrees in the box, clockwise. Enter in the box does the same.")
+    rbtn(148, -392, 138, "Set angle", function() ED:SetAngle() end,
         "Set every selected bar (brick, steel bar, cage bar) to the angle in the box, in degrees: 0 is level, 90 upright. Each turns where it stands.")
-    rbtn(0, -367, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
-    rbtn(97, -367, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
-    rbtn(194, -367, 92, "Mirror copy", function() ED:MirrorCopyAcross() end, "A mirrored copy on the other side of the middle line.")
-    rbtn(0, -392, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
-    rbtn(97, -392, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
-    rbtn(194, -392, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
-    rbtn(0, -417, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
-    rbtn(146, -417, 140, "Unrail", function() ED:ClearRail() end)
-    rbtn(0, -442, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
-    rbtn(146, -442, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
+    rbtn(0, -417, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
+    rbtn(97, -417, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
+    rbtn(194, -417, 92, "Mirror copy", function() ED:MirrorCopyAcross() end, "A mirrored copy on the other side of the middle line.")
+    rbtn(0, -442, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
+    rbtn(97, -442, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
+    rbtn(194, -442, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
+    rbtn(0, -467, 140, "Make rail", function() ED:MakeRail() end, "Selected bricks become one rail: a ball meeting it from the inside rides it (a Super Slide).")
+    rbtn(146, -467, 140, "Unrail", function() ED:ClearRail() end)
+    rbtn(0, -492, 140, "Link key + cage", function() ED:LinkLock() end, "Selected key opens the selected cage bars.")
+    rbtn(146, -492, 140, "Silver / gold", function() ED:ToggleSilver() end, "Keys and cage bars: silver or gold.")
 
     -- colours a dealt piece never gets on any attempt
     self.excludeBtns = {}
     for k, spec in ipairs({ { "o", "Never orange" }, { "g", "Never green" }, { "p", "Never purple" } }) do
         local letter, label = spec[1], spec[2]
-        local b = rbtn((k - 1) * 97, -467, 92, label, function() ED:ToggleExclude(letter) end,
+        local b = rbtn((k - 1) * 97, -517, 92, label, function() ED:ToggleExclude(letter) end,
             "Pegs and bricks: never dealt this color on any attempt.")
         b.label = label
         self.excludeBtns[letter] = b
     end
-    rtext(-499, "Moving parts", 14)
-    self.moverText = rtext(-521, "")
-    self.moverBtn = rbtn(0, -541, 286, "Make them move", function() ED:CycleMover() end,
+    rtext(-549, "Moving parts", 14)
+    self.moverText = rtext(-571, "")
+    self.moverBtn = rbtn(0, -591, 286, "Make them move", function() ED:CycleMover() end,
         "The selected pieces move together: slide side to side, lift up and down, wheel round their middle, or swing like a pendulum. Click again for the next kind; after Swing they stop moving.")
-    rbtn(0, -566, 68, "Range -", function() ED:TuneMover("amp", -1) end)
-    rbtn(73, -566, 68, "Range +", function() ED:TuneMover("amp", 1) end)
-    rbtn(146, -566, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
-    rbtn(218, -566, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
-    rbtn(0, -591, 286, "Reverse direction", function() ED:TuneMover("reverse") end)
+    rbtn(0, -616, 68, "Range -", function() ED:TuneMover("amp", -1) end)
+    rbtn(73, -616, 68, "Range +", function() ED:TuneMover("amp", 1) end)
+    rbtn(146, -616, 68, "Speed -", function() ED:TuneMover("speed", -1) end)
+    rbtn(218, -616, 68, "Speed +", function() ED:TuneMover("speed", 1) end)
+    rbtn(0, -641, 286, "Reverse direction", function() ED:TuneMover("reverse") end)
 
-    rtext(-625, "Files", 14)
-    rbtn(0, -647, 92, "New", function() ED:NewLevel() end)
-    rbtn(97, -647, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
-    rbtn(194, -647, 92, "Load", function() ED:ShowList() end)
-    rbtn(0, -672, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
-    self.testBtn = rbtn(146, -672, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
-    self.importBtn = rbtn(0, -697, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
-    self.approveBtn = rbtn(146, -697, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
+    rtext(-675, "Files", 14)
+    rbtn(0, -697, 92, "New", function() ED:NewLevel() end)
+    rbtn(97, -697, 92, "Save", function() ED:Save() end, "Saved on this account, by name.")
+    rbtn(194, -697, 92, "Load", function() ED:ShowList() end)
+    rbtn(0, -722, 140, "Export code", function() ED:ShowCode(true) end, "A text code of this level to send to the game's owner.")
+    self.testBtn = rbtn(146, -722, 140, "Test play", function() ED:Test() end, "Play it on the board. No play is spent and nothing is recorded.")
+    self.importBtn = rbtn(0, -747, 140, "Import code", function() ED:ShowCode(false) end, "Owner: read a shared level code.")
+    self.approveBtn = rbtn(146, -747, 140, "Approve for level", function() ED:Approve(ED.data.level) end,
         "Owner: this level replaces the level number above.")
-    self.unapproveBtn = rbtn(0, -722, 286, "Remove approval for level", function() ED:Unapprove(ED.data.level) end)
+    self.unapproveBtn = rbtn(0, -772, 286, "Remove approval for level", function() ED:Unapprove(ED.data.level) end)
 
-    self.statusText = rtext(-755, "", 11)
+    self.statusText = rtext(-805, "", 11)
     self.statusText:SetWidth(286)
     self.statusText:SetJustifyV("TOP")
     self.statusText:SetTextColor(0.75, 1, 0.75)
-    self.problemText = rtext(-815, "", 11)
+    self.problemText = rtext(-865, "", 11)
     self.problemText:SetWidth(286)
     self.problemText:SetJustifyV("TOP")
     self.problemText:SetTextColor(1, 0.55, 0.45)
@@ -1676,6 +1735,13 @@ function ED:Refresh()
     end
     local angleText = angle and ((angle == "mixed") and "  (angles differ)" or ("  (angle " .. angle .. ")")) or ""
     self.selText:SetText(n == 0 and "Nothing selected" or (n .. " selected: " .. table.concat(parts, ", ") .. angleText))
+    -- the X and Y boxes follow the selection (unless being typed in)
+    if n > 0 then
+        local cx, cy = self:Centre(list)
+        local function fmt(v) return (("%.1f"):format(v):gsub("%.0$", "")) end
+        if not (self.xBox.HasFocus and self.xBox:HasFocus()) then self.xBox:SetText(fmt(cx)) end
+        if not (self.yBox.HasFocus and self.yBox:HasFocus()) then self.yBox:SetText(fmt(cy)) end
+    end
     local sc = self:SelColor()
     self.colorBtn.text:SetText(sc == nil and "Color: -" or (sc == "mixed" and "Color: mixed") or
         (sc and ("Color: " .. self.COLOR_NAMES[sc]) or "Color: dealt"))

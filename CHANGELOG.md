@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Level editor: **exact positions.** X and Y boxes show where the selection is (one piece's spot, or a group's middle) and take typed numbers: Move puts it there (Enter in a box too), Line up X / Line up Y puts every selected piece in a column or row, Spread X / Spread Y spaces them evenly.
+- Test play: a **Back to editor** button in the footer under the board leaves a test at any time.
 - Level editor: **Slide arc** and **Slide circle** tools for smooth curves. An arc: click where it starts, click where it ends, move the mouse to bend it and click to lay it (right-click or Escape cancels). A circle: press at the middle and drag out the size; the ring opens at the top as its mouth. Both are laid in full bricks, the last cut to fit.
 - Only submitted levels (imported from a player's code) credit their builder in the game; levels the owner builds and approves name no one.
 - **Players' levels credit their builders:** a level from the editor that goes into the game shows "Level by <name>" on its level card and in the info panel. The CurseForge page and README now invite players to post their level codes in the CurseForge comments.

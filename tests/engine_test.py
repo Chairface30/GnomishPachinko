@@ -4224,6 +4224,38 @@ sl = dict(ev("__slide"))
 check("the Super Slide tool lays a dragged curve as one rail of full bricks (the last cut to fit) that builds in order",
       sl["n"] >= 8 and sl["rail"] and sl["full"] == sl["n"] - sl["cut"] and sl["cut"] <= 1 and sl["ordered"] and sl["railBricks"] == sl["n"], str(sl))
 
+# exact positions: the X and Y boxes show and set where the selection is; line up and spread out
+lua(r"""
+ED:NewLevel()
+local a = ED:AddPiece("peg", 100, 300)
+local b = ED:AddPiece("peg", 170, 320)
+local c = ED:AddPiece("peg", 400, 350)
+ED.sel = { [a] = true }
+ED:Refresh()
+__shown = ED.xBox:GetText() == "100" and ED.yBox:GetText() == "300"
+ED.xBox:SetText("123.5"); ED.yBox:SetText("250")
+ED:MoveTo()
+local pa = ED.data.pieces[a]
+__single = pa.x == 123.5 and pa.y == 250
+-- a group: its middle goes to X, Y
+ED.sel = { [b] = true, [c] = true }
+ED.xBox:SetText("300"); ED.yBox:SetText("")
+ED:MoveTo()
+local pb, pc = ED.data.pieces[b], ED.data.pieces[c]
+__group = math.abs((pb.x + pc.x) / 2 - 300) < 1e-6 and pb.y == 320 and pc.y == 350 and pc.x - pb.x == 230
+-- a row on one Y, then evenly spaced
+ED.sel = { [a] = true, [b] = true, [c] = true }
+ED.yBox:SetText("280")
+ED:LineUp("y")
+__row = ED.data.pieces[a].y == 280 and ED.data.pieces[b].y == 280 and ED.data.pieces[c].y == 280
+ED:Spread("x")
+local xs = { ED.data.pieces[a].x, ED.data.pieces[b].x, ED.data.pieces[c].x }
+table.sort(xs)
+__spread = math.abs((xs[2] - xs[1]) - (xs[3] - xs[2])) < 1e-6
+""")
+check("X / Y boxes: show a piece's spot, put it at a typed spot, move a group's middle (one axis left blank keeps it), line up a row and spread it evenly",
+      ev("__shown") and ev("__single") and ev("__group") and ev("__row") and ev("__spread"))
+
 # the arc and circle tools: smooth curves, no wobble
 lua(r"""
 ED:NewLevel()
@@ -4271,6 +4303,7 @@ local bestBefore = GnomishPachinkoDB.best[1]
 UI:ShowLevelSelect()      -- the editor is opened from the map
 ED:Test()
 __testing = UI.customTest ~= nil and UI.state.custom == true and not ED.frame:IsShown() and not UI.levelPanel:IsShown()
+__toEditorShown = UI.toEditorBtn:IsShown()
 UI:PlayFromCard()
 local st = UI.state
 for _, p in ipairs(st.pegs) do if p.goal then p.lit = true; p.gone = true end end
@@ -4284,10 +4317,16 @@ UI:HandleEvents(GetTime())
 __overSeen = UI.customBackAt ~= nil
 __advance(4)
 __back = ED.frame:IsShown() and not ED.testing
+-- the footer button leaves a test early
+ED:Test()
+UI:PlayFromCard()
+UI.toEditorBtn:Click()
+__earlyBack = ED.frame:IsShown() and not UI.toEditorBtn:IsShown()
 __noRecord = GnomishPachinkoDB.best[1] == bestBefore
 UI.customTest = nil
 """)
-check("Test play runs the level on the board (the map closes), records nothing, and returns to the editor", ev("__testing") and ev("__back") and ev("__noRecord"), f'{ev("__testing")} {ev("__back")} {ev("__noRecord")} {ev("__overSeen")}')
+check("Test play runs the level on the board (the map closes), records nothing, and returns to the editor; Back to editor in the footer leaves early",
+      ev("__testing") and ev("__back") and ev("__noRecord") and ev("__toEditorShown") and ev("__earlyBack"), f'{ev("__testing")} {ev("__back")} {ev("__noRecord")} {ev("__overSeen")}')
 
 # sharing: everyone exports; only the owner imports and approves, and an approved level replaces the generated one
 lua(r"""
