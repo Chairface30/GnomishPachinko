@@ -1642,7 +1642,8 @@ function L:CustomFor(n)
     end
 end
 
--- The game pieces for one editor piece (an egg or gem brings its cradle).
+-- The game piece for one editor piece. (An egg or gem is only itself: the
+-- bricks or pegs it rests on are pieces of their own.)
 function L:CustomPieces(pc)
     local t = pc.t
     local x, y, a = pc.x or 0, pc.y or 0, pc.a or 0
@@ -1669,17 +1670,13 @@ function L:CustomPieces(pc)
         local r = (t == "egg") and E.EGG_R or E.GEM_R
         local body = { shape = "peg", x = x, y = y, r = r, kind = t, goal = true, special = true, loose = true,
             hp = (t == "egg") and math.max(2, math.min(3, pc.hp or 2)) or 1 }
+        -- its own piece: whatever it rests on is placed by the builder
         out[1] = body
-        for _, b in ipairs(cradleFor(body, t)) do out[#out + 1] = b end
     end
     local p = out[1]
     -- a round piece made bigger or smaller in the editor
     if p and pc.r and (t == "peg" or t == "bumper" or t == "key" or t == "egg" or t == "gem") then
         p.r = pc.r
-        if t == "egg" or t == "gem" then
-            for k = #out, 2, -1 do out[k] = nil end
-            for _, b in ipairs(cradleFor(p, t)) do out[#out + 1] = b end
-        end
     end
     if p then
         if t == "peg" or t == "brick" then

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Level editor: **eggs and gems are their own pieces**, with no bricks attached; build what they rest on yourself. The checks warn about an egg or gem with nothing under it (it would fall at the start). A level's layout brought into the editor keeps its cradle bricks as ordinary bricks.
+- Level editor: the **Mirror while placing** button sits beside Copy L-R, Copy T-B and Copy quad.
 - Level editor: the snap grid sits at the snap's own spacing, 5, 10 or 20 pixels (5 and 10 both drew a 10-pixel grid), every fourth line a little stronger.
 - Level editor: **Copy L-R, Copy T-B and Copy quad** make mirrored copies of the selection across one middle line, the other, or into all four quarters (Mirror copy only went left-right). Flip both turns the selection half a turn.
 - **Colorblind mode** (a Colorblind box beside Sound and Music, or /pachinko colorblind; off by default): every unlit orange piece wears a white triangle, green a plus and the purple a star (blue has none), so no color has to be told apart by hue. The level editor shows the same marks on pieces set to a color.

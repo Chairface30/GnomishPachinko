@@ -4158,7 +4158,7 @@ co = dict(ev("__colors"))
 check("piece colors: set blue / green / orange hold on every attempt, never-orange / never-green / never-purple are kept, still two greens",
       all(co.values()), str(co))
 
-# an egg level: eggs in their cradles, the eggs are the goal
+# an egg level: eggs are their own pieces (no bricks come with them), the eggs are the goal
 lua(r"""
 local d = { name = "Eggs", objective = "eggs", pieces = { { t = "egg", x = 150, y = 300 }, { t = "egg", x = 330, y = 300, hp = 3 } }, movers = {} }
 for k = 1, 10 do d.pieces[#d.pieces + 1] = { t = "peg", x = 40 + k * 38, y = 420 } end
@@ -4171,8 +4171,22 @@ end
 __eggs = { eggs = eggs, cradles = cradles, goal = spec.goal, objective = spec.objective, tough3 = tough3 }
 """)
 eg = dict(ev("__eggs"))
-check("an editor egg level: each egg sits in a cradle, the eggs are the goal, a gold egg takes three hits",
-      eg["eggs"] == 2 and eg["cradles"] >= 4 and eg["goal"] == 2 and eg["objective"] == "eggs" and eg["tough3"], str(eg))
+check("an editor egg level: eggs come with no bricks, the eggs are the goal, a gold egg takes three hits",
+      eg["eggs"] == 2 and eg["cradles"] == 0 and eg["goal"] == 2 and eg["objective"] == "eggs" and eg["tough3"], str(eg))
+
+# the editor warns about an egg or gem with nothing under it
+lua(r"""
+ED:Show()
+ED:NewLevel()
+ED:AddPiece("egg", 150, 300)                 -- in the air
+ED:AddPiece("gem", 330, 300)
+ED:AddPiece("brick", 330, 300 + E.GEM_R + E.BRICK_H / 2, { w = 40 })   -- the gem on a brick
+ED:Refresh()
+__unsupported = ED:Unsupported()
+__warned = (ED.problemText:GetText() or ""):find("nothing under it", 1, true) ~= nil
+""")
+check("the editor warns about an egg or gem resting on nothing (one in the air, one on a brick: one warning)",
+      ev("__unsupported") == 1 and ev("__warned"), str(ev("__unsupported")))
 
 # a generated level comes into the editor and builds back with the same pieces
 lua(r"""
@@ -4182,7 +4196,7 @@ function roundtrip(n)
   local again = L:BuildCustom(d, n, 0)
   local function count(sp)
     local c = 0
-    for _, p in ipairs(sp.pegs) do if not p.cradle and not p.post then c = c + 1 end end
+    for _, p in ipairs(sp.pegs) do if not p.post then c = c + 1 end end
     return c
   end
   return count(spec), count(again), #spec.movers, #again.movers, spec.objective, again.objective

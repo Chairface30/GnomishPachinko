@@ -1176,7 +1176,7 @@ function ED:FromSpec(spec)
     d.noBucket = spec.noBucket
     local index = {}
     for _, p in ipairs(spec.pegs) do
-        if not p.cradle and not p.post and p.kind ~= "boss" and p.kind ~= "web" and not p.scrap then
+        if not p.post and p.kind ~= "boss" and p.kind ~= "web" and not p.scrap then
             local x, y, a = p.bx or p.x, p.by or p.y, p.bangle or p.angle
             local pc
             if p.shape == "brick" then
@@ -1316,6 +1316,27 @@ function ED:ReturnFromTest()
 end
 
 -- what is wrong with the level, briefly
+-- Eggs and gems are loose: each needs something just under it to rest on
+-- (a brick, a peg, a bar...). How many have nothing within a couple of
+-- pixels below their lower half?
+function ED:Unsupported()
+    local pieces, n = self.data.pieces, 0
+    for i, pc in ipairs(pieces) do
+        if pc.t == "egg" or pc.t == "gem" then
+            local body = L:CustomPieces(pc)[1]
+            local held = false
+            for j, q in ipairs(pieces) do
+                if j ~= i and q.t ~= "egg" and q.t ~= "gem" then
+                    local g = L:CustomPieces(q)[1]
+                    if g and g.y > body.y - body.r * 0.3 and L.SurfaceDist(body, g) < 3 then held = true break end
+                end
+            end
+            if not held then n = n + 1 end
+        end
+    end
+    return n
+end
+
 -- Pieces sitting on top of each other (more than a pixel deep). A rail's
 -- own bricks and a key's cage bars are left out: they overlap at their
 -- joints on purpose. Pieces are bucketed into cells so a big board stays quick.
@@ -1370,6 +1391,8 @@ function ED:Problems()
         if pc.y + r + E.BALL_R < L:ReachFloor(pc.x) - 2 then unreach = unreach + 1 end
     end
     if unreach > 0 then out[#out + 1] = unreach .. " out of the ball's reach (red)" end
+    local loose = self:Unsupported()
+    if loose > 0 then out[#out + 1] = loose .. " egg/gem with nothing under it: it falls at the start" end
     local over = self:Overlaps()
     local nOver = 0
     for _ in pairs(over) do nOver = nOver + 1 end
@@ -1551,10 +1574,6 @@ function ED:Create()
     local redo = button(frame, 66, 24, "Redo", function() ED:Redo() end, "Ctrl+Y")
     redo:SetPoint("TOPLEFT", frame, "TOPLEFT", 94, y)
     y = y - 27
-    self.mirrorBtn = button(frame, 136, 24, "Mirror: off", function() ED:CycleMirror() end,
-        "Mirror while placing: every piece you place gets copies across the board's middle lines, left-right, top-bottom, or into all four quarters.")
-    self.mirrorBtn:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, y)
-    y = y - 27
     local help = button(frame, 136, 24, "Help", function() ED:ToggleHelp() end)
     help:SetPoint("TOPLEFT", frame, "TOPLEFT", 24, y)
     y = y - 34
@@ -1651,9 +1670,12 @@ function ED:Create()
     rbtn(0, -443, 92, "Flip H", function() ED:MirrorSelected(false) end, "Mirror the selection left to right (M).")
     rbtn(97, -443, 92, "Flip V", function() ED:MirrorSelected(true) end, "Mirror the selection top to bottom.")
     rbtn(194, -443, 92, "Flip both", function() ED:MirrorSelected(false); ED:MirrorSelected(true) end, "Mirror the selection left to right and top to bottom (half a turn).")
-    rbtn(0, -468, 92, "Copy L-R", function() ED:MirrorCopyAcross("lr") end, "A mirrored copy on the other side of the up-and-down middle line.")
-    rbtn(97, -468, 92, "Copy T-B", function() ED:MirrorCopyAcross("tb") end, "A mirrored copy on the other side of the across middle line.")
-    rbtn(194, -468, 92, "Copy quad", function() ED:MirrorCopyAcross("quad") end, "Mirrored copies in all four quarters of the board.")
+    -- mirrored copies of the selection, and beside them mirror while placing
+    rbtn(0, -468, 64, "Copy L-R", function() ED:MirrorCopyAcross("lr") end, "A mirrored copy of the selection on the other side of the up-and-down middle line.")
+    rbtn(68, -468, 64, "Copy T-B", function() ED:MirrorCopyAcross("tb") end, "A mirrored copy of the selection on the other side of the across middle line.")
+    rbtn(136, -468, 64, "Copy quad", function() ED:MirrorCopyAcross("quad") end, "Mirrored copies of the selection in all four quarters of the board.")
+    self.mirrorBtn = rbtn(204, -468, 82, "Mirror: off", function() ED:CycleMirror() end,
+        "Mirror while placing: every piece you place from now on gets copies across the board's middle lines, left-right, top-bottom, or into all four quarters.")
     rbtn(0, -493, 92, "Duplicate", function() ED:DuplicateSelected() end, "Ctrl+D")
     rbtn(97, -493, 92, "Delete", function() ED:DeleteSelected() end, "Delete")
     rbtn(194, -493, 92, "Select all", function() ED:SelectAll() end, "Ctrl+A")
