@@ -21,7 +21,7 @@ D.SPEAKERS = {
     razzle = { name = "Razzle Sprysprocket",     npc = 1269, voice = "mumble" },
     bink   = { name = "Bink",                    npc = 5144, voice = "mumble" },
     -- Cogwhistle, the evil brother: Tinkmaster's own model lit a sickly green
-    cog    = { name = "Cogwhistle Overspark", npc = 7406, tint = { 0.35, 1, 0.3 }, voice = "mumble" },
+    cog    = { name = "Cogwhistle Overspark", npc = 7406, tint = { 0, 1, 0 }, tintPower = 1.6, voice = "mumble" },
     -- the bosses: `models` are creature ids tried in turn for the board
     -- (the first the client has wins); `npc` is the first, for the dialog box
     drake  = { name = "Tin Drake",    npc = 8615, models = { 8615, 12473, 2678 }, voice = "grumble" },   -- Mithril, Arcanite, Mechanical Dragonling
@@ -73,20 +73,21 @@ end
 -- light from the front, so the whole model takes the tint. Both forms of
 -- SetLight are tried (a table of values in newer clients, a long list of
 -- numbers in older ones).
-function D:TintModel(m, c)
+function D:TintModel(m, c, power)
     if not (m and m.SetLight) then return false end
     local r, g, b = c[1], c[2], c[3]
+    local amb, dif = 0.8 * (power or 1), 1.0 * (power or 1)
     local ok = false
     if CreateColor and CreateVector3D then
         ok = pcall(m.SetLight, m, true, {
             omnidirectional = false,
             point = CreateVector3D(0, 1, -0.5),
-            ambientIntensity = 0.8, ambientColor = CreateColor(r, g, b),
-            diffuseIntensity = 1.0, diffuseColor = CreateColor(r, g, b),
+            ambientIntensity = amb, ambientColor = CreateColor(r, g, b),
+            diffuseIntensity = dif, diffuseColor = CreateColor(r, g, b),
         })
     end
     if not ok then
-        ok = pcall(m.SetLight, m, true, false, 0, 1, -0.5, 0.8, r, g, b, 1.0, r, g, b)
+        ok = pcall(m.SetLight, m, true, false, 0, 1, -0.5, amb, r, g, b, dif, r, g, b)
     end
     return ok
 end
@@ -390,7 +391,7 @@ function D:ShowSpeaker(sp, key)
         if other.ClearModel then pcall(other.ClearModel, other) end
         want:Show()
         self.model = want
-        if sp.tint then self:TintModel(want, sp.tint) end
+        if sp.tint then self:TintModel(want, sp.tint, sp.tintPower) end
     end
     local m = self.model
     self.speakerKey = key
