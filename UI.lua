@@ -1300,6 +1300,70 @@ function UI:PlayFromCard()
     self:UpdateDisplay()
 end
 
+-- While a tutorial is spoken the board is still empty, so the piece it is
+-- about is shown on its own, where it sits, on a layer above the talk box:
+-- a soft glow behind it and the goofy arrow jabbing and wobbling at it.
+UI.SHOWCASE_ANGLE = 0.62         -- the arrow comes in from the upper right (from the upper left near the right wall)
+UI.SHOWCASE_DIST = 82
+function UI:ShowShowcase(piece)
+    if not self.showcase then
+        local f = CreateFrame("Frame", nil, self.frame)
+        f:SetAllPoints(self.field)
+        f:SetFrameLevel(self.field:GetFrameLevel() + UI.CARD_LEVEL + 60)    -- over the talk box
+        f.glow = f:CreateTexture(nil, "BACKGROUND")
+        ART:Set(f.glow, "glow_soft", 1, 0.9, 0.5)
+        if f.glow.SetBlendMode then f.glow:SetBlendMode("ADD") end
+        f.piece = f:CreateTexture(nil, "ARTWORK")
+        f.arrow = f:CreateTexture(nil, "OVERLAY")
+        ART:Set(f.arrow, "comic_arrow")
+        f:Hide()
+        self.showcase = f
+    end
+    local f = self.showcase
+    local slot = pieceSlot(piece, "")
+    ART:Set(f.piece, slot)
+    if piece.shape == "brick" then
+        f.piece:SetSize(ART:Size(slot, piece.w, piece.h))
+        if f.piece.SetRotation then f.piece:SetRotation(-(piece.angle or 0)) end
+        f.size = math.max(piece.w, piece.h)
+    else
+        local r = piece.r or E.PEG_R
+        f.piece:SetSize(ART:Size(slot, r * 2 + 2))
+        if f.piece.SetRotation then f.piece:SetRotation(0) end
+        f.size = r * 2
+    end
+    f.piece:ClearAllPoints()
+    f.piece:SetPoint("CENTER", self.field, "TOPLEFT", piece.x, -piece.y)
+    f.glow:SetSize(f.size * 3 + 30, f.size * 3 + 30)
+    f.glow:ClearAllPoints()
+    f.glow:SetPoint("CENTER", f.piece, "CENTER", 0, 0)
+    f.x, f.y = piece.x, piece.y
+    f.side = (piece.x > E.FIELD_W * 0.62) and -1 or 1
+    f.startAt = GetTime()
+    f:Show()
+end
+
+function UI:HideShowcase()
+    if self.showcase then self.showcase:Hide() end
+end
+
+function UI:AnimateShowcase(now)
+    local f = self.showcase
+    if not (f and f:IsShown()) then return end
+    local t = now - (f.startAt or now)
+    -- the arrow: in from a slant, jabbing in and out, wobbling, squashing
+    local base = (f.side > 0) and self.SHOWCASE_ANGLE or (math.pi - self.SHOWCASE_ANGLE)
+    local ang = base + 0.16 * math.sin(t * 5)
+    local d = self.SHOWCASE_DIST + f.size * 0.4 + 18 * math.sin(t * 9)
+    local ax, ay = f.x + math.cos(ang) * d, f.y - math.sin(ang) * d
+    f.arrow:ClearAllPoints()
+    f.arrow:SetPoint("CENTER", self.field, "TOPLEFT", ax, -ay)
+    if f.arrow.SetRotation then f.arrow:SetRotation(ang + math.pi) end
+    local k = 1 + 0.1 * math.sin(t * 9 + 1.2)
+    f.arrow:SetSize(self.ARROW_W * k, self.ARROW_W / 2 / k)
+    f.glow:SetAlpha(0.55 + 0.35 * math.sin(t * 4))
+end
+
 -- The Super Slide tutorial's arrow: the fat cartoon arrow, still, pointing
 -- along the spiral's mouth into the inside face of its lead brick, the way
 -- a ball should come in to catch the rail. Gone with the first shot.
@@ -3593,6 +3657,7 @@ function UI:OnUpdate(dt)
     local st = self.state
     self:UpdatePopups(now)
     self:PulseHighlights(now)
+    self:AnimateShowcase(now)
     self:WatchAhh(now)
     if self.bannerUntil and now >= self.bannerUntil then
         self.bannerUntil = nil

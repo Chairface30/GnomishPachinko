@@ -471,7 +471,9 @@ function D:Play(list, done)
                 clip = clip .. "_" .. who
             end
             self.queue[#self.queue + 1] = { who, line[2], clip = clip, highlight = line.highlight, cues = line.cues,
-                giftKey = line.givesGift and sc.key or nil }
+                giftKey = line.givesGift and sc.key or nil,
+                -- each talk's first line says what to show above the box (or nothing)
+                scriptStart = (n == 1) or nil, point = (n == 1) and sc.point or nil }
         end
     end
     self.done = done
@@ -533,6 +535,15 @@ end
 
 function D:Show(line)
     if line.giftKey then self:GiveGift(line.giftKey) end
+    -- the piece a tutorial is about, shown above the box while it is spoken
+    if line.scriptStart and GP.UI and GP.UI.ShowShowcase then
+        local piece
+        if line.point and GP.UI.state then
+            local ok, p = pcall(line.point, GP.UI.state)
+            if ok then piece = p end
+        end
+        if piece then GP.UI:ShowShowcase(piece) else GP.UI:HideShowcase() end
+    end
     self:StartCues(line)
     local sp = self.SPEAKERS[line[1]] or self.SPEAKERS.tink
     self.panel.name:SetText("|cffffd700" .. sp.name .. "|r")
@@ -614,6 +625,7 @@ function D:Advance()
 end
 
 function D:Finish()
+    if GP.UI and GP.UI.HideShowcase then GP.UI:HideShowcase() end
     -- a talk skipped before its gift line still hands the gift over
     for key in pairs(self.pendingGifts or {}) do self:GiveGift(key) end
     self.cueLine = nil

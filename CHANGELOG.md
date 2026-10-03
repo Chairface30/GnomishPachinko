@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **The tutorials show what they talk about:** while the host speaks, the piece in question is shown where it sits on the board, lifted above the talk box with a soft glow and the goofy arrow jabbing and wobbling at it (the purple peg, bricks, balloons, rails, every moving setup, keys, eggs, gems, the bosses and the rest).
 - **Gems (and eggs) move like real bodies when hit:** the shove goes along the line from the ball through the face it struck, as strong as the ball closed on that face. A square hit drives a gem straight on; a glancing one barely nudges it.
 - **FULL CLEAR!** Lighting every piece on the board that can light (pegs, bricks, eggs, the purple) pays a 100,000 bonus, once, with a banner, fireworks and the fanfare.
 - A tutorial is always voiced by the host of the first level it belongs to, whenever the player meets it (the special balls by Tinkmaster, the Slider by Razzle, and so on).

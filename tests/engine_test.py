@@ -2749,6 +2749,19 @@ glx, gly = ev("gem_push")(-0.995, -0.1, 0, 400)
 check("a gem is pushed along the line from the ball through its face, as hard as the ball closed on it",
       gx > 0 and gy > 0 and abs(gx - gy) < 1 and (sx * sx + sy * sy) > 4 * (glx * glx + gly * gly), f"{gx:.1f},{gy:.1f} square {sy:.1f} glancing {glx:.1f},{gly:.1f}")
 
+# while a tutorial is spoken its piece is shown above the talk box, with the goofy arrow
+lua(r"""
+for _, sc in ipairs(GP.Dialog.SCRIPTS) do GnomishPachinkoDB.dialogs[sc.key] = true end
+GnomishPachinkoDB.dialogs.purple = nil
+UI:StartLevel(4, true)
+local f = UI.showcase
+__showPurple = GP.Dialog:IsShown() and f and f:IsShown() and f.piece.slot ~= nil and f:GetFrameLevel() > GP.Dialog.panel:GetFrameLevel()
+__advance(0.2)
+GP.Dialog:Finish()
+__showGone = not UI.showcase:IsShown()
+""")
+check("while the purple peg's tutorial is spoken the peg is shown above the talk box, gone after", ev("__showPurple") and ev("__showGone"))
+
 # Chain Lightning draws a bolt that grows link by link, then is gone
 lua(r"""
 UI:StartLevel(25, true)
