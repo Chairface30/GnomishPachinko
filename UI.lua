@@ -1102,8 +1102,10 @@ function UI:CreateFrame()
     self.portraitRing = ring
     self.portraitRingFrame = ringFrame
     -- the cannon slides round the box's rim, pointing the way the ball goes
+    -- On the view, like the ring: the field scales and slides when it zooms,
+    -- and a cannon placed on it drifted off the ring until the zoom let go.
     local barrelFrame = CreateFrame("Frame", nil, frame)
-    barrelFrame:SetAllPoints(field)
+    barrelFrame:SetAllPoints(view)
     barrelFrame:SetFrameLevel(box:GetFrameLevel() + 6)     -- over the host (box + 4), under the ring (box + 8)
     self.barrelFrame = barrelFrame
     local barrel = barrelFrame:CreateTexture(nil, "ARTWORK")
@@ -4221,7 +4223,7 @@ function UI:Render(now)
     local cx, cy = E.FIELD_W / 2, E.LAUNCH_CY
     -- the barrel's mouth sits just past the muzzle point, its breech under the ring
     local mid = E.LAUNCH_R + 14 - BARREL_L / 2
-    placeAt(self.barrel, field, cx + math.sin(a) * mid, cy + math.cos(a) * mid)
+    placeAt(self.barrel, self.view, cx + math.sin(a) * mid, cy + math.cos(a) * mid)
     if self.barrel.SetRotation then self.barrel:SetRotation(a) end
     -- the muzzle flash
     if self.flashAt then
@@ -4229,7 +4231,7 @@ function UI:Render(now)
             self.flashAt = nil
             self.flashTex:Hide()
         else
-            placeAt(self.flashTex, field, cx + math.sin(a) * (E.LAUNCH_R + 8), cy + math.cos(a) * (E.LAUNCH_R + 8))
+            placeAt(self.flashTex, self.view, cx + math.sin(a) * (E.LAUNCH_R + 8), cy + math.cos(a) * (E.LAUNCH_R + 8))
             if self.flashTex.SetRotation then self.flashTex:SetRotation(a) end
             self.flashTex:SetAlpha(1 - (now - self.flashAt) / FLASH_SECS)
             self.flashTex:Show()

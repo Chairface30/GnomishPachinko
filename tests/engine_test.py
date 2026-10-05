@@ -1782,6 +1782,8 @@ __cursor.x = __cursor.x + 50
 __advance(0.5)
 __fineDelta = UI.state.aim - __aim0
 __fineZoom = UI.zoomScale
+UI:Render(GetTime())
+__barrelOnView = select(2, UI.barrel:GetPoint()) == UI.view
 UI.field:GetScript("OnMouseUp")(UI.field, "RightButton")
 __advance(1.5)
 __zoomAfter = UI.zoomScale
@@ -1789,6 +1791,8 @@ __zoomAfter = UI.zoomScale
 check("holding the right button zooms in on the landing spot and turns the cannon a fiftieth of a degree a pixel",
       abs(ev("__fineDelta") - 50 * 0.02 * math.pi / 180) < 1e-6 and ev("__fineZoom") > 2 and ev("__zoomAfter") < 1.05,
       f"{ev('__fineDelta')} {ev('__fineZoom')} {ev('__zoomAfter')}")
+check("the cannon stays on the host's ring while the field is zoomed (it drifted with the zoom)",
+      ev("__barrelOnView") == True)
 check("boss levels have no vacuum tube", all(ev(f"L:NoBucket({n})") for n in range(10, 401, 20) if n != ev("L.TINK_DUEL_LEVEL")))
 check("Space again resumes", ev("UI.paused") == False)
 ok, result = ev("ui_play")(900)

@@ -1,5 +1,9 @@
 # Gnomish Pachinko — Changelog
 
+## Unreleased
+
+- The cannon stays on the host's ring when the board zooms in (on the last piece, or while fine-aiming with the right button). It used to slide off with the zoom and only come back when the view zoomed out.
+
 ## Gnomish Pachinko v0.7.1 (2026-10-03)
 
 - **Daily plays are claimed:** each day at noon, server time, a **Claim 5 daily plays** button appears beside your plays (and a banner says so when you open the game). Nothing is added until you press it, and a missed day is not made up. Free plays build up to 50; at 50 no claim comes until you drop below, then the next comes at the following noon. Free plays are spent first.
