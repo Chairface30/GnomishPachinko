@@ -1,6 +1,6 @@
 # Gnomish Pachinko — Changelog
 
-## Unreleased
+## Gnomish Pachinko v0.7.2 (2026-10-06)
 
 - The cannon stays on the host's ring when the board zooms in (on the last piece, or while fine-aiming with the right button). It used to slide off with the zoom and only come back when the view zoomed out.
 
