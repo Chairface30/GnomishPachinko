@@ -2650,6 +2650,7 @@ function UI:StartLevel(n, retry, opts)
     if self.card then self:HideCard() end
     if self.shotText then self.shotText:SetText("") end
     self.duelStartAt, self.duelTurnAt, self.rivalShotAt = nil, nil, nil
+    self:RivalInBox(false)
     self.paused = false
     if self.duelYou then self:UpdateDuelHud() end
     if not custom then GP:GetDB().current = n end
@@ -2869,8 +2870,79 @@ function UI:FitGoalLabel()
     lbl:SetPoint("TOPLEFT", self.side, "TOPLEFT", UI.GOAL_WORD_X, UI.GOAL_WORD_Y - (H - h) / 2)
 end
 
+-- Cogwhistle in the host's box while he shoots: a model of his own beside
+-- the host's, lit green like his talk-box portrait (Dialog.SPEAKERS.cog). A
+-- light set on a model frame stays on it, so he never borrows the host's
+-- frame; the host is hidden for his turn and comes back after it.
+function UI:PoseRival()
+    local m = self.rivalModel
+    if not m then return end
+    local sp = GP.Dialog.SPEAKERS.cog
+    local pose = {}
+    for _, h in ipairs(GP.HOSTS) do if h.npc == sp.npc then pose = h end end
+    local base = PORTRAIT - 16
+    m:SetSize(base * (pose.scale or 1), base * (pose.scale or 1))
+    m:ClearAllPoints()
+    m:SetPoint("CENTER", self.portraitBox, "CENTER", 0, (pose.z or 0) * base)
+    pcall(function()
+        if m.SetPortraitZoom then m:SetPortraitZoom(0) end
+        if m.SetCamDistanceScale then m:SetCamDistanceScale(1) end
+        m:SetPosition(0, 0, 0)
+        m:SetFacing(0.35)
+    end)
+end
+
+function UI:RivalInBox(on)
+    local mascot = GP.Mascot and GP.Mascot.model
+    local clip = self.portraitClips and self.portraitClips[1]
+    if not (clip and GP.Dialog and GP.Dialog.SPEAKERS) then return end
+    local m = self.rivalModel
+    if on and not m then
+        m = CreateFrame("PlayerModel", nil, clip)
+        m:SetFrameLevel(clip:GetFrameLevel() + 3)
+        m:EnableMouse(false)
+        m:SetScript("OnModelLoaded", function()
+            UI:PoseRival()
+            pcall(m.SetAnimation, m, GP.Mascot.ANIM.talkExclaim)
+        end)
+        m:Hide()
+        self.rivalModel = m
+    end
+    if not m then return end
+    if not on then
+        if m:IsShown() then
+            m:Hide()
+            if self.rivalHidMascot and mascot then mascot:Show() end
+        end
+        self.rivalHidMascot = nil
+        self.rivalLoadToken = (self.rivalLoadToken or 0) + 1
+        return
+    end
+    if m:IsShown() then return end
+    self.rivalHidMascot = mascot and mascot:IsShown() or false
+    if mascot then mascot:Hide() end
+    local sp = GP.Dialog.SPEAKERS.cog
+    GP.Dialog:TintModel(m, sp.tint, sp.tintPower)
+    m:Show()
+    -- a creature the client has not cached loads a moment later: ask again
+    self.rivalLoadToken = (self.rivalLoadToken or 0) + 1
+    local token = self.rivalLoadToken
+    local function try(left)
+        if token ~= self.rivalLoadToken then return end
+        pcall(m.SetCreature, m, sp.npc)
+        self:PoseRival()
+        pcall(m.SetAnimation, m, GP.Mascot.ANIM.talkExclaim)
+        local ok, id = true, true
+        if m.GetModelFileID then ok, id = pcall(m.GetModelFileID, m) end
+        if (ok and id ~= nil) or left <= 0 or not (C_Timer and C_Timer.After) then return end
+        C_Timer.After(0.25, function() try(left - 1) end)
+    end
+    try(8)
+end
+
 function UI:OnDuelTurn(turn, now)
     local st = self.state
+    self:RivalInBox(turn == "rival")
     if turn == "rival" then
         self:ShowBanner(("|cffff8080%s'S TURN|r"):format(st.duel.name:upper()), "", 1.6)
         GP:PlaySfx("boss_turn.ogg")
@@ -3961,6 +4033,7 @@ function UI:OnLevelOver(result)
     local prevBest = db.best[result.level] or 0
     self.cardPrevBest = prevBest
     local stars, playsLeft = GP:RecordResult(result)
+    self:RivalInBox(false)
     GP.Mascot:React(result.cleared and "cleared" or "failed")
     self.cardAt = GetTime() + 1.8
     self.cardResult, self.cardStars = result, stars
