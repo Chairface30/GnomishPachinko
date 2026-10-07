@@ -4799,6 +4799,7 @@ function UI:Show()
     else
         self:UpdateDisplay()
     end
+    GP:FitFrame(self.frame)
     self.frame:Show()
 end
 

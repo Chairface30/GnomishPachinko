@@ -75,6 +75,64 @@ function GP:GetDB()
     return db
 end
 
+-- Window size: the game and the editor are drawn at a fixed size (about 1070x1054
+-- units), which is taller than the screen at many UI scales (1080p especially).
+-- db.scale is "auto" (nil) or a number the player chose; either way the window is
+-- shrunk until it fits inside the screen with a small margin.
+GP.SCALE_MIN, GP.SCALE_MAX, GP.SCALE_MARGIN = 0.4, 1.5, 16
+GP.fitted = {}
+
+function GP:FitScale(frame)
+    local w, h = frame:GetWidth(), frame:GetHeight()
+    local pw = UIParent and UIParent.GetWidth and UIParent:GetWidth()
+    local ph = UIParent and UIParent.GetHeight and UIParent:GetHeight()
+    local fit = 1
+    if pw and ph and w and h and w > 0 and h > 0 then
+        fit = math.min((pw - 2 * self.SCALE_MARGIN) / w, (ph - 2 * self.SCALE_MARGIN) / h)
+    end
+    local want = tonumber((self.db or self:GetDB()).scale) or 1
+    return math.max(self.SCALE_MIN, math.min(want, fit))
+end
+
+-- Applies the scale to a window (and remembers it, so a change of screen size or
+-- UI scale refits every window). A window whose scale changes goes back to the
+-- middle of the screen: its dragged position was in the old scale's units.
+function GP:FitFrame(frame)
+    if not (frame and frame.SetScale) then return end
+    self.fitted[frame] = true
+    local s = self:FitScale(frame)
+    local old = frame.GetScale and frame:GetScale() or 1
+    if math.abs(old - s) < 0.001 then return end
+    frame:SetScale(s)
+    frame:ClearAllPoints()
+    frame:SetPoint("CENTER")
+end
+
+function GP:RefitAll()
+    for frame in pairs(self.fitted) do self:FitFrame(frame) end
+end
+
+function GP:SetScaleCommand(arg)
+    local db = self.db or self:GetDB()
+    if arg == "" then
+        local frame = self.UI and self.UI.frame
+        local now = frame and frame.GetScale and (" (now %d%%)"):format(math.floor(frame:GetScale() * 100 + 0.5)) or ""
+        self:Print(("Window size: %s%s. /pachinko scale auto - fit the screen; /pachinko scale <40-150> - a size in percent, still shrunk to fit."):format(
+            db.scale and (math.floor(db.scale * 100 + 0.5) .. "%") or "auto", now))
+        return
+    end
+    if arg == "auto" or arg == "fit" then
+        db.scale = nil
+    else
+        local n = tonumber((arg:gsub("%%", "")))
+        if not n then self:Print("Usage: /pachinko scale auto, or /pachinko scale 50-150.") return end
+        if n > 3 then n = n / 100 end
+        db.scale = math.max(self.SCALE_MIN, math.min(self.SCALE_MAX, n))
+    end
+    self:RefitAll()
+    self:Print("Window size: " .. (db.scale and (math.floor(db.scale * 100 + 0.5) .. "%, shrunk if it does not fit") or "fits the screen") .. ".")
+end
+
 -- Music: its own switch, apart from the sound effects.
 function GP:PlayMusic(file)
     local db = self.db or self:GetDB()
@@ -293,6 +351,8 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
         GP:Print("Tinkmaster Overspark's voice " .. (db.voice and "on" or "off") .. ".")
     elseif msg == "minimap" then
         GP.Minimap:Toggle()
+    elseif msg:match("^scale") or msg:match("^size") then
+        GP:SetScaleCommand(msg:match("^%a+%s*(.*)$"))
     elseif msg:match("^mascot") then
         GP.Mascot:Command(msg:match("^mascot%s*(.*)$"))
     elseif msg == "plays" then
@@ -320,7 +380,7 @@ SlashCmdList["GNOMISHPACHINKO"] = function(msg)
     else
         GP:Print("/pachinko - open the game. /pachinko levels - level select. /pachinko <n> - play level n. /pachinko editor - the level editor. /pachinko colorblind - marks on the colored pegs. " ..
             "/pachinko plays - plays left and the next daily plays. /pachinko buy [lots] - fill out the mail for more plays at a mailbox. " ..
-            "/pachinko sound - toggle sound. /pachinko music - toggle the music. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
+            "/pachinko sound - toggle sound. /pachinko music - toggle the music. /pachinko voice - toggle the announcer. /pachinko minimap - show or hide the minimap button. /pachinko scale [auto | 40-150] - window size (it always shrinks to fit the screen)./pachinko mascot - Tinkmaster Overspark in the corner (mascot target, npc <id>, scale, play <animation>). /pachinko reset - wipe progress. /pachinko unlockall - open every level (owner characters, for testing). /pachinko unlimited - endless special balls and boosts (owner characters, for testing).")
     end
 end
 
@@ -328,7 +388,14 @@ local loader = CreateFrame("Frame")
 loader:RegisterEvent("ADDON_LOADED")
 loader:RegisterEvent("PLAYER_LOGIN")
 loader:RegisterEvent("PLAYER_LOGOUT")
+for _, ev in ipairs({ "UI_SCALE_CHANGED", "DISPLAY_SIZE_CHANGED" }) do
+    pcall(loader.RegisterEvent, loader, ev)       -- refit the windows to a new screen size
+end
 loader:SetScript("OnEvent", function(_, event, name)
+    if event == "UI_SCALE_CHANGED" or event == "DISPLAY_SIZE_CHANGED" then
+        C_Timer.After(0, function() GP:RefitAll() end)       -- UIParent takes its new size after the event
+        return
+    end
     if event == "ADDON_LOADED" and name == ADDON_NAME then
         GP:GetDB()
         loader:UnregisterEvent("ADDON_LOADED")

@@ -2751,6 +2751,7 @@ end
 
 function ED:Show()
     self:Create()
+    GP:FitFrame(self.frame)
     self.frame:Show()
     self:Refresh()
 end
