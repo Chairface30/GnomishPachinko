@@ -595,6 +595,507 @@ FAMILIES[#FAMILIES + 1] = { name = "Star", build = function(rng, add, d, dens)
     end
 end }
 
+-- ---------------------------------------------------------------------
+-- Composed pictures. Each is built round one to three hero structures of
+-- brick curves (rails, bowls, curls, rings, cups, jars) with the pegs set
+-- round them in ordered rows, grids, rings and lines, never scattered. The
+-- column under the cannon stays open or holds a single file. Brick ends are
+-- marked `cap`, pieces tucked into curls and corners `pocket` and the tips
+-- of a radial picture `accent`: the colours favour all three for oranges
+-- (see L:Build). These families bring their own structures, so the random
+-- rails stay off them.
+
+local function curveLen(f)
+    local len, px, py = 0, f(0)
+    for k = 1, 40 do
+        local x, y = f(k / 40)
+        len = len + sqrt((x - px) ^ 2 + (y - py) ^ 2)
+        px, py = x, y
+    end
+    return len
+end
+
+-- a curve mirrored across the centre line (s = -1) or left as drawn (s = 1)
+local function flipX(f, s)
+    if s == 1 then return f end
+    return function(t)
+        local x, y = f(t)
+        return CX + s * (x - CX), y
+    end
+end
+
+local function bezier(x0, y0, x1, y1, x2, y2, x3, y3)
+    return function(t)
+        local u = 1 - t
+        local a, b, c, e = u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t
+        return a * x0 + b * x1 + c * x2 + e * x3, a * y0 + b * y1 + c * y2 + e * y3
+    end
+end
+
+local function line(x0, y0, x1, y1)
+    return function(t) return x0 + (x1 - x0) * t, y0 + (y1 - y0) * t end
+end
+
+-- an arc of a circle with a gap: `gap` the angle the opening faces, `half` its half-width
+local function openCircle(cx, cy, r, gap, half)
+    return function(t)
+        local a = gap + half + t * (2 * pi - 2 * half)
+        return cx + r * cos(a), cy + r * sin(a)
+    end
+end
+
+-- an add that sets flags on every piece it places
+local function tagged(add, tags)
+    return function(p, g)
+        for k, v in pairs(tags) do p[k] = v end
+        return add(p, g)
+    end
+end
+
+-- A hero structure: a chain of bricks along f, each about a brick long.
+-- opts.rail makes it a Super Slide, opts.solid steel (never lights),
+-- opts.seg a shorter or longer brick. Its two end bricks are caps.
+local function hero(add, f, group, opts)
+    opts = opts or {}
+    local count = math.max(2, floor(curveLen(f) / (opts.seg or 36) + 0.5))
+    local first, last
+    local function grab(b, g)
+        if opts.solid then b.kind = "block"; b.h = 14 end
+        b.hero = true
+        local ok = add(b, g)
+        if ok then first = first or b; last = b end
+        return ok
+    end
+    brickCurve(grab, f, count, group, nil, nil, opts.rail and { rail = group } or nil)
+    if first and not opts.solid then first.cap = true; last.cap = true end
+end
+
+-- pegs along a curve about `gap` apart
+local function pegsAlong(add, f, gap)
+    local n = math.max(1, floor(curveLen(f) / gap + 0.5))
+    for k = 0, n do
+        local x, y = f(k / n)
+        add(peg(x, y))
+    end
+end
+
+-- A row mirrored about the centre: pegs every `gap` out to x0 from the
+-- wall, none closer to the middle than `open`; `stagger` shifts it half a gap.
+local function openRow(add, y, gap, x0, open, stagger)
+    for k = 0, 12 do
+        local dx = (k + (stagger and 0.5 or 0)) * gap
+        if CX - dx < x0 then break end
+        if dx >= (open or 0) then
+            add(peg(CX - dx, y))
+            if dx > 0 then add(peg(CX + dx, y)) end
+        end
+    end
+end
+
+-- An offset grid of pegs, mirrored about the centre line, where
+-- inside(x, y) says so; a "pocket" answer tags the peg as one.
+local function hexFill(add, inside, y0, y1, sp)
+    local r = 0
+    for y = y0, y1, sp * 0.866 do
+        local off = (r % 2 == 1) and sp / 2 or 0
+        for c = -8, 8 do
+            local x = CX + c * sp + off
+            local inn = inside(x, y)
+            if inn then
+                local p = peg(x, y)
+                if inn == "pocket" then p.pocket = true end
+                add(p)
+            end
+        end
+        r = r + 1
+    end
+end
+
+local function inPoly(poly, x, y)
+    local inside, j = false, #poly
+    for i = 1, #poly do
+        local a, b = poly[i], poly[j]
+        if ((a[2] > y) ~= (b[2] > y)) and (x < (b[1] - a[1]) * (y - a[2]) / (b[2] - a[2]) + a[1]) then inside = not inside end
+        j = i
+    end
+    return inside
+end
+
+-- Gull Wings: three tiers of rails, the wings sweeping out from under the
+-- cannon, two staggered S-curves, a hump low down; rows in the bands between.
+FAMILIES[#FAMILIES + 1] = { name = "Gull Wings", composed = true, build = function(rng, add, d, dens)
+    local lift = rng(0, 2) * 12
+    for _, s in ipairs({ 1, -1 }) do
+        hero(add, flipX(function(t) return CX - (45 + 215 * t), 150 + lift + 95 * t ^ 1.4 end, s), "wing" .. s, { rail = true })
+        local y0 = (s == 1) and 290 or 315
+        hero(add, flipX(function(t) return CX - (250 - 190 * t), y0 + 60 * (3 * t * t - 2 * t * t * t) end, s), "tier" .. s)
+    end
+    if dens > 0.45 then hero(add, function(t) return CX - 120 + 240 * t, 472 - 48 * sin(pi * t) end, "hump") end
+    openRow(add, 215 + lift, 48, CX - 150, 40, true)
+    openRow(add, 405, 52, 60, 30, true)
+    if dens > 0.7 then openRow(add, 262 + lift, 52, 150, 60) end
+    if dens > 0.55 then
+        local corner = tagged(add, { pocket = true })
+        for _, s in ipairs({ 1, -1 }) do
+            corner(peg(CX + s * (CX - 70), 168))
+            corner(peg(CX + s * (CX - 108), 150))
+        end
+    end
+end }
+
+-- Copper Bowl: a brick bowl from wall to wall holding an inverted triangle
+-- of pegs that echoes it, wings of pegs up from its lips, bumpers under them.
+FAMILIES[#FAMILIES + 1] = { name = "Copper Bowl", composed = true, build = function(rng, add, d, dens)
+    local rx, top, depth = 222, 222 + rng(0, 2) * 10, 190
+    hero(add, function(t)
+        local a = pi * t
+        return CX - rx * cos(a), top + depth * sin(a)
+    end, "bowl")
+    local skipTop = 0.2 + 0.25 * (1 - dens)
+    hexFill(add, function(x, y)
+        local f = (y - top) / depth
+        if f < skipTop or f > 0.86 then return false end
+        if math.abs(x - CX) > (rx - 20) * (1 - f) + 14 then return false end
+        return (f > 0.72) and "pocket" or true
+    end, top + 30, top + depth - 20, 46 - 6 * dens)
+    local wing = tagged(add, { pocket = true })
+    for _, s in ipairs({ 1, -1 }) do
+        for k = 0, 2 do wing(peg(CX + s * (CX - 70 + k * 38), top - 32 - k * 30)) end
+        if dens > 0.6 then add(bumper(CX + s * (CX - 50), top + 130)) end
+    end
+end }
+
+-- Filigree: curls in the top corners opening to the middle, a swag rail
+-- across under the cannon, a scroll below and a bumper at its heart.
+FAMILIES[#FAMILIES + 1] = { name = "Filigree", composed = true, build = function(rng, add, d, dens)
+    local inside = tagged(add, { pocket = true })
+    for _, s in ipairs({ 1, -1 }) do
+        hero(add, flipX(function(t)
+            local a = -0.15 * pi - t * 2 * pi
+            local r = 62 - 26 * t
+            return 115 + r * cos(a), 198 + r * sin(a)
+        end, s), "curl" .. s)
+        inside(peg(CX + s * (115 - CX), 198))
+        hero(add, flipX(bezier(55, 408, 210, 372, 200, 505, CX - 14, 470), s), "scroll" .. s)
+    end
+    hero(add, function(t) return 85 + 430 * t, 262 + 72 * sin(pi * t) end, "swag", { rail = true })
+    openRow(add, 228, 46, 180, 80)
+    openRow(add, 370, 56, 55, 80, true)
+    if dens > 0.55 then openRow(add, 412, 56, 120, 140) end
+    if dens > 0.45 then add(bumper(CX, 418)) end
+end }
+
+-- Ram Horns: one stroke, a hump under the cannon whose ends curl up and in;
+-- something tucked in each curl, pairs in the corners, steel planks below.
+FAMILIES[#FAMILIES + 1] = { name = "Ram Horns", composed = true, build = function(rng, add, d, dens)
+    local inside = tagged(add, { pocket = true })
+    for _, s in ipairs({ 1, -1 }) do
+        hero(add, flipX(function(t)
+            if t < 0.45 then
+                local u = t / 0.45
+                return CX - 190 * u, 250 + 85 * (1 - cos(pi * u)) / 2
+            end
+            local u = (t - 0.45) / 0.55
+            local a = pi / 2 + u * 1.55 * pi
+            local r = 68 - 36 * u
+            return 110 + r * cos(a), 267 + r * sin(a)
+        end, s), "horns")
+        inside(peg(CX + s * (112 - CX), 270))
+        add(peg(CX + s * (68 - CX), 150))
+        add(peg(CX + s * (100 - CX), 172))
+        if dens > 0.6 then
+            add(peg(CX + s * (150 - CX), 150))
+            add(peg(CX + s * (182 - CX), 172))
+        end
+        if dens > 0.5 then
+            add(barrier(CX + s * (128 - CX), 470, s * 0.3, 70))
+            add(barrier(CX + s * (232 - CX), 492, s * 0.15, 60))
+        end
+    end
+    add(peg(CX, 205))
+    openRow(add, 388, 60, 60, 40)
+    openRow(add, 425, 60, 60, 40, true)
+end }
+
+-- Cloudbow: three bows of bricks from high on one wall over to a cloud of
+-- loops low on the other side; pegs under the bows and a line beyond them.
+FAMILIES[#FAMILIES + 1] = { name = "Cloudbow", composed = true, build = function(rng, add, d, dens)
+    local s = (rng() < 0.5) and 1 or -1
+    -- the cloud first, where the bows come down: their ends stop on it
+    for _, c in ipairs({ { 455, 442, 40 }, { 395, 458, 32 }, { 514, 464, 30 } }) do
+        hero(add, flipX(openCircle(c[1], c[2], c[3], -pi / 2, 0.01), s), "cloud", { seg = 30 })
+    end
+    for i, r in ipairs({ 230, 280, 330 }) do
+        if i > 1 or dens > 0.4 then
+            hero(add, flipX(function(t)
+                local a = 0.55 * pi - t * 0.47 * pi
+                return 110 + r * cos(a), 480 - r * sin(a)
+            end, s), "bow" .. i)
+        end
+    end
+    hexFill(function(p, g)
+        p.x = CX + s * (p.x - CX)
+        return add(p, g)
+    end, function(x, y)
+        local dd = sqrt((x - 110) ^ 2 + (y - 480) ^ 2)
+        return x > 52 and dd < 190 and dd > 40
+    end, 300, 500, 50 - 4 * dens)
+    pegsAlong(function(p, g) p.x = CX + s * (p.x - CX); return add(p, g) end, line(350, 145, 548, 292), 50)
+    if dens > 0.6 then
+        pegsAlong(function(p, g) p.x = CX + s * (p.x - CX); p.pocket = true; return add(p, g) end, line(430, 140, 552, 230), 48)
+    end
+end }
+
+-- Sealed Letter: a closed envelope of bricks with pinched sides and a flap;
+-- break in and the ball rattles round the rows and the diamond inside.
+FAMILIES[#FAMILIES + 1] = { name = "Sealed Letter", composed = true, build = function(rng, add, d, dens)
+    local top, bottom = 165, 425
+    hero(add, line(110, top, 490, top), "letter")
+    hero(add, function(t) return 110 + 35 * sin(pi * t), top + (bottom - top) * t end, "letter")
+    hero(add, function(t) return 490 - 35 * sin(pi * t), top + (bottom - top) * t end, "letter")
+    hero(add, function(t) return 110 + 380 * t, bottom + 12 * sin(pi * t) end, "letter")
+    if dens > 0.4 then
+        hero(add, line(150, 186, CX, 288), "flap")
+        hero(add, line(CX, 288, 450, 186), "flap")
+    end
+    openRow(add, 205, 44, 205, 0)
+    openRow(add, 245, 44, 245, 0, true)
+    diamond(add, CX, 338, 42, 3)
+    add(peg(CX, 338))
+    brickArc(add, CX, 330, 70, 0.55, "smile")
+    if dens > 0.6 then
+        local corner = tagged(add, { pocket = true })
+        for _, s in ipairs({ 1, -1 }) do
+            corner(peg(CX + s * (178 - CX), 395))
+            corner(peg(CX + s * (182 - CX), 300))
+        end
+    end
+    for _, s in ipairs({ 1, -1 }) do add(bumper(CX + s * (56 - CX), 295)) end
+end }
+
+-- Figure Eight: two loops joined in the middle, open at the top, a ring in
+-- each; a breathing band; brick roofs over peg pockets in the low corners.
+FAMILIES[#FAMILIES + 1] = { name = "Figure Eight", composed = true, build = function(rng, add, d, dens)
+    local cy, r = 245, 98
+    for _, s in ipairs({ 1, -1 }) do
+        local cx = CX - s * 102
+        hero(add, openCircle(cx, cy, r, -pi / 2, 0.42), "eight")
+        ring(add, cx, cy, 50, 8, pi / 8)
+        tagged(add, { pocket = true })(peg(cx, cy))
+    end
+    if dens > 0.4 then
+        local pocket = tagged(add, { pocket = true })
+        for _, s in ipairs({ 1, -1 }) do
+            hero(add, flipX(line(42, 402, 215, 470), s), "roof" .. s)
+            for _, q in ipairs({ { 62, 448 }, { 62, 492 }, { 100, 474 }, { 102, 500 }, { 142, 495 } }) do
+                pocket(peg(CX + s * (q[1] - CX), q[2]))
+            end
+        end
+    end
+    if dens > 0.7 then openRow(add, 150, 50, 160, 60, true) end
+end }
+
+-- Spoked Star: five inward-curving arcs make a star, open at its points;
+-- spokes and a pentagon of pegs in its heart, pegs lining the arcs.
+FAMILIES[#FAMILIES + 1] = { name = "Spoked Star", composed = true, build = function(rng, add, d, dens)
+    local cx, cy, R = CX, 312, 188
+    local function at(a, r) return cx + r * cos(a), cy + r * sin(a) end
+    local tip = tagged(add, { accent = true })
+    for k = 0, 4 do
+        local a0 = -pi / 2 + k * 2 * pi / 5
+        local a1 = a0 + 2 * pi / 5
+        local am = (a0 + a1) / 2
+        local x0, y0 = at(a0, R)
+        local x1, y1 = at(a1, R)
+        local mx, my = at(am, 46)
+        hero(add, function(t)
+            t = 0.1 + 0.8 * t
+            local u = 1 - t
+            return u * u * x0 + 2 * u * t * mx + t * t * x1, u * u * y0 + 2 * u * t * my + t * t * y1
+        end, "arc" .. k)
+        local sx0, sy0 = at(a0, 40)
+        local sx1, sy1 = at(a0, 98)
+        hero(add, line(sx0, sy0, sx1, sy1), "spoke" .. k)
+        add(peg(at(am, 50)))
+        add(peg(at(am, 76)))
+        if dens > 0.5 then tip(peg(at(a0, R - 16))) end
+        if dens > 0.7 then add(peg(at(am, 150))) end
+    end
+end }
+
+-- Sunburst: a bumper where the eye goes first, brick rays and spokes of
+-- pegs by turns around it; the oranges favour the outer ends.
+FAMILIES[#FAMILIES + 1] = { name = "Sunburst", composed = true, build = function(rng, add, d, dens)
+    local cx, cy = CX, 300
+    add(bumper(cx, cy))
+    local spokes = (dens < 0.55) and 8 or 12
+    local tip = tagged(add, { accent = true })
+    for k = 0, spokes - 1 do
+        local a = k * 2 * pi / spokes
+        local ca, sa = cos(a), sin(a)
+        local up = math.abs(sa + 1) < 0.05
+        if k % 2 == 0 and not up then
+            hero(add, line(cx + 62 * ca, cy + 62 * sa, cx + 176 * ca, cy + 176 * sa), "ray" .. k)
+        else
+            for i, r in ipairs({ 58, 98, 138, 178 }) do
+                if not (up and r > 100) then
+                    local p = peg(cx + r * ca, cy + r * sa)
+                    if i == 4 then tip(p) else add(p) end
+                end
+            end
+        end
+        if math.abs(sa) < 0.01 then
+            add(peg(cx + 218 * ca, cy))
+            tip(peg(cx + 255 * ca, cy))
+        end
+    end
+    if dens > 0.7 then
+        for k = 0, spokes - 1 do
+            local a = (k + 0.5) * 2 * pi / spokes
+            if sin(a) > -0.9 then add(peg(cx + 205 * cos(a), cy + 205 * sin(a))) end
+        end
+    end
+end }
+
+-- Cup Rows: shallow brick cups staggered like a honeycomb, each holding a
+-- peg; whatever falls from one cup is caught by the next.
+FAMILIES[#FAMILIES + 1] = { name = "Cup Rows", composed = true, build = function(rng, add, d, dens)
+    local rows = math.min(4, 3 + floor(dens * 1.6))
+    local ys = { 172, 258, 344, 430 }
+    for r = 1, rows do
+        local xs = (r % 2 == 1) and { CX - 160, CX, CX + 160 } or { CX - 240, CX - 80, CX + 80, CX + 240 }
+        for i, x in ipairs(xs) do
+            local y = ys[r]
+            hero(add, function(t)
+                local a = pi / 2 + 1.15 * (2 * t - 1)
+                return x + 36 * cos(a), y + 36 * sin(a)
+            end, ("cup%d_%d"):format(r, i), { seg = 30 })
+            local p = peg(x, y + 14)
+            if x < 90 or x > W - 90 then p.pocket = true end
+            add(p)
+        end
+    end
+end }
+
+-- Watchful Eyes: two eyes of nested open rings whose gaps never line up, a
+-- single-file nose between them and a wavy smile of pegs below.
+FAMILIES[#FAMILIES + 1] = { name = "Watchful Eyes", composed = true, build = function(rng, add, d, dens)
+    local ey = 236
+    for _, s in ipairs({ 1, -1 }) do
+        local ex = 172
+        hero(add, flipX(openCircle(ex, ey, 78, pi / 4, 0.42), s), "eyeA" .. s)
+        hero(add, flipX(openCircle(ex, ey, 52, -3 * pi / 4, 0.5), s), "eyeB" .. s)
+        if dens > 0.6 then hero(add, flipX(openCircle(ex, ey, 27, pi / 2, 0.6), s), "eyeC" .. s, { seg = 22 }) end
+        tagged(add, { pocket = true })(peg(CX + s * (ex - CX), ey))
+    end
+    for k = 0, 3 do add(peg(CX, 200 + k * 40)) end
+    local rows = (dens < 0.5) and 2 or 3
+    for r = 0, rows - 1 do
+        local y = 385 + r * 40
+        for k = 0, 8 do
+            local dx = (k + ((r % 2 == 1) and 0.5 or 0)) * 62
+            if CX - dx < 55 then break end
+            if dx >= 30 or r == 1 then
+                local yy = y + 12 * cos(dx / 60)
+                add(peg(CX - dx, yy))
+                if dx > 0 then add(peg(CX + dx, yy)) end
+            end
+        end
+    end
+end }
+
+-- Acorn Jar: steel walls in an acorn's shape with a drain at the bottom, a
+-- breakable brick cap with an opening at the top, a dense grid inside.
+FAMILIES[#FAMILIES + 1] = { name = "Acorn Jar", composed = true, build = function(rng, add, d, dens)
+    local wall = bezier(150, 215, 55, 285, 110, 480, CX - 24, 498)
+    local cap = bezier(150, 215, 170, 172, 230, 156, CX - 34, 158)
+    local poly = {}
+    for k = 10, 0, -1 do local x, y = cap(k / 10); poly[#poly + 1] = { x, y } end
+    for k = 1, 20 do local x, y = wall(k / 20); poly[#poly + 1] = { x, y } end
+    for i = #poly, 1, -1 do poly[#poly + 1] = { 2 * CX - poly[i][1], poly[i][2] } end
+    for _, s in ipairs({ 1, -1 }) do
+        hero(add, flipX(wall, s), "acorn" .. s, { solid = true })
+        hero(add, flipX(cap, s), "acorn" .. s)
+    end
+    hexFill(add, function(x, y)
+        if not inPoly(poly, x, y) then return false end
+        return (y > 440) and "pocket" or true
+    end, 196, 484, 40 + 8 * (1 - dens))
+end }
+
+-- Brass Brackets: two steel brackets ( ) keep the ball in play round a
+-- drawing of brick ribbons: a hook with pegs beside it, a teardrop loop
+-- (a Super Slide) and an S.
+FAMILIES[#FAMILIES + 1] = { name = "Brass Brackets", composed = true, build = function(rng, add, d, dens)
+    local s = (rng() < 0.5) and 1 or -1
+    local function mirrored(p, g) p.x = CX + s * (p.x - CX); return add(p, g) end
+    for _, side in ipairs({ 1, -1 }) do
+        hero(add, flipX(function(t)
+            local a = -0.37 + 0.74 * t
+            return 420 - 360 * cos(a), 320 + 360 * sin(a)
+        end, side), "bracket" .. side, { solid = true })
+    end
+    hero(add, flipX(bezier(170, 168, 165, 300, 150, 400, 232, 412), s), "hook")
+    pegsAlong(mirrored, bezier(128, 178, 122, 300, 112, 390, 170, 452), 50)
+    hero(add, flipX(function(t)
+        local u = 0.32 + t * (2 * pi - 0.64)
+        return CX + 62 * sin(u) * sin(u / 2), 210 + 92 * (1 - cos(u))
+    end, s), "drop", { rail = true })
+    local inside = tagged(mirrored, { pocket = true })
+    inside(peg(CX, 330))
+    inside(peg(CX - 24, 360))
+    inside(peg(CX + 24, 360))
+    hero(add, flipX(bezier(415, 168, 492, 250, 348, 330, 430, 440), s), "ribbon")
+    if dens > 0.55 then
+        for _, q in ipairs({ { 220, 150 }, { 262, 165 }, { 470, 300 }, { 360, 470 }, { 300, 485 } }) do mirrored(peg(q[1], q[2])) end
+    end
+end }
+
+-- Grand Spiral: one long spiral rail filling the board, its mouth on the
+-- upper flank; a shot laid into it can ride half the level.
+FAMILIES[#FAMILIES + 1] = { name = "Grand Spiral", composed = true, build = function(rng, add, d, dens)
+    local dir = (rng() < 0.5) and 1 or -1
+    local a0 = (dir > 0) and -3.0 or (-pi + 3.0)
+    local cy = 316
+    hero(add, function(t)
+        local a = a0 - dir * t * 1.6 * 2 * pi
+        local r = 205 - 140 * t
+        return CX + r * cos(a), cy + r * sin(a) * 0.92
+    end, "grand", { rail = true })
+    ring(add, CX, cy, 30, 4, pi / 4)
+    if dens > 0.6 then
+        local corner = tagged(add, { pocket = true })
+        for _, q in ipairs({ { 62, 150 }, { 538, 150 }, { 60, 490 }, { 540, 490 } }) do corner(peg(q[1], q[2])) end
+    end
+end }
+
+-- Which family each level draws: the composed pictures twice as often as
+-- the older patterns (the Grand Spiral, a showpiece, once), merged evenly
+-- so that neighbouring levels never share a picture.
+do
+    local composed, older = {}, {}
+    for _, f in ipairs(FAMILIES) do
+        if f.composed then composed[#composed + 1] = f else older[#older + 1] = f end
+    end
+    -- the second copies a few places on, so no picture follows itself
+    local a = {}
+    for _, f in ipairs(composed) do a[#a + 1] = f end
+    for i = 1, #composed do
+        local f = composed[((i + 5) % #composed) + 1]
+        if f.name ~= "Grand Spiral" then a[#a + 1] = f end
+    end
+    local order, ia, ib = {}, 1, 1
+    for _ = 1, #a + #older do
+        -- from each list in proportion to its length
+        if ib > #older or (ia <= #a and (ia - 1) * #older <= (ib - 1) * #a) then
+            order[#order + 1] = a[ia]; ia = ia + 1
+        else
+            order[#order + 1] = older[ib]; ib = ib + 1
+        end
+    end
+    L.FAMILY_ORDER = order
+end
+
 L.FAMILIES = FAMILIES
 
 -- ---------------------------------------------------------------------
@@ -986,10 +1487,15 @@ end
 
 -- Oranges climb with the level: 3 on level 1, 8 by the end of chapter 1,
 -- 15 by level 40, 30 by the last level. Piece counts come from the pattern.
+-- The level before each boss or duel (ending 9) is a breather with fewer.
+L.BREATHER_SHARE = 0.6
 function L:Counts(n)
     if n <= 10 then return 3 + floor((n - 1) * 0.6) end
-    if n <= 40 then return 8 + floor((n - 10) * 7 / 30 + 0.5) end
-    return floor(15 + 15 * (n - 40) / (self.COUNT - 40) + 0.5)
+    local c
+    if n <= 40 then c = 8 + floor((n - 10) * 7 / 30 + 0.5)
+    else c = floor(15 + 15 * (n - 40) / (self.COUNT - 40) + 0.5) end
+    if n % 10 == 9 then c = math.max(6, floor(c * self.BREATHER_SHARE + 0.5)) end
+    return c
 end
 
 -- Eggs or gems on a level: 3 -> 6.
@@ -1208,6 +1714,86 @@ end
 L.CradleFor = cradleFor
 L.SurfaceDist = function(p, q) return surfaceDist(p, q) end
 
+-- How strongly a piece draws an orange: bricks of a structure, the caps
+-- at their ends, pieces tucked into pockets and the tips of a radial
+-- picture most; the filler pegs between stay mostly blue.
+local function orangeWeight(p)
+    local w = 1
+    if p.shape == "brick" then w = w + 1 end
+    if p.hero then w = w + 0.5 end
+    if p.cap then w = w + 1.5 end
+    if p.pocket then w = w + 2 end
+    if p.accent then w = w + 1.5 end
+    return w
+end
+L.ORANGE_SPREAD = 70        -- field pixels: an orange this close to another draws less
+-- Deals `want` more oranges into `chosen` (indexes into pegs) from `order`,
+-- one at a time by weight, each lowering the draw of its neighbours so
+-- the oranges spread over every structure instead of bunching.
+local function dealOranges(pegs, order, chosen, want, rng)
+    local pool, w, crowd = {}, {}, {}
+    for _, idx in ipairs(order) do
+        if not chosen[idx] then
+            pool[#pool + 1] = idx
+            w[idx], crowd[idx] = orangeWeight(pegs[idx]), 0
+        end
+    end
+    local R2 = L.ORANGE_SPREAD ^ 2
+    local function crowdAround(idx)
+        local p = pegs[idx]
+        for _, j in ipairs(pool) do
+            local q = pegs[j]
+            if (p.x - q.x) ^ 2 + (p.y - q.y) ^ 2 < R2 then crowd[j] = crowd[j] + 1 end
+        end
+    end
+    for _, idx in ipairs(order) do if chosen[idx] then crowdAround(idx) end end
+    local function draw(j) return w[j] / (1 + 1.5 * crowd[j]) end
+    for _ = 1, want do
+        local total = 0
+        for _, j in ipairs(pool) do if not chosen[j] then total = total + draw(j) end end
+        if total <= 0 then break end
+        local roll, pick = rng() * total, nil
+        for _, j in ipairs(pool) do
+            if not chosen[j] then
+                pick = j
+                roll = roll - draw(j)
+                if roll <= 0 then break end
+            end
+        end
+        chosen[pick] = true
+        crowdAround(pick)
+    end
+end
+
+-- The greens go where the first shots land: in the upper part of the
+-- board, one either side of the middle where both sides have room.
+-- `order` is already shuffled, so the first fit is a fair pick.
+local function pickGreens(pegs, order, chosen, count)
+    local free, ys = {}, {}
+    for _, idx in ipairs(order) do
+        if not chosen[idx] then
+            free[#free + 1] = idx
+            ys[#ys + 1] = pegs[idx].y
+        end
+    end
+    local got, n = {}, 0
+    if count <= 0 or #free == 0 then return got end
+    table.sort(ys)
+    local high = ys[math.max(1, math.ceil(#ys * 0.4))]
+    local mid = E.FIELD_W / 2
+    local function take(test)
+        if n >= count then return end
+        for _, idx in ipairs(free) do
+            if not got[idx] and test(pegs[idx]) then got[idx] = true; n = n + 1 return end
+        end
+    end
+    take(function(p) return p.y <= high and p.x < mid - 20 end)
+    take(function(p) return p.y <= high and p.x > mid + 20 end)
+    for _ = n + 1, count do take(function(p) return p.y <= high end) end
+    for _ = n + 1, count do take(function() return true end) end
+    return got
+end
+
 -- attempt (0, 1, 2...) reshuffles which pieces are orange, egg or gem on a
 -- retry; the picture itself never changes.
 -- opts.stage2: the duel's second board, sparser and with fewer oranges.
@@ -1222,14 +1808,18 @@ function L:Build(n, attempt, opts)
     local chapter = floor((n - 1) / self.PER_CHAPTER) + 1
     local d = self:Difficulty(n)
     local objective = self:Objective(n)
-    local family = (n <= 10) and STARTERS[n] or FAMILIES[((n + chapter) % #FAMILIES) + 1]
+    local ORDER = self.FAMILY_ORDER
+    local family = (n <= 10) and STARTERS[n] or ORDER[((n + chapter) % #ORDER) + 1]
     local lsTutorial = n == self.LONGSHOT_TUTORIAL and not opts.stage2
     if lsTutorial then family = LONGSHOT_WALLS end
     local dens = self:Density(n)
     if opts.stage2 then
-        family = FAMILIES[((n + chapter + 3) % #FAMILIES) + 1]
+        family = ORDER[((n + chapter + 3) % #ORDER) + 1]
         dens = math.min(dens, 0.6)
     end
+    -- a new gimmick makes its debut on a sparse board: the layout is the lesson
+    local debut = (n % 10 == 1) and n >= 21 and (chapter - 2) <= #self.GIMMICK_ORDER
+    if debut then dens = math.min(dens, 0.5) end
     local bossDef, bossHp
     if objective == "boss" then bossDef, bossHp = self:BossFor(n) end
     local duelDef, duelTurns
@@ -1308,7 +1898,7 @@ function L:Build(n, attempt, opts)
         g.build(rng, add, mover, exclude, d)
         gimmickNames[#gimmickNames + 1] = g.name
     end
-    if not opts.stage2 and not lsTutorial then placeRails(rng, add, n, self:RailCount(n)) end
+    if not opts.stage2 and not lsTutorial and not family.composed then placeRails(rng, add, n, self:RailCount(n)) end
     family.build(rng, add, d, dens)
     if not opts.stage2 and not lsTutorial then placeBalloons(rng, add, n, self:BalloonCount(n), pegs) end
     return pegs, movers, gimmickNames, rng
@@ -1319,7 +1909,6 @@ function L:Build(n, attempt, opts)
     for _, p in ipairs(pegs) do if not p.moving and not E.IsSolid(p) then static = static + 1 end end
     -- a gimmick that guts the pattern is dropped, except on the level that
     -- introduces it: a debut always shows
-    local debut = (n % 10 == 1) and n >= 21 and (chapter - 2) <= #self.GIMMICK_ORDER
     if static < self:MinPieces(n) and #gimmickNames > 0 and not debut then pegs, movers, gimmickNames, rng = assemble(false) end
     -- the eggs' and gems' spots belong to the layout: the level's own stream
     rng = E.NewRng(seed * 31 + 7)
@@ -1499,25 +2088,32 @@ function L:Build(n, attempt, opts)
         for _, idx in ipairs(edged) do order[#order + 1] = idx end
         for _, idx in ipairs(rest) do order[#order + 1] = idx end
     end
-    -- the pegs inside a key cage are orange first, the rest of the oranges
-    -- fall where the shuffle put them
+    -- the pegs inside a key cage are orange first; the rest are drawn by
+    -- weight (structures, caps, pockets, spread out: see dealOranges), except
+    -- on a Long Shot level, whose order is set above
     local greens = 2
     local forced = 0
     for _, idx in ipairs(order) do if pegs[idx].forceOrange then forced = forced + 1 end end
     if forced > orange then forced = orange end
-    local given, coloured = 0, 0
+    local chosen, given = {}, 0
     for _, idx in ipairs(order) do
-        local p = pegs[idx]
-        if p.forceOrange and given < forced then p.kind = "orange"; p.goal = objective ~= "longshots" and objective ~= "boss"; given = given + 1 end
+        if pegs[idx].forceOrange and given < forced then chosen[idx] = true; given = given + 1 end
     end
+    if objective == "longshots" then
+        local want = orange - given
+        for _, idx in ipairs(order) do
+            if want <= 0 then break end
+            if not chosen[idx] then chosen[idx] = true; want = want - 1 end
+        end
+    else
+        dealOranges(pegs, order, chosen, orange - given, rng)
+    end
+    local green = pickGreens(pegs, order, chosen, greens)
     for _, idx in ipairs(order) do
         local p = pegs[idx]
-        if not (p.forceOrange and p.kind == "orange") then
-            coloured = coloured + 1
-            if coloured <= orange - given then p.kind = "orange"; p.goal = objective ~= "longshots" and objective ~= "boss"
-            elseif coloured <= orange - given + greens then p.kind = "green"
-            else p.kind = "blue" end
-        end
+        if chosen[idx] then p.kind = "orange"; p.goal = objective ~= "longshots" and objective ~= "boss"
+        elseif green[idx] then p.kind = "green"
+        else p.kind = "blue" end
     end
 
     -- the Super Slide tutorial (level 8) is the spiral alone, and no green

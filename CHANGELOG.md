@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Composed levels:** 14 new level pictures, each built around one to three big brick structures with the pegs set around them in rows, grids, rings and lines: Gull Wings (three tiers of rails), Copper Bowl (a bowl holding a triangle of pegs), Filigree (corner curls, a swag rail and a scroll), Ram Horns (a hump that curls up at both ends), Cloudbow (three bows landing on a cloud), Sealed Letter (a closed envelope to break into), Figure Eight, Spoked Star, Sunburst (brick rays around a bumper), Cup Rows (staggered cups), Watchful Eyes (nested open rings), Acorn Jar (steel walls round a dense grid, with a drain), Brass Brackets (steel brackets round a teardrop Super Slide) and Grand Spiral (one long Super Slide). They make up about two thirds of the levels from 11 on; the older patterns fill the rest, and neighboring levels never share a picture. The level numbers, objectives, gimmicks and your editor-approved levels are unchanged, but most generated boards look different.
+- **Where the colors go:** oranges favor the structures over the filler pegs, especially brick ends, pieces tucked into curls and corners, and the tips of the star and sunburst, and they spread out instead of bunching. The two green pegs sit in the upper part of the board, one on each side, where the first shots land.
+- The level before each boss or duel (levels ending in 9) is a breather with fewer oranges, and a new gimmick makes its debut on a sparser board.
 - **The window fits the screen:** the game and the level editor shrink to fit when they are taller or wider than the screen (1080p, or a large UI scale), and refit when the resolution or UI scale changes. `/pachinko scale <40-150>` picks a size in percent (useful to enlarge it on a 4K screen); it still shrinks to fit. `/pachinko scale auto` goes back to fitting.
 
 ## Gnomish Pachinko v0.7.2 (2026-10-06)

@@ -4778,8 +4778,18 @@ function guide_vs_real(n)
   return worst, cases
 end
 """)
-gw, gc = ev("guide_vs_real")(21)          # the Slider debut
-gw2, gc2 = ev("guide_vs_real")(121)       # the Sliding Block
+def guide_on(gimmick):
+    # the first few levels with that gimmick where shots do reach the moving piece
+    worst, cases = 0, 0
+    for n in range(21, 401):
+        if cases >= 3:
+            break
+        if (ev(f"L:Build({n})").gimmick or "") == gimmick:
+            w, c = ev("guide_vs_real")(n)
+            worst, cases = max(worst, w), cases + c
+    return worst, cases
+gw, gc = guide_on("Slider")
+gw2, gc2 = guide_on("Sliding Block")
 check("the aim guide's ball meets a moving piece within a step of where the real ball does (slider and sliding block levels)",
       gc + gc2 >= 3 and max(gw, gw2) < 12, f"slider {gw:.1f}px over {gc}, block {gw2:.1f}px over {gc2}")
 
