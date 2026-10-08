@@ -119,9 +119,14 @@ function M:HasModel()
     return (not ok) or id ~= nil
 end
 
+local LOAD_TRIES = 16      -- quarter seconds a look is asked for before the next is tried
+
 function M:Load()
     local model = self.model
     if not model then return end
+    -- the old look goes first: until it does, the model still reports the
+    -- last host's file and a new host would read as already loaded
+    if model.ClearModel then pcall(model.ClearModel, model) end
     self.loadToken = (self.loadToken or 0) + 1
     local token = self.loadToken
     local list = self:Candidates()
@@ -136,16 +141,28 @@ function M:Load()
         self:Pose()
         self:Play("stand")
         self.loaded = c.label
-        if i >= #list then return end
-        -- give the model time to arrive before judging it
-        local check = function()
-            if token ~= self.loadToken then return end
-            if not self:HasModel() then
-                self.tried[#self.tried] = c.label .. " (no model)"
-                attempt(i + 1)
-            end
+        if i >= #list or self:HasModel() then return end
+        -- A creature the client has not cached yet arrives a moment later,
+        -- and only if it is asked for again (as the boss and talk-box models
+        -- are): ask every quarter second for a few seconds before judging
+        -- it missing and trying the next look.
+        if not (C_Timer and C_Timer.After) then
+            self.tried[#self.tried] = c.label .. " (no model)"
+            return attempt(i + 1)
         end
-        if C_Timer and C_Timer.After then C_Timer.After(1.5, check) else check() end
+        local function retry(left)
+            if token ~= self.loadToken then return end
+            if self:HasModel() then return end
+            if left <= 0 then
+                self.tried[#self.tried] = c.label .. " (no model)"
+                return attempt(i + 1)
+            end
+            pcall(c.fn, model)
+            self:Pose()
+            self:Play(self.held or "stand")
+            C_Timer.After(0.25, function() retry(left - 1) end)
+        end
+        C_Timer.After(0.25, function() retry(LOAD_TRIES) end)
     end
     attempt(1)
     return true
