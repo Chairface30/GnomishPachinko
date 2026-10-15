@@ -1,6 +1,6 @@
 # Gnomish Pachinko — Changelog
 
-## Unreleased
+## Gnomish Pachinko v0.8.0 (2026-10-15)
 
 - **The host's box switches to the new host reliably** (Bink in particular). A host the game had not loaded yet was asked for once and, if not there 1.5 seconds later, Tinkmaster stood in. Now the box clears the old host first and asks again every quarter second for up to four seconds.
 - **Cogwhistle shows in the host's box during his duel turns,** lit green like his portrait in the talk box. The host used to stay there while he shot. The host comes back for your turn and when the duel ends.
